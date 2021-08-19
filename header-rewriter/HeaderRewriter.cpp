@@ -31,13 +31,13 @@ static DeclarationMatcher fn_ptr_matcher =
 class FnPtrPrinter : public RefactoringCallback {
 public:
   virtual void run(const MatchFinder::MatchResult &Result) {
-    if (const clang::ParmVarDecl *PVD =
+    if (const clang::ParmVarDecl *parm_var_decl =
         Result.Nodes.getNodeAs<clang::ParmVarDecl>("fnPtrParam")) {
         auto new_param =
             llvm::formatv("struct IA2_fnptr_{0} {1}", Replace.size(),
-                          PVD->getName()).str();
+                          parm_var_decl->getName()).str();
 
-        Replacement r{*Result.SourceManager, PVD, new_param};
+        Replacement r{*Result.SourceManager, parm_var_decl, new_param};
         auto err = Replace.add(r);
         if (err) {
             llvm::errs() << "Error adding replacement: " << err << '\n';
@@ -47,13 +47,13 @@ public:
 };
 
 int main(int argc, const char **argv) {
-    CommonOptionsParser OptionsParser(argc, argv, HeaderRewriterCategory);
-    RefactoringTool Tool(OptionsParser.getCompilations(),
-                         OptionsParser.getSourcePathList());
+    CommonOptionsParser options_parser(argc, argv, HeaderRewriterCategory);
+    RefactoringTool tool(options_parser.getCompilations(),
+                         options_parser.getSourcePathList());
 
-    ASTMatchRefactorer refactorer(Tool.getReplacements());
+    ASTMatchRefactorer refactorer(tool.getReplacements());
     FnPtrPrinter printer;
     refactorer.addMatcher(fn_ptr_matcher, &printer);
 
-    return Tool.runAndSave(newFrontendActionFactory(&refactorer).get());
+    return tool.runAndSave(newFrontendActionFactory(&refactorer).get());
 }

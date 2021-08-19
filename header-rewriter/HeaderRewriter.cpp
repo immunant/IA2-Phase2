@@ -1,8 +1,11 @@
+#include "clang/ASTMatchers/ASTMatchers.h"
+#include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "clang/Frontend/FrontendActions.h"
 #include "clang/Tooling/CommonOptionsParser.h"
 #include "clang/Tooling/Tooling.h"
 #include "llvm/Support/CommandLine.h"
 
+using namespace clang::ast_matchers;
 using namespace clang::tooling;
 
 // Apply a custom category to all command-line options so that they are the
@@ -17,9 +20,25 @@ static llvm::cl::extrahelp CommonHelp(CommonOptionsParser::HelpMessage);
 // A help message for this specific tool can be added afterwards.
 static llvm::cl::extrahelp MoreHelp("\nMore help text...\n");
 
+static TypeMatcher fn_ptr_matcher =
+    pointerType(pointee(ignoringParens(functionType()))).bind("fnPtr");
+
+class FnPtrPrinter : public MatchFinder::MatchCallback {
+public :
+  virtual void run(const MatchFinder::MatchResult &Result) {
+    if (const clang::PointerType *FP = Result.Nodes.getNodeAs<clang::PointerType>("fnPtr"))
+      FP->dump();
+  }
+};
+
 int main(int argc, const char **argv) {
     CommonOptionsParser OptionsParser(argc, argv, HeaderRewriterCategory);
     ClangTool Tool(OptionsParser.getCompilations(),
                    OptionsParser.getSourcePathList());
-    return Tool.run(newFrontendActionFactory<clang::SyntaxOnlyAction>().get());
+
+    FnPtrPrinter printer;
+    MatchFinder finder;
+    finder.addMatcher(fn_ptr_matcher, &printer);
+
+    return Tool.run(newFrontendActionFactory(&finder).get());
 }

@@ -36,8 +36,8 @@ static llvm::cl::opt<std::string>
                           llvm::cl::desc("<wrapper output filename>"));
 
 static DeclarationMatcher fn_ptr_matcher =
-    parmVarDecl(hasType(pointerType(pointee(ignoringParens(functionType())))))
-        .bind("fnPtrParam");
+  parmVarDecl(hasType(pointerType(pointee(ignoringParens(functionType())))))
+    .bind("fnPtrParam");
 // TODO: struct field matcher
 
 static DeclarationMatcher fn_decl_matcher =
@@ -177,10 +177,10 @@ class FnPtrPrinter : public RefactoringCallback {
 public:
   virtual void run(const MatchFinder::MatchResult &Result) {
     if (const clang::ParmVarDecl *parm_var_decl =
-            Result.Nodes.getNodeAs<clang::ParmVarDecl>("fnPtrParam")) {
-      auto new_param = llvm::formatv("struct IA2_fnptr_{0} {1}", Replace.size(),
-                                     parm_var_decl->getName())
-                           .str();
+      Result.Nodes.getNodeAs<clang::ParmVarDecl>("fnPtrParam")) {
+      auto new_param =
+        llvm::formatv("struct IA2_fnptr_{0} {1}", Replace.size(),
+                      parm_var_decl->getName()).str();
 
       Replacement r{*Result.SourceManager, parm_var_decl, new_param};
       auto err = Replace.add(r);

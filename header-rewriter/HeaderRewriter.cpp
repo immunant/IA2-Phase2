@@ -1,18 +1,19 @@
-#include <clang/AST/AST.h>
-#include <clang/ASTMatchers/ASTMatchFinder.h>
-#include <clang/ASTMatchers/ASTMatchers.h>
-#include <clang/Basic/FileManager.h>
-#include <clang/Basic/SourceManager.h>
-#include <clang/Frontend/FrontendActions.h>
-#include <clang/Tooling/CommonOptionsParser.h>
-#include <clang/Tooling/Refactoring.h>
-#include <clang/Tooling/RefactoringCallbacks.h>
-#include <clang/Tooling/Tooling.h>
 #include <fstream>
-#include <llvm/Support/CommandLine.h>
-#include <llvm/Support/FormatVariadic.h>
-#include <llvm/Support/raw_ostream.h>
 #include <map>
+
+#include "clang/AST/AST.h>
+#include "clang/ASTMatchers/ASTMatchFinder.h"
+#include "clang/ASTMatchers/ASTMatchers.h"
+#include "clang/Basic/FileManager.h"
+#include "clang/Basic/SourceManager.h"
+#include "clang/Frontend/FrontendActions.h"
+#include "clang/Tooling/CommonOptionsParser.h"
+#include "clang/Tooling/Refactoring.h"
+#include "clang/Tooling/RefactoringCallbacks.h"
+#include "clang/Tooling/Tooling.h"
+#include "llvm/Support/CommandLine.h"
+#include "llvm/Support/FormatVariadic.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace clang::ast_matchers;
 using namespace clang::tooling;
@@ -36,8 +37,8 @@ static llvm::cl::opt<std::string>
                           llvm::cl::desc("<wrapper output filename>"));
 
 static DeclarationMatcher fn_ptr_matcher =
-  parmVarDecl(hasType(pointerType(pointee(ignoringParens(functionType())))))
-    .bind("fnPtrParam");
+    parmVarDecl(hasType(pointerType(pointee(ignoringParens(functionType())))))
+        .bind("fnPtrParam");
 // TODO: struct field matcher
 
 static DeclarationMatcher fn_decl_matcher =
@@ -72,7 +73,7 @@ public:
 
         if (!isInitialized(header_ref)) {
           if (addHeaderImport(header_name)) {
-              return;
+            return;
           }
           WrapperOut << llvm::formatv("#include \"{0}\"\n", header_name);
           InitializedHeaders.push_back(header_ref);
@@ -146,12 +147,12 @@ private:
   std::vector<clang::FileEntryRef> InitializedHeaders;
 
   bool isCanonicalDecl(const clang::FunctionDecl *fn_decl) {
-      return (fn_decl == fn_decl->getCanonicalDecl());
+    return (fn_decl == fn_decl->getCanonicalDecl());
   }
 
   bool inSources(clang::FileEntryRef InputHeader) {
     auto matchingIDs = [&](clang::FileEntryRef header) {
-        return header.getUniqueID() == InputHeader.getUniqueID();
+      return header.getUniqueID() == InputHeader.getUniqueID();
     };
     return std::find_if(Sources.begin(), Sources.end(), matchingIDs) !=
            Sources.end();
@@ -177,10 +178,10 @@ class FnPtrPrinter : public RefactoringCallback {
 public:
   virtual void run(const MatchFinder::MatchResult &Result) {
     if (const clang::ParmVarDecl *parm_var_decl =
-      Result.Nodes.getNodeAs<clang::ParmVarDecl>("fnPtrParam")) {
-      auto new_param =
-        llvm::formatv("struct IA2_fnptr_{0} {1}", Replace.size(),
-                      parm_var_decl->getName()).str();
+            Result.Nodes.getNodeAs<clang::ParmVarDecl>("fnPtrParam")) {
+      auto new_param = llvm::formatv("struct IA2_fnptr_{0} {1}", Replace.size(),
+                                     parm_var_decl->getName())
+                           .str();
 
       Replacement r{*Result.SourceManager, parm_var_decl, new_param};
       auto err = Replace.add(r);

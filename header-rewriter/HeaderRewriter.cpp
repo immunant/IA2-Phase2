@@ -36,11 +36,6 @@ static llvm::cl::opt<std::string>
                           llvm::cl::cat(HeaderRewriterCategory),
                           llvm::cl::desc("<wrapper output filename>"));
 
-static DeclarationMatcher fn_ptr_matcher =
-    parmVarDecl(hasType(pointerType(pointee(ignoringParens(functionType())))))
-        .bind("fnPtrParam");
-// TODO: struct field matcher
-
 static DeclarationMatcher fn_decl_matcher =
     functionDecl(unless(isDefinition())).bind("exportedFn");
 
@@ -174,16 +169,34 @@ private:
   }
 };
 
+static TypeMatcher fn_ptr_matcher =
+    pointerType(pointee(ignoringParens(functionType())));
+static DeclarationMatcher fn_ptr_param_matcher =
+    parmVarDecl(hasType(fn_ptr_matcher)).bind("fnPtrParam");
+static DeclarationMatcher fn_ptr_field_matcher =
+    fieldDecl(hasType(fn_ptr_matcher)).bind("fnPtrField");
+
 class FnPtrPrinter : public RefactoringCallback {
 public:
   virtual void run(const MatchFinder::MatchResult &Result) {
-    if (const clang::ParmVarDecl *parm_var_decl =
+    const clang::Decl *old_decl = nullptr;
+    std::string new_decl;
+    if (auto *parm_var_decl =
             Result.Nodes.getNodeAs<clang::ParmVarDecl>("fnPtrParam")) {
-      auto new_param = llvm::formatv("struct IA2_fnptr_{0} {1}", Replace.size(),
-                                     parm_var_decl->getName())
-                           .str();
+      old_decl = llvm::cast<clang::Decl>(parm_var_decl);
+      new_decl = llvm::formatv("struct IA2_fnptr_{0} {1}", Replace.size(),
+                               parm_var_decl->getName())
+                     .str();
+    } else if (auto *field_decl =
+                   Result.Nodes.getNodeAs<clang::FieldDecl>("fnPtrField")) {
+      old_decl = llvm::cast<clang::Decl>(field_decl);
+      new_decl = llvm::formatv("struct IA2_fnptr_{0} {1}", Replace.size(),
+                               field_decl->getName())
+                     .str();
+    }
 
-      Replacement r{*Result.SourceManager, parm_var_decl, new_param};
+    if (old_decl != nullptr) {
+      Replacement r{*Result.SourceManager, old_decl, new_decl};
       auto err = Replace.add(r);
       if (err) {
         llvm::errs() << "Error adding replacement: " << err << '\n';
@@ -235,8 +248,9 @@ int main(int argc, const char **argv) {
   FnPtrPrinter printer;
   FnDecl decl_replacement(wrapper_out, syms_out, tool.getReplacements(),
                           input_files);
-  // refactorer.addMatcher(fn_ptr_matcher, &printer);
   refactorer.addMatcher(fn_decl_matcher, &decl_replacement);
+  refactorer.addMatcher(fn_ptr_param_matcher, &printer);
+  refactorer.addMatcher(fn_ptr_field_matcher, &printer);
 
   auto rc = tool.runAndSave(newFrontendActionFactory(&refactorer).get());
 

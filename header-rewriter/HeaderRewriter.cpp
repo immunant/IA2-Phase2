@@ -8,6 +8,7 @@
 #include "clang/Tooling/Tooling.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FormatVariadic.h"
+#include <fstream>
 
 using namespace clang::ast_matchers;
 using namespace clang::tooling;
@@ -37,29 +38,53 @@ public:
   virtual void run(const MatchFinder::MatchResult &Result) {
     if (const clang::FunctionDecl *fn_decl =
             Result.Nodes.getNodeAs<clang::FunctionDecl>("exportedFn")) {
-      auto new_decl =
-          llvm::formatv("__libia2_{0}", fn_decl->getNameInfo().getAsString())
+      std::string original_decl;
+      llvm::raw_string_ostream os(original_decl);
+      fn_decl->print(os);
+      original_decl.append(";\n");
+
+      Replacement prepend_original{*Result.SourceManager,
+                                   fn_decl->getSourceRange().getBegin(), 0,
+                                   original_decl};
+
+      // TODO: Handle attributes on wrapper
+      auto fn_name = fn_decl->getNameInfo().getAsString();
+      auto wrapper_name = "__libia2_" + fn_name;
+      auto ret = fn_decl->getReturnType().getAsString();
+
+      std::string param_decls;
+      std::string param_names;
+
+      for (auto &p : fn_decl->parameters()) {
+        if (!param_names.empty()) {
+          param_decls.append(", ");
+          param_names.append(", ");
+        }
+        param_decls.append(p->getType().getAsString() + " ");
+        auto name = p->getNameAsString();
+        if (name.empty()) {
+          auto n = &p - fn_decl->param_begin();
+          name = llvm::formatv("__libia2_arg_{0}", n);
+        }
+        param_decls.append(name);
+        param_names.append(name);
+      }
+
+      auto body =
+          llvm::formatv("{0} {1}({2}) {\n    return {3}({4});\n}\n#undef "
+                        "{3}\n#define {3} {1}\n",
+                        ret, wrapper_name, param_decls, fn_name, param_names)
               .str();
-      Replacement change_name{*Result.SourceManager,
-                              Result.SourceManager->getExpansionRange(
-                                  fn_decl->getNameInfo().getSourceRange()),
-                              new_decl};
-      auto err = Replace.add(change_name);
+      Replacement create_wrapper{
+          *Result.SourceManager,
+          Result.SourceManager->getExpansionRange(fn_decl->getSourceRange()),
+          body};
+
+      auto err = Replace.add(prepend_original);
       if (err) {
         llvm::errs() << "Error adding replacement: " << err << '\n';
       }
-
-      std::string wrapper_decl;
-      llvm::raw_string_ostream os(wrapper_decl);
-      fn_decl->print(os);
-      auto wrapper_body = llvm::formatv("{ __libia2_{0}(); }\n",
-                                        fn_decl->getNameInfo().getAsString())
-                              .str();
-      wrapper_decl.append(wrapper_body);
-      auto make_wrapper =
-          Replacement(*Result.SourceManager,
-                      fn_decl->getSourceRange().getBegin(), 0, wrapper_decl);
-      err = Replace.add(make_wrapper);
+      err = Replace.add(create_wrapper);
       if (err) {
         llvm::errs() << "Error adding replacement: " << err << '\n';
       }
@@ -87,13 +112,18 @@ public:
 
 int main(int argc, const char **argv) {
   CommonOptionsParser options_parser(argc, argv, HeaderRewriterCategory);
+  for (auto s : options_parser.getSourcePathList()) {
+    std::ifstream src(s, std::ios::binary);
+    std::ofstream dst(s.append(".orig"), std::ios::binary);
+    dst << src.rdbuf();
+  }
   RefactoringTool tool(options_parser.getCompilations(),
                        options_parser.getSourcePathList());
 
   ASTMatchRefactorer refactorer(tool.getReplacements());
   FnPtrPrinter printer;
   FnDecl decl_replacement;
-  refactorer.addMatcher(fn_ptr_matcher, &printer);
+  // refactorer.addMatcher(fn_ptr_matcher, &printer);
   refactorer.addMatcher(fn_decl_matcher, &decl_replacement);
 
   return tool.runAndSave(newFrontendActionFactory(&refactorer).get());

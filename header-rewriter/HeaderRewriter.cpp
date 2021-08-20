@@ -175,6 +175,8 @@ static DeclarationMatcher fn_ptr_param_matcher =
     parmVarDecl(hasType(fn_ptr_matcher)).bind("fnPtrParam");
 static DeclarationMatcher fn_ptr_field_matcher =
     fieldDecl(hasType(fn_ptr_matcher)).bind("fnPtrField");
+static DeclarationMatcher fn_ptr_typedef_matcher =
+  typedefNameDecl(hasType(fn_ptr_matcher)).bind("fnPtrTypedef");
 
 class FnPtrPrinter : public RefactoringCallback {
 public:
@@ -192,6 +194,18 @@ public:
       old_decl = llvm::cast<clang::Decl>(field_decl);
       new_decl = llvm::formatv("struct IA2_fnptr_{0} {1}", Replace.size(),
                                field_decl->getName())
+                     .str();
+    } else if (auto *typedef_decl =
+                   Result.Nodes.getNodeAs<clang::TypedefDecl>("fnPtrTypedef")) {
+      old_decl = llvm::cast<clang::Decl>(typedef_decl);
+      new_decl = llvm::formatv("typedef struct IA2_fnptr_{0} {1}", Replace.size(),
+                               typedef_decl->getName())
+                     .str();
+    } else if (auto *type_alias_decl =
+                   Result.Nodes.getNodeAs<clang::TypeAliasDecl>("fnPtrTypedef")) {
+      old_decl = llvm::cast<clang::Decl>(type_alias_decl);
+      new_decl = llvm::formatv("using {1} = struct IA2_fnptr_{0}", Replace.size(),
+                               type_alias_decl->getName())
                      .str();
     }
 
@@ -251,6 +265,7 @@ int main(int argc, const char **argv) {
   refactorer.addMatcher(fn_decl_matcher, &decl_replacement);
   refactorer.addMatcher(fn_ptr_param_matcher, &printer);
   refactorer.addMatcher(fn_ptr_field_matcher, &printer);
+  refactorer.addMatcher(fn_ptr_typedef_matcher, &printer);
 
   auto rc = tool.runAndSave(newFrontendActionFactory(&refactorer).get());
 

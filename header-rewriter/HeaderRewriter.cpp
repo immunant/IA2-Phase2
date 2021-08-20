@@ -41,11 +41,6 @@ public:
       std::string original_decl;
       llvm::raw_string_ostream os(original_decl);
       fn_decl->print(os);
-      original_decl.append(";\n");
-
-      Replacement prepend_original{*Result.SourceManager,
-                                   fn_decl->getSourceRange().getBegin(), 0,
-                                   original_decl};
 
       // TODO: Handle attributes on wrapper
       auto fn_name = fn_decl->getNameInfo().getAsString();
@@ -71,20 +66,17 @@ public:
       }
 
       auto body =
-          llvm::formatv("{0} {1}({2}) {\n    return {3}({4});\n}\n#undef "
+          llvm::formatv("{5};\n{0} {1}({2}) {\n    return {3}({4});\n}\n#undef "
                         "{3}\n#define {3} {1}\n",
-                        ret, wrapper_name, param_decls, fn_name, param_names)
+                        ret, wrapper_name, param_decls, fn_name, param_names,
+                        original_decl)
               .str();
-      Replacement create_wrapper{
+      Replacement wrap_decl{
           *Result.SourceManager,
           Result.SourceManager->getExpansionRange(fn_decl->getSourceRange()),
           body};
 
-      auto err = Replace.add(prepend_original);
-      if (err) {
-        llvm::errs() << "Error adding replacement: " << err << '\n';
-      }
-      err = Replace.add(create_wrapper);
+      auto err = Replace.add(wrap_decl);
       if (err) {
         llvm::errs() << "Error adding replacement: " << err << '\n';
       }

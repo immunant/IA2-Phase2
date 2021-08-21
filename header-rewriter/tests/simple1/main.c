@@ -3,7 +3,7 @@
 #include <time.h>
 
 #include "hooks.h"
-#include "simple1.h"
+#include "simple1_public.h"
 
 static HookFn exit_hook_fn = NULL;
 

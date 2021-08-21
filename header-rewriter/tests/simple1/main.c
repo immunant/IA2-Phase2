@@ -2,7 +2,14 @@
 #include <stdlib.h>
 #include <time.h>
 
+#include "hooks.h"
 #include "simple1.h"
+
+static HookFn exit_hook_fn = NULL;
+
+void set_exit_hook(HookFn new_exit_hook_fn) {
+  exit_hook_fn = new_exit_hook_fn;
+}
 
 // Secret values: a secret string and decryption value.
 // The untrusted compartment should not be able to read these.
@@ -42,6 +49,10 @@ int main() {
   srand(time(NULL));
   simple_foreach(s, main_map);
   simple_destroy(s);
+
+  if (exit_hook_fn != NULL) {
+    (*exit_hook_fn)();
+  }
 
   return 0;
 }

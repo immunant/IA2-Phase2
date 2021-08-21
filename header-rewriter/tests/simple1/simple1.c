@@ -1,7 +1,15 @@
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "hooks.h"
 #include "simple1.h"
+
+static bool did_set_exit_hook = false;
+
+static void simple_exit_hook(void) {
+  printf("libsimple exiting...\n");
+}
 
 struct Simple {
   struct SimpleCallbacks scb;
@@ -9,6 +17,11 @@ struct Simple {
 };
 
 struct Simple *simple_new(struct SimpleCallbacks scb) {
+  if (!did_set_exit_hook) {
+    set_exit_hook(simple_exit_hook);
+    did_set_exit_hook = true;
+  }
+
   struct Simple *s = malloc(sizeof(struct Simple));
   if (s == NULL) {
     return NULL;

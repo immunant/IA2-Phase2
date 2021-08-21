@@ -3,7 +3,7 @@
 #include <stdlib.h>
 
 #include "hooks.h"
-#include "simple1.h"
+#include "simple1_priv.h"
 
 static bool did_set_exit_hook = false;
 

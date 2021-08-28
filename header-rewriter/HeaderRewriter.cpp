@@ -1,14 +1,17 @@
-#include "clang/AST/AST.h"
-#include "clang/ASTMatchers/ASTMatchFinder.h"
-#include "clang/ASTMatchers/ASTMatchers.h"
-#include "clang/Frontend/FrontendActions.h"
-#include "clang/Tooling/CommonOptionsParser.h"
-#include "clang/Tooling/Refactoring.h"
-#include "clang/Tooling/RefactoringCallbacks.h"
-#include "clang/Tooling/Tooling.h"
-#include "llvm/Support/CommandLine.h"
-#include "llvm/Support/FormatVariadic.h"
+#include <clang/AST/AST.h>
+#include <clang/ASTMatchers/ASTMatchFinder.h>
+#include <clang/ASTMatchers/ASTMatchers.h>
+#include <clang/Basic/SourceManager.h>
+#include <clang/Frontend/FrontendActions.h>
+#include <clang/Tooling/CommonOptionsParser.h>
+#include <clang/Tooling/Refactoring.h>
+#include <clang/Tooling/RefactoringCallbacks.h>
+#include <clang/Tooling/Tooling.h>
 #include <fstream>
+#include <llvm/Support/CommandLine.h>
+#include <llvm/Support/FormatVariadic.h>
+#include <llvm/Support/raw_ostream.h>
+#include <map>
 
 using namespace clang::ast_matchers;
 using namespace clang::tooling;
@@ -26,24 +29,55 @@ static llvm::cl::extrahelp CommonHelp(CommonOptionsParser::HelpMessage);
 // A help message for this specific tool can be added afterwards.
 static llvm::cl::extrahelp MoreHelp("\nMore help text...\n");
 
+static llvm::cl::opt<std::string>
+    WrapperOutputFilename("o", llvm::cl::Required,
+                          llvm::cl::desc("Wrapper Output Filename"),
+                          llvm::cl::value_desc("filename"));
+
 static DeclarationMatcher fn_ptr_matcher =
     parmVarDecl(hasType(pointerType(pointee(ignoringParens(functionType())))))
         .bind("fnPtrParam");
 // TODO: struct field matcher
 
-static DeclarationMatcher fn_decl_matcher = functionDecl().bind("exportedFn");
+static DeclarationMatcher fn_decl_matcher =
+    functionDecl(unless(isDefinition())).bind("exportedFn");
 
 class FnDecl : public RefactoringCallback {
 public:
+  FnDecl(llvm::raw_ostream &WrapperOut, llvm::raw_ostream &SymsOut)
+      : WrapperOut(WrapperOut), SymsOut(SymsOut) {}
+
+  virtual void onStartOfCompilationUnit() {
+    StartOfCompilationUnit = true;
+  }
+
   virtual void run(const MatchFinder::MatchResult &Result) {
     if (const clang::FunctionDecl *fn_decl =
             Result.Nodes.getNodeAs<clang::FunctionDecl>("exportedFn")) {
+      if (StartOfCompilationUnit) {
+        addHeaderImport(Result.SourceManager->getFilename(fn_decl->getBeginLoc()));
+        StartOfCompilationUnit = false;
+      }
+
+      auto fn_name = fn_decl->getNameInfo().getAsString();
+
       std::string original_decl;
       llvm::raw_string_ostream os(original_decl);
       fn_decl->print(os);
 
+      std::string new_decl =
+          "IA2_WRAP_FUNCTION(" + fn_name + ");\n" + original_decl;
+      Replacement decl_replacement{
+          *Result.SourceManager,
+          Result.SourceManager->getExpansionRange(fn_decl->getSourceRange()),
+          new_decl};
+
+      auto err = Replace.add(decl_replacement);
+      if (err) {
+        llvm::errs() << "Error adding replacement: " << err << '\n';
+      }
+
       // TODO: Handle attributes on wrapper
-      auto fn_name = fn_decl->getNameInfo().getAsString();
       auto wrapper_name = "__libia2_" + fn_name;
       auto ret = fn_decl->getReturnType().getAsString();
 
@@ -65,21 +99,24 @@ public:
         param_names.append(name);
       }
 
-      auto body =
-          llvm::formatv("{5};\n{0} {1}({2}) {\n    return {3}({4});\n}\n#undef "
-                        "{3}\n#define {3} {1}\n",
-                        ret, wrapper_name, param_decls, fn_name, param_names,
-                        original_decl)
-              .str();
-      Replacement wrap_decl{
-          *Result.SourceManager,
-          Result.SourceManager->getExpansionRange(fn_decl->getSourceRange()),
-          body};
+      WrapperOut << llvm::formatv(
+          "{5};\n{0} {1}({2}) {\n    return {3}({4});\n}\n", ret, wrapper_name,
+          param_decls, fn_name, param_names, original_decl);
 
-      auto err = Replace.add(wrap_decl);
-      if (err) {
-        llvm::errs() << "Error adding replacement: " << err << '\n';
-      }
+      SymsOut << "    " << wrapper_name << ";\n";
+    }
+  }
+
+private:
+  llvm::raw_ostream &WrapperOut;
+  llvm::raw_ostream &SymsOut;
+
+  bool StartOfCompilationUnit = true;
+
+  void addHeaderImport(llvm::StringRef Filename) {
+    auto err = Replace.add(Replacement(Filename, 0, 0, "#include <ia2.h>\n"));
+    if (err) {
+      llvm::errs() << "Error adding ia2 header import: " << err << '\n';
     }
   }
 };
@@ -112,11 +149,27 @@ int main(int argc, const char **argv) {
   RefactoringTool tool(options_parser.getCompilations(),
                        options_parser.getSourcePathList());
 
+  std::error_code EC;
+  llvm::raw_fd_ostream wrapper_out(WrapperOutputFilename, EC);
+  if (EC) {
+    llvm::errs() << "Error opening output wrapper file: " << EC.message() << "\n";
+    return EC.value();
+  }
+  llvm::raw_fd_ostream syms_out(WrapperOutputFilename + ".syms", EC);
+  if (EC) {
+    llvm::errs() << "Error opening output syms file: " << EC.message() << "\n";
+    return EC.value();
+  }
+
+  syms_out << "IA2 {\n" << "  global:\n";
+
   ASTMatchRefactorer refactorer(tool.getReplacements());
   FnPtrPrinter printer;
-  FnDecl decl_replacement;
+  FnDecl decl_replacement(wrapper_out, syms_out);
   // refactorer.addMatcher(fn_ptr_matcher, &printer);
   refactorer.addMatcher(fn_decl_matcher, &decl_replacement);
 
-  return tool.runAndSave(newFrontendActionFactory(&refactorer).get());
+  auto rc = tool.runAndSave(newFrontendActionFactory(&refactorer).get());
+
+  syms_out << "};\n";
 }

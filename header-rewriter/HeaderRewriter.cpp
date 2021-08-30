@@ -55,7 +55,9 @@ public:
     if (const clang::FunctionDecl *fn_decl =
             Result.Nodes.getNodeAs<clang::FunctionDecl>("exportedFn")) {
       if (StartOfCompilationUnit) {
-        addHeaderImport(Result.SourceManager->getFilename(fn_decl->getBeginLoc()));
+        auto header_name = Result.SourceManager->getFilename(fn_decl->getBeginLoc());
+        addHeaderImport(header_name);
+        WrapperOut << llvm::formatv("#include \"{0}.orig\"\n", header_name);
         StartOfCompilationUnit = false;
       }
 
@@ -79,7 +81,7 @@ public:
 
       // TODO: Handle attributes on wrapper
       auto wrapper_name = "__libia2_" + fn_name;
-      auto ret = fn_decl->getReturnType().getAsString();
+      auto ret_type = fn_decl->getReturnType();
 
       std::string param_decls;
       std::string param_names;
@@ -99,9 +101,20 @@ public:
         param_names.append(name);
       }
 
+      std::string ret_val;
+      auto ret_stmt = "";
+      if (!ret_type.isCForbiddenLValueType()) {
+          ret_val = llvm::formatv("{0} res = ", ret_type.getAsString()).str();
+          ret_stmt = "    return res;\n";
+      }
+
       WrapperOut << llvm::formatv(
-          "{5};\n{0} {1}({2}) {\n    return {3}({4});\n}\n", ret, wrapper_name,
-          param_decls, fn_name, param_names, original_decl);
+        "{0} {1}({2}) {\n"
+        "    // call_gate_push();\n"
+        "    {3}{4}({5});\n"
+        "    // call_gate_pop();\n"
+        "{6}"
+        "}\n", ret_type.getAsString(), wrapper_name, param_decls, ret_val, fn_name, param_names, ret_stmt);
 
       SymsOut << "    " << wrapper_name << ";\n";
     }

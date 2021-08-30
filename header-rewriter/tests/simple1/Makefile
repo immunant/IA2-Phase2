@@ -1,4 +1,4 @@
-CFLAGS = -O2 -g
+CFLAGS = -O2 -g -Werror=incompatible-pointer-types
 
 .PHONY: all clean
 

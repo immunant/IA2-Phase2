@@ -44,8 +44,8 @@ static DeclarationMatcher fn_decl_matcher =
 
 class FnDecl : public RefactoringCallback {
 public:
-  FnDecl(llvm::raw_ostream &WrapperOut, llvm::raw_ostream &SymsOut)
-      : WrapperOut(WrapperOut), SymsOut(SymsOut) {}
+  FnDecl(llvm::raw_ostream &WrapperOut, llvm::raw_ostream &SymsOut, std::map<std::string, Replacements> &FileReplacements, const std::vector<std::string> &Sources)
+      : WrapperOut(WrapperOut), SymsOut(SymsOut), FileReplacements(FileReplacements), Sources(Sources) {}
 
   virtual void onStartOfCompilationUnit() {
     StartOfCompilationUnit = true;
@@ -54,75 +54,84 @@ public:
   virtual void run(const MatchFinder::MatchResult &Result) {
     if (const clang::FunctionDecl *fn_decl =
             Result.Nodes.getNodeAs<clang::FunctionDecl>("exportedFn")) {
-      if (StartOfCompilationUnit) {
-        auto header_name = Result.SourceManager->getFilename(fn_decl->getBeginLoc());
-        addHeaderImport(header_name);
-        WrapperOut << llvm::formatv("#include \"{0}.orig\"\n", header_name);
-        StartOfCompilationUnit = false;
-      }
-
-      auto fn_name = fn_decl->getNameInfo().getAsString();
-
-      std::string original_decl;
-      llvm::raw_string_ostream os(original_decl);
-      fn_decl->print(os);
-
-      std::string new_decl =
-          "IA2_WRAP_FUNCTION(" + fn_name + ");\n" + original_decl;
-      Replacement decl_replacement{
-          *Result.SourceManager,
-          Result.SourceManager->getExpansionRange(fn_decl->getSourceRange()),
-          new_decl};
-
-      auto err = Replace.add(decl_replacement);
-      if (err) {
-        llvm::errs() << "Error adding replacement: " << err << '\n';
-      }
-
-      // TODO: Handle attributes on wrapper
-      auto wrapper_name = "__libia2_" + fn_name;
-      auto ret_type = fn_decl->getReturnType();
-
-      std::string param_decls;
-      std::string param_names;
-
-      for (auto &p : fn_decl->parameters()) {
-        if (!param_names.empty()) {
-          param_decls.append(", ");
-          param_names.append(", ");
+      // RefactoringCallback goes through fn decls from included headers so we filter out anything not in the source list
+      auto header_name = Result.SourceManager->getFilename(fn_decl->getLocation()).str();
+      auto is_suffix_of_header = [&](std::string_view src) {
+          auto header_suffix = header_name.substr(header_name.size() - src.size());
+          return (header_name.size() >= src.size()) && (header_suffix == src);
+      };
+      if (std::find_if(Sources.begin(), Sources.end(), is_suffix_of_header) != Sources.end()) {
+        if (StartOfCompilationUnit) {
+          addHeaderImport(header_name);
+          WrapperOut << llvm::formatv("#include \"{0}.orig\"\n", header_name);
+          StartOfCompilationUnit = false;
         }
-        param_decls.append(p->getType().getAsString() + " ");
-        auto name = p->getNameAsString();
-        if (name.empty()) {
-          auto n = &p - fn_decl->param_begin();
-          name = llvm::formatv("__libia2_arg_{0}", n);
+
+        auto fn_name = fn_decl->getNameInfo().getAsString();
+
+        std::string original_decl;
+        llvm::raw_string_ostream os(original_decl);
+        fn_decl->print(os);
+
+        std::string new_decl =
+            "IA2_WRAP_FUNCTION(" + fn_name + ");\n" + original_decl;
+        Replacement decl_replacement{
+            *Result.SourceManager,
+            Result.SourceManager->getExpansionRange(fn_decl->getSourceRange()),
+            new_decl};
+
+        auto err = Replace.add(decl_replacement);
+        if (err) {
+          llvm::errs() << "Error adding replacement: " << err << '\n';
         }
-        param_decls.append(name);
-        param_names.append(name);
+
+        // TODO: Handle attributes on wrapper
+        auto wrapper_name = "__libia2_" + fn_name;
+        auto ret_type = fn_decl->getReturnType();
+
+        std::string param_decls;
+        std::string param_names;
+
+        for (auto &p : fn_decl->parameters()) {
+          if (!param_names.empty()) {
+            param_decls.append(", ");
+            param_names.append(", ");
+          }
+          param_decls.append(p->getType().getAsString() + " ");
+          auto name = p->getNameAsString();
+          if (name.empty()) {
+            auto n = &p - fn_decl->param_begin();
+            name = llvm::formatv("__libia2_arg_{0}", n);
+          }
+          param_decls.append(name);
+          param_names.append(name);
+        }
+
+        std::string ret_val;
+        auto ret_stmt = "";
+        if (!ret_type.isCForbiddenLValueType()) {
+            ret_val = llvm::formatv("{0} res = ", ret_type.getAsString()).str();
+            ret_stmt = "    return res;\n";
+        }
+
+        WrapperOut << llvm::formatv(
+          "{0} {1}({2}) {\n"
+          "    // call_gate_push();\n"
+          "    {3}{4}({5});\n"
+          "    // call_gate_pop();\n"
+          "{6}"
+          "}\n", ret_type.getAsString(), wrapper_name, param_decls, ret_val, fn_name, param_names, ret_stmt);
+
+        SymsOut << "    " << wrapper_name << ";\n";
       }
-
-      std::string ret_val;
-      auto ret_stmt = "";
-      if (!ret_type.isCForbiddenLValueType()) {
-          ret_val = llvm::formatv("{0} res = ", ret_type.getAsString()).str();
-          ret_stmt = "    return res;\n";
-      }
-
-      WrapperOut << llvm::formatv(
-        "{0} {1}({2}) {\n"
-        "    // call_gate_push();\n"
-        "    {3}{4}({5});\n"
-        "    // call_gate_pop();\n"
-        "{6}"
-        "}\n", ret_type.getAsString(), wrapper_name, param_decls, ret_val, fn_name, param_names, ret_stmt);
-
-      SymsOut << "    " << wrapper_name << ";\n";
     }
   }
 
 private:
   llvm::raw_ostream &WrapperOut;
   llvm::raw_ostream &SymsOut;
+  std::map<std::string, Replacements> &FileReplacements;
+  const std::vector<std::string> &Sources;
 
   bool StartOfCompilationUnit = true;
 
@@ -178,7 +187,7 @@ int main(int argc, const char **argv) {
 
   ASTMatchRefactorer refactorer(tool.getReplacements());
   FnPtrPrinter printer;
-  FnDecl decl_replacement(wrapper_out, syms_out);
+  FnDecl decl_replacement(wrapper_out, syms_out, tool.getReplacements(), options_parser.getSourcePathList());
   // refactorer.addMatcher(fn_ptr_matcher, &printer);
   refactorer.addMatcher(fn_decl_matcher, &decl_replacement);
 

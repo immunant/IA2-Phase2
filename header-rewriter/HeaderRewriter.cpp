@@ -1,7 +1,8 @@
 #include <fstream>
 #include <map>
 
-#include "clang/AST/AST.h>
+#include "clang/AST/AST.h"
+#include "clang/AST/Mangle.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "clang/ASTMatchers/ASTMatchers.h"
 #include "clang/Basic/FileManager.h"
@@ -178,6 +179,16 @@ static DeclarationMatcher fn_ptr_field_matcher =
 static DeclarationMatcher fn_ptr_typedef_matcher =
   typedefNameDecl(hasType(fn_ptr_matcher)).bind("fnPtrTypedef");
 
+std::string mangle_type(clang::ASTContext &ctx, clang::QualType ty) {
+  std::unique_ptr<clang::MangleContext> mctx{
+      clang::ItaniumMangleContext::create(ctx, ctx.getDiagnostics())};
+
+  std::string os;
+  llvm::raw_string_ostream out{os};
+  mctx->mangleTypeName(ty.getCanonicalType(), out);
+  return os;
+}
+
 class FnPtrPrinter : public RefactoringCallback {
 public:
   virtual void run(const MatchFinder::MatchResult &Result) {
@@ -185,26 +196,35 @@ public:
     std::string new_decl;
     if (auto *parm_var_decl =
             Result.Nodes.getNodeAs<clang::ParmVarDecl>("fnPtrParam")) {
+      auto mangled_type = mangle_type(parm_var_decl->getASTContext(),
+                                      parm_var_decl->getOriginalType());
       old_decl = llvm::cast<clang::Decl>(parm_var_decl);
-      new_decl = llvm::formatv("struct IA2_fnptr_{0} {1}", Replace.size(),
+      new_decl = llvm::formatv("struct IA2_fnptr_{0} {1}", mangled_type,
                                parm_var_decl->getName())
                      .str();
     } else if (auto *field_decl =
                    Result.Nodes.getNodeAs<clang::FieldDecl>("fnPtrField")) {
+      auto mangled_type =
+          mangle_type(field_decl->getASTContext(), field_decl->getType());
       old_decl = llvm::cast<clang::Decl>(field_decl);
-      new_decl = llvm::formatv("struct IA2_fnptr_{0} {1}", Replace.size(),
+      new_decl = llvm::formatv("struct IA2_fnptr_{0} {1}", mangled_type,
                                field_decl->getName())
                      .str();
     } else if (auto *typedef_decl =
                    Result.Nodes.getNodeAs<clang::TypedefDecl>("fnPtrTypedef")) {
+      auto mangled_type = mangle_type(typedef_decl->getASTContext(),
+                                      typedef_decl->getUnderlyingType());
       old_decl = llvm::cast<clang::Decl>(typedef_decl);
-      new_decl = llvm::formatv("typedef struct IA2_fnptr_{0} {1}", Replace.size(),
+      new_decl = llvm::formatv("typedef struct IA2_fnptr_{0} {1}", mangled_type,
                                typedef_decl->getName())
                      .str();
     } else if (auto *type_alias_decl =
-                   Result.Nodes.getNodeAs<clang::TypeAliasDecl>("fnPtrTypedef")) {
+                   Result.Nodes.getNodeAs<clang::TypeAliasDecl>(
+                       "fnPtrTypedef")) {
+      auto mangled_type = mangle_type(typedef_decl->getASTContext(),
+                                      typedef_decl->getUnderlyingType());
       old_decl = llvm::cast<clang::Decl>(type_alias_decl);
-      new_decl = llvm::formatv("using {1} = struct IA2_fnptr_{0}", Replace.size(),
+      new_decl = llvm::formatv("using {1} = struct IA2_fnptr_{0}", mangled_type,
                                type_alias_decl->getName())
                      .str();
     }

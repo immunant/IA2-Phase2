@@ -194,4 +194,5 @@ int main(int argc, const char **argv) {
   auto rc = tool.runAndSave(newFrontendActionFactory(&refactorer).get());
 
   syms_out << "};\n";
+  return rc;
 }

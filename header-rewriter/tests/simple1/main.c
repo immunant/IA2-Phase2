@@ -40,17 +40,11 @@ static IA2_USED int main_map(int x) {
   return x ? (x ^ last_xor) : x;
 }
 
-#if MAIN_USE_IA2
-IA2_ICALL_WRAPPER(main_read, _ZTSPFiiE);
-IA2_ICALL_WRAPPER(main_write, _ZTSPFviE);
-IA2_ICALL_WRAPPER(main_map, _ZTSPFiiE);
-#endif
-
 int main() {
   struct SimpleCallbacks scb = {
 #if MAIN_USE_IA2
-    .read_cb = IA2_ICALL_WRAPPED(main_read, _ZTSPFiiE),
-    .write_cb = IA2_ICALL_WRAPPED(main_write, _ZTSPFviE),
+    .read_cb = IA2_ICALL_WRAPPER(main_read, _ZTSPFiiE),
+    .write_cb = IA2_ICALL_WRAPPER(main_write, _ZTSPFviE),
 #else
     .read_cb = main_read,
     .write_cb = main_write,
@@ -65,7 +59,7 @@ int main() {
 
   srand(time(NULL));
 #if MAIN_USE_IA2
-  simple_foreach(s, IA2_ICALL_WRAPPED(main_map, _ZTSPFiiE));
+  simple_foreach(s, IA2_ICALL_WRAPPER(main_map, _ZTSPFiiE));
 #else
   simple_foreach(s, main_map);
 #endif

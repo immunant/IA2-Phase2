@@ -44,23 +44,28 @@ static DeclarationMatcher fn_decl_matcher =
 
 class FnDecl : public RefactoringCallback {
 public:
-  FnDecl(llvm::raw_ostream &WrapperOut, llvm::raw_ostream &SymsOut, std::map<std::string, Replacements> &FileReplacements, const std::vector<std::string> &Sources)
-      : WrapperOut(WrapperOut), SymsOut(SymsOut), FileReplacements(FileReplacements), Sources(Sources) {}
+  FnDecl(llvm::raw_ostream &WrapperOut, llvm::raw_ostream &SymsOut,
+         std::map<std::string, Replacements> &FileReplacements,
+         const std::vector<std::string> &Sources)
+      : WrapperOut(WrapperOut), SymsOut(SymsOut),
+        FileReplacements(FileReplacements), Sources(Sources) {}
 
-  virtual void onStartOfCompilationUnit() {
-    StartOfCompilationUnit = true;
-  }
+  virtual void onStartOfCompilationUnit() { StartOfCompilationUnit = true; }
 
   virtual void run(const MatchFinder::MatchResult &Result) {
     if (const clang::FunctionDecl *fn_decl =
             Result.Nodes.getNodeAs<clang::FunctionDecl>("exportedFn")) {
-      // RefactoringCallback goes through fn decls from included headers so we filter out anything not in the source list
-      auto header_name = Result.SourceManager->getFilename(fn_decl->getLocation()).str();
+      // RefactoringCallback goes through fn decls from included headers so we
+      // filter out anything not in the source list
+      auto header_name =
+          Result.SourceManager->getFilename(fn_decl->getLocation()).str();
       auto is_suffix_of_header = [&](std::string_view src) {
-          auto header_suffix = header_name.substr(header_name.size() - src.size());
-          return (header_name.size() >= src.size()) && (header_suffix == src);
+        auto header_suffix =
+            header_name.substr(header_name.size() - src.size());
+        return (header_name.size() >= src.size()) && (header_suffix == src);
       };
-      if (std::find_if(Sources.begin(), Sources.end(), is_suffix_of_header) != Sources.end()) {
+      if (std::find_if(Sources.begin(), Sources.end(), is_suffix_of_header) !=
+          Sources.end()) {
         if (StartOfCompilationUnit) {
           addHeaderImport(header_name);
           WrapperOut << llvm::formatv("#include \"{0}.orig\"\n", header_name);
@@ -110,17 +115,19 @@ public:
         std::string ret_val;
         auto ret_stmt = "";
         if (!ret_type.isCForbiddenLValueType()) {
-            ret_val = llvm::formatv("{0} res = ", ret_type.getAsString()).str();
-            ret_stmt = "    return res;\n";
+          ret_val = llvm::formatv("{0} res = ", ret_type.getAsString()).str();
+          ret_stmt = "    return res;\n";
         }
 
         WrapperOut << llvm::formatv(
-          "{0} {1}({2}) {\n"
-          "    // call_gate_push();\n"
-          "    {3}{4}({5});\n"
-          "    // call_gate_pop();\n"
-          "{6}"
-          "}\n", ret_type.getAsString(), wrapper_name, param_decls, ret_val, fn_name, param_names, ret_stmt);
+            "{0} {1}({2}) {\n"
+            "    // call_gate_push();\n"
+            "    {3}{4}({5});\n"
+            "    // call_gate_pop();\n"
+            "{6}"
+            "}\n",
+            ret_type.getAsString(), wrapper_name, param_decls, ret_val, fn_name,
+            param_names, ret_stmt);
 
         SymsOut << "    " << wrapper_name << ";\n";
       }
@@ -174,7 +181,8 @@ int main(int argc, const char **argv) {
   std::error_code EC;
   llvm::raw_fd_ostream wrapper_out(WrapperOutputFilename, EC);
   if (EC) {
-    llvm::errs() << "Error opening output wrapper file: " << EC.message() << "\n";
+    llvm::errs() << "Error opening output wrapper file: " << EC.message()
+                 << "\n";
     return EC.value();
   }
   llvm::raw_fd_ostream syms_out(WrapperOutputFilename + ".syms", EC);
@@ -183,11 +191,13 @@ int main(int argc, const char **argv) {
     return EC.value();
   }
 
-  syms_out << "IA2 {\n" << "  global:\n";
+  syms_out << "IA2 {\n"
+           << "  global:\n";
 
   ASTMatchRefactorer refactorer(tool.getReplacements());
   FnPtrPrinter printer;
-  FnDecl decl_replacement(wrapper_out, syms_out, tool.getReplacements(), options_parser.getSourcePathList());
+  FnDecl decl_replacement(wrapper_out, syms_out, tool.getReplacements(),
+                          options_parser.getSourcePathList());
   // refactorer.addMatcher(fn_ptr_matcher, &printer);
   refactorer.addMatcher(fn_decl_matcher, &decl_replacement);
 

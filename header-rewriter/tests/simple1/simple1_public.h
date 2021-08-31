@@ -1,7 +1,7 @@
 #pragma once
 
-#if __has_include("ia2_defs.h")
-#include "ia2_defs.h"
+#if __has_include("simple1_ia2.h")
+#include "simple1_ia2.h"
 #endif
 
 struct Simple;

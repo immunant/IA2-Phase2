@@ -1,4 +1,4 @@
-CFLAGS = -O2 -g -Werror=incompatible-pointer-types
+CFLAGS = -O2 -g -Werror=incompatible-pointer-types -I../../../include
 
 .PHONY: all clean
 

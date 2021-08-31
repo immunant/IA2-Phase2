@@ -22,7 +22,11 @@ using namespace clang::tooling;
 // Apply a custom category to all command-line options so that they are the
 // only ones displayed.
 static llvm::cl::OptionCategory
-    HeaderRewriterCategory("header rewriter options");
+    HeaderRewriterCategory("Header rewriter options");
+
+static llvm::cl::opt<std::string>
+    OutputHeader("output-header", llvm::cl::desc("Output header file"),
+                 llvm::cl::cat(HeaderRewriterCategory), llvm::cl::Optional);
 
 // CommonOptionsParser declares HelpMessage with a description of the common
 // command-line options related to the compilation database and input files.
@@ -193,40 +197,37 @@ class FnPtrPrinter : public RefactoringCallback {
 public:
   virtual void run(const MatchFinder::MatchResult &Result) {
     const clang::Decl *old_decl = nullptr;
+    std::string new_type{"struct IA2_fnptr_"};
     std::string new_decl;
     if (auto *parm_var_decl =
             Result.Nodes.getNodeAs<clang::ParmVarDecl>("fnPtrParam")) {
       auto mangled_type = mangle_type(parm_var_decl->getASTContext(),
                                       parm_var_decl->getOriginalType());
       old_decl = llvm::cast<clang::Decl>(parm_var_decl);
-      new_decl = llvm::formatv("struct IA2_fnptr_{0} {1}", mangled_type,
-                               parm_var_decl->getName())
-                     .str();
+      new_type += mangled_type;
+      new_decl = new_type + ' ' + parm_var_decl->getName().str();
     } else if (auto *field_decl =
                    Result.Nodes.getNodeAs<clang::FieldDecl>("fnPtrField")) {
       auto mangled_type =
           mangle_type(field_decl->getASTContext(), field_decl->getType());
       old_decl = llvm::cast<clang::Decl>(field_decl);
-      new_decl = llvm::formatv("struct IA2_fnptr_{0} {1}", mangled_type,
-                               field_decl->getName())
-                     .str();
+      new_type += mangled_type;
+      new_decl = new_type + ' ' + field_decl->getName().str();
     } else if (auto *typedef_decl =
                    Result.Nodes.getNodeAs<clang::TypedefDecl>("fnPtrTypedef")) {
       auto mangled_type = mangle_type(typedef_decl->getASTContext(),
                                       typedef_decl->getUnderlyingType());
       old_decl = llvm::cast<clang::Decl>(typedef_decl);
-      new_decl = llvm::formatv("typedef struct IA2_fnptr_{0} {1}", mangled_type,
-                               typedef_decl->getName())
-                     .str();
+      new_type += mangled_type;
+      new_decl = "typedef " + new_type + ' ' + typedef_decl->getName().str();
     } else if (auto *type_alias_decl =
                    Result.Nodes.getNodeAs<clang::TypeAliasDecl>(
                        "fnPtrTypedef")) {
       auto mangled_type = mangle_type(typedef_decl->getASTContext(),
                                       typedef_decl->getUnderlyingType());
       old_decl = llvm::cast<clang::Decl>(type_alias_decl);
-      new_decl = llvm::formatv("using {1} = struct IA2_fnptr_{0}", mangled_type,
-                               type_alias_decl->getName())
-                     .str();
+      new_type += mangled_type;
+      new_decl = "using " + typedef_decl->getName().str() + " = " + new_type;
     }
 
     if (old_decl != nullptr) {
@@ -235,8 +236,15 @@ public:
       if (err) {
         llvm::errs() << "Error adding replacement: " << err << '\n';
       }
+
+      m_new_types.insert(new_type);
     }
   }
+
+  const std::set<std::string> &new_types() const { return m_new_types; }
+
+private:
+  std::set<std::string> m_new_types;
 };
 
 int main(int argc, const char **argv) {
@@ -290,5 +298,24 @@ int main(int argc, const char **argv) {
   auto rc = tool.runAndSave(newFrontendActionFactory(&refactorer).get());
 
   syms_out << "};\n";
-  return rc;
+  if (rc) {
+    return rc;
+  }
+
+  if (!OutputHeader.empty()) {
+    std::error_code err;
+    llvm::raw_fd_ostream os(OutputHeader, err, llvm::sys::fs::OF_Text);
+    if (err) {
+      llvm::errs() << "Error opening file " << OutputHeader << ": "
+                   << err.message() << '\n';
+      return 1;
+    }
+
+    os << "#pragma once\n";
+    for (auto &new_type : printer.new_types()) {
+      os << new_type << " { char *ptr; };\n";
+    }
+  }
+
+  return 0;
 }

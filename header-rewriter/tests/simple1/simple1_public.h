@@ -1,5 +1,9 @@
 #pragma once
 
+#if __has_include("ia2_defs.h")
+#include "ia2_defs.h"
+#endif
+
 struct Simple;
 
 struct SimpleCallbacks {

@@ -2,8 +2,14 @@
 #include <stdlib.h>
 #include <time.h>
 
+#include <ia2.h>
+
 #include "hooks.h"
 #include "simple1_public.h"
+
+#if __has_include("simple1_ia2.h")
+#define MAIN_USE_IA2 1
+#endif
 
 static HookFn exit_hook_fn = NULL;
 
@@ -16,7 +22,7 @@ void set_exit_hook(HookFn new_exit_hook_fn) {
 static const char secret_string[] = "This is a secret.\n";
 static int last_xor;
 
-static int main_read(int i) {
+static IA2_USED int main_read(int i) {
   if (i >= sizeof(secret_string)) {
     return 0;
   }
@@ -26,18 +32,29 @@ static int main_read(int i) {
   return x ? (x ^ last_xor) : x;
 }
 
-static void main_write(int x) {
+static IA2_USED void main_write(int x) {
   putchar(x);
 }
 
-static int main_map(int x) {
+static IA2_USED int main_map(int x) {
   return x ? (x ^ last_xor) : x;
 }
 
+#if MAIN_USE_IA2
+IA2_ICALL_WRAPPER(main_read, _ZTSPFiiE);
+IA2_ICALL_WRAPPER(main_write, _ZTSPFviE);
+IA2_ICALL_WRAPPER(main_map, _ZTSPFiiE);
+#endif
+
 int main() {
   struct SimpleCallbacks scb = {
+#if MAIN_USE_IA2
+    .read_cb = IA2_ICALL_WRAPPED(main_read, _ZTSPFiiE),
+    .write_cb = IA2_ICALL_WRAPPED(main_write, _ZTSPFviE),
+#else
     .read_cb = main_read,
     .write_cb = main_write,
+#endif
   };
 
   struct Simple *s = simple_new(scb);
@@ -47,7 +64,11 @@ int main() {
   }
 
   srand(time(NULL));
+#if MAIN_USE_IA2
+  simple_foreach(s, IA2_ICALL_WRAPPED(main_map, _ZTSPFiiE));
+#else
   simple_foreach(s, main_map);
+#endif
   simple_destroy(s);
 
   if (exit_hook_fn != NULL) {

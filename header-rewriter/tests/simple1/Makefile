@@ -1,12 +1,14 @@
 HEADER_REWRITER = ../../build1/ia2-header-rewriter
 CFLAGS = -O2 -g -Werror=incompatible-pointer-types -I../../../include
 
-.PHONY: all clean
+.PHONY: all clean clean-full
 
 all: main libsimple1.so
 
 clean:
 	rm -f main.o main simple1.o libsimple1.so simple1_ia2.h
+
+clean-full: clean
 	git checkout -- simple1_public.h
 
 simple1_ia2.h: simple1_public.h

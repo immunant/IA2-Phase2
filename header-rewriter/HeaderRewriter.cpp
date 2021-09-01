@@ -190,8 +190,8 @@ struct FunctionInfo {
   // The return type of the function
   std::string return_type;
 
-  // The list of argument types, e.g., "int, int"
-  std::vector<std::string> param_types;
+  // The list of parameters, e.g., "int a, int b"
+  std::vector<std::string> parameters;
 };
 
 std::string mangle_type(clang::ASTContext &ctx, clang::QualType ty) {
@@ -275,14 +275,17 @@ public:
 
         auto return_type = fpt->getReturnType();
         if (!return_type.isCForbiddenLValueType()) {
-          // TODO: store the left/right parts from demangling,
-          // so we can correctly rebuild the type
-          fi.return_type = return_type.getAsString();
+          llvm::raw_string_ostream os{fi.return_type};
+          return_type.print(os, clang::LangOptions(), "__ia2_name");
         }
 
         for (auto param_type : fpt->param_types()) {
-          // TODO: store the left/right parts from demangling
-          fi.param_types.push_back(param_type.getAsString());
+          auto i = fi.parameters.size();
+          fi.parameters.push_back({});
+
+          llvm::raw_string_ostream os{fi.parameters.back()};
+          auto arg_name = llvm::formatv("__ia2_arg_{0}", i).str();
+          param_type.print(os, clang::LangOptions(), arg_name);
         }
 
         m_function_info.insert({mangled_type, fi});
@@ -368,26 +371,29 @@ int main(int argc, const char **argv) {
       auto &fi = p.second;
 
       os << fi.new_type << " { char *ptr; };\n";
+
       if (!fi.return_type.empty()) {
-        os << "#define IA2_FNPTR_RETURN_" << mangled_type << ' '
+        os << "#define IA2_FNPTR_RETURN_" << mangled_type << "(__ia2_name) "
            << fi.return_type << '\n';
       }
 
-      std::string args;
-      std::string arg_names;
-      for (size_t i = 0; i < fi.param_types.size(); i++) {
-        if (i > 0) {
-          args += ", ";
-          arg_names += ", ";
-        }
-
-        auto arg_name = llvm::formatv("__ia2_arg_{0}", i).str();
-        args += fi.param_types[i] + ' ' + arg_name;
-        arg_names += arg_name;
+      os << "#define IA2_FNPTR_WRAPPER_" << mangled_type << "(__ia2_name) ";
+      if (fi.return_type.empty()) {
+        os << "void __ia2_name";
+      } else {
+        // Return type includes __ia2_name as the placeholder
+        os << fi.return_type;
       }
-      os << "#define IA2_FNPTR_ARGS_" << mangled_type << ' ' << args << '\n';
-      os << "#define IA2_FNPTR_ARG_NAMES_" << mangled_type << ' ' << arg_names
-         << '\n';
+      os << '(' << llvm::join(fi.parameters, ", ") << ")\n";
+
+      os << "#define IA2_FNPTR_ARG_NAMES_" << mangled_type;
+      for (size_t i = 0; i < fi.parameters.size(); i++) {
+        if (i > 0) {
+          os << ',';
+        }
+        os << " __ia2_arg_" << i;
+      }
+      os << '\n';
     }
   }
 

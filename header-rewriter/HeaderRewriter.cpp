@@ -183,6 +183,8 @@ static DeclarationMatcher fn_ptr_field_matcher =
 static DeclarationMatcher fn_ptr_typedef_matcher =
     typedefNameDecl(hasType(fn_ptr_matcher)).bind("fnPtrTypedef");
 
+static const std::string kTypePlaceHolder = "$$$IA2_PLACEHOLDER$$$";
+
 struct FunctionInfo {
   // The new type for this function pointer
   std::string new_type;
@@ -276,7 +278,7 @@ public:
         auto return_type = fpt->getReturnType();
         if (!return_type.isCForbiddenLValueType()) {
           llvm::raw_string_ostream os{fi.return_type};
-          return_type.print(os, clang::LangOptions(), "__ia2_name");
+          return_type.print(os, clang::LangOptions(), kTypePlaceHolder);
         }
 
         for (auto param_type : fpt->param_types()) {
@@ -372,19 +374,31 @@ int main(int argc, const char **argv) {
 
       os << fi.new_type << " { char *ptr; };\n";
 
+      auto placeholder_pos = fi.return_type.find(kTypePlaceHolder);
       if (!fi.return_type.empty()) {
-        os << "#define IA2_FNPTR_RETURN_" << mangled_type << "(__ia2_name) "
-           << fi.return_type << '\n';
+        std::string variable_type = fi.return_type;
+        variable_type.replace(placeholder_pos, kTypePlaceHolder.size(),
+                              "__ia2_variable");
+        os << "#define IA2_FNPTR_RETURN_" << mangled_type << "(__ia2_variable) "
+           << variable_type << '\n';
       }
 
-      os << "#define IA2_FNPTR_WRAPPER_" << mangled_type << "(__ia2_name) ";
+      std::string fn_sig;
       if (fi.return_type.empty()) {
-        os << "void __ia2_name";
+        fn_sig = "void ia2_target(" + llvm::join(fi.parameters, ", ") + ')';
       } else {
-        // Return type includes __ia2_name as the placeholder
-        os << fi.return_type;
+        // The arguments go right after the name inside the placeholder,
+        // not at the end of the return type, e.g., for this declaration
+        // int (*f(float))(char) {} float is the type of f's argument
+        // and char is the type of the argument of the returned function
+        auto fn_with_args =
+            "__ia2_target(" + llvm::join(fi.parameters, ", ") + ')';
+        fn_sig = fi.return_type;
+        fn_sig.replace(placeholder_pos, kTypePlaceHolder.size(),
+                       std::move(fn_with_args));
       }
-      os << '(' << llvm::join(fi.parameters, ", ") << ")\n";
+      os << "#define IA2_FNPTR_WRAPPER_" << mangled_type << "(__ia2_target) "
+         << fn_sig << '\n';
 
       os << "#define IA2_FNPTR_ARG_NAMES_" << mangled_type;
       for (size_t i = 0; i < fi.parameters.size(); i++) {

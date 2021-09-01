@@ -22,7 +22,7 @@ $(WRAPPER_LIB): $(ORIGINAL_LIB) $(WRAPPER_SRC)
 	$(CC) $(WRAPPER_SRC) $(LDFLAGS) -Wl,--version-script,$(VERSION_SCRIPT) -l$(basename $(LIB_SRC)) -L. -o $@
 
 $(WRAPPER_SRC): $(HEADER)
-	$(HEADER_REWRITER) $^ -o $@ -- -I /usr/lib/clang/$(CLANG_VERSION)/include
+	$(HEADER_REWRITER) $@ $^ -- -I /usr/lib/clang/$(CLANG_VERSION)/include
 
 $(ORIGINAL_LIB): $(LIB_SRC)
 	$(CC) $^ $(LDFLAGS) -o $@

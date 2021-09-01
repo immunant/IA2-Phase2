@@ -30,9 +30,9 @@ static llvm::cl::extrahelp CommonHelp(CommonOptionsParser::HelpMessage);
 static llvm::cl::extrahelp MoreHelp("\nMore help text...\n");
 
 static llvm::cl::opt<std::string>
-    WrapperOutputFilename("o", llvm::cl::Required,
-                          llvm::cl::desc("Wrapper Output Filename"),
-                          llvm::cl::value_desc("filename"));
+    WrapperOutputFilename(llvm::cl::Positional, llvm::cl::Required,
+                          llvm::cl::cat(HeaderRewriterCategory),
+                          llvm::cl::desc("<wrapper output filename>"));
 
 static DeclarationMatcher fn_ptr_matcher =
     parmVarDecl(hasType(pointerType(pointee(ignoringParens(functionType())))))

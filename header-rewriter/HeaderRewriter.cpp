@@ -88,7 +88,7 @@ public:
         }
 
         // TODO: Handle attributes on wrapper
-        auto wrapper_name = "__libia2_" + fn_name;
+        auto wrapper_name = "__ia2_" + fn_name;
         auto ret_type = fn_decl->getReturnType();
 
         std::string param_decls;
@@ -103,7 +103,7 @@ public:
           auto name = p->getNameAsString();
           if (name.empty()) {
             auto n = &p - fn_decl->param_begin();
-            name = llvm::formatv("__libia2_arg_{0}", n);
+            name = llvm::formatv("__ia2_arg_{0}", n);
           }
           param_decls.append(name);
           param_names.append(name);

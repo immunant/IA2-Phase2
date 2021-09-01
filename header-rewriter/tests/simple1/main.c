@@ -44,7 +44,7 @@ int main() {
   struct SimpleCallbacks scb = {
 #if MAIN_USE_IA2
     .read_cb = IA2_ICALL_WRAPPER(main_read, _ZTSPFiiE),
-    .write_cb = IA2_ICALL_WRAPPER(main_write, _ZTSPFviE),
+    .write_cb = IA2_ICALL_WRAPPER_VOID(main_write, _ZTSPFviE),
 #else
     .read_cb = main_read,
     .write_cb = main_write,

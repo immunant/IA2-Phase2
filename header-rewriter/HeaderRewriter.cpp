@@ -181,7 +181,18 @@ static DeclarationMatcher fn_ptr_param_matcher =
 static DeclarationMatcher fn_ptr_field_matcher =
     fieldDecl(hasType(fn_ptr_matcher)).bind("fnPtrField");
 static DeclarationMatcher fn_ptr_typedef_matcher =
-  typedefNameDecl(hasType(fn_ptr_matcher)).bind("fnPtrTypedef");
+    typedefNameDecl(hasType(fn_ptr_matcher)).bind("fnPtrTypedef");
+
+struct FunctionInfo {
+  // The new type for this function pointer
+  std::string new_type;
+
+  // The return type of the function
+  std::string return_type;
+
+  // The list of argument types, e.g., "int, int"
+  std::vector<std::string> param_types;
+};
 
 std::string mangle_type(clang::ASTContext &ctx, clang::QualType ty) {
   std::unique_ptr<clang::MangleContext> mctx{
@@ -197,54 +208,92 @@ class FnPtrPrinter : public RefactoringCallback {
 public:
   virtual void run(const MatchFinder::MatchResult &Result) {
     const clang::Decl *old_decl = nullptr;
+    clang::QualType old_type;
+    std::string mangled_type;
     std::string new_type{"struct IA2_fnptr_"};
     std::string new_decl;
     if (auto *parm_var_decl =
             Result.Nodes.getNodeAs<clang::ParmVarDecl>("fnPtrParam")) {
-      auto mangled_type = mangle_type(parm_var_decl->getASTContext(),
-                                      parm_var_decl->getOriginalType());
       old_decl = llvm::cast<clang::Decl>(parm_var_decl);
+      old_type = parm_var_decl->getOriginalType();
+      mangled_type = mangle_type(old_decl->getASTContext(), old_type);
+
       new_type += mangled_type;
       new_decl = new_type + ' ' + parm_var_decl->getName().str();
     } else if (auto *field_decl =
                    Result.Nodes.getNodeAs<clang::FieldDecl>("fnPtrField")) {
-      auto mangled_type =
-          mangle_type(field_decl->getASTContext(), field_decl->getType());
       old_decl = llvm::cast<clang::Decl>(field_decl);
+      old_type = field_decl->getType();
+      mangled_type = mangle_type(old_decl->getASTContext(), old_type);
+
       new_type += mangled_type;
       new_decl = new_type + ' ' + field_decl->getName().str();
     } else if (auto *typedef_decl =
                    Result.Nodes.getNodeAs<clang::TypedefDecl>("fnPtrTypedef")) {
-      auto mangled_type = mangle_type(typedef_decl->getASTContext(),
-                                      typedef_decl->getUnderlyingType());
       old_decl = llvm::cast<clang::Decl>(typedef_decl);
+      old_type = typedef_decl->getUnderlyingType();
+      mangled_type = mangle_type(old_decl->getASTContext(), old_type);
+
       new_type += mangled_type;
       new_decl = "typedef " + new_type + ' ' + typedef_decl->getName().str();
     } else if (auto *type_alias_decl =
                    Result.Nodes.getNodeAs<clang::TypeAliasDecl>(
                        "fnPtrTypedef")) {
-      auto mangled_type = mangle_type(typedef_decl->getASTContext(),
-                                      typedef_decl->getUnderlyingType());
       old_decl = llvm::cast<clang::Decl>(type_alias_decl);
+      old_type = typedef_decl->getUnderlyingType();
+      mangled_type = mangle_type(old_decl->getASTContext(), old_type);
+
       new_type += mangled_type;
       new_decl = "using " + typedef_decl->getName().str() + " = " + new_type;
     }
 
     if (old_decl != nullptr) {
+      auto *fpt = old_type->castAs<clang::PointerType>()->getPointeeType()->getAsAdjusted<clang::FunctionProtoType>();
+      if (fpt == nullptr) {
+        // TODO: print location
+        llvm::errs() << "K&R function pointers not supported\n";
+        return;
+      }
+      if (fpt->isVariadic()) {
+        // TODO: print location
+        llvm::errs() << "Variadic function pointers not supported\n";
+        return;
+      }
+
       Replacement r{*Result.SourceManager, old_decl, new_decl};
       auto err = Replace.add(r);
       if (err) {
         llvm::errs() << "Error adding replacement: " << err << '\n';
+        return;
       }
 
-      m_new_types.insert(new_type);
+      if (m_function_info.find(mangled_type) == m_function_info.end()) {
+        FunctionInfo fi;
+        fi.new_type = std::move(new_type);
+
+        auto return_type = fpt->getReturnType();
+        if (!return_type.isCForbiddenLValueType()) {
+          // TODO: store the left/right parts from demangling,
+          // so we can correctly rebuild the type
+          fi.return_type = return_type.getAsString();
+        }
+
+        for (auto param_type : fpt->param_types()) {
+          // TODO: store the left/right parts from demangling
+          fi.param_types.push_back(param_type.getAsString());
+        }
+
+        m_function_info.insert({mangled_type, fi});
+      }
     }
   }
 
-  const std::set<std::string> &new_types() const { return m_new_types; }
+  const std::map<std::string, FunctionInfo> &function_info() const {
+    return m_function_info;
+  }
 
 private:
-  std::set<std::string> m_new_types;
+  std::map<std::string, FunctionInfo> m_function_info;
 };
 
 int main(int argc, const char **argv) {
@@ -312,8 +361,30 @@ int main(int argc, const char **argv) {
     }
 
     os << "#pragma once\n";
-    for (auto &new_type : printer.new_types()) {
-      os << new_type << " { char *ptr; };\n";
+    for (auto &p : printer.function_info()) {
+      auto &mangled_type = p.first;
+      auto &fi = p.second;
+
+      os << fi.new_type << " { char *ptr; };\n";
+      if (!fi.return_type.empty()) {
+        os << "#define IA2_FNPTR_RETURN_" << mangled_type << ' '
+           << fi.return_type << '\n';
+      }
+      
+      std::string args;
+      std::string arg_names;
+      for (size_t i = 0; i < fi.param_types.size(); i++) {
+        if (i > 0) {
+          args += ", ";
+          arg_names += ", ";
+        }
+
+        auto arg_name = llvm::formatv("__ia2_arg_{0}", i).str();
+        args += fi.param_types[i] + ' ' + arg_name;
+        arg_names += arg_name;
+      }
+      os << "#define IA2_FNPTR_ARGS_" << mangled_type << ' ' << args << '\n';
+      os << "#define IA2_FNPTR_ARG_NAMES_" << mangled_type << ' ' << arg_names << '\n';
     }
   }
 

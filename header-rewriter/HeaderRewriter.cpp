@@ -248,7 +248,9 @@ public:
     }
 
     if (old_decl != nullptr) {
-      auto *fpt = old_type->castAs<clang::PointerType>()->getPointeeType()->getAsAdjusted<clang::FunctionProtoType>();
+      auto *fpt = old_type->castAs<clang::PointerType>()
+                      ->getPointeeType()
+                      ->getAsAdjusted<clang::FunctionProtoType>();
       if (fpt == nullptr) {
         // TODO: print location
         llvm::errs() << "K&R function pointers not supported\n";
@@ -370,7 +372,7 @@ int main(int argc, const char **argv) {
         os << "#define IA2_FNPTR_RETURN_" << mangled_type << ' '
            << fi.return_type << '\n';
       }
-      
+
       std::string args;
       std::string arg_names;
       for (size_t i = 0; i < fi.param_types.size(); i++) {
@@ -384,7 +386,8 @@ int main(int argc, const char **argv) {
         arg_names += arg_name;
       }
       os << "#define IA2_FNPTR_ARGS_" << mangled_type << ' ' << args << '\n';
-      os << "#define IA2_FNPTR_ARG_NAMES_" << mangled_type << ' ' << arg_names << '\n';
+      os << "#define IA2_FNPTR_ARG_NAMES_" << mangled_type << ' ' << arg_names
+         << '\n';
     }
   }
 

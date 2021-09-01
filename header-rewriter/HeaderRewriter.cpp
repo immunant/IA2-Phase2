@@ -80,10 +80,7 @@ public:
 
         std::string new_decl =
             "IA2_WRAP_FUNCTION(" + fn_name + ");\n" + original_decl;
-        Replacement decl_replacement{
-            *Result.SourceManager,
-            Result.SourceManager->getExpansionRange(fn_decl->getSourceRange()),
-            new_decl};
+        Replacement decl_replacement{*Result.SourceManager, fn_decl, new_decl};
 
         auto err = Replace.add(decl_replacement);
         if (err) {

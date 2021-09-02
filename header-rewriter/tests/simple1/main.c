@@ -22,7 +22,7 @@ void set_exit_hook(HookFn new_exit_hook_fn) {
 static const char secret_string[] = "This is a secret.\n";
 static int last_xor;
 
-static IA2_USED int main_read(int i) {
+static int main_read(int i) {
   if (i >= sizeof(secret_string)) {
     return 0;
   }
@@ -32,11 +32,11 @@ static IA2_USED int main_read(int i) {
   return x ? (x ^ last_xor) : x;
 }
 
-static IA2_USED void main_write(int x) {
+static void main_write(int x) {
   putchar(x);
 }
 
-static IA2_USED int main_map(int x) {
+static int main_map(int x) {
   return x ? (x ^ last_xor) : x;
 }
 

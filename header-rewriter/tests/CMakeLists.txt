@@ -1,4 +1,4 @@
-# These are hard_coded in configure_lit_site_cfg
+enable_testing()
 
 configure_lit_site_cfg(
   ${CMAKE_CURRENT_SOURCE_DIR}/lit.site.cfg.py.in
@@ -13,13 +13,15 @@ add_lit_testsuite(check-ia2 "Running the IA2 tests"
   ${CMAKE_CURRENT_BINARY_DIR}
   DEPENDS ${IA2_TEST_DEPENDS}
   )
-set_target_properties(check-ia2 PROPERTIES FOLDER "Tests")
+set_target_properties(check-ia2 PROPERTIES FOLDER "tests")
 
-add_lit_testsuites(IA2 ${CMAKE_CURRENT_SOURCE_DIR}
-  DEPENDS ${IA2_TEST_DEPENDS}
-  )
-
-# Setup an alias for 'check-all'.
+# Set up 'check' alias
 add_custom_target(check)
-add_dependencies(check check-all)
-set_target_properties(check PROPERTIES FOLDER "Tests")
+add_dependencies(check check-ia2)
+set_target_properties(check PROPERTIES FOLDER "tests")
+
+# The tests in header_includes don't currently build due to interdependent
+# sources, ignore for now.
+# add_subdirectory(header_includes)
+
+add_subdirectory(minimal)

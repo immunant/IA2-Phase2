@@ -13,7 +13,7 @@ config.test_format = lit.formats.ShTest(False)
 
 # suffixes: A list of file extensions to treat as test files. This is overriden
 # by individual lit.local.cfg files in the test subdirectories.
-config.suffixes = ['.test']
+config.suffixes = ['.h']
 
 # excludes: A list of directories to exclude from the testsuite. The 'Inputs'
 # subdirectories contain auxiliary inputs for various tests in their parent
@@ -30,4 +30,5 @@ llvm_config.use_clang()
 
 config.substitutions.extend([
     ('%ia2_include', '%s/../include' % config.ia2_src_root),
+    ('%binary_dir', config.ia2_obj_root)
 ])

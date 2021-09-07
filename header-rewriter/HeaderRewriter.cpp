@@ -1,6 +1,7 @@
 #include <clang/AST/AST.h>
 #include <clang/ASTMatchers/ASTMatchFinder.h>
 #include <clang/ASTMatchers/ASTMatchers.h>
+#include <clang/Basic/FileManager.h>
 #include <clang/Basic/SourceManager.h>
 #include <clang/Frontend/FrontendActions.h>
 #include <clang/Tooling/CommonOptionsParser.h>
@@ -57,14 +58,10 @@ public:
             Result.Nodes.getNodeAs<clang::FunctionDecl>("exportedFn")) {
       // RefactoringCallback goes through fn decls from included headers so we
       // filter out anything not in the source list
-      auto header_name =
+      std::string header_name =
           Result.SourceManager->getFilename(fn_decl->getLocation()).str();
-      auto is_suffix_of_header = [&](std::string_view src) {
-        auto header_suffix =
-            header_name.substr(header_name.size() - src.size());
-        return (header_name.size() >= src.size()) && (header_suffix == src);
-      };
-      if (std::find_if(Sources.begin(), Sources.end(), is_suffix_of_header) !=
+
+      if (std::find(Sources.begin(), Sources.end(), header_name) !=
           Sources.end()) {
         if (StartOfCompilationUnit) {
           addHeaderImport(header_name);
@@ -82,7 +79,7 @@ public:
             "IA2_WRAP_FUNCTION(" + fn_name + ");\n" + original_decl;
         Replacement decl_replacement{*Result.SourceManager, fn_decl, new_decl};
 
-        auto err = Replace.add(decl_replacement);
+        auto err = FileReplacements[header_name].add(decl_replacement);
         if (err) {
           llvm::errs() << "Error adding replacement: " << err << '\n';
         }
@@ -167,11 +164,21 @@ public:
 
 int main(int argc, const char **argv) {
   CommonOptionsParser options_parser(argc, argv, HeaderRewriterCategory);
+  clang::FileManager file_mgr = clang::FileManager(clang::FileSystemOptions());
+  std::vector<std::string> absolute_paths;
   for (auto s : options_parser.getSourcePathList()) {
+    // Make a copy of each original input headers
     std::ifstream src(s, std::ios::binary);
-    std::ofstream dst(s.append(".orig"), std::ios::binary);
+    std::ofstream dst(s + ".orig", std::ios::binary);
     dst << src.rdbuf();
+
+    // Get the absolute path of each input header
+    llvm::SmallVector<char> header_name(llvm::StringRef(s).bytes());
+    file_mgr.makeAbsolutePath(header_name);
+    std::string abs_path(header_name.data());
+    absolute_paths.push_back(abs_path);
   }
+
   RefactoringTool tool(options_parser.getCompilations(),
                        options_parser.getSourcePathList());
 
@@ -194,7 +201,7 @@ int main(int argc, const char **argv) {
   ASTMatchRefactorer refactorer(tool.getReplacements());
   FnPtrPrinter printer;
   FnDecl decl_replacement(wrapper_out, syms_out, tool.getReplacements(),
-                          options_parser.getSourcePathList());
+                          absolute_paths);
   // refactorer.addMatcher(fn_ptr_matcher, &printer);
   refactorer.addMatcher(fn_decl_matcher, &decl_replacement);
 

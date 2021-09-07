@@ -51,22 +51,20 @@ public:
       : WrapperOut(WrapperOut), SymsOut(SymsOut),
         FileReplacements(FileReplacements), Sources(Sources) {}
 
-  virtual void onStartOfCompilationUnit() { StartOfCompilationUnit = true; }
-
   virtual void run(const MatchFinder::MatchResult &Result) {
     if (const clang::FunctionDecl *fn_decl =
             Result.Nodes.getNodeAs<clang::FunctionDecl>("exportedFn")) {
+      // This is an absolute path to the header with the fn decl
+      llvm::StringRef header_name =
+          Result.SourceManager->getFilename(fn_decl->getLocation());
+
       // RefactoringCallback goes through fn decls from included headers so we
       // filter out anything not in the source list
-      std::string header_name =
-          Result.SourceManager->getFilename(fn_decl->getLocation()).str();
-
-      if (std::find(Sources.begin(), Sources.end(), header_name) !=
-          Sources.end()) {
-        if (StartOfCompilationUnit) {
+      if (inSources(header_name)) {
+        if (!isInitialized(header_name)) {
           addHeaderImport(header_name);
           WrapperOut << llvm::formatv("#include \"{0}.orig\"\n", header_name);
-          StartOfCompilationUnit = false;
+          InitializedHeaders.push_back(header_name.str());
         }
 
         auto fn_name = fn_decl->getNameInfo().getAsString();
@@ -79,7 +77,7 @@ public:
             "IA2_WRAP_FUNCTION(" + fn_name + ");\n" + original_decl;
         Replacement decl_replacement{*Result.SourceManager, fn_decl, new_decl};
 
-        auto err = FileReplacements[header_name].add(decl_replacement);
+        auto err = FileReplacements[header_name.str()].add(decl_replacement);
         if (err) {
           llvm::errs() << "Error adding replacement: " << err << '\n';
         }
@@ -132,12 +130,23 @@ private:
   llvm::raw_ostream &WrapperOut;
   llvm::raw_ostream &SymsOut;
   std::map<std::string, Replacements> &FileReplacements;
+  // Absolute paths to the input headers
   const std::vector<std::string> &Sources;
+  // Headers that have included the IA2 header
+  std::vector<std::string> InitializedHeaders;
 
-  bool StartOfCompilationUnit = true;
+  bool inSources(llvm::StringRef Filename) {
+    return std::find(Sources.begin(), Sources.end(), Filename) != Sources.end();
+  }
+
+  bool isInitialized(llvm::StringRef Filename) {
+    return std::find(InitializedHeaders.begin(), InitializedHeaders.end(),
+                     Filename) != InitializedHeaders.end();
+  }
 
   void addHeaderImport(llvm::StringRef Filename) {
-    auto err = Replace.add(Replacement(Filename, 0, 0, "#include <ia2.h>\n"));
+    auto err = FileReplacements[Filename.str()].add(
+        Replacement(Filename, 0, 0, "#include <ia2.h>\n"));
     if (err) {
       llvm::errs() << "Error adding ia2 header import: " << err << '\n';
     }

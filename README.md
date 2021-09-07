@@ -4,7 +4,7 @@
 The header rewriter is an out-of-tree clang tool based on LibTooling.
 To run it, use the following command after building it:
 ```
-$ /path/to/header-rewriter /path/to/source.h -o /path/to/wrapper_output_file.c -- -I/usr/lib/clang/A.B.C/include
+$ /path/to/header-rewriter /path/to/wrapper_output_file.c /path/to/source_1.h /path/to/source_2.h -- -I/usr/lib/clang/A.B.C/include
 ```
 
 The wrapper library can then be compiled with (assuming the original library is liboriginal.so):

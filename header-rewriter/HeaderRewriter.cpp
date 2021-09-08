@@ -57,17 +57,17 @@ public:
       // This is an absolute path to the header with the fn decl
       llvm::StringRef header_name =
           Result.SourceManager->getFilename(fn_decl->getLocation());
+      auto fn_name = fn_decl->getNameInfo().getAsString();
 
-      // RefactoringCallback goes through fn decls from included headers so we
-      // filter out anything not in the source list
-      if (inSources(header_name)) {
+      // This callback may find a fn decl multiple times so only wrap it the
+      // first time it's encountered in an input header
+      if (!functionDeclWrapped(fn_name) && inSources(header_name)) {
+
         if (!isInitialized(header_name)) {
           addHeaderImport(header_name);
           WrapperOut << llvm::formatv("#include \"{0}.orig\"\n", header_name);
           InitializedHeaders.push_back(header_name.str());
         }
-
-        auto fn_name = fn_decl->getNameInfo().getAsString();
 
         std::string original_decl;
         llvm::raw_string_ostream os(original_decl);
@@ -122,6 +122,7 @@ public:
             param_names, ret_stmt);
 
         SymsOut << "    " << wrapper_name << ";\n";
+        WrappedFnDecls.push_back(fn_name);
       }
     }
   }
@@ -134,6 +135,8 @@ private:
   const std::vector<std::string> &Sources;
   // Headers that have included the IA2 header
   std::vector<std::string> InitializedHeaders;
+  // Function declarations that have already been wrapped
+  std::vector<std::string> WrappedFnDecls;
 
   bool inSources(llvm::StringRef Filename) {
     return std::find(Sources.begin(), Sources.end(), Filename) != Sources.end();
@@ -142,6 +145,11 @@ private:
   bool isInitialized(llvm::StringRef Filename) {
     return std::find(InitializedHeaders.begin(), InitializedHeaders.end(),
                      Filename) != InitializedHeaders.end();
+  }
+
+  bool functionDeclWrapped(llvm::StringRef FnDeclName) {
+    return std::find(WrappedFnDecls.begin(), WrappedFnDecls.end(),
+                     FnDeclName) != WrappedFnDecls.end();
   }
 
   void addHeaderImport(llvm::StringRef Filename) {

@@ -47,7 +47,7 @@ class FnDecl : public RefactoringCallback {
 public:
   FnDecl(llvm::raw_ostream &WrapperOut, llvm::raw_ostream &SymsOut,
          std::map<std::string, Replacements> &FileReplacements,
-         const std::vector<std::string> &Sources)
+         const std::vector<clang::FileEntryRef> &Sources)
       : WrapperOut(WrapperOut), SymsOut(SymsOut),
         FileReplacements(FileReplacements), Sources(Sources) {}
 
@@ -57,16 +57,22 @@ public:
       // This is an absolute path to the header with the fn decl
       llvm::StringRef header_name =
           Result.SourceManager->getFilename(fn_decl->getLocation());
+      auto header_ref_result =
+          Result.SourceManager->getFileManager().getFileRef(header_name);
+      if (auto err = header_ref_result.takeError()) {
+        llvm::errs() << "Error getting FileEntryRef: " << err << '\n';
+      }
+      clang::FileEntryRef header_ref = *header_ref_result;
       auto fn_name = fn_decl->getNameInfo().getAsString();
 
       // This callback may find a fn decl multiple times so only wrap it the
       // first time it's encountered in an input header
-      if (!functionDeclWrapped(fn_name) && inSources(header_name)) {
+      if (!functionDeclWrapped(fn_name) && inSources(header_ref)) {
 
-        if (!isInitialized(header_name)) {
+        if (!isInitialized(header_ref)) {
           addHeaderImport(header_name);
           WrapperOut << llvm::formatv("#include \"{0}.orig\"\n", header_name);
-          InitializedHeaders.push_back(header_name.str());
+          InitializedHeaders.push_back(header_ref);
         }
 
         std::string original_decl;
@@ -131,20 +137,21 @@ private:
   llvm::raw_ostream &WrapperOut;
   llvm::raw_ostream &SymsOut;
   std::map<std::string, Replacements> &FileReplacements;
-  // Absolute paths to the input headers
-  const std::vector<std::string> &Sources;
+  // Headers passed as inputs
+  const std::vector<clang::FileEntryRef> &Sources;
   // Headers that have included the IA2 header
-  std::vector<std::string> InitializedHeaders;
+  std::vector<clang::FileEntryRef> InitializedHeaders;
   // Function declarations that have already been wrapped
   std::vector<std::string> WrappedFnDecls;
 
-  bool inSources(llvm::StringRef Filename) {
-    return std::find(Sources.begin(), Sources.end(), Filename) != Sources.end();
+  bool inSources(clang::FileEntryRef InputHeader) {
+    return std::find(Sources.begin(), Sources.end(), InputHeader) !=
+           Sources.end();
   }
 
-  bool isInitialized(llvm::StringRef Filename) {
+  bool isInitialized(clang::FileEntryRef InputHeader) {
     return std::find(InitializedHeaders.begin(), InitializedHeaders.end(),
-                     Filename) != InitializedHeaders.end();
+                     InputHeader) != InitializedHeaders.end();
   }
 
   bool functionDeclWrapped(llvm::StringRef FnDeclName) {
@@ -181,23 +188,25 @@ public:
 
 int main(int argc, const char **argv) {
   CommonOptionsParser options_parser(argc, argv, HeaderRewriterCategory);
-  clang::FileManager file_mgr = clang::FileManager(clang::FileSystemOptions());
-  std::vector<std::string> absolute_paths;
+
+  RefactoringTool tool(options_parser.getCompilations(),
+                       options_parser.getSourcePathList());
+  clang::FileManager &file_mgr = tool.getFiles();
+  std::vector<clang::FileEntryRef> input_files;
   for (auto s : options_parser.getSourcePathList()) {
     // Make a copy of each original input headers
     std::ifstream src(s, std::ios::binary);
     std::ofstream dst(s + ".orig", std::ios::binary);
     dst << src.rdbuf();
 
-    // Get the absolute path of each input header
-    llvm::SmallVector<char> header_name(llvm::StringRef(s).bytes());
-    file_mgr.makeAbsolutePath(header_name);
-    std::string abs_path(header_name.data());
-    absolute_paths.push_back(abs_path);
+    // Get a `FileEntryRef` for each input header
+    auto input_ref_result = file_mgr.getFileRef(s);
+    if (auto err = input_ref_result.takeError()) {
+      llvm::errs() << "Error getting FileEntryRef: " << err << '\n';
+    }
+    clang::FileEntryRef input_ref = *input_ref_result;
+    input_files.push_back(input_ref);
   }
-
-  RefactoringTool tool(options_parser.getCompilations(),
-                       options_parser.getSourcePathList());
 
   std::error_code EC;
   llvm::raw_fd_ostream wrapper_out(WrapperOutputFilename, EC);
@@ -218,7 +227,7 @@ int main(int argc, const char **argv) {
   ASTMatchRefactorer refactorer(tool.getReplacements());
   FnPtrPrinter printer;
   FnDecl decl_replacement(wrapper_out, syms_out, tool.getReplacements(),
-                          absolute_paths);
+                          input_files);
   // refactorer.addMatcher(fn_ptr_matcher, &printer);
   refactorer.addMatcher(fn_decl_matcher, &decl_replacement);
 

@@ -1,3 +1,8 @@
+#if __has_include("simple1_ia2.h")
+#include "simple1_ia2.h"
+#define MAIN_USE_IA2 1
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -5,11 +10,7 @@
 #include <ia2.h>
 
 #include "hooks.h"
-#include "simple1_public.h"
-
-#if __has_include("simple1_ia2.h")
-#define MAIN_USE_IA2 1
-#endif
+#include "simple1.h"
 
 static HookFn exit_hook_fn = NULL;
 

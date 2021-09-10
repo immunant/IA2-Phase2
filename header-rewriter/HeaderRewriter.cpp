@@ -71,7 +71,7 @@ public:
 
         if (!isInitialized(header_ref)) {
           addHeaderImport(header_name);
-          WrapperOut << llvm::formatv("#include \"{0}.orig\"\n", header_name);
+          WrapperOut << llvm::formatv("#include \"{0}\"\n", header_name);
           InitializedHeaders.push_back(header_ref);
         }
 
@@ -221,6 +221,7 @@ int main(int argc, const char **argv) {
     return EC.value();
   }
 
+  wrapper_out << "#define IA2_WRAPPER\n";
   syms_out << "IA2 {\n"
            << "  global:\n";
 

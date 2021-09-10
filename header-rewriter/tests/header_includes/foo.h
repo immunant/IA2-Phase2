@@ -2,6 +2,7 @@
 #include "bar.h"
 #include "baz.h"
 
-void foo(int x);
+/* CHECK: IA2_WRAP_FUNCTION(foo) */
+struct Option Some(int x);
 
 int foo2();

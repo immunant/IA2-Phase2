@@ -1,8 +1,13 @@
 #include <stdio.h>
 #include "foo.h"
 
-void foo(int x) {
+struct Option Some(int x) {
     printf("x is %d\n", x);
+    struct Option opt = {
+        .x = x,
+        .present = true,
+    };
+    return opt;
 }
 
 int foo2() {

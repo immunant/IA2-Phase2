@@ -385,7 +385,7 @@ int main(int argc, const char **argv) {
 
       std::string fn_sig;
       if (fi.return_type.empty()) {
-        fn_sig = "void ia2_target(" + llvm::join(fi.parameters, ", ") + ')';
+        fn_sig = "void __ia2_target(" + llvm::join(fi.parameters, ", ") + ')';
       } else {
         // The arguments go right after the name inside the placeholder,
         // not at the end of the return type, e.g., for this declaration

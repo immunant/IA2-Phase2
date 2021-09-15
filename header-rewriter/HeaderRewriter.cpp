@@ -67,7 +67,7 @@ public:
 
       // This callback may find a fn decl multiple times so only wrap it the
       // first time it's encountered in an input header
-      if (!functionDeclWrapped(fn_name) && inSources(header_ref)) {
+      if (isCanonicalDecl(fn_decl) && inSources(header_ref)) {
 
         if (!isInitialized(header_ref)) {
           addHeaderImport(header_name);
@@ -144,6 +144,9 @@ private:
   // Function declarations that have already been wrapped
   std::vector<std::string> WrappedFnDecls;
 
+  bool isCanonicalDecl(const clang::FunctionDecl *fn_decl) {
+      return (fn_decl == fn_decl->getCanonicalDecl());
+  }
   bool inSources(clang::FileEntryRef InputHeader) {
     return std::find(Sources.begin(), Sources.end(), InputHeader) !=
            Sources.end();

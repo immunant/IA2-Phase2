@@ -1,6 +1,7 @@
 #include <clang/AST/AST.h>
 #include <clang/ASTMatchers/ASTMatchFinder.h>
 #include <clang/ASTMatchers/ASTMatchers.h>
+#include <clang/Basic/FileManager.h>
 #include <clang/Basic/SourceManager.h>
 #include <clang/Frontend/FrontendActions.h>
 #include <clang/Tooling/CommonOptionsParser.h>
@@ -46,33 +47,36 @@ class FnDecl : public RefactoringCallback {
 public:
   FnDecl(llvm::raw_ostream &WrapperOut, llvm::raw_ostream &SymsOut,
          std::map<std::string, Replacements> &FileReplacements,
-         const std::vector<std::string> &Sources)
+         const std::vector<clang::FileEntryRef> &Sources)
       : WrapperOut(WrapperOut), SymsOut(SymsOut),
         FileReplacements(FileReplacements), Sources(Sources) {}
-
-  virtual void onStartOfCompilationUnit() { StartOfCompilationUnit = true; }
 
   virtual void run(const MatchFinder::MatchResult &Result) {
     if (const clang::FunctionDecl *fn_decl =
             Result.Nodes.getNodeAs<clang::FunctionDecl>("exportedFn")) {
-      // RefactoringCallback goes through fn decls from included headers so we
-      // filter out anything not in the source list
-      auto header_name =
-          Result.SourceManager->getFilename(fn_decl->getLocation()).str();
-      auto is_suffix_of_header = [&](std::string_view src) {
-        auto header_suffix =
-            header_name.substr(header_name.size() - src.size());
-        return (header_name.size() >= src.size()) && (header_suffix == src);
-      };
-      if (std::find_if(Sources.begin(), Sources.end(), is_suffix_of_header) !=
-          Sources.end()) {
-        if (StartOfCompilationUnit) {
-          addHeaderImport(header_name);
-          WrapperOut << llvm::formatv("#include \"{0}.orig\"\n", header_name);
-          StartOfCompilationUnit = false;
-        }
+      // This is an absolute path to the header with the fn decl
+      llvm::StringRef header_name =
+          Result.SourceManager->getFilename(fn_decl->getLocation());
+      auto header_ref_result =
+          Result.SourceManager->getFileManager().getFileRef(header_name);
+      if (auto err = header_ref_result.takeError()) {
+        llvm::errs() << "Error getting FileEntryRef: " << err << '\n';
+        return;
+      }
+      clang::FileEntryRef header_ref = *header_ref_result;
+      auto fn_name = fn_decl->getNameInfo().getAsString();
 
-        auto fn_name = fn_decl->getNameInfo().getAsString();
+      // This callback may find a fn decl multiple times so only wrap it the
+      // first time it's encountered in an input header
+      if (isCanonicalDecl(fn_decl) && inSources(header_ref)) {
+
+        if (!isInitialized(header_ref)) {
+          if (addHeaderImport(header_name)) {
+              return;
+          }
+          WrapperOut << llvm::formatv("#include \"{0}\"\n", header_name);
+          InitializedHeaders.push_back(header_ref);
+        }
 
         std::string original_decl;
         llvm::raw_string_ostream os(original_decl);
@@ -82,9 +86,10 @@ public:
             "IA2_WRAP_FUNCTION(" + fn_name + ");\n" + original_decl;
         Replacement decl_replacement{*Result.SourceManager, fn_decl, new_decl};
 
-        auto err = Replace.add(decl_replacement);
+        auto err = FileReplacements[header_name.str()].add(decl_replacement);
         if (err) {
           llvm::errs() << "Error adding replacement: " << err << '\n';
+          return;
         }
 
         // TODO: Handle attributes on wrapper
@@ -135,15 +140,36 @@ private:
   llvm::raw_ostream &WrapperOut;
   llvm::raw_ostream &SymsOut;
   std::map<std::string, Replacements> &FileReplacements;
-  const std::vector<std::string> &Sources;
+  // Headers passed as inputs
+  const std::vector<clang::FileEntryRef> &Sources;
+  // Headers that have included the IA2 header
+  std::vector<clang::FileEntryRef> InitializedHeaders;
 
-  bool StartOfCompilationUnit = true;
+  bool isCanonicalDecl(const clang::FunctionDecl *fn_decl) {
+      return (fn_decl == fn_decl->getCanonicalDecl());
+  }
 
-  void addHeaderImport(llvm::StringRef Filename) {
-    auto err = Replace.add(Replacement(Filename, 0, 0, "#include <ia2.h>\n"));
+  bool inSources(clang::FileEntryRef InputHeader) {
+    auto matchingIDs = [&](clang::FileEntryRef header) {
+        return header.getUniqueID() == InputHeader.getUniqueID();
+    };
+    return std::find_if(Sources.begin(), Sources.end(), matchingIDs) !=
+           Sources.end();
+  }
+
+  bool isInitialized(clang::FileEntryRef InputHeader) {
+    return std::find(InitializedHeaders.begin(), InitializedHeaders.end(),
+                     InputHeader) != InitializedHeaders.end();
+  }
+
+  bool addHeaderImport(llvm::StringRef Filename) {
+    auto err = FileReplacements[Filename.str()].add(
+        Replacement(Filename, 0, 0, "#include <ia2.h>\n"));
     if (err) {
       llvm::errs() << "Error adding ia2 header import: " << err << '\n';
+      return true;
     }
+    return false;
   }
 };
 
@@ -167,13 +193,25 @@ public:
 
 int main(int argc, const char **argv) {
   CommonOptionsParser options_parser(argc, argv, HeaderRewriterCategory);
-  for (auto s : options_parser.getSourcePathList()) {
-    std::ifstream src(s, std::ios::binary);
-    std::ofstream dst(s.append(".orig"), std::ios::binary);
-    dst << src.rdbuf();
-  }
+
   RefactoringTool tool(options_parser.getCompilations(),
                        options_parser.getSourcePathList());
+  clang::FileManager &file_mgr = tool.getFiles();
+  std::vector<clang::FileEntryRef> input_files;
+  for (auto s : options_parser.getSourcePathList()) {
+    // Make a copy of each original input headers
+    std::ifstream src(s, std::ios::binary);
+    std::ofstream dst(s + ".orig", std::ios::binary);
+    dst << src.rdbuf();
+
+    // Get a `FileEntryRef` for each input header
+    auto input_ref_result = file_mgr.getFileRef(s);
+    if (auto err = input_ref_result.takeError()) {
+      llvm::errs() << "Error getting FileEntryRef: " << err << '\n';
+    }
+    clang::FileEntryRef input_ref = *input_ref_result;
+    input_files.push_back(input_ref);
+  }
 
   std::error_code EC;
   llvm::raw_fd_ostream wrapper_out(WrapperOutputFilename, EC);
@@ -188,13 +226,14 @@ int main(int argc, const char **argv) {
     return EC.value();
   }
 
+  wrapper_out << "#define IA2_WRAPPER\n";
   syms_out << "IA2 {\n"
            << "  global:\n";
 
   ASTMatchRefactorer refactorer(tool.getReplacements());
   FnPtrPrinter printer;
   FnDecl decl_replacement(wrapper_out, syms_out, tool.getReplacements(),
-                          options_parser.getSourcePathList());
+                          input_files);
   // refactorer.addMatcher(fn_ptr_matcher, &printer);
   refactorer.addMatcher(fn_decl_matcher, &decl_replacement);
 

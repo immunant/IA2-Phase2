@@ -132,7 +132,6 @@ public:
             param_names, ret_stmt);
 
         SymsOut << "    " << wrapper_name << ";\n";
-        WrappedFnDecls.push_back(fn_name);
       }
     }
   }
@@ -145,12 +144,11 @@ private:
   const std::vector<clang::FileEntryRef> &Sources;
   // Headers that have included the IA2 header
   std::vector<clang::FileEntryRef> InitializedHeaders;
-  // Function declarations that have already been wrapped
-  std::vector<std::string> WrappedFnDecls;
 
   bool isCanonicalDecl(const clang::FunctionDecl *fn_decl) {
       return (fn_decl == fn_decl->getCanonicalDecl());
   }
+
   bool inSources(clang::FileEntryRef InputHeader) {
     auto matchingIDs = [&](clang::FileEntryRef header) {
         return header.getUniqueID() == InputHeader.getUniqueID();
@@ -162,11 +160,6 @@ private:
   bool isInitialized(clang::FileEntryRef InputHeader) {
     return std::find(InitializedHeaders.begin(), InitializedHeaders.end(),
                      InputHeader) != InitializedHeaders.end();
-  }
-
-  bool functionDeclWrapped(llvm::StringRef FnDeclName) {
-    return std::find(WrappedFnDecls.begin(), WrappedFnDecls.end(),
-                     FnDeclName) != WrappedFnDecls.end();
   }
 
   bool addHeaderImport(llvm::StringRef Filename) {

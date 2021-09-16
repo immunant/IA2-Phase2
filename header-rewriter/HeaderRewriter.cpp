@@ -183,8 +183,6 @@ static DeclarationMatcher fn_ptr_field_matcher =
 static DeclarationMatcher fn_ptr_typedef_matcher =
     typedefNameDecl(hasType(fn_ptr_matcher)).bind("fnPtrTypedef");
 
-static const std::string kTypePlaceHolder = "$$$IA2_PLACEHOLDER$$$";
-
 struct FunctionInfo {
   // The new type for this function pointer
   std::string new_type;

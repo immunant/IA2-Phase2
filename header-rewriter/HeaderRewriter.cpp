@@ -61,6 +61,7 @@ public:
           Result.SourceManager->getFileManager().getFileRef(header_name);
       if (auto err = header_ref_result.takeError()) {
         llvm::errs() << "Error getting FileEntryRef: " << err << '\n';
+        return;
       }
       clang::FileEntryRef header_ref = *header_ref_result;
       auto fn_name = fn_decl->getNameInfo().getAsString();
@@ -70,7 +71,9 @@ public:
       if (isCanonicalDecl(fn_decl) && inSources(header_ref)) {
 
         if (!isInitialized(header_ref)) {
-          addHeaderImport(header_name);
+          if (addHeaderImport(header_name)) {
+              return;
+          }
           WrapperOut << llvm::formatv("#include \"{0}\"\n", header_name);
           InitializedHeaders.push_back(header_ref);
         }
@@ -86,6 +89,7 @@ public:
         auto err = FileReplacements[header_name.str()].add(decl_replacement);
         if (err) {
           llvm::errs() << "Error adding replacement: " << err << '\n';
+          return;
         }
 
         // TODO: Handle attributes on wrapper
@@ -162,12 +166,14 @@ private:
                      FnDeclName) != WrappedFnDecls.end();
   }
 
-  void addHeaderImport(llvm::StringRef Filename) {
+  bool addHeaderImport(llvm::StringRef Filename) {
     auto err = FileReplacements[Filename.str()].add(
         Replacement(Filename, 0, 0, "#include <ia2.h>\n"));
     if (err) {
       llvm::errs() << "Error adding ia2 header import: " << err << '\n';
+      return true;
     }
+    return false;
   }
 };
 

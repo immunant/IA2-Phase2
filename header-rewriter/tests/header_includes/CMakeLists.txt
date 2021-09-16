@@ -1,4 +1,3 @@
-set(HEADERS foo.h bar.h baz.h)
 add_library(header_includes-original SHARED foo.c bar.c baz.c)
 
 set(HEADERS foo.h bar.h baz.h)
@@ -18,6 +17,7 @@ target_link_libraries(header_includes-wrapper PRIVATE
   header_includes-original)
 target_link_options(header_includes-wrapper PRIVATE
   -Wl,--version-script,${CMAKE_CURRENT_BINARY_DIR}/wrapper.c.syms)
+target_include_directories(header_includes-wrapper BEFORE PRIVATE ${PROJECT_SOURCE_DIR}/../include)
 
 # Copy the C file to the build directory so it can't pick up the original header
 # from its source directory

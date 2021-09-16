@@ -12,6 +12,7 @@ target_link_libraries(wrapper PRIVATE
   original)
 target_link_options(wrapper PRIVATE
   -Wl,--version-script,${CMAKE_CURRENT_BINARY_DIR}/wrapper.c.syms)
+target_include_directories(wrapper BEFORE PRIVATE ${PROJECT_SOURCE_DIR}/../include)
 
 # Copy the C file to the build directory so it can't pick up the original header
 # from its source directory

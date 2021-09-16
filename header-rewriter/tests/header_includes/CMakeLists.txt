@@ -8,7 +8,10 @@ list(TRANSFORM HEADER_SRCS PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/)
 add_custom_command(
   OUTPUT ${HEADERS} wrapper.c
   COMMAND cp ${HEADER_SRCS} ${CMAKE_CURRENT_BINARY_DIR}/
-  COMMAND ia2-header-rewriter ${CMAKE_CURRENT_BINARY_DIR}/wrapper.c ${HEADERS}
+  COMMAND ia2-header-rewriter
+    ${CMAKE_CURRENT_BINARY_DIR}/wrapper.c
+    ${HEADERS}
+    --
   DEPENDS ${HEADER_SRCS}
   VERBATIM)
 

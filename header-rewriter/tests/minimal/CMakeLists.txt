@@ -3,7 +3,10 @@ add_library(original SHARED minimal.c)
 add_custom_command(
   OUTPUT minimal.h wrapper.c
   COMMAND cp ${CMAKE_CURRENT_SOURCE_DIR}/minimal.h ${CMAKE_CURRENT_BINARY_DIR}/minimal.h
-  COMMAND ia2-header-rewriter ${CMAKE_CURRENT_BINARY_DIR}/wrapper.c ${CMAKE_CURRENT_BINARY_DIR}/minimal.h
+  COMMAND ia2-header-rewriter
+    ${CMAKE_CURRENT_BINARY_DIR}/wrapper.c
+    ${CMAKE_CURRENT_BINARY_DIR}/minimal.h
+    --
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/minimal.h
   VERBATIM)
 

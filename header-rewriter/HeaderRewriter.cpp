@@ -152,7 +152,10 @@ private:
       return (fn_decl == fn_decl->getCanonicalDecl());
   }
   bool inSources(clang::FileEntryRef InputHeader) {
-    return std::find(Sources.begin(), Sources.end(), InputHeader) !=
+    auto matchingIDs = [&](clang::FileEntryRef header) {
+        return header.getUniqueID() == InputHeader.getUniqueID();
+    };
+    return std::find_if(Sources.begin(), Sources.end(), matchingIDs) !=
            Sources.end();
   }
 

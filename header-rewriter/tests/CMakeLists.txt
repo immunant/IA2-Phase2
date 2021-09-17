@@ -24,5 +24,6 @@ set_target_properties(check PROPERTIES FOLDER "tests")
 # sources, ignore for now.
 # add_subdirectory(header_includes)
 
+add_subdirectory(macro_attr)
 add_subdirectory(minimal)
 add_subdirectory(simple1)

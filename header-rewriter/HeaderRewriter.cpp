@@ -86,10 +86,9 @@ static DeclarationMatcher fn_decl_matcher =
 class FnDecl : public RefactoringCallback {
 public:
   FnDecl(llvm::raw_ostream &WrapperOut, llvm::raw_ostream &SymsOut,
-         std::map<std::string, Replacements> &FileReplacements,
-         const std::vector<clang::FileEntryRef> &Sources)
+         std::map<std::string, Replacements> &FileReplacements)
       : WrapperOut(WrapperOut), SymsOut(SymsOut),
-        FileReplacements(FileReplacements), Sources(Sources) {}
+        FileReplacements(FileReplacements) {}
 
   virtual void run(const MatchFinder::MatchResult &Result) {
     if (const clang::FunctionDecl *fn_decl =
@@ -97,6 +96,12 @@ public:
       // This is an absolute path to the header with the fn decl
       llvm::StringRef header_name =
           Result.SourceManager->getFilename(fn_decl->getLocation());
+
+      // Avoid wrapping functions declared in system headers or from macro expansions
+      if (header_name.startswith("/usr/include/") || header_name.empty()) {
+          return;
+      }
+
       auto header_ref_result =
           Result.SourceManager->getFileManager().getFileRef(header_name);
       if (auto err = header_ref_result.takeError()) {
@@ -108,7 +113,7 @@ public:
 
       // This callback may find a fn decl multiple times so only wrap it the
       // first time it's encountered in an input header
-      if (isCanonicalDecl(fn_decl) && inSources(header_ref)) {
+      if (isCanonicalDecl(fn_decl)) {
 
         if (!isInitialized(header_ref)) {
           if (addHeaderImport(header_name)) {
@@ -199,21 +204,11 @@ private:
   llvm::raw_ostream &WrapperOut;
   llvm::raw_ostream &SymsOut;
   std::map<std::string, Replacements> &FileReplacements;
-  // Headers passed as inputs
-  const std::vector<clang::FileEntryRef> &Sources;
   // Headers that have included the IA2 header
   std::vector<clang::FileEntryRef> InitializedHeaders;
 
   bool isCanonicalDecl(const clang::FunctionDecl *fn_decl) {
     return (fn_decl == fn_decl->getCanonicalDecl());
-  }
-
-  bool inSources(clang::FileEntryRef InputHeader) {
-    auto matchingIDs = [&](clang::FileEntryRef header) {
-      return header.getUniqueID() == InputHeader.getUniqueID();
-    };
-    return std::find_if(Sources.begin(), Sources.end(), matchingIDs) !=
-           Sources.end();
   }
 
   bool isInitialized(clang::FileEntryRef InputHeader) {
@@ -454,8 +449,7 @@ int main(int argc, const char **argv) {
 
   ASTMatchRefactorer refactorer(tool.getReplacements());
   FnPtrPrinter printer;
-  FnDecl decl_replacement(wrapper_out, syms_out, tool.getReplacements(),
-                          input_files);
+  FnDecl decl_replacement(wrapper_out, syms_out, tool.getReplacements());
   refactorer.addMatcher(fn_decl_matcher, &decl_replacement);
   refactorer.addMatcher(fn_ptr_param_matcher, &printer);
   refactorer.addMatcher(fn_ptr_field_matcher, &printer);

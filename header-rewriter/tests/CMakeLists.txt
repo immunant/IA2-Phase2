@@ -25,3 +25,4 @@ set_target_properties(check PROPERTIES FOLDER "tests")
 # add_subdirectory(header_includes)
 
 add_subdirectory(minimal)
+add_subdirectory(simple1)

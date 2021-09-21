@@ -134,13 +134,13 @@ public:
             param_decls.append(", ");
             param_names.append(", ");
           }
-          param_decls.append(p->getType().getAsString() + " ");
           auto name = p->getNameAsString();
           if (name.empty()) {
             auto n = &p - fn_decl->param_begin();
             name = llvm::formatv("__ia2_arg_{0}", n);
           }
-          param_decls.append(name);
+          auto param_type_string = type_string_with_placeholder(p->getType());
+          param_decls.append(replace_type_placeholder(param_type_string, name));
           param_names.append(name);
         }
 

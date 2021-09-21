@@ -41,6 +41,32 @@ static llvm::cl::opt<std::string>
                           llvm::cl::cat(HeaderRewriterCategory),
                           llvm::cl::desc("<wrapper output filename>"));
 
+// For types that have both a left and right side, this is what
+// we emit for the name between the two sides, e.g.,
+// int (*$$$IA2_PLACEHOLDER$$$)(int).
+// We can replace this placeholder with any identifier to produce
+// a new variable with that same type.
+static const std::string kTypePlaceHolder = "$$$IA2_PLACEHOLDER$$$";
+
+// Convert a QualType to a string that contains kTypePlaceholder
+static std::string type_string_with_placeholder(clang::QualType ty) {
+  std::string result;
+  llvm::raw_string_ostream os{result};
+  ty.print(os, clang::LangOptions(), kTypePlaceHolder);
+  return result;
+}
+
+// Replace kTypePlaceholder in a string produced by
+// type_string_with_placeholder with an actual given name
+template<typename T>
+static std::string replace_type_placeholder(std::string s, const T &with) {
+  auto placeholder_pos = s.find(kTypePlaceHolder);
+  if (placeholder_pos != std::string::npos) {
+    s.replace(placeholder_pos, kTypePlaceHolder.size(), with);
+  }
+  return s;
+}
+
 static DeclarationMatcher fn_decl_matcher =
     functionDecl(unless(isDefinition())).bind("exportedFn");
 
@@ -278,17 +304,15 @@ public:
 
         auto return_type = fpt->getReturnType();
         if (!return_type.isCForbiddenLValueType()) {
-          llvm::raw_string_ostream os{fi.return_type};
-          return_type.print(os, clang::LangOptions(), kTypePlaceHolder);
+          fi.return_type = type_string_with_placeholder(return_type);
         }
 
         for (auto param_type : fpt->param_types()) {
+          auto s = type_string_with_placeholder(param_type);
           auto i = fi.parameters.size();
-          fi.parameters.push_back({});
-
-          llvm::raw_string_ostream os{fi.parameters.back()};
           auto arg_name = llvm::formatv("__ia2_arg_{0}", i).str();
-          param_type.print(os, clang::LangOptions(), arg_name);
+          fi.parameters.push_back(replace_type_placeholder(std::move(s),
+                                                           arg_name));
         }
 
         m_function_info.insert({mangled_type, fi});
@@ -324,11 +348,9 @@ static int emit_output_header(const FnPtrPrinter &printer) {
 
     os << fi.new_type << " { char *ptr; };\n";
 
-    auto placeholder_pos = fi.return_type.find(kTypePlaceHolder);
     if (!fi.return_type.empty()) {
-      std::string variable_type = fi.return_type;
-      variable_type.replace(placeholder_pos, kTypePlaceHolder.size(),
-                            "__ia2_variable");
+      std::string variable_type =
+        replace_type_placeholder(fi.return_type, "__ia2_variable");
       os << "#define IA2_FNPTR_RETURN_" << mangled_type << "(__ia2_variable) "
          << variable_type << '\n';
     }
@@ -343,9 +365,8 @@ static int emit_output_header(const FnPtrPrinter &printer) {
       // and char is the type of the argument of the returned function
       auto fn_with_args =
           "__ia2_target(" + llvm::join(fi.parameters, ", ") + ')';
-      fn_sig = fi.return_type;
-      fn_sig.replace(placeholder_pos, kTypePlaceHolder.size(),
-                     std::move(fn_with_args));
+      fn_sig = replace_type_placeholder(fi.return_type,
+                                        std::move(fn_with_args));
     }
     os << "#define IA2_FNPTR_WRAPPER_" << mangled_type << "(__ia2_target) "
        << fn_sig << '\n';

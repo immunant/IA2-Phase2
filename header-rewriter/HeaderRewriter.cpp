@@ -247,7 +247,11 @@ public:
       mangled_type = mangle_type(old_decl->getASTContext(), old_type);
 
       new_type += mangled_type;
-      new_decl = new_type + ' ' + parm_var_decl->getName().str();
+      new_decl = new_type;
+      if (!parm_var_decl->getName().empty()) {
+        new_decl += ' ';
+        new_decl += parm_var_decl->getName().str();
+      }
     } else if (auto *field_decl =
                    Result.Nodes.getNodeAs<clang::FieldDecl>("fnPtrField")) {
       old_decl = llvm::cast<clang::Decl>(field_decl);
@@ -255,7 +259,11 @@ public:
       mangled_type = mangle_type(old_decl->getASTContext(), old_type);
 
       new_type += mangled_type;
-      new_decl = new_type + ' ' + field_decl->getName().str();
+      new_decl = new_type;
+      if (!field_decl->getName().empty()) {
+        new_decl += ' ';
+        new_decl += field_decl->getName().str();
+      }
     } else if (auto *typedef_decl =
                    Result.Nodes.getNodeAs<clang::TypedefDecl>("fnPtrTypedef")) {
       old_decl = llvm::cast<clang::Decl>(typedef_decl);

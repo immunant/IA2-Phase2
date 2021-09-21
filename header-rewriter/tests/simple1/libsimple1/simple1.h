@@ -11,5 +11,6 @@ typedef int (*SimpleMapFn)(int);
 
 struct Simple *simple_new(struct SimpleCallbacks);
 void simple_destroy(struct Simple*);
-void simple_foreach(struct Simple*, SimpleMapFn);
+void simple_foreach_v1(struct Simple*, int (*)(int));
+void simple_foreach_v2(struct Simple*, SimpleMapFn);
 

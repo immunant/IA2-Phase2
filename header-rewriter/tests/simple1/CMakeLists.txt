@@ -13,7 +13,7 @@ add_custom_target(
     simple1.h
     --
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/libsimple1/simple1.h
-  BYPRODUCTS simple1_ia2.h simple1.h wrapper.c
+  BYPRODUCTS simple1_ia2.h simple1.h simple1.h.orig wrapper.c wrapper.c.syms
   VERBATIM
   )
 

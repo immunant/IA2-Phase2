@@ -108,13 +108,10 @@ public:
           InitializedHeaders.push_back(header_ref);
         }
 
-        std::string original_decl;
-        llvm::raw_string_ostream os(original_decl);
-        fn_decl->print(os);
-
-        std::string new_decl =
-            "IA2_WRAP_FUNCTION(" + fn_name + ");\n" + original_decl;
-        Replacement decl_replacement{*Result.SourceManager, fn_decl, new_decl};
+        std::string wrapper_macro =
+            "IA2_WRAP_FUNCTION(" + fn_name + ");\n";
+        Replacement decl_replacement{*Result.SourceManager,
+            fn_decl->getBeginLoc(), 0, wrapper_macro};
 
         auto err = FileReplacements[header_name.str()].add(decl_replacement);
         if (err) {

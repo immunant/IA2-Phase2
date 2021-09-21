@@ -144,22 +144,24 @@ public:
           param_names.append(name);
         }
 
+        auto ret_type_string = type_string_with_placeholder(ret_type);
         std::string ret_val;
         auto ret_stmt = "";
         if (!ret_type.isCForbiddenLValueType()) {
-          ret_val = llvm::formatv("{0} res = ", ret_type.getAsString()).str();
+          auto ret_var = replace_type_placeholder(ret_type_string, "res");
+          ret_val = ret_var + " = ";
           ret_stmt = "    return res;\n";
         }
 
         WrapperOut << llvm::formatv(
-            "{0} {1}({2}) {\n"
+            "{0}({1}) {\n"
             "    // call_gate_push();\n"
-            "    {3}{4}({5});\n"
+            "    {2}{3}({4});\n"
             "    // call_gate_pop();\n"
-            "{6}"
+            "{5}"
             "}\n",
-            ret_type.getAsString(), wrapper_name, param_decls, ret_val, fn_name,
-            param_names, ret_stmt);
+            replace_type_placeholder(ret_type_string, wrapper_name),
+            param_decls, ret_val, fn_name, param_names, ret_stmt);
 
         SymsOut << "    " << wrapper_name << ";\n";
       }

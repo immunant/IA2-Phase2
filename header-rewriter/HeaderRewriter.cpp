@@ -58,7 +58,7 @@ static std::string type_string_with_placeholder(clang::QualType ty) {
 
 // Replace kTypePlaceholder in a string produced by
 // type_string_with_placeholder with an actual given name
-template<typename T>
+template <typename T>
 static std::string replace_type_placeholder(std::string s, const T &with) {
   auto placeholder_pos = s.find(kTypePlaceHolder);
   if (placeholder_pos != std::string::npos) {
@@ -108,10 +108,9 @@ public:
           InitializedHeaders.push_back(header_ref);
         }
 
-        std::string wrapper_macro =
-            "IA2_WRAP_FUNCTION(" + fn_name + ");\n";
+        std::string wrapper_macro = "IA2_WRAP_FUNCTION(" + fn_name + ");\n";
         Replacement decl_replacement{*Result.SourceManager,
-            fn_decl->getBeginLoc(), 0, wrapper_macro};
+                                     fn_decl->getBeginLoc(), 0, wrapper_macro};
 
         auto err = FileReplacements[header_name.str()].add(decl_replacement);
         if (err) {
@@ -318,8 +317,8 @@ public:
           auto s = type_string_with_placeholder(param_type);
           auto i = fi.parameters.size();
           auto arg_name = llvm::formatv("__ia2_arg_{0}", i).str();
-          fi.parameters.push_back(replace_type_placeholder(std::move(s),
-                                                           arg_name));
+          fi.parameters.push_back(
+              replace_type_placeholder(std::move(s), arg_name));
         }
 
         m_function_info.insert({mangled_type, fi});
@@ -357,7 +356,7 @@ static int emit_output_header(const FnPtrPrinter &printer) {
 
     if (!fi.return_type.empty()) {
       std::string variable_type =
-        replace_type_placeholder(fi.return_type, "__ia2_variable");
+          replace_type_placeholder(fi.return_type, "__ia2_variable");
       os << "#define IA2_FNPTR_RETURN_" << mangled_type << "(__ia2_variable) "
          << variable_type << '\n';
     }
@@ -372,8 +371,8 @@ static int emit_output_header(const FnPtrPrinter &printer) {
       // and char is the type of the argument of the returned function
       auto fn_with_args =
           "__ia2_target(" + llvm::join(fi.parameters, ", ") + ')';
-      fn_sig = replace_type_placeholder(fi.return_type,
-                                        std::move(fn_with_args));
+      fn_sig =
+          replace_type_placeholder(fi.return_type, std::move(fn_with_args));
     }
     os << "#define IA2_FNPTR_WRAPPER_" << mangled_type << "(__ia2_target) "
        << fn_sig << '\n';

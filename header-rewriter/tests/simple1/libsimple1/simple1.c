@@ -37,7 +37,7 @@ void simple_destroy(struct Simple* s) {
   free(s);
 }
 
-void simple_foreach(struct Simple* s, SimpleMapFn map_fn) {
+void simple_foreach_v1(struct Simple* s, int (*map_fn)(int)) {
   for (;;) {
     int value = (*s->scb.read_cb)(s->state);
     if (value == 0) {
@@ -49,4 +49,8 @@ void simple_foreach(struct Simple* s, SimpleMapFn map_fn) {
 
     s->state++;
   }
+}
+
+void simple_foreach_v2(struct Simple* s, SimpleMapFn map_fn) {
+  simple_foreach_v1(s, map_fn);
 }

@@ -48,6 +48,9 @@ static llvm::cl::opt<std::string>
 // a new variable with that same type.
 static const std::string kTypePlaceHolder = "$$$IA2_PLACEHOLDER$$$";
 
+// Prefix we prepend to each rewritten function pointer type
+static const std::string kFnPtrTypePrefix = "struct IA2_fnptr_";
+
 // Convert a QualType to a string that contains kTypePlaceholder
 static std::string type_string_with_placeholder(clang::QualType ty) {
   std::string result;
@@ -65,6 +68,16 @@ static std::string replace_type_placeholder(std::string s, const T &with) {
     s.replace(placeholder_pos, kTypePlaceHolder.size(), with);
   }
   return s;
+}
+
+static std::string mangle_type(clang::ASTContext &ctx, clang::QualType ty) {
+  std::unique_ptr<clang::MangleContext> mctx{
+      clang::ItaniumMangleContext::create(ctx, ctx.getDiagnostics())};
+
+  std::string os;
+  llvm::raw_string_ostream out{os};
+  mctx->mangleTypeName(ty.getCanonicalType(), out);
+  return os;
 }
 
 static DeclarationMatcher fn_decl_matcher =
@@ -135,8 +148,19 @@ public:
             auto n = &p - fn_decl->param_begin();
             name = llvm::formatv("__ia2_arg_{0}", n);
           }
-          auto param_type_string = type_string_with_placeholder(p->getType());
-          param_decls.append(replace_type_placeholder(param_type_string, name));
+
+          auto param_type = p->getType();
+          if (param_type->isFunctionPointerType()) {
+            // Parameter is a function pointer, so we need to rewrite it
+            // into the internal mangled structure type
+            auto mangled_type = mangle_type(fn_decl->getASTContext(), param_type);
+            auto param_decl = llvm::formatv("{0}{1} {2}", kFnPtrTypePrefix,
+                                            mangled_type, name);
+            param_decls.append(param_decl);
+          } else {
+            auto param_type_string = type_string_with_placeholder(param_type);
+            param_decls.append(replace_type_placeholder(param_type_string, name));
+          }
           param_names.append(name);
         }
 
@@ -221,23 +245,13 @@ struct FunctionInfo {
   std::vector<std::string> parameters;
 };
 
-std::string mangle_type(clang::ASTContext &ctx, clang::QualType ty) {
-  std::unique_ptr<clang::MangleContext> mctx{
-      clang::ItaniumMangleContext::create(ctx, ctx.getDiagnostics())};
-
-  std::string os;
-  llvm::raw_string_ostream out{os};
-  mctx->mangleTypeName(ty.getCanonicalType(), out);
-  return os;
-}
-
 class FnPtrPrinter : public RefactoringCallback {
 public:
   virtual void run(const MatchFinder::MatchResult &Result) {
     const clang::Decl *old_decl = nullptr;
     clang::QualType old_type;
     std::string mangled_type;
-    std::string new_type{"struct IA2_fnptr_"};
+    std::string new_type = kFnPtrTypePrefix;
     std::string new_decl;
     if (auto *parm_var_decl =
             Result.Nodes.getNodeAs<clang::ParmVarDecl>("fnPtrParam")) {

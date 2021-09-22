@@ -14,6 +14,10 @@
 
 static HookFn exit_hook_fn = NULL;
 
+HookFn get_exit_hook(void) {
+  return exit_hook_fn;
+}
+
 void set_exit_hook(HookFn new_exit_hook_fn) {
   exit_hook_fn = new_exit_hook_fn;
 }

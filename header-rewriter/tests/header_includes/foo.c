@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "foo.h"
+#include <foo.h>
 
 struct Option Some(int x) {
     printf("x is %d\n", x);

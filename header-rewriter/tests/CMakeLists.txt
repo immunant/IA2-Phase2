@@ -20,10 +20,8 @@ add_custom_target(check)
 add_dependencies(check check-ia2)
 set_target_properties(check PROPERTIES FOLDER "tests")
 
-# The tests in header_includes don't currently build due to interdependent
-# sources, ignore for now.
-# add_subdirectory(header_includes)
-
+add_subdirectory(header_includes)
 add_subdirectory(macro_attr)
 add_subdirectory(minimal)
 add_subdirectory(simple1)
+#add_subdirectory(namespaces)

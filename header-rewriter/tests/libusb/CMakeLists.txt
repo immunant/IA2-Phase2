@@ -12,6 +12,9 @@ set(HEADER_SRCS ${HEADERS})
 list(TRANSFORM HEADER_SRCS PREPEND ${ORIGINAL_HEADER_DIR}/)
 list(TRANSFORM HEADERS PREPEND ${REWRITTEN_HEADER_DIR}/)
 
+# Including REWRITTEN_HEADER_DIR makes sure we rewrite private headers in the
+# correct directory. This demo has only one header, but including this directory
+# let's us use this CMakeLists.txt template.
 set(REWRITER_INCLUDES -I ${REWRITTEN_HEADER_DIR} -I /usr/lib/clang/11.1.0/include/)
 add_custom_command(
     OUTPUT ${HEADERS} wrapper.c

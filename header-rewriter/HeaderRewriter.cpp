@@ -120,6 +120,19 @@ public:
       clang::FileEntryRef header_ref = *header_ref_result;
       auto fn_name = fn_decl->getNameInfo().getAsString();
 
+      // Skipping variadic functions for now
+      // See https://github.com/immunant/IA2-Phase2/issues/18
+      if (fn_decl->isVariadic()) {
+          return;
+      }
+      // Also skipping functions with va_list arguments
+      for (auto &p : fn_decl->parameters()) {
+          // TODO: Find a better way to check for `va_list` if this becomes necessary
+          if (!p->getType().getAsString().compare("struct __va_list_tag *")) {
+              return;
+          }
+      }
+
       // This callback may find a fn decl multiple times so only wrap it the
       // first time it's encountered in an input header
       if (!functionIsWrapped(fn_decl)) {
@@ -146,7 +159,6 @@ public:
           return;
         }
 
-        // TODO: Handle attributes on wrapper
         auto wrapper_name = "__ia2_" + fn_name;
         auto ret_type = fn_decl->getReturnType();
         if (ret_type->isFunctionPointerType()) {

@@ -107,7 +107,7 @@ public:
           Result.SourceManager->getFilename(fn_decl->getLocation());
 
       // Avoid wrapping functions declared in system headers or from macro expansions
-      if (header_name.startswith("/usr/include/") || header_name.empty()) {
+      if (header_name.startswith("/usr/") || header_name.empty()) {
           return;
       }
 
@@ -120,17 +120,32 @@ public:
       clang::FileEntryRef header_ref = *header_ref_result;
       auto fn_name = fn_decl->getNameInfo().getAsString();
 
-      // Skipping variadic functions for now
+      // Deleting variadic functions from the rewritten header for now
+      bool delete_decl = false;
       // See https://github.com/immunant/IA2-Phase2/issues/18
       if (fn_decl->isVariadic()) {
-          return;
+          delete_decl = true;
       }
       // Also skipping functions with va_list arguments
       for (auto &p : fn_decl->parameters()) {
           // TODO: Find a better way to check for `va_list` if this becomes necessary
           if (!p->getType().getAsString().compare("struct __va_list_tag *")) {
-              return;
+              delete_decl = true;
+              break;
           }
+      }
+      if (delete_decl) {
+          std::string deleted_decl = "";
+          // Make sure to include any macro expansions in the SourceRange being rewritten
+          clang::CharSourceRange expansion_range = Result.SourceManager->getExpansionRange(fn_decl->getSourceRange());
+          Replacement decl_replacement{*Result.SourceManager, expansion_range, deleted_decl};
+
+          auto err = FileReplacements[header_name.str()].add(decl_replacement);
+          if (err) {
+            llvm::errs() << "Error adding replacement: " << err << '\n';
+            return;
+          }
+          return;
       }
 
       // This callback may find a fn decl multiple times so only wrap it the

@@ -12,9 +12,9 @@
    RUN: %t/main | diff - %S/Output/main.out
  */
 
-#include "foo.h"
-#include "bar.h"
-#include "baz.h"
+#include <foo.h>
+#include <bar.h>
+#include <baz.h>
 #include <stdio.h>
 
 int main() {

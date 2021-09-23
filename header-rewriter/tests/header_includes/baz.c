@@ -1,4 +1,4 @@
-#include "baz.h"
+#include <baz.h>
 
 int baz() {
     return 1;

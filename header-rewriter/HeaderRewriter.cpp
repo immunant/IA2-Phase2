@@ -1,6 +1,5 @@
 #include <fstream>
 #include <map>
-
 #include "clang/AST/AST.h"
 #include "clang/AST/Mangle.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
@@ -83,6 +82,16 @@ static std::string mangle_type(clang::ASTContext &ctx, clang::QualType ty) {
 static DeclarationMatcher fn_decl_matcher =
     functionDecl(unless(isDefinition())).bind("exportedFn");
 
+static std::string mangle_name(const clang::FunctionDecl *decl) {
+    clang::ASTContext& ctx = decl->getASTContext();
+    std::unique_ptr<clang::MangleContext> mctx{
+        clang::ItaniumMangleContext::create(ctx, ctx.getDiagnostics())};
+    std::string os;
+    llvm::raw_string_ostream out{os};
+    mctx->mangleName(clang::GlobalDecl(decl), out);
+    return os;
+}
+
 class FnDecl : public RefactoringCallback {
 public:
   FnDecl(llvm::raw_ostream &WrapperOut, llvm::raw_ostream &SymsOut,
@@ -113,7 +122,8 @@ public:
 
       // This callback may find a fn decl multiple times so only wrap it the
       // first time it's encountered in an input header
-      if (isCanonicalDecl(fn_decl)) {
+      if (!functionIsWrapped(fn_decl)) {
+          WrappedFunctions.push_back(mangle_name(fn_decl));
 
         if (!isInitialized(header_ref)) {
           if (addHeaderImport(header_name)) {
@@ -206,9 +216,12 @@ private:
   std::map<std::string, Replacements> &FileReplacements;
   // Headers that have included the IA2 header
   std::vector<clang::FileEntryRef> InitializedHeaders;
+  // The mangled names of all functions that have been wrapped so far.
+  std::vector<std::string> WrappedFunctions;
 
-  bool isCanonicalDecl(const clang::FunctionDecl *fn_decl) {
-    return (fn_decl == fn_decl->getCanonicalDecl());
+  bool functionIsWrapped(const clang::FunctionDecl *fn_decl) {
+      return std::find(WrappedFunctions.begin(), WrappedFunctions.end(),
+        mangle_name(fn_decl)) != WrappedFunctions.end();
   }
 
   bool isInitialized(clang::FileEntryRef InputHeader) {

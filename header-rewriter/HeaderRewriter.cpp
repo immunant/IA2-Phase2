@@ -134,6 +134,11 @@ public:
         // TODO: Handle attributes on wrapper
         auto wrapper_name = "__ia2_" + fn_name;
         auto ret_type = fn_decl->getReturnType();
+        if (ret_type->isFunctionPointerType()) {
+          llvm::errs() << "Functions that return function pointers "
+                          "are not supported\n";
+          return;
+        }
 
         std::string param_decls;
         std::string param_names;

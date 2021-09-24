@@ -65,9 +65,11 @@ int main() {
   srand(time(NULL));
 #if MAIN_USE_IA2
   simple_foreach_v1(s, IA2_FNPTR_WRAPPER(main_map, _ZTSPFiiE));
+  simple_reset(s);
   simple_foreach_v2(s, IA2_FNPTR_WRAPPER(main_map, _ZTSPFiiE));
 #else
   simple_foreach_v1(s, main_map);
+  simple_reset(s);
   simple_foreach_v2(s, main_map);
 #endif
   simple_destroy(s);

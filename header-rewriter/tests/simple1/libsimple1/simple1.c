@@ -34,6 +34,10 @@ struct Simple *simple_new(struct SimpleCallbacks scb) {
   return s;
 }
 
+void simple_reset(struct Simple* s) {
+  s->state = 0;
+}
+
 void simple_destroy(struct Simple* s) {
   free(s);
 }

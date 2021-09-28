@@ -135,8 +135,10 @@ public:
         auto wrapper_name = "__ia2_" + fn_name;
         auto ret_type = fn_decl->getReturnType();
         if (ret_type->isFunctionPointerType()) {
-          llvm::errs() << "Functions that return function pointers "
-                          "are not supported\n";
+          auto &sm = fn_decl->getASTContext().getSourceManager();
+          llvm::errs() << "Function that returns a function pointer "
+                          "is not supported, location:"
+                       << fn_decl->getSourceRange().printToString(sm) << "\n";
           return;
         }
 
@@ -306,13 +308,15 @@ public:
                       ->getPointeeType()
                       ->getAsAdjusted<clang::FunctionProtoType>();
       if (fpt == nullptr) {
-        // TODO: print location
-        llvm::errs() << "K&R function pointers not supported\n";
+        auto &sm = old_decl->getASTContext().getSourceManager();
+        llvm::errs() << "K&R function pointer is not supported, location:"
+                     << old_decl->getSourceRange().printToString(sm) << "\n";
         return;
       }
       if (fpt->isVariadic()) {
-        // TODO: print location
-        llvm::errs() << "Variadic function pointers not supported\n";
+        auto &sm = old_decl->getASTContext().getSourceManager();
+        llvm::errs() << "Variadic function pointer is not supported, location: "
+                     << old_decl->getSourceRange().printToString(sm) << "\n";
         return;
       }
 

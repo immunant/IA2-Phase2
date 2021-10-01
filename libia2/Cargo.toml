@@ -1,0 +1,27 @@
+[package]
+name = "ia2"
+version = "0.1.0"
+authors = ["Stephen Crane <sjc@immunant.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+libmimalloc-sys = { git = "ssh://git@github.com/immunant/ia2-mimalloc_rust.git", branch = "ia2", features = ["extended"] }
+libc = { version = "0.2", default_features = false }
+multiversion = "0.6"
+lazy_static = "*"
+
+[dev-dependencies]
+untrusted-test-ffi = { path = "./untrusted-test-ffi", untrusted = true }
+nix = "^0.19"
+criterion = "^0.3"
+rand = "^0.8"
+
+[[bench]]
+name = "micro"
+harness = false
+
+[features]
+# Disables compartment switching (for testing and benchmarking)
+insecure = []

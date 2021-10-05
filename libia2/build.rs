@@ -1,6 +1,6 @@
-use std::env;
 use cbindgen;
 use cbindgen::Language;
+use std::env;
 
 const HEADER_NAME: &str = "ia2.h";
 

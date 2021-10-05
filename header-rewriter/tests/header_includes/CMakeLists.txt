@@ -8,19 +8,20 @@ set(ORIGINAL_LIB ${TEST_NAME}-original)
 set(WRAPPER ${TEST_NAME}-wrapper)
 set(MAIN ${TEST_NAME}-main)
 
-set(HEADERS foo.h bar.h baz.h)
-set(HEADER_SRCS ${HEADERS})
+# Only public headers are passed directly to header-rewriter
+set(PUBLIC_HEADERS liboption.h types.h)
+set(PRIVATE_HEADERS impl.h)
+set(HEADER_SRCS ${PUBLIC_HEADERS} ${PRIVATE_HEADERS})
 list(TRANSFORM HEADER_SRCS PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/)
-list(TRANSFORM HEADERS PREPEND ${CMAKE_CURRENT_BINARY_DIR}/)
+list(TRANSFORM PUBLIC_HEADERS PREPEND ${CMAKE_CURRENT_BINARY_DIR}/)
 
-add_library(${ORIGINAL_LIB} SHARED foo.c bar.c baz.c)
+add_library(${ORIGINAL_LIB} SHARED liboption.c impl.c)
 target_include_directories(${ORIGINAL_LIB} BEFORE PRIVATE ${ORIGINAL_HEADER_DIR})
 
 add_custom_command(
-    OUTPUT ${HEADERS} wrapper.c
-    COMMAND echo ${HEADER_SRCS}
+    OUTPUT ${PUBLIC_HEADERS} ${PRIVATE_HEADERS} wrapper.c
     COMMAND cp ${HEADER_SRCS} ${CMAKE_CURRENT_BINARY_DIR}
-    COMMAND ia2-header-rewriter ${CMAKE_CURRENT_BINARY_DIR}/wrapper.c ${HEADERS} -- -I ${REWRITTEN_HEADER_DIR}
+    COMMAND ia2-header-rewriter ${CMAKE_CURRENT_BINARY_DIR}/wrapper.c ${PUBLIC_HEADERS} -- -I ${REWRITTEN_HEADER_DIR}
     DEPENDS ${HEADER_SRCS}
     VERBATIM)
 

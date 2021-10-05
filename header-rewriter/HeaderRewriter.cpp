@@ -143,6 +143,8 @@ public:
           if (err) {
             llvm::errs() << "Error adding replacement: " << err << '\n';
             return;
+          } else {
+              llvm::errs() << "Warning: deleting variadic function " << fn_decl->getNameAsString() << '\n';
           }
           return;
       }

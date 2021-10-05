@@ -1,11 +1,11 @@
 #![feature(asm, linkage, global_asm)]
 
+use core::cell::{Cell, RefCell};
+use core::convert::TryInto;
+use core::ffi::c_void;
+use core::fmt::Debug;
 use core::mem;
 use core::ptr;
-use core::fmt::Debug;
-use core::convert::TryInto;
-use core::cell::{Cell, RefCell};
-use core::ffi::c_void;
 use core::sync::atomic::{AtomicI32, Ordering};
 
 // Import the (assembly!) definition of __libia2_scrub_registers
@@ -117,7 +117,8 @@ pub extern "C" fn __libia2_untrusted_gate_pop() {
 
 thread_local!(static THREAD_HEAP_PKEY_FLAG: Cell<bool> = Cell::new(false));
 
-fn initialize_heap_pkey() {
+#[no_mangle]
+pub extern "C" fn initialize_heap_pkey(heap_start: *const u8, heap_len: usize) {
     THREAD_HEAP_PKEY_FLAG.with(|pkey_flag| {
         if !pkey_flag.get() {
             pkey_flag.set(true);
@@ -143,7 +144,13 @@ fn initialize_heap_pkey() {
             }
 
             unsafe {
-                //mi_heap_set_pkey(mi_heap_get_default(), pkey);
+                libc::syscall(
+                    libc::SYS_pkey_mprotect,
+                    heap_start,
+                    heap_len,
+                    libc::PROT_READ | libc::PROT_WRITE,
+                    pkey,
+                );
 
                 // Iterate through all ELF segments and assign
                 // protection keys to ours

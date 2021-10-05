@@ -368,6 +368,8 @@ public:
         return;
       }
 
+      //clang::CharSourceRange expansion_range =
+      //    Result.SourceManager->getExpansionRange(old_decl->getSourceRange());
       Replacement r{*Result.SourceManager, old_decl, new_decl};
       auto err = Replace.add(r);
       if (err) {

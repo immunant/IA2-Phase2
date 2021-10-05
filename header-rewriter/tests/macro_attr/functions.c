@@ -2,14 +2,14 @@
 #include <functions.h>
 
 void f() {
-    printf("Called `f`\n");
+    printf("Called `f()`\n");
 }
 
 void g() {
-    printf("Called `g`\n");
+    printf("Called `g()`\n");
 }
 
-void h(CB cb) {
+void h(int(*cb)(int)) {
     printf("Calling `cb(0)` from `h`\n");
     cb(0);
 }

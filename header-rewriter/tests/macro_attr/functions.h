@@ -11,6 +11,7 @@ void f();
 /* CHECK: IA2_WRAP_FUNCTION(g); */
 ATTR void g();
 
-//typedef UNUSED int (*CB)(int);
+/* CHECK: typedef struct IA2_fnptr__ZTSPFiiE CB; */
+UNUSED typedef int (*CB)(int);
 
-void h(int (*)(int));
+void h(CB cb);

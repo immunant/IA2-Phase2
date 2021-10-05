@@ -368,9 +368,9 @@ public:
         return;
       }
 
-      //clang::CharSourceRange expansion_range =
-      //    Result.SourceManager->getExpansionRange(old_decl->getSourceRange());
-      Replacement r{*Result.SourceManager, old_decl, new_decl};
+      clang::CharSourceRange expansion_range =
+          Result.SourceManager->getExpansionRange(old_decl->getSourceRange());
+      Replacement r{*Result.SourceManager, expansion_range, new_decl};
       auto err = Replace.add(r);
       if (err) {
         llvm::errs() << "Error adding replacement: " << err << '\n';

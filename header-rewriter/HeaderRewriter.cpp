@@ -135,10 +135,9 @@ public:
           }
       }
       if (delete_decl) {
-          std::string deleted_decl = "";
           // Make sure to include any macro expansions in the SourceRange being rewritten
           clang::CharSourceRange expansion_range = Result.SourceManager->getExpansionRange(fn_decl->getSourceRange());
-          Replacement decl_replacement{*Result.SourceManager, expansion_range, deleted_decl};
+          Replacement decl_replacement{*Result.SourceManager, expansion_range, ""};
 
           auto err = FileReplacements[header_name.str()].add(decl_replacement);
           if (err) {

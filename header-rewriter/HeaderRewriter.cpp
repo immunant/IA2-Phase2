@@ -104,18 +104,20 @@ public:
             Result.Nodes.getNodeAs<clang::FunctionDecl>("exportedFn")) {
       // This is an absolute path to the header with the fn decl
       llvm::StringRef header_name =
-          Result.SourceManager->getFilename(fn_decl->getLocation());
-
+          Result.SourceManager->getFilename(
+              Result.SourceManager->getExpansionLoc(fn_decl->getLocation()));
       // Avoid wrapping functions declared in system headers or from macro
       // expansions
-      if (header_name.startswith("/usr/") || header_name.empty()) {
-        return;
+      if (header_name.startswith("/usr/")) {
+          return;
       }
-
       auto header_ref_result =
           Result.SourceManager->getFileManager().getFileRef(header_name);
       if (auto err = header_ref_result.takeError()) {
-        llvm::errs() << "Error getting FileEntryRef: " << err << '\n';
+        llvm::errs() << "Error getting FileEntryRef for '"
+            << header_name << "' ("
+            << fn_decl->getLocation().printToString(*Result.SourceManager) << "): "
+            << err << '\n';
         return;
       }
       clang::FileEntryRef header_ref = *header_ref_result;

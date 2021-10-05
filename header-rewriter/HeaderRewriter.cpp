@@ -1,5 +1,3 @@
-#include <fstream>
-#include <map>
 #include "clang/AST/AST.h"
 #include "clang/AST/Mangle.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
@@ -14,6 +12,8 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FormatVariadic.h"
 #include "llvm/Support/raw_ostream.h"
+#include <fstream>
+#include <map>
 
 using namespace clang::ast_matchers;
 using namespace clang::tooling;
@@ -83,13 +83,13 @@ static DeclarationMatcher fn_decl_matcher =
     functionDecl(unless(isDefinition())).bind("exportedFn");
 
 static std::string mangle_name(const clang::FunctionDecl *decl) {
-    clang::ASTContext& ctx = decl->getASTContext();
-    std::unique_ptr<clang::MangleContext> mctx{
-        clang::ItaniumMangleContext::create(ctx, ctx.getDiagnostics())};
-    std::string os;
-    llvm::raw_string_ostream out{os};
-    mctx->mangleName(clang::GlobalDecl(decl), out);
-    return os;
+  clang::ASTContext &ctx = decl->getASTContext();
+  std::unique_ptr<clang::MangleContext> mctx{
+      clang::ItaniumMangleContext::create(ctx, ctx.getDiagnostics())};
+  std::string os;
+  llvm::raw_string_ostream out{os};
+  mctx->mangleName(clang::GlobalDecl(decl), out);
+  return os;
 }
 
 class FnDecl : public RefactoringCallback {
@@ -106,9 +106,10 @@ public:
       llvm::StringRef header_name =
           Result.SourceManager->getFilename(fn_decl->getLocation());
 
-      // Avoid wrapping functions declared in system headers or from macro expansions
+      // Avoid wrapping functions declared in system headers or from macro
+      // expansions
       if (header_name.startswith("/usr/") || header_name.empty()) {
-          return;
+        return;
       }
 
       auto header_ref_result =
@@ -124,35 +125,40 @@ public:
       bool delete_decl = false;
       // See https://github.com/immunant/IA2-Phase2/issues/18
       if (fn_decl->isVariadic()) {
-          delete_decl = true;
+        delete_decl = true;
       }
       // Also skipping functions with va_list arguments
       for (auto &p : fn_decl->parameters()) {
-          // TODO: Find a better way to check for `va_list` if this becomes necessary
-          if (!p->getType().getAsString().compare("struct __va_list_tag *")) {
-              delete_decl = true;
-              break;
-          }
+        // TODO: Find a better way to check for `va_list` if this becomes
+        // necessary
+        if (!p->getType().getAsString().compare("struct __va_list_tag *")) {
+          delete_decl = true;
+          break;
+        }
       }
       if (delete_decl) {
-          // Make sure to include any macro expansions in the SourceRange being rewritten
-          clang::CharSourceRange expansion_range = Result.SourceManager->getExpansionRange(fn_decl->getSourceRange());
-          Replacement decl_replacement{*Result.SourceManager, expansion_range, ""};
+        // Make sure to include any macro expansions in the SourceRange being
+        // rewritten
+        clang::CharSourceRange expansion_range =
+            Result.SourceManager->getExpansionRange(fn_decl->getSourceRange());
+        Replacement decl_replacement{*Result.SourceManager, expansion_range,
+                                     ""};
 
-          auto err = FileReplacements[header_name.str()].add(decl_replacement);
-          if (err) {
-            llvm::errs() << "Error adding replacement: " << err << '\n';
-            return;
-          } else {
-              llvm::errs() << "Warning: deleting variadic function " << fn_decl->getNameAsString() << '\n';
-          }
+        auto err = FileReplacements[header_name.str()].add(decl_replacement);
+        if (err) {
+          llvm::errs() << "Error adding replacement: " << err << '\n';
           return;
+        } else {
+          llvm::errs() << "Warning: deleting variadic function "
+                       << fn_decl->getNameAsString() << '\n';
+        }
+        return;
       }
 
       // This callback may find a fn decl multiple times so only wrap it the
       // first time it's encountered in an input header
       if (!functionIsWrapped(fn_decl)) {
-          WrappedFunctions.push_back(mangle_name(fn_decl));
+        WrappedFunctions.push_back(mangle_name(fn_decl));
 
         if (!isInitialized(header_ref)) {
           if (addHeaderImport(header_name)) {
@@ -166,8 +172,10 @@ public:
         }
 
         std::string wrapper_macro = "IA2_WRAP_FUNCTION(" + fn_name + ");\n";
-        clang::SourceLocation expansion_loc = Result.SourceManager->getExpansionLoc(fn_decl->getBeginLoc());
-        Replacement decl_replacement{*Result.SourceManager, expansion_loc, 0, wrapper_macro};
+        clang::SourceLocation expansion_loc =
+            Result.SourceManager->getExpansionLoc(fn_decl->getBeginLoc());
+        Replacement decl_replacement{*Result.SourceManager, expansion_loc, 0,
+                                     wrapper_macro};
 
         auto err = FileReplacements[header_name.str()].add(decl_replacement);
         if (err) {
@@ -203,13 +211,15 @@ public:
           if (param_type->isFunctionPointerType()) {
             // Parameter is a function pointer, so we need to rewrite it
             // into the internal mangled structure type
-            auto mangled_type = mangle_type(fn_decl->getASTContext(), param_type);
+            auto mangled_type =
+                mangle_type(fn_decl->getASTContext(), param_type);
             auto param_decl = llvm::formatv("{0}{1} {2}", kFnPtrTypePrefix,
                                             mangled_type, name);
             param_decls.append(param_decl);
           } else {
             auto param_type_string = type_string_with_placeholder(param_type);
-            param_decls.append(replace_type_placeholder(param_type_string, name));
+            param_decls.append(
+                replace_type_placeholder(param_type_string, name));
           }
           param_names.append(name);
         }
@@ -248,8 +258,8 @@ private:
   std::vector<std::string> WrappedFunctions;
 
   bool functionIsWrapped(const clang::FunctionDecl *fn_decl) {
-      return std::find(WrappedFunctions.begin(), WrappedFunctions.end(),
-        mangle_name(fn_decl)) != WrappedFunctions.end();
+    return std::find(WrappedFunctions.begin(), WrappedFunctions.end(),
+                     mangle_name(fn_decl)) != WrappedFunctions.end();
   }
 
   bool isInitialized(clang::FileEntryRef InputHeader) {

@@ -9,7 +9,7 @@ use core::ffi::c_void;
 use core::sync::atomic::{AtomicI32, Ordering};
 
 // Import the (assembly!) definition of __libia2_scrub_registers
-global_asm!(include_str!("scrub_registers.s"));
+global_asm!(include_str!("scrub_registers.s"), options(att_syntax));
 
 // Values for the 'trusted compartment pkey' field below.
 // -2 == uninitialized

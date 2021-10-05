@@ -8,12 +8,15 @@ edition = "2018"
 
 [lib]
 name = "libia2"
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
 libc = { version = "0.2", default_features = false }
 multiversion = "0.6"
 lazy_static = "*"
+
+[build-dependencies]
+cbindgen = "0.20.0"
 
 [dev-dependencies]
 untrusted-test-ffi = { path = "./untrusted-test-ffi", untrusted = true }

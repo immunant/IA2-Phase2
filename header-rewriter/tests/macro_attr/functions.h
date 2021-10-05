@@ -9,3 +9,8 @@ RUN: cat %t.h | FileCheck %s
 void f();
 /* CHECK: IA2_WRAP_FUNCTION(g); */
 ATTR void g();
+
+typedef int (*CB)(int);
+
+/* CHECK: IA2_WRAP_FUNCTION(h); */
+ATTR void h(CB);

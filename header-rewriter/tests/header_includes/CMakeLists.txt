@@ -21,7 +21,11 @@ target_include_directories(${ORIGINAL_LIB} BEFORE PRIVATE ${ORIGINAL_HEADER_DIR}
 add_custom_command(
     OUTPUT ${PUBLIC_HEADERS} ${PRIVATE_HEADERS} wrapper.c
     COMMAND cp ${HEADER_SRCS} ${CMAKE_CURRENT_BINARY_DIR}
-    COMMAND ia2-header-rewriter ${CMAKE_CURRENT_BINARY_DIR}/wrapper.c ${PUBLIC_HEADERS} -- -I ${REWRITTEN_HEADER_DIR}
+    COMMAND ia2-header-rewriter
+      ${CMAKE_CURRENT_BINARY_DIR}/wrapper.c
+      ${PUBLIC_HEADERS}
+      --
+      -I ${REWRITTEN_HEADER_DIR} -I ${C_SYSTEM_INCLUDE}
     DEPENDS ${HEADER_SRCS}
     VERBATIM)
 

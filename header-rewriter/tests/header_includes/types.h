@@ -5,11 +5,7 @@ RUN: ia2-header-rewriter %t.c %t.h -- -I%T
 RUN: cat %t.h | FileCheck %s
 */
 #pragma once
-
-typedef enum Bool {
-    false,
-    true,
-} bool;
+#include <stdbool.h>
 
 typedef struct Option {
     int value;

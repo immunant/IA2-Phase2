@@ -92,6 +92,14 @@ static std::string mangle_name(const clang::FunctionDecl *decl) {
   return os;
 }
 
+static std::string get_expansion_filename(const clang::Decl *decl,
+                                          const clang::SourceManager *sm) {
+  if (!decl || !sm) {
+    return "";
+  }
+  return sm->getFilename(sm->getExpansionLoc(decl->getLocation())).str();
+}
+
 class FnDecl : public RefactoringCallback {
 public:
   FnDecl(llvm::raw_ostream &WrapperOut, llvm::raw_ostream &SymsOut,
@@ -103,21 +111,22 @@ public:
     if (const clang::FunctionDecl *fn_decl =
             Result.Nodes.getNodeAs<clang::FunctionDecl>("exportedFn")) {
       // This is an absolute path to the header with the fn decl
-      llvm::StringRef header_name =
-          Result.SourceManager->getFilename(
-              Result.SourceManager->getExpansionLoc(fn_decl->getLocation()));
+      std::string header_name =
+          get_expansion_filename(fn_decl, Result.SourceManager);
+
       // Avoid wrapping functions declared in system headers or from macro
       // expansions
-      if (header_name.startswith("/usr/")) {
-          return;
+      if (llvm::StringRef(header_name).startswith("/usr/")) {
+        return;
       }
       auto header_ref_result =
           Result.SourceManager->getFileManager().getFileRef(header_name);
       if (auto err = header_ref_result.takeError()) {
-        llvm::errs() << "Error getting FileEntryRef for '"
-            << header_name << "' ("
-            << fn_decl->getLocation().printToString(*Result.SourceManager) << "): "
-            << err << '\n';
+        llvm::errs() << "Error getting FileEntryRef for '" << header_name
+                     << "' ("
+                     << fn_decl->getLocation().printToString(
+                            *Result.SourceManager)
+                     << "): " << err << '\n';
         return;
       }
       clang::FileEntryRef header_ref = *header_ref_result;
@@ -133,7 +142,7 @@ public:
         Replacement decl_replacement{*Result.SourceManager, expansion_range,
                                      ""};
 
-        auto err = FileReplacements[header_name.str()].add(decl_replacement);
+        auto err = FileReplacements[header_name].add(decl_replacement);
         if (err) {
           llvm::errs() << "Error adding replacement: " << err << '\n';
           return;
@@ -166,7 +175,7 @@ public:
         Replacement decl_replacement{*Result.SourceManager, expansion_loc, 0,
                                      wrapper_macro};
 
-        auto err = FileReplacements[header_name.str()].add(decl_replacement);
+        auto err = FileReplacements[header_name].add(decl_replacement);
         if (err) {
           llvm::errs() << "Error adding replacement: " << err << '\n';
           return;
@@ -339,6 +348,11 @@ public:
     }
 
     if (old_decl != nullptr) {
+      std::string header_name =
+          get_expansion_filename(old_decl, Result.SourceManager);
+      if (llvm::StringRef(header_name).startswith("/usr/")) {
+        return;
+      }
       auto *fpt = old_type->castAs<clang::PointerType>()
                       ->getPointeeType()
                       ->getAsAdjusted<clang::FunctionProtoType>();

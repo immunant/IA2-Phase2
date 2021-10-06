@@ -298,6 +298,8 @@ struct FunctionInfo {
 
 class FnPtrPrinter : public RefactoringCallback {
 public:
+  FnPtrPrinter(std::map<std::string, Replacements> &FileReplacements)
+      : FileReplacements(FileReplacements) {}
   virtual void run(const MatchFinder::MatchResult &Result) {
     const clang::Decl *old_decl = nullptr;
     clang::QualType old_type;
@@ -372,7 +374,7 @@ public:
       clang::CharSourceRange expansion_range =
           Result.SourceManager->getExpansionRange(old_decl->getSourceRange());
       Replacement r{*Result.SourceManager, expansion_range, new_decl};
-      auto err = Replace.add(r);
+      auto err = FileReplacements[header_name].add(r);
       if (err) {
         llvm::errs() << "Error adding replacement: " << err << '\n';
         return;
@@ -406,6 +408,7 @@ public:
 
 private:
   std::map<std::string, FunctionInfo> m_function_info;
+  std::map<std::string, Replacements> &FileReplacements;
 };
 
 static int emit_output_header(const FnPtrPrinter &printer) {
@@ -504,7 +507,7 @@ int main(int argc, const char **argv) {
            << "  global:\n";
 
   ASTMatchRefactorer refactorer(tool.getReplacements());
-  FnPtrPrinter printer;
+  FnPtrPrinter printer(tool.getReplacements());
   FnDecl decl_replacement(wrapper_out, syms_out, tool.getReplacements());
   refactorer.addMatcher(fn_decl_matcher, &decl_replacement);
   refactorer.addMatcher(fn_ptr_param_matcher, &printer);

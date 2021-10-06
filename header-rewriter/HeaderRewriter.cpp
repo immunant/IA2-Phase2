@@ -124,21 +124,8 @@ public:
       auto fn_name = fn_decl->getNameInfo().getAsString();
 
       // Deleting variadic functions from the rewritten header for now
-      bool delete_decl = false;
       // See https://github.com/immunant/IA2-Phase2/issues/18
       if (fn_decl->isVariadic()) {
-        delete_decl = true;
-      }
-      // Also skipping functions with va_list arguments
-      for (auto &p : fn_decl->parameters()) {
-        // TODO: Find a better way to check for `va_list` if this becomes
-        // necessary
-        if (!p->getType().getAsString().compare("struct __va_list_tag *")) {
-          delete_decl = true;
-          break;
-        }
-      }
-      if (delete_decl) {
         // Make sure to include any macro expansions in the SourceRange being
         // rewritten
         clang::CharSourceRange expansion_range =
@@ -209,7 +196,7 @@ public:
             name = llvm::formatv("__ia2_arg_{0}", n);
           }
 
-          auto param_type = p->getType();
+          auto param_type = p->getOriginalType();
           if (param_type->isFunctionPointerType()) {
             // Parameter is a function pointer, so we need to rewrite it
             // into the internal mangled structure type

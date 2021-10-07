@@ -25,7 +25,8 @@ add_custom_command(
       ${CMAKE_CURRENT_BINARY_DIR}/wrapper.c
       ${PUBLIC_HEADERS}
       --
-      -I ${REWRITTEN_HEADER_DIR} -I ${C_SYSTEM_INCLUDE}
+      -I ${REWRITTEN_HEADER_DIR}
+      -I ${C_SYSTEM_INCLUDE}
     DEPENDS ${HEADER_SRCS}
     VERBATIM)
 

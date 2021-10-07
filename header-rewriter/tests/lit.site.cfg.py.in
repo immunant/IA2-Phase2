@@ -8,6 +8,7 @@ config.ia2_src_root = path(r"@IA2_SOURCE_DIR@")
 config.ia2_obj_root = path(r"@IA2_BINARY_DIR@")
 config.llvm_tools_dir = path(r"@LLVM_TOOLS_DIR@")
 config.llvm_lib_dir = path(r"@LLVM_LIBS_DIR@")
+config.clang_resource_dir = path(r"@CLANG_RESOURCE_DIR@")
 config.llvm_shlib_dir = path(r"@SHLIBDIR@")
 config.llvm_shlib_ext = "@SHLIBEXT@"
 config.llvm_plugin_ext = "@LLVM_PLUGIN_EXT@"

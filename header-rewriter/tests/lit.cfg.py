@@ -30,5 +30,6 @@ llvm_config.use_clang()
 
 config.substitutions.extend([
     ('%ia2_include', '%s/../include' % config.ia2_src_root),
-    ('%binary_dir', config.ia2_obj_root)
+    ('%binary_dir', config.ia2_obj_root),
+    ('%resource_dir', config.clang_resource_dir)
 ])

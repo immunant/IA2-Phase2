@@ -1,5 +1,10 @@
 enable_testing()
 
+execute_process(COMMAND clang -print-resource-dir
+  OUTPUT_VARIABLE CLANG_RESOURCE_DIR
+  OUTPUT_STRIP_TRAILING_WHITESPACE)
+set(C_SYSTEM_INCLUDE ${CLANG_RESOURCE_DIR}/include/)
+
 configure_lit_site_cfg(
   ${CMAKE_CURRENT_SOURCE_DIR}/lit.site.cfg.py.in
   ${CMAKE_CURRENT_BINARY_DIR}/lit.site.cfg.py
@@ -8,14 +13,6 @@ configure_lit_site_cfg(
   )
 
 set(IA2_TEST_DEPENDS ia2-header-rewriter)
-
-if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
-  set(C_SYSTEM_INCLUDE /usr/lib/gcc/x86_64-pc-linux-gnu/${CMAKE_C_COMPILER_VERSION}/include/)
-elseif (CMAKE_C_COMPILER_ID STREQUAL "Clang")
-  set(C_SYSTEM_INCLUDE /usr/lib/clang/${CMAKE_C_COMPILER_VERSION}/include/)
-else ()
-  message(FATAL_ERROR "Using unknown compiler. Unable to get system include directory")
-endif()
 
 add_lit_testsuite(check-ia2 "Running the IA2 tests"
   ${CMAKE_CURRENT_BINARY_DIR}

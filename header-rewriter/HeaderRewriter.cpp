@@ -114,8 +114,7 @@ public:
       std::string header_name =
           get_expansion_filename(fn_decl, Result.SourceManager);
 
-      // Avoid wrapping functions declared in system headers or from macro
-      // expansions
+      // Avoid wrapping functions declared in system headers
       if (llvm::StringRef(header_name).startswith("/usr/")) {
         return;
       }

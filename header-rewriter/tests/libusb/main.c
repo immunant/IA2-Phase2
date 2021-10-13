@@ -20,7 +20,7 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#include <libusb-1.0/libusb.h>
+#include <libusb.h>
 #include <fn_ptr_ia2.h>
 
 static void print_devs(libusb_device **devs)

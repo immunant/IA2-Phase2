@@ -2,6 +2,8 @@ set(IA2_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/../include)
 set(ORIGINAL_HEADER_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(REWRITTEN_HEADER_DIR ${CMAKE_CURRENT_BINARY_DIR})
 
+configure_file(main.c.in ${CMAKE_CURRENT_SOURCE_DIR}/main.c)
+
 # Use the directory as the test name
 get_filename_component(TEST_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)
 set(WRAPPER ${TEST_NAME}-wrapper)
@@ -35,8 +37,7 @@ add_executable(${MAIN} main.c)
 target_link_libraries(${MAIN} PRIVATE
     usb-1.0 ${WRAPPER})
 target_include_directories(${MAIN} BEFORE PRIVATE
-  ${IA2_INCLUDE_DIR}
-  ${REWRITTEN_HEADER_DIR})
+  ${IA2_INCLUDE_DIR})
 
 add_dependencies(check-ia2 ${MAIN})
 

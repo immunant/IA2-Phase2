@@ -4,8 +4,8 @@ RUN: ia2-header-rewriter wrapper.c liboption.h types.h -- -I. -I%resource_dir
 RUN: cat liboption.h | sed 's/^.*CHECK.*$//' | FileCheck %S/liboption.h
 RUN: cat impl.h | sed 's/^.*CHECK.*$//' | FileCheck %S/impl.h
 */
-#include <liboption.h>
-#include <types.h>
+#include "@REWRITTEN_HEADER_DIR@/liboption.h"
+#include "@REWRITTEN_HEADER_DIR@/types.h"
 #include <stdio.h>
 
 int main() {

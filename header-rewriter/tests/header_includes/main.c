@@ -1,8 +1,8 @@
 /*
 RUN: cp %S/liboption.h %S/types.h %S/impl.h .
 RUN: ia2-header-rewriter wrapper.c liboption.h types.h -- -I. -I%resource_dir
-RUN: cat liboption.h | FileCheck %S/liboption.h
-RUN: cat impl.h | FileCheck %S/impl.h
+RUN: cat liboption.h | sed 's/^.*CHECK.*$//' | FileCheck %S/liboption.h
+RUN: cat impl.h | sed 's/^.*CHECK.*$//' | FileCheck %S/impl.h
 */
 #include <liboption.h>
 #include <types.h>

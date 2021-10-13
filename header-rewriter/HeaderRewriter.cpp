@@ -269,7 +269,7 @@ private:
     std::string include = "#include <ia2.h>\n";
     if (!OutputHeader.empty()) {
       auto include_output_header =
-          llvm::formatv("#include <{0}>\n", OutputHeader);
+          llvm::formatv("#include \"{0}\"\n", OutputHeader);
       include.append(include_output_header);
     }
     auto err = FileReplacements[Filename.str()].add(

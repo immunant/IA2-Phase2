@@ -1,6 +1,6 @@
 #pragma once
-#include <types.h>
-#include <impl.h>
+#include "types.h"
+#include "impl.h"
 
 // CHECK: IA2_WRAP_FUNCTION(Some);
 Option Some(int x);

@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include <functions.h>
+#include "@ORIGINAL_HEADER_DIR@/functions.h"
 
 void f() {
     printf("Called `f()`\n");

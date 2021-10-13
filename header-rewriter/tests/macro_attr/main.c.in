@@ -1,0 +1,7 @@
+#include "@REWRITTEN_HEADER_DIR@/functions.h"
+#include "@REWRITTEN_HEADER_DIR@/fn_ptr_ia2.h"
+
+int main() {
+    f();
+    g();
+}

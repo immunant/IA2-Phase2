@@ -9,7 +9,7 @@ set(MAIN ${TEST_NAME}-main)
 
 set(HEADERS libusb.h)
 set(HEADER_SRCS ${HEADERS})
-list(TRANSFORM HEADER_SRCS PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/libusb-1.0/)
+list(TRANSFORM HEADER_SRCS PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/)
 list(TRANSFORM HEADERS PREPEND ${CMAKE_CURRENT_BINARY_DIR}/)
 
 add_custom_command(
@@ -33,7 +33,9 @@ target_include_directories(${WRAPPER} BEFORE PRIVATE ${IA2_INCLUDE_DIR})
 add_executable(${MAIN} main.c)
 target_link_libraries(${MAIN} PRIVATE
     usb-1.0 ${WRAPPER})
-target_include_directories(${MAIN} BEFORE PRIVATE ${IA2_INCLUDE_DIR} ${REWRITTEN_HEADER_DIR})
+target_include_directories(${MAIN} BEFORE PRIVATE
+  ${IA2_INCLUDE_DIR}
+  ${REWRITTEN_HEADER_DIR})
 
 add_dependencies(check-ia2 ${MAIN})
 

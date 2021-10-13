@@ -27,7 +27,8 @@ add_custom_command(
 
 add_library(${WRAPPER} SHARED wrapper.c)
 target_link_libraries(${WRAPPER} PRIVATE
-    -Wl,--version-script,${CMAKE_CURRENT_BINARY_DIR}/wrapper.c.syms)
+    -Wl,--version-script,${CMAKE_CURRENT_BINARY_DIR}/wrapper.c.syms
+    usb-1.0)
 target_include_directories(${WRAPPER} BEFORE PRIVATE ${IA2_INCLUDE_DIR})
 
 add_executable(${MAIN} main.c)

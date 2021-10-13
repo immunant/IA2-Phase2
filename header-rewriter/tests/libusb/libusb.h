@@ -1,4 +1,9 @@
 /*
+RUN: cp %s %T/libusb.h
+RUN: ia2-header-rewriter --output-header %T/fn_ptr_ia2.h %T/wrapper.c %T/libusb.h -- -I%resource_dir
+RUN: cat %T/libusb.h | sed 's/^.*CHECK.*$//' | FileCheck %s
+*/
+/*
  * Public libusb header file
  * Copyright © 2001 Johannes Erdfelt <johannes@erdfelt.com>
  * Copyright © 2007-2008 Daniel Drake <dsd@gentoo.org>
@@ -1211,6 +1216,7 @@ struct libusb_transfer;
  * \param transfer The libusb_transfer struct the callback function is being
  * notified about.
  */
+// CHECK: typedef struct IA2_fnptr__ZTSPFvP15libusb_transferE libusb_transfer_cb_fn;
 typedef void (LIBUSB_CALL *libusb_transfer_cb_fn)(struct libusb_transfer *transfer);
 
 /** \ingroup libusb_asyncio
@@ -1346,112 +1352,168 @@ enum libusb_log_cb_mode {
 typedef void (LIBUSB_CALL *libusb_log_cb)(libusb_context *ctx,
 	enum libusb_log_level level, const char *str);
 
+// CHECK: IA2_WRAP_FUNCTION(libusb_init);
 int LIBUSB_CALL libusb_init(libusb_context **ctx);
+// CHECK: IA2_WRAP_FUNCTION(libusb_exit);
 void LIBUSB_CALL libusb_exit(libusb_context *ctx);
+// CHECK: IA2_WRAP_FUNCTION(libusb_set_debug);
 LIBUSB_DEPRECATED_FOR(libusb_set_option)
 void LIBUSB_CALL libusb_set_debug(libusb_context *ctx, int level);
+// CHECK: IA2_WRAP_FUNCTION(libusb_set_log_cb);
 void LIBUSB_CALL libusb_set_log_cb(libusb_context *ctx, libusb_log_cb cb, int mode);
+// CHECK: IA2_WRAP_FUNCTION(libusb_get_version);
 const struct libusb_version * LIBUSB_CALL libusb_get_version(void);
+// CHECK: IA2_WRAP_FUNCTION(libusb_has_capability);
 int LIBUSB_CALL libusb_has_capability(uint32_t capability);
+// CHECK: IA2_WRAP_FUNCTION(libusb_error_name);
 const char * LIBUSB_CALL libusb_error_name(int errcode);
+// CHECK: IA2_WRAP_FUNCTION(libusb_setlocale);
 int LIBUSB_CALL libusb_setlocale(const char *locale);
+// CHECK: IA2_WRAP_FUNCTION(libusb_strerror);
 const char * LIBUSB_CALL libusb_strerror(int errcode);
 
+// CHECK: IA2_WRAP_FUNCTION(libusb_get_device_list);
 ssize_t LIBUSB_CALL libusb_get_device_list(libusb_context *ctx,
 	libusb_device ***list);
+// CHECK: IA2_WRAP_FUNCTION(libusb_free_device_list);
 void LIBUSB_CALL libusb_free_device_list(libusb_device **list,
 	int unref_devices);
+// CHECK: IA2_WRAP_FUNCTION(libusb_ref_device);
 libusb_device * LIBUSB_CALL libusb_ref_device(libusb_device *dev);
+// CHECK: IA2_WRAP_FUNCTION(libusb_unref_device);
 void LIBUSB_CALL libusb_unref_device(libusb_device *dev);
 
+// CHECK: IA2_WRAP_FUNCTION(libusb_get_configuration);
 int LIBUSB_CALL libusb_get_configuration(libusb_device_handle *dev,
 	int *config);
+// CHECK: IA2_WRAP_FUNCTION(libusb_get_device_descriptor);
 int LIBUSB_CALL libusb_get_device_descriptor(libusb_device *dev,
 	struct libusb_device_descriptor *desc);
+// CHECK: IA2_WRAP_FUNCTION(libusb_get_active_config_descriptor);
 int LIBUSB_CALL libusb_get_active_config_descriptor(libusb_device *dev,
 	struct libusb_config_descriptor **config);
+// CHECK: IA2_WRAP_FUNCTION(libusb_get_config_descriptor);
 int LIBUSB_CALL libusb_get_config_descriptor(libusb_device *dev,
 	uint8_t config_index, struct libusb_config_descriptor **config);
+// CHECK: IA2_WRAP_FUNCTION(libusb_get_config_descriptor_by_value);
 int LIBUSB_CALL libusb_get_config_descriptor_by_value(libusb_device *dev,
 	uint8_t bConfigurationValue, struct libusb_config_descriptor **config);
+// CHECK: IA2_WRAP_FUNCTION(libusb_free_config_descriptor);
 void LIBUSB_CALL libusb_free_config_descriptor(
 	struct libusb_config_descriptor *config);
+// CHECK: IA2_WRAP_FUNCTION(libusb_get_ss_endpoint_companion_descriptor);
 int LIBUSB_CALL libusb_get_ss_endpoint_companion_descriptor(
 	libusb_context *ctx,
 	const struct libusb_endpoint_descriptor *endpoint,
 	struct libusb_ss_endpoint_companion_descriptor **ep_comp);
+// CHECK: IA2_WRAP_FUNCTION(libusb_free_ss_endpoint_companion_descriptor);
 void LIBUSB_CALL libusb_free_ss_endpoint_companion_descriptor(
 	struct libusb_ss_endpoint_companion_descriptor *ep_comp);
+// CHECK: IA2_WRAP_FUNCTION(libusb_get_bos_descriptor);
 int LIBUSB_CALL libusb_get_bos_descriptor(libusb_device_handle *dev_handle,
 	struct libusb_bos_descriptor **bos);
+// CHECK: IA2_WRAP_FUNCTION(libusb_free_bos_descriptor);
 void LIBUSB_CALL libusb_free_bos_descriptor(struct libusb_bos_descriptor *bos);
+// CHECK: IA2_WRAP_FUNCTION(libusb_get_usb_2_0_extension_descriptor);
 int LIBUSB_CALL libusb_get_usb_2_0_extension_descriptor(
 	libusb_context *ctx,
 	struct libusb_bos_dev_capability_descriptor *dev_cap,
 	struct libusb_usb_2_0_extension_descriptor **usb_2_0_extension);
+// CHECK: IA2_WRAP_FUNCTION(libusb_free_usb_2_0_extension_descriptor);
 void LIBUSB_CALL libusb_free_usb_2_0_extension_descriptor(
 	struct libusb_usb_2_0_extension_descriptor *usb_2_0_extension);
+// CHECK: IA2_WRAP_FUNCTION(libusb_get_ss_usb_device_capability_descriptor);
 int LIBUSB_CALL libusb_get_ss_usb_device_capability_descriptor(
 	libusb_context *ctx,
 	struct libusb_bos_dev_capability_descriptor *dev_cap,
 	struct libusb_ss_usb_device_capability_descriptor **ss_usb_device_cap);
+// CHECK: IA2_WRAP_FUNCTION(libusb_free_ss_usb_device_capability_descriptor);
 void LIBUSB_CALL libusb_free_ss_usb_device_capability_descriptor(
 	struct libusb_ss_usb_device_capability_descriptor *ss_usb_device_cap);
+// CHECK: IA2_WRAP_FUNCTION(libusb_get_container_id_descriptor);
 int LIBUSB_CALL libusb_get_container_id_descriptor(libusb_context *ctx,
 	struct libusb_bos_dev_capability_descriptor *dev_cap,
 	struct libusb_container_id_descriptor **container_id);
+// CHECK: IA2_WRAP_FUNCTION(libusb_free_container_id_descriptor);
 void LIBUSB_CALL libusb_free_container_id_descriptor(
 	struct libusb_container_id_descriptor *container_id);
+// CHECK: IA2_WRAP_FUNCTION(libusb_get_bus_number);
 uint8_t LIBUSB_CALL libusb_get_bus_number(libusb_device *dev);
+// CHECK: IA2_WRAP_FUNCTION(libusb_get_port_number);
 uint8_t LIBUSB_CALL libusb_get_port_number(libusb_device *dev);
+// CHECK: IA2_WRAP_FUNCTION(libusb_get_port_numbers);
 int LIBUSB_CALL libusb_get_port_numbers(libusb_device *dev, uint8_t *port_numbers, int port_numbers_len);
 LIBUSB_DEPRECATED_FOR(libusb_get_port_numbers)
+// CHECK: IA2_WRAP_FUNCTION(libusb_get_port_path);
 int LIBUSB_CALL libusb_get_port_path(libusb_context *ctx, libusb_device *dev, uint8_t *path, uint8_t path_length);
+// CHECK: IA2_WRAP_FUNCTION(libusb_get_parent);
 libusb_device * LIBUSB_CALL libusb_get_parent(libusb_device *dev);
+// CHECK: IA2_WRAP_FUNCTION(libusb_get_device_address);
 uint8_t LIBUSB_CALL libusb_get_device_address(libusb_device *dev);
+// CHECK: IA2_WRAP_FUNCTION(libusb_get_device_speed);
 int LIBUSB_CALL libusb_get_device_speed(libusb_device *dev);
+// CHECK: IA2_WRAP_FUNCTION(libusb_get_max_packet_size);
 int LIBUSB_CALL libusb_get_max_packet_size(libusb_device *dev,
 	unsigned char endpoint);
+// CHECK: IA2_WRAP_FUNCTION(libusb_get_max_iso_packet_size);
 int LIBUSB_CALL libusb_get_max_iso_packet_size(libusb_device *dev,
 	unsigned char endpoint);
 
+// CHECK: IA2_WRAP_FUNCTION(libusb_wrap_sys_device);
 int LIBUSB_CALL libusb_wrap_sys_device(libusb_context *ctx, intptr_t sys_dev, libusb_device_handle **dev_handle);
+// CHECK: IA2_WRAP_FUNCTION(libusb_open);
 int LIBUSB_CALL libusb_open(libusb_device *dev, libusb_device_handle **dev_handle);
+// CHECK: IA2_WRAP_FUNCTION(libusb_close);
 void LIBUSB_CALL libusb_close(libusb_device_handle *dev_handle);
 libusb_device * LIBUSB_CALL libusb_get_device(libusb_device_handle *dev_handle);
 
+// CHECK: IA2_WRAP_FUNCTION(libusb_set_configuration);
 int LIBUSB_CALL libusb_set_configuration(libusb_device_handle *dev_handle,
 	int configuration);
+// CHECK: IA2_WRAP_FUNCTION(libusb_claim_interface);
 int LIBUSB_CALL libusb_claim_interface(libusb_device_handle *dev_handle,
 	int interface_number);
+// CHECK: IA2_WRAP_FUNCTION(libusb_release_interface);
 int LIBUSB_CALL libusb_release_interface(libusb_device_handle *dev_handle,
 	int interface_number);
 
+// CHECK: IA2_WRAP_FUNCTION(libusb_open_device_with_vid_pid);
 libusb_device_handle * LIBUSB_CALL libusb_open_device_with_vid_pid(
 	libusb_context *ctx, uint16_t vendor_id, uint16_t product_id);
 
+// CHECK: IA2_WRAP_FUNCTION(libusb_set_interface_alt_setting);
 int LIBUSB_CALL libusb_set_interface_alt_setting(libusb_device_handle *dev_handle,
 	int interface_number, int alternate_setting);
+// CHECK: IA2_WRAP_FUNCTION(libusb_clear_halt);
 int LIBUSB_CALL libusb_clear_halt(libusb_device_handle *dev_handle,
 	unsigned char endpoint);
+// CHECK: IA2_WRAP_FUNCTION(libusb_reset_device);
 int LIBUSB_CALL libusb_reset_device(libusb_device_handle *dev_handle);
 
+// CHECK: IA2_WRAP_FUNCTION(libusb_alloc_streams);
 int LIBUSB_CALL libusb_alloc_streams(libusb_device_handle *dev_handle,
 	uint32_t num_streams, unsigned char *endpoints, int num_endpoints);
+// CHECK: IA2_WRAP_FUNCTION(libusb_free_streams);
 int LIBUSB_CALL libusb_free_streams(libusb_device_handle *dev_handle,
 	unsigned char *endpoints, int num_endpoints);
 
+// CHECK: IA2_WRAP_FUNCTION(libusb_dev_mem_alloc);
 unsigned char * LIBUSB_CALL libusb_dev_mem_alloc(libusb_device_handle *dev_handle,
 	size_t length);
+// CHECK: IA2_WRAP_FUNCTION(libusb_dev_mem_free);
 int LIBUSB_CALL libusb_dev_mem_free(libusb_device_handle *dev_handle,
 	unsigned char *buffer, size_t length);
 
+// CHECK: IA2_WRAP_FUNCTION(libusb_kernel_driver_active);
 int LIBUSB_CALL libusb_kernel_driver_active(libusb_device_handle *dev_handle,
 	int interface_number);
+// CHECK: IA2_WRAP_FUNCTION(libusb_detach_kernel_driver);
 int LIBUSB_CALL libusb_detach_kernel_driver(libusb_device_handle *dev_handle,
 	int interface_number);
+// CHECK: IA2_WRAP_FUNCTION(libusb_attach_kernel_driver);
 int LIBUSB_CALL libusb_attach_kernel_driver(libusb_device_handle *dev_handle,
 	int interface_number);
+// CHECK: IA2_WRAP_FUNCTION(libusb_set_auto_detach_kernel_driver);
 int LIBUSB_CALL libusb_set_auto_detach_kernel_driver(
 	libusb_device_handle *dev_handle, int enable);
 
@@ -1528,12 +1590,18 @@ static inline void libusb_fill_control_setup(unsigned char *buffer,
 	setup->wLength = libusb_cpu_to_le16(wLength);
 }
 
+// CHECK: IA2_WRAP_FUNCTION(libusb_alloc_transfer);
 struct libusb_transfer * LIBUSB_CALL libusb_alloc_transfer(int iso_packets);
+// CHECK: IA2_WRAP_FUNCTION(libusb_submit_transfer);
 int LIBUSB_CALL libusb_submit_transfer(struct libusb_transfer *transfer);
+// CHECK: IA2_WRAP_FUNCTION(libusb_cancel_transfer);
 int LIBUSB_CALL libusb_cancel_transfer(struct libusb_transfer *transfer);
+// CHECK: IA2_WRAP_FUNCTION(libusb_free_transfer);
 void LIBUSB_CALL libusb_free_transfer(struct libusb_transfer *transfer);
+// CHECK: IA2_WRAP_FUNCTION(libusb_transfer_set_stream_id);
 void LIBUSB_CALL libusb_transfer_set_stream_id(
 	struct libusb_transfer *transfer, uint32_t stream_id);
+// CHECK: IA2_WRAP_FUNCTION(libusb_transfer_get_stream_id);
 uint32_t LIBUSB_CALL libusb_transfer_get_stream_id(
 	struct libusb_transfer *transfer);
 
@@ -1792,14 +1860,17 @@ static inline unsigned char *libusb_get_iso_packet_buffer_simple(
 
 /* sync I/O */
 
+// CHECK: IA2_WRAP_FUNCTION(libusb_control_transfer);
 int LIBUSB_CALL libusb_control_transfer(libusb_device_handle *dev_handle,
 	uint8_t request_type, uint8_t bRequest, uint16_t wValue, uint16_t wIndex,
 	unsigned char *data, uint16_t wLength, unsigned int timeout);
 
+// CHECK: IA2_WRAP_FUNCTION(libusb_bulk_transfer);
 int LIBUSB_CALL libusb_bulk_transfer(libusb_device_handle *dev_handle,
 	unsigned char endpoint, unsigned char *data, int length,
 	int *actual_length, unsigned int timeout);
 
+// CHECK: IA2_WRAP_FUNCTION(libusb_interrupt_transfer);
 int LIBUSB_CALL libusb_interrupt_transfer(libusb_device_handle *dev_handle,
 	unsigned char endpoint, unsigned char *data, int length,
 	int *actual_length, unsigned int timeout);
@@ -1846,30 +1917,47 @@ static inline int libusb_get_string_descriptor(libusb_device_handle *dev_handle,
 		langid, data, (uint16_t) length, 1000);
 }
 
+// CHECK: IA2_WRAP_FUNCTION(libusb_get_string_descriptor_ascii);
 int LIBUSB_CALL libusb_get_string_descriptor_ascii(libusb_device_handle *dev_handle,
 	uint8_t desc_index, unsigned char *data, int length);
 
 /* polling and timeouts */
 
+// CHECK: IA2_WRAP_FUNCTION(libusb_try_lock_events);
 int LIBUSB_CALL libusb_try_lock_events(libusb_context *ctx);
+// CHECK: IA2_WRAP_FUNCTION(libusb_lock_events);
 void LIBUSB_CALL libusb_lock_events(libusb_context *ctx);
+// CHECK: IA2_WRAP_FUNCTION(libusb_unlock_events);
 void LIBUSB_CALL libusb_unlock_events(libusb_context *ctx);
+// CHECK: IA2_WRAP_FUNCTION(libusb_event_handling_ok);
 int LIBUSB_CALL libusb_event_handling_ok(libusb_context *ctx);
+// CHECK: IA2_WRAP_FUNCTION(libusb_event_handler_active);
 int LIBUSB_CALL libusb_event_handler_active(libusb_context *ctx);
+// CHECK: IA2_WRAP_FUNCTION(libusb_interrupt_event_handler);
 void LIBUSB_CALL libusb_interrupt_event_handler(libusb_context *ctx);
+// CHECK: IA2_WRAP_FUNCTION(libusb_lock_event_waiters);
 void LIBUSB_CALL libusb_lock_event_waiters(libusb_context *ctx);
+// CHECK: IA2_WRAP_FUNCTION(libusb_unlock_event_waiters);
 void LIBUSB_CALL libusb_unlock_event_waiters(libusb_context *ctx);
+// CHECK: IA2_WRAP_FUNCTION(libusb_wait_for_event);
 int LIBUSB_CALL libusb_wait_for_event(libusb_context *ctx, struct timeval *tv);
 
+// CHECK: IA2_WRAP_FUNCTION(libusb_handle_events_timeout);
 int LIBUSB_CALL libusb_handle_events_timeout(libusb_context *ctx,
 	struct timeval *tv);
+// CHECK: IA2_WRAP_FUNCTION(libusb_handle_events_timeout_completed);
 int LIBUSB_CALL libusb_handle_events_timeout_completed(libusb_context *ctx,
 	struct timeval *tv, int *completed);
+// CHECK: IA2_WRAP_FUNCTION(libusb_handle_events);
 int LIBUSB_CALL libusb_handle_events(libusb_context *ctx);
+// CHECK: IA2_WRAP_FUNCTION(libusb_handle_events_completed);
 int LIBUSB_CALL libusb_handle_events_completed(libusb_context *ctx, int *completed);
+// CHECK: IA2_WRAP_FUNCTION(libusb_handle_events_locked);
 int LIBUSB_CALL libusb_handle_events_locked(libusb_context *ctx,
 	struct timeval *tv);
+// CHECK: IA2_WRAP_FUNCTION(libusb_pollfds_handle_timeouts);
 int LIBUSB_CALL libusb_pollfds_handle_timeouts(libusb_context *ctx);
+// CHECK: IA2_WRAP_FUNCTION(libusb_get_next_timeout);
 int LIBUSB_CALL libusb_get_next_timeout(libusb_context *ctx,
 	struct timeval *tv);
 
@@ -1897,6 +1985,7 @@ struct libusb_pollfd {
  * libusb_set_pollfd_notifiers() call
  * \see libusb_set_pollfd_notifiers()
  */
+// CHECK: typedef struct IA2_fnptr__ZTSPFvisPvE libusb_pollfd_added_cb;
 typedef void (LIBUSB_CALL *libusb_pollfd_added_cb)(int fd, short events,
 	void *user_data);
 
@@ -1909,11 +1998,15 @@ typedef void (LIBUSB_CALL *libusb_pollfd_added_cb)(int fd, short events,
  * libusb_set_pollfd_notifiers() call
  * \see libusb_set_pollfd_notifiers()
  */
+// CHECK: typedef struct IA2_fnptr__ZTSPFviPvE libusb_pollfd_removed_cb;
 typedef void (LIBUSB_CALL *libusb_pollfd_removed_cb)(int fd, void *user_data);
 
+// CHECK: IA2_WRAP_FUNCTION(libusb_get_pollfds);
 const struct libusb_pollfd ** LIBUSB_CALL libusb_get_pollfds(
 	libusb_context *ctx);
+// CHECK: IA2_WRAP_FUNCTION(libusb_free_pollfds);
 void LIBUSB_CALL libusb_free_pollfds(const struct libusb_pollfd **pollfds);
+// CHECK: IA2_WRAP_FUNCTION(libusb_set_pollfd_notifiers);
 void LIBUSB_CALL libusb_set_pollfd_notifiers(libusb_context *ctx,
 	libusb_pollfd_added_cb added_cb, libusb_pollfd_removed_cb removed_cb,
 	void *user_data);
@@ -1987,6 +2080,7 @@ typedef enum {
  * \returns bool whether this callback is finished processing events.
  *                       returning 1 will cause this callback to be deregistered
  */
+// CHECK: typedef struct IA2_fnptr__ZTSPFiP14libusb_contextP13libusb_device20libusb_hotplug_eventPvE libusb_hotplug_callback_fn;
 typedef int (LIBUSB_CALL *libusb_hotplug_callback_fn)(libusb_context *ctx,
 	libusb_device *device, libusb_hotplug_event event, void *user_data);
 
@@ -2025,6 +2119,7 @@ typedef int (LIBUSB_CALL *libusb_hotplug_callback_fn)(libusb_context *ctx,
  * \param[out] callback_handle pointer to store the handle of the allocated callback (can be NULL)
  * \returns LIBUSB_SUCCESS on success LIBUSB_ERROR code on failure
  */
+// CHECK: IA2_WRAP_FUNCTION(libusb_hotplug_register_callback);
 int LIBUSB_CALL libusb_hotplug_register_callback(libusb_context *ctx,
 	int events, int flags,
 	int vendor_id, int product_id, int dev_class,
@@ -2042,6 +2137,7 @@ int LIBUSB_CALL libusb_hotplug_register_callback(libusb_context *ctx,
  * \param[in] ctx context this callback is registered with
  * \param[in] callback_handle the handle of the callback to deregister
  */
+// CHECK: IA2_WRAP_FUNCTION(libusb_hotplug_deregister_callback);
 void LIBUSB_CALL libusb_hotplug_deregister_callback(libusb_context *ctx,
 	libusb_hotplug_callback_handle callback_handle);
 
@@ -2053,6 +2149,7 @@ void LIBUSB_CALL libusb_hotplug_deregister_callback(libusb_context *ctx,
  * \param[in] ctx context this callback is registered with
  * \param[in] callback_handle the handle of the callback to get the user_data of
  */
+// CHECK: IA2_WRAP_FUNCTION(libusb_hotplug_get_user_data);
 void * LIBUSB_CALL libusb_hotplug_get_user_data(libusb_context *ctx,
 	libusb_hotplug_callback_handle callback_handle);
 

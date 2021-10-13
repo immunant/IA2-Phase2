@@ -158,7 +158,7 @@ public:
         WrappedFunctions.push_back(mangle_name(fn_decl));
 
         if (!isInitialized(header_ref)) {
-          if (addHeaderImport(header_name)) {
+          if (addHeaderImport(header_name, OutputHeader)) {
             return;
           }
           if (!OutputHeader.empty()) {
@@ -264,9 +264,16 @@ private:
                      InputHeader) != InitializedHeaders.end();
   }
 
-  bool addHeaderImport(llvm::StringRef Filename) {
+  bool addHeaderImport(llvm::StringRef Filename,
+                       llvm::cl::opt<std::string> &OutputHeader) {
+    std::string include = "#include <ia2.h>\n";
+    if (!OutputHeader.empty()) {
+      auto include_output_header =
+          llvm::formatv("#include <{0}>\n", OutputHeader);
+      include.append(include_output_header);
+    }
     auto err = FileReplacements[Filename.str()].add(
-        Replacement(Filename, 0, 0, "#include <ia2.h>\n"));
+        Replacement(Filename, 0, 0, include));
     if (err) {
       llvm::errs() << "Error adding ia2 header import: " << err << '\n';
       return true;

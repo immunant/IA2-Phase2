@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - github-actions*
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test-on-ubuntu-focal:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Provision build environment
+        run: |
+          sudo apt install -y libusb-1.0-0-dev libclang-12-dev ninja-build zlib1g-dev
+          pip3 install lit
+      - name: Check out code
+        uses: actions/checkout@v2
+      - name: Build
+        run: |
+          mkdir build
+          pushd build
+          cmake ../header-rewriter                   \
+            -DLLVM_EXTERNAL_LIT=$HOME/.local/bin/lit \
+            -G Ninja
+          ninja
+          popd
+      - name: Check
+        run: |
+          pushd build
+          ninja check-ia2
+          popd
+

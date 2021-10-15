@@ -1,4 +1,5 @@
 #include "clang/AST/AST.h"
+#include "clang/AST/GlobalDecl.h"
 #include "clang/AST/Mangle.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "clang/ASTMatchers/ASTMatchers.h"

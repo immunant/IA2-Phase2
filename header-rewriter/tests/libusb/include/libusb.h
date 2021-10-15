@@ -2141,6 +2141,8 @@ int LIBUSB_CALL libusb_hotplug_register_callback(libusb_context *ctx,
 void LIBUSB_CALL libusb_hotplug_deregister_callback(libusb_context *ctx,
 	libusb_hotplug_callback_handle callback_handle);
 
+#if 0 // Ubuntu 20.04 does not provide this API
+
 /** \ingroup libusb_hotplug
  * Gets the user_data associated with a hotplug callback.
  *
@@ -2149,9 +2151,12 @@ void LIBUSB_CALL libusb_hotplug_deregister_callback(libusb_context *ctx,
  * \param[in] ctx context this callback is registered with
  * \param[in] callback_handle the handle of the callback to get the user_data of
  */
-// CHECK: IA2_WRAP_FUNCTION(libusb_hotplug_get_user_data);
+// COM: FIXME: Ubuntu 20.04 packages libusb v1.0.23 so we do not have this API
+// COM: CHECK: IA2_WRAP_FUNCTION(libusb_hotplug_get_user_data);
 void * LIBUSB_CALL libusb_hotplug_get_user_data(libusb_context *ctx,
 	libusb_hotplug_callback_handle callback_handle);
+
+#endif
 
 /** \ingroup libusb_lib
  * Available option values for libusb_set_option().

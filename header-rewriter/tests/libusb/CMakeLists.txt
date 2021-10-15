@@ -20,7 +20,6 @@ add_custom_command(
       ${HEADERS}
       --
       -I ${REWRITTEN_HEADER_DIR}
-      -I ${C_SYSTEM_INCLUDE}
     DEPENDS ${HEADER_SRCS}
     VERBATIM)
 

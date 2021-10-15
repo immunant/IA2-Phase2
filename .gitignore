@@ -1,0 +1,30 @@
+# Useful patterns: https://github.com/github/gitignore
+
+#ignore IDE directories
+.vscode
+.idea
+
+# ignore Clion build dirs
+/cmake-build-debug
+/cmake-build-release
+
+# ignore likely build dirs
+[Bb]uild*
+
+# CMake artefacts
+CMakeLists.txt.user
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+Testing
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps
+.cmake
+
+# Ninja build
+.ninja_*
+build.ninja

@@ -89,7 +89,11 @@ static std::string mangle_name(const clang::FunctionDecl *decl) {
       clang::ItaniumMangleContext::create(ctx, ctx.getDiagnostics())};
   std::string os;
   llvm::raw_string_ostream out{os};
+#if CLANG_VERSION_MAJOR <= 10
+  mctx->mangleName(decl, out);
+#else
   mctx->mangleName(clang::GlobalDecl(decl), out);
+#endif
   return os;
 }
 

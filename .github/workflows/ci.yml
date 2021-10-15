@@ -12,10 +12,14 @@ on:
 jobs:
   test-on-ubuntu-focal:
     runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        llvm-version: [10, 11, 12]
     steps:
       - name: Provision build environment
         run: |
-          sudo apt install -y libusb-1.0-0-dev libclang-12-dev ninja-build zlib1g-dev
+          sudo apt install -y libusb-1.0-0-dev libclang-${{ matrix.llvm-version }}-dev \
+            ninja-build zlib1g-dev
           pip3 install lit
       - name: Check out code
         uses: actions/checkout@v2
@@ -23,8 +27,10 @@ jobs:
         run: |
           mkdir build
           pushd build
-          cmake ../header-rewriter                   \
-            -DLLVM_EXTERNAL_LIT=$HOME/.local/bin/lit \
+          cmake ../header-rewriter                                      \
+            -DClang_DIR=/usr/lib/cmake/clang-${{ matrix.llvm-version }} \
+            -DLLVM_DIR=/usr/lib/llvm-${{ matrix.llvm-version }}/cmake   \
+            -DLLVM_EXTERNAL_LIT=$HOME/.local/bin/lit                    \
             -G Ninja
           ninja
           popd

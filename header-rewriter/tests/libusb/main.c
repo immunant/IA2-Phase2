@@ -20,8 +20,8 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#include "@REWRITTEN_HEADER_DIR@/libusb.h"
-#include "@REWRITTEN_HEADER_DIR@/fn_ptr_ia2.h"
+#include "libusb.h"
+#include "fn_ptr_ia2.h"
 
 static void print_devs(libusb_device **devs)
 {

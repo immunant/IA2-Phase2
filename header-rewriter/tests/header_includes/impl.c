@@ -1,4 +1,4 @@
-#include "@ORIGINAL_HEADER_DIR@/types.h"
+#include "types.h"
 
 int unwrap_or(Option opt, int default_value) {
     if (opt.present) {

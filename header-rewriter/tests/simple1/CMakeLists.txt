@@ -1,5 +1,3 @@
-set(IA2_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/../include)
-
 add_library(simple1 SHARED libsimple1/simple1.c)
 
 add_custom_target(

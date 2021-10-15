@@ -1,6 +1,6 @@
 #include <stdio.h>
-#include "@ORIGINAL_HEADER_DIR@/liboption.h"
-#include "@ORIGINAL_HEADER_DIR@/types.h"
+#include "liboption.h"
+#include "types.h"
 
 Option Some(int x) {
     printf("returning `Some(%d)`\n", x);

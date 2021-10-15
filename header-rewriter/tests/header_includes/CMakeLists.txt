@@ -1,10 +1,5 @@
-set(IA2_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/../include)
-set(ORIGINAL_HEADER_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+set(ORIGINAL_HEADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/)
 set(REWRITTEN_HEADER_DIR ${CMAKE_CURRENT_BINARY_DIR})
-
-configure_file(impl.c.in ${CMAKE_CURRENT_SOURCE_DIR}/impl.c)
-configure_file(liboption.c.in ${CMAKE_CURRENT_SOURCE_DIR}/liboption.c)
-configure_file(main.c.in ${CMAKE_CURRENT_SOURCE_DIR}/main.c)
 
 # Use the directory as the test name
 get_filename_component(TEST_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)
@@ -16,10 +11,11 @@ set(MAIN ${TEST_NAME}-main)
 set(PUBLIC_HEADERS liboption.h types.h)
 set(PRIVATE_HEADERS impl.h)
 set(HEADER_SRCS ${PUBLIC_HEADERS} ${PRIVATE_HEADERS})
-list(TRANSFORM HEADER_SRCS PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/)
-list(TRANSFORM PUBLIC_HEADERS PREPEND ${CMAKE_CURRENT_BINARY_DIR}/)
+list(TRANSFORM HEADER_SRCS PREPEND ${ORIGINAL_HEADER_DIR}/)
+list(TRANSFORM PUBLIC_HEADERS PREPEND ${REWRITTEN_HEADER_DIR}/)
 
 add_library(${ORIGINAL_LIB} SHARED liboption.c impl.c)
+target_include_directories(${ORIGINAL_LIB} BEFORE PRIVATE ${ORIGINAL_HEADER_DIR})
 
 add_custom_command(
     OUTPUT ${PUBLIC_HEADERS} ${PRIVATE_HEADERS} wrapper.c
@@ -42,7 +38,9 @@ target_include_directories(${WRAPPER} BEFORE PRIVATE ${IA2_INCLUDE_DIR})
 add_executable(${MAIN} main.c)
 target_link_libraries(${MAIN} PRIVATE
     ${ORIGINAL_LIB} ${WRAPPER})
-target_include_directories(${MAIN} BEFORE PRIVATE ${IA2_INCLUDE_DIR})
+target_include_directories(${MAIN} BEFORE PRIVATE
+    ${IA2_INCLUDE_DIR}
+    ${REWRITTEN_HEADER_DIR})
 
 add_dependencies(check-ia2 ${MAIN})
 

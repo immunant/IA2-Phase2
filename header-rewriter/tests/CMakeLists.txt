@@ -1,5 +1,7 @@
 enable_testing()
 
+include("../../cmake/define-ia2-wrapper.cmake")
+
 execute_process(COMMAND clang -print-resource-dir
   OUTPUT_VARIABLE CLANG_RESOURCE_DIR
   OUTPUT_STRIP_TRAILING_WHITESPACE)

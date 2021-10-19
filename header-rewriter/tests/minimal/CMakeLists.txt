@@ -2,24 +2,12 @@ set(ORIGINAL_HEADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/)
 add_library(original SHARED minimal.c)
 target_include_directories(original BEFORE PRIVATE ${ORIGINAL_HEADER_DIR})
 
-add_custom_command(
-  OUTPUT minimal.h wrapper.c
-  COMMAND cp ${ORIGINAL_HEADER_DIR}/minimal.h ${CMAKE_CURRENT_BINARY_DIR}/minimal.h
-  COMMAND ia2-header-rewriter
-    ${CMAKE_CURRENT_BINARY_DIR}/wrapper.c
-    ${CMAKE_CURRENT_BINARY_DIR}/minimal.h
-    --
-  DEPENDS ${ORIGINAL_HEADER_DIR}/minimal.h
-  VERBATIM)
-
-add_library(wrapper SHARED wrapper.c)
-target_link_libraries(wrapper PRIVATE
-  original)
-target_link_options(wrapper PRIVATE
-  -Wl,--version-script,${CMAKE_CURRENT_BINARY_DIR}/wrapper.c.syms)
-target_include_directories(wrapper BEFORE PRIVATE
-    ${IA2_INCLUDE_DIR}
-    ${ORIGINAL_HEADER_DIR})
+# Build the wrapper lib
+define_ia2_wrapper(
+    WRAPPER wrapper
+    WRAPPED_LIB original
+    HEADERS minimal.h
+)
 
 # Copy the C file to the build directory so it can't pick up the original header
 # from its source directory

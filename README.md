@@ -18,7 +18,7 @@ pip install lit
 
 ```
 mkdir build && pushd build
-cmake ../header-rewriter                        \
+cmake ..                                        \
             -DClang_DIR=/usr/lib/cmake/clang-12 \
             -DLLVM_DIR=/usr/lib/llvm-12/cmake   \
             -DLLVM_EXTERNAL_LIT=`which lit`     \

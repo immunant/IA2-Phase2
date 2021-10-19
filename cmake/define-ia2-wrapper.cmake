@@ -1,7 +1,7 @@
 function(define_ia2_wrapper)
     # Parse options
     set(options)
-    set(oneValueArgs WRAPPER WRAPPED_LIB)
+    set(oneValueArgs WRAPPER WRAPPED_LIB OUTPUT_HEADER INCLUDE_DIR)
     set(multiValueArgs HEADERS PRIVATE_HEADERS)
     cmake_parse_arguments(DEFINE_IA2_WRAPPER "${options}" "${oneValueArgs}"
                           "${multiValueArgs}" ${ARGN} )
@@ -11,9 +11,19 @@ function(define_ia2_wrapper)
     set(WRAPPED_LIB ${DEFINE_IA2_WRAPPER_WRAPPED_LIB})
     set(HEADERS ${DEFINE_IA2_WRAPPER_HEADERS})
     set(PRIVATE_HEADERS ${DEFINE_IA2_WRAPPER_PRIVATE_HEADERS})
+    if(DEFINED DEFINE_IA2_WRAPPER_OUTPUT_HEADER)
+        set(OUTPUT_HEADER ${DEFINE_IA2_WRAPPER_OUTPUT_HEADER})
+    else()
+        set(OUTPUT_HEADER "fn_ptr_ia2.h")
+    endif()
+    if(DEFINED DEFINE_IA2_WRAPPER_INCLUDE_DIR)
+        set(INCLUDE_DIR ${DEFINE_IA2_WRAPPER_INCLUDE_DIR})
+    else()
+        set(INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/)
+    endif()
 
     # Collect headers
-    set(ORIGINAL_HEADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/)
+    set(ORIGINAL_HEADER_DIR ${INCLUDE_DIR})
     set(REWRITTEN_HEADER_DIR ${CMAKE_CURRENT_BINARY_DIR})
 
     set(HEADER_SRCS ${HEADERS} ${PRIVATE_HEADERS})
@@ -25,7 +35,7 @@ function(define_ia2_wrapper)
         OUTPUT ${HEADERS} wrapper.c
         COMMAND cp ${HEADER_SRCS} ${CMAKE_CURRENT_BINARY_DIR} #${HEADERS}
         COMMAND ia2-header-rewriter
-          --output-header ${CMAKE_CURRENT_BINARY_DIR}/fn_ptr_ia2.h
+          --output-header ${CMAKE_CURRENT_BINARY_DIR}/${OUTPUT_HEADER}
           ${CMAKE_CURRENT_BINARY_DIR}/wrapper.c
           ${HEADERS}
           --
@@ -44,7 +54,7 @@ function(define_ia2_wrapper)
     # Add IA2 and wrapper include dirs
     target_include_directories(${WRAPPER_TARGET}
         BEFORE PUBLIC ${IA2_INCLUDE_DIR}
-        BEFORE INTERFACE ${REWRITTEN_HEADER_DIR}
+        INTERFACE ${REWRITTEN_HEADER_DIR}
     )
 
     return()

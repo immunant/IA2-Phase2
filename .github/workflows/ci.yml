@@ -14,11 +14,11 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        llvm-version: [10, 11, 12]
+        clang-version: [11, 12] # FIXME: Clang 10 related issues in lit.site.cfg.py.in
     steps:
       - name: Provision build environment
         run: |
-          sudo apt install -y libusb-1.0-0-dev libclang-${{ matrix.llvm-version }}-dev \
+          sudo apt install -y libusb-1.0-0-dev libclang-${{ matrix.clang-version }}-dev \
             ninja-build zlib1g-dev
           pip3 install lit
       - name: Check out code
@@ -28,8 +28,8 @@ jobs:
           mkdir build
           pushd build
           cmake ../header-rewriter                                      \
-            -DClang_DIR=/usr/lib/cmake/clang-${{ matrix.llvm-version }} \
-            -DLLVM_DIR=/usr/lib/llvm-${{ matrix.llvm-version }}/cmake   \
+            -DClang_DIR=/usr/lib/cmake/clang-${{ matrix.clang-version }} \
+            -DLLVM_DIR=/usr/lib/llvm-${{ matrix.clang-version }}/cmake   \
             -DLLVM_EXTERNAL_LIT=$HOME/.local/bin/lit                    \
             -G Ninja
           ninja

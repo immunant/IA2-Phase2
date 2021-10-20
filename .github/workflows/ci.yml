@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - github-actions*
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test-on-ubuntu-focal:
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        clang-version: [11, 12] # FIXME: Clang 10 related issues in lit.site.cfg.py.in
+    steps:
+      - name: Provision build environment
+        run: |
+          sudo apt install -y libusb-1.0-0-dev libclang-${{ matrix.clang-version }}-dev \
+            ninja-build zlib1g-dev
+          pip3 install lit
+      - name: Check out code
+        uses: actions/checkout@v2
+      - name: Build
+        run: |
+          mkdir build
+          pushd build
+          cmake ../header-rewriter                                      \
+            -DClang_DIR=/usr/lib/cmake/clang-${{ matrix.clang-version }} \
+            -DLLVM_DIR=/usr/lib/llvm-${{ matrix.clang-version }}/cmake   \
+            -DLLVM_EXTERNAL_LIT=$HOME/.local/bin/lit                    \
+            -G Ninja
+          ninja
+          popd
+      - name: Check
+        run: |
+          pushd build
+          ninja check-ia2
+          popd
+

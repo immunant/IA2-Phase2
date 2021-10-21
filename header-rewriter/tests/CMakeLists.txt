@@ -2,11 +2,6 @@ enable_testing()
 
 include("../../cmake/define-ia2-wrapper.cmake")
 
-execute_process(COMMAND clang -print-resource-dir
-  OUTPUT_VARIABLE CLANG_RESOURCE_DIR
-  OUTPUT_STRIP_TRAILING_WHITESPACE)
-set(C_SYSTEM_INCLUDE ${CLANG_RESOURCE_DIR}/include/)
-
 configure_lit_site_cfg(
   ${CMAKE_CURRENT_SOURCE_DIR}/lit.site.cfg.py.in
   ${CMAKE_CURRENT_BINARY_DIR}/lit.site.cfg.py

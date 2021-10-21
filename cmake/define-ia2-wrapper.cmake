@@ -1,3 +1,11 @@
+execute_process(COMMAND ${CMAKE_C_COMPILER} -print-file-name=include
+  OUTPUT_VARIABLE C_SYSTEM_INCLUDE
+  OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+execute_process(COMMAND ${CMAKE_C_COMPILER} -print-file-name=include-fixed
+  OUTPUT_VARIABLE C_SYSTEM_INCLUDE_FIXED
+  OUTPUT_STRIP_TRAILING_WHITESPACE)
+
 function(define_ia2_wrapper)
     # Parse options
     set(options)
@@ -41,6 +49,7 @@ function(define_ia2_wrapper)
           --
           -I ${REWRITTEN_HEADER_DIR}
           -isystem ${C_SYSTEM_INCLUDE}
+          -isystem ${C_SYSTEM_INCLUDE_FIXED}
         DEPENDS ${HEADER_SRCS}
         VERBATIM)
 

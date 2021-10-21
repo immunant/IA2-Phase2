@@ -135,6 +135,7 @@ public:
       }
       clang::FileEntryRef header_ref = *header_ref_result;
       auto fn_name = fn_decl->getNameInfo().getAsString();
+      auto fn_name_mangled = mangle_name(fn_decl);
 
       // Deleting variadic functions from the rewritten header for now
       // See https://github.com/immunant/IA2-Phase2/issues/18
@@ -160,7 +161,7 @@ public:
       // This callback may find a fn decl multiple times so only wrap it the
       // first time it's encountered in an input header
       if (!functionIsWrapped(fn_decl)) {
-        WrappedFunctions.push_back(mangle_name(fn_decl));
+        WrappedFunctions.push_back(fn_name_mangled);
 
         if (!isInitialized(header_ref)) {
           if (addHeaderImport(header_name, OutputHeader)) {
@@ -173,7 +174,7 @@ public:
           InitializedHeaders.push_back(header_ref);
         }
 
-        std::string wrapper_macro = "IA2_WRAP_FUNCTION(" + fn_name + ");\n";
+        std::string wrapper_macro = "IA2_WRAP_FUNCTION(" + fn_name_mangled + ", " + fn_name_mangled + ");\n";
         clang::SourceLocation expansion_loc =
             Result.SourceManager->getExpansionLoc(fn_decl->getBeginLoc());
         Replacement decl_replacement{*Result.SourceManager, expansion_loc, 0,
@@ -185,7 +186,7 @@ public:
           return;
         }
 
-        auto wrapper_name = "__ia2_" + mangle_name(fn_decl);
+        auto wrapper_name = "__ia2_" + fn_name_mangled;
         auto ret_type = fn_decl->getReturnType();
         if (ret_type->isFunctionPointerType()) {
           auto &sm = fn_decl->getASTContext().getSourceManager();
@@ -243,7 +244,7 @@ public:
             "{5}"
             "}\n",
             replace_type_placeholder(ret_type_string, wrapper_name),
-            param_decls, ret_val, fn_name, param_names, ret_stmt);
+            param_decls, ret_val, fn_name_mangled, param_names, ret_stmt);
 
         SymsOut << "    " << wrapper_name << ";\n";
       }

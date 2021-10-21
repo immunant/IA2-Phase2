@@ -1,10 +1,10 @@
 #pragma once
 
 #ifdef IA2_WRAPPER
-#define IA2_WRAP_FUNCTION(name)
+#define IA2_WRAP_FUNCTION(name, mangled)
 #else
-#define IA2_WRAP_FUNCTION(name)                 \
-    __asm__(".symver " #name ",__ia2_" #name "@IA2")
+#define IA2_WRAP_FUNCTION(name, mangled) \
+    __asm__(".symver " #name ",__ia2_" #mangled "@IA2")
 #endif
 
 #define IA2_FNPTR_WRAPPER(target, ty) ({               \

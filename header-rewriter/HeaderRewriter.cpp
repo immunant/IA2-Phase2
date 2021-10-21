@@ -185,7 +185,7 @@ public:
           return;
         }
 
-        auto wrapper_name = "__ia2_" + fn_name;
+        auto wrapper_name = "__ia2_" + mangle_name(fn_decl);
         auto ret_type = fn_decl->getReturnType();
         if (ret_type->isFunctionPointerType()) {
           auto &sm = fn_decl->getASTContext().getSourceManager();

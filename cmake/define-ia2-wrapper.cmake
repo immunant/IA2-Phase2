@@ -28,7 +28,12 @@ function(define_ia2_wrapper)
     if(DEFINED DEFINE_IA2_WRAPPER_INCLUDE_DIR)
         set(INCLUDE_DIR ${DEFINE_IA2_WRAPPER_INCLUDE_DIR})
     else()
-        set(INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/)
+        # Use system path for system libs and `source/include` for in-tree libs
+        if(${DEFINE_IA2_WRAPPER_USE_SYSTEM_HEADERS})
+            set(INCLUDE_DIR /usr/include)
+        else()
+            set(INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
+        endif()
     endif()
 
     # Collect headers
@@ -38,7 +43,14 @@ function(define_ia2_wrapper)
     if(${DEFINE_IA2_WRAPPER_USE_SYSTEM_HEADERS})
         # Grab system headers
         set(COPIED_HEADERS)
+
         foreach(SYSTEM_HEADER ${HEADERS})
+            # Make path absolute
+            if(NOT IS_ABSOLUTE ${SYSTEM_HEADER})
+                set(SYSTEM_HEADER /usr/include/${SYSTEM_HEADER})
+            endif()
+
+            # Copy the header to build dir under `system` subdir
             get_filename_component(HEADER_NAME ${SYSTEM_HEADER} NAME)
             set(COPIED_HEADER ${REWRITTEN_HEADER_DIR}/system/${HEADER_NAME})
             add_custom_command(
@@ -47,33 +59,38 @@ function(define_ia2_wrapper)
                 COMMAND cp ${SYSTEM_HEADER} ${COPIED_HEADER}
                 DEPENDS ${SYSTEM_HEADER}
             )
-            # Build list of input headers
+
+            # Build list absolute paths of input headers
             list(APPEND COPIED_HEADERS ${COPIED_HEADER})
-            # Build list of mutated outputs from rewriter
+            # Build list of absolute paths of mutated outputs from rewriter
             list(APPEND REWRITTEN_HEADERS ${REWRITTEN_HEADER_DIR}/${HEADER_NAME})
         endforeach()
 
         set(HEADER_SRCS ${COPIED_HEADERS} ${PRIVATE_HEADERS})
+
+        # Recursively copy just these headers to run the rewriter on
+        set(HEADER_SRC_DIRS ${COPIED_HEADERS} ${PRIVATE_HEADERS})
     else()
-        # Build list of mutated outputs from rewriter
+        # Build absolute paths of mutated outputs from rewriter
         set(REWRITTEN_HEADERS ${HEADERS})
         list(TRANSFORM REWRITTEN_HEADERS PREPEND ${REWRITTEN_HEADER_DIR}/)
 
-        # Define list of input headers
-        set(COPIED_HEADERS ${HEADERS})
-
-        set(HEADER_SRCS ${COPIED_HEADERS} ${PRIVATE_HEADERS})
+        # Build absolute paths of header inputs
+        set(HEADER_SRCS ${HEADERS} ${PRIVATE_HEADERS})
         list(TRANSFORM HEADER_SRCS PREPEND ${ORIGINAL_HEADER_DIR}/)
+
+        # Glob dirs to copy to generate not-yet-mutated outputs
+        file(GLOB HEADER_SRC_DIRS ${ORIGINAL_HEADER_DIR}/*)
     endif()
 
-
-    # Run the header rewriter itself
+    # Run the header rewriter
     add_custom_command(
         OUTPUT ${REWRITTEN_HEADERS} wrapper.c
         # Copy headers to their REWRITTEN_HEADERS locations
-        COMMAND cp ${HEADER_SRCS} ${CMAKE_CURRENT_BINARY_DIR}
+        COMMAND cp -r ${HEADER_SRC_DIRS} ${REWRITTEN_HEADER_DIR}
+        # Run the rewriter itself, mutating the headers
         COMMAND ia2-header-rewriter
-          --output-header ${CMAKE_CURRENT_BINARY_DIR}/${OUTPUT_HEADER}
+          --output-header ${REWRITTEN_HEADER_DIR}/${OUTPUT_HEADER}
           ${CMAKE_CURRENT_BINARY_DIR}/wrapper.c
           ${REWRITTEN_HEADERS}
           --

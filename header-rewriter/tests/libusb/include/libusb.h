@@ -2151,8 +2151,7 @@ void LIBUSB_CALL libusb_hotplug_deregister_callback(libusb_context *ctx,
  * \param[in] ctx context this callback is registered with
  * \param[in] callback_handle the handle of the callback to get the user_data of
  */
-// COM: FIXME: Ubuntu 20.04 packages libusb v1.0.23 so we do not have this API
-// COM: CHECK: IA2_WRAP_FUNCTION(libusb_hotplug_get_user_data);
+// FIXME: Ubuntu 20.04 packages libusb v1.0.23 so we do not check this API
 void * LIBUSB_CALL libusb_hotplug_get_user_data(libusb_context *ctx,
 	libusb_hotplug_callback_handle callback_handle);
 

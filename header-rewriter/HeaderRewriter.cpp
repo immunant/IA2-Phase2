@@ -494,7 +494,7 @@ int main(int argc, const char **argv) {
     // Get a `FileEntryRef` for each input header
     auto input_ref_result = file_mgr.getFileRef(s);
     if (auto err = input_ref_result.takeError()) {
-      llvm::errs() << "Error getting FileEntryRef: " << err << '\n';
+      llvm::errs() << "Error getting FileEntryRef for " << s << ": " << err << '\n';
     }
     clang::FileEntryRef input_ref = *input_ref_result;
     input_files.push_back(input_ref);

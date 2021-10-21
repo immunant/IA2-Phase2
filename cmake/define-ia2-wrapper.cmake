@@ -41,7 +41,7 @@ function(define_ia2_wrapper)
     # Run the header rewriter itself
     add_custom_command(
         OUTPUT ${HEADERS} wrapper.c
-        COMMAND cp ${HEADER_SRCS} ${CMAKE_CURRENT_BINARY_DIR} #${HEADERS}
+        COMMAND cp ${HEADER_SRCS} ${CMAKE_CURRENT_BINARY_DIR}
         COMMAND ia2-header-rewriter
           --output-header ${CMAKE_CURRENT_BINARY_DIR}/${OUTPUT_HEADER}
           ${CMAKE_CURRENT_BINARY_DIR}/wrapper.c

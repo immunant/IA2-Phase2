@@ -136,6 +136,12 @@ public:
       clang::FileEntryRef header_ref = *header_ref_result;
       auto fn_name = fn_decl->getNameInfo().getAsString();
 
+      // Calls to compiler builtins produce an inline declaration that should
+      // not be wrapped; we also don't want to wrap explicit decls of builtins
+      if (fn_decl->getBuiltinID() != 0) {
+        return;
+      }
+
       // Deleting variadic functions from the rewritten header for now
       // See https://github.com/immunant/IA2-Phase2/issues/18
       if (fn_decl->isVariadic()) {

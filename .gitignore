@@ -28,3 +28,8 @@ _deps
 # Ninja build
 .ninja_*
 build.ninja
+
+# Rust artifacts
+Cargo.lock
+libia2/target
+include/call_gates.h

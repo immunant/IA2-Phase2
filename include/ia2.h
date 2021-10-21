@@ -26,3 +26,5 @@
     (char*)IA2_fnptr_wrapper_##target                  \
   };                                                   \
 })
+
+#include "call_gates.h"

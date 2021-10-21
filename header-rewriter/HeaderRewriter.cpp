@@ -105,6 +105,66 @@ static std::string get_expansion_filename(const clang::Decl *decl,
   return sm->getFilename(sm->getExpansionLoc(decl->getLocation())).str();
 }
 
+/// Find the source location immediately prior to a function declaration. This
+/// location is suitable for inserting top-level statements or declarations.
+static clang::SourceLocation loc_before_function_decl(const clang::FunctionDecl& fn_decl,
+                                                      clang::SourceManager& sm) {
+  // Clang doesn't include attributes in source ranges for function decls, and
+  // it doesn't include unknown attrs in the AST at all, so it's difficult to
+  // find where function decls really start (if they have prefix attributes) or
+  // end (if there are suffix attributes on a bodyless decl).
+
+  // To find the real start of a function decl, we search backwards from the
+  // claimed decl start for a '}', ';', or the start of the line.
+  // This is necessary for ffmpeg, which has `av_alloc_size(2, 3)` attrs
+  // preceding some declarations. For these declarations, `fn_decl->hasAttrs()`
+  // even returns false, leaving little option other than this awful hack.
+
+  // Get the source location of the decl and if it starts a line, insert there
+  clang::SourceLocation expansion_loc = sm.getExpansionLoc(fn_decl.getBeginLoc());
+  auto column = sm.getExpansionColumnNumber(expansion_loc);
+  if (column == 0) {
+    return expansion_loc;
+  }
+
+  // If the function decl doesn't start a line, it might have attributes that
+  // precede it. Try to find where these begin.
+  // Stringify the line up to the start of the decl
+  auto start_of_line = expansion_loc.getLocWithOffset(-column);
+  auto line_range = clang::SourceRange(start_of_line, expansion_loc);
+  clang::LangOptions lo;
+  auto str = line_range.printToString(sm);
+
+  // Tokenize the line prefix
+  clang::Lexer lexer(start_of_line, lo, str.c_str(),
+                     str.c_str(), str.c_str() + str.size());
+
+  // Collect tokens from start of line up to claimed start of the decl
+  clang::BeforeThanCompare<clang::SourceLocation> isBefore(sm);
+  std::vector<clang::Token> tokens {};
+
+  auto pos = start_of_line;
+  while(isBefore(pos, expansion_loc)) {
+    auto token = lexer.findNextToken(pos, sm, lo);
+    if (token) {
+      tokens.push_back(*token);
+      pos = token->getLocation();
+    } else {
+      break;
+    }
+  }
+
+  // Search from back for a semicolon or closing curly-brace token
+  for (auto it = tokens.rbegin(); it != tokens.rend(); ++it) {
+    // Insert after the semicolon or curly-brace if found
+    if (it->is(clang::tok::semi) || it->is(clang::tok::r_brace)) {
+      return it->getEndLoc();
+    }
+  }
+  // Insert at start of the line by default
+  return start_of_line;
+}
+
 class FnDecl : public RefactoringCallback {
 public:
   FnDecl(llvm::raw_ostream &WrapperOut, llvm::raw_ostream &SymsOut,
@@ -173,10 +233,13 @@ public:
           InitializedHeaders.push_back(header_ref);
         }
 
-        std::string wrapper_macro = "IA2_WRAP_FUNCTION(" + fn_name + ");\n";
-        clang::SourceLocation expansion_loc =
-            Result.SourceManager->getExpansionLoc(fn_decl->getBeginLoc());
-        Replacement decl_replacement{*Result.SourceManager, expansion_loc, 0,
+        std::string wrapper_macro = "\nIA2_WRAP_FUNCTION(" + fn_name + ");";
+
+        // Find the right place to insert the wrapper macro.
+        auto insert_loc = loc_before_function_decl(*fn_decl, *Result.SourceManager);
+
+        // Add a replacement that inserts the wrapper macro
+        Replacement decl_replacement{*Result.SourceManager, insert_loc, 0,
                                      wrapper_macro};
 
         auto err = FileReplacements[header_name].add(decl_replacement);

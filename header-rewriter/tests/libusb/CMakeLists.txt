@@ -3,11 +3,13 @@ get_filename_component(TEST_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)
 set(WRAPPER ${TEST_NAME}-wrapper)
 set(MAIN ${TEST_NAME}-main)
 
+
 # Build the wrapper lib
 define_ia2_wrapper(
     WRAPPER libusb_wrapper
     WRAPPED_LIB usb-1.0
-    HEADERS libusb.h
+    HEADERS /usr/include/libusb-1.0/libusb.h
+    USE_SYSTEM_HEADERS
 )
 
 # Build the test

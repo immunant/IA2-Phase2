@@ -1,3 +1,4 @@
+# Get system header directories for header rewriter as it needs them explicitly passed
 execute_process(COMMAND ${CMAKE_C_COMPILER} -print-file-name=include
   OUTPUT_VARIABLE C_SYSTEM_INCLUDE
   OUTPUT_STRIP_TRAILING_WHITESPACE)
@@ -8,7 +9,7 @@ execute_process(COMMAND ${CMAKE_C_COMPILER} -print-file-name=include-fixed
 
 function(define_ia2_wrapper)
     # Parse options
-    set(options)
+    set(options USE_SYSTEM_HEADERS)
     set(oneValueArgs WRAPPER WRAPPED_LIB OUTPUT_HEADER INCLUDE_DIR)
     set(multiValueArgs HEADERS PRIVATE_HEADERS)
     cmake_parse_arguments(DEFINE_IA2_WRAPPER "${options}" "${oneValueArgs}"
@@ -34,18 +35,47 @@ function(define_ia2_wrapper)
     set(ORIGINAL_HEADER_DIR ${INCLUDE_DIR})
     set(REWRITTEN_HEADER_DIR ${CMAKE_CURRENT_BINARY_DIR})
 
-    set(HEADER_SRCS ${HEADERS} ${PRIVATE_HEADERS})
-    list(TRANSFORM HEADER_SRCS PREPEND ${ORIGINAL_HEADER_DIR}/)
-    list(TRANSFORM HEADERS PREPEND ${REWRITTEN_HEADER_DIR}/)
+    if(${DEFINE_IA2_WRAPPER_USE_SYSTEM_HEADERS})
+        # Grab system headers
+        set(COPIED_HEADERS)
+        foreach(SYSTEM_HEADER ${HEADERS})
+            get_filename_component(HEADER_NAME ${SYSTEM_HEADER} NAME)
+            set(COPIED_HEADER ${REWRITTEN_HEADER_DIR}/system/${HEADER_NAME})
+            add_custom_command(
+                OUTPUT ${COPIED_HEADER}
+                COMMAND mkdir -p ${REWRITTEN_HEADER_DIR}
+                COMMAND cp ${SYSTEM_HEADER} ${COPIED_HEADER}
+                DEPENDS ${SYSTEM_HEADER}
+            )
+            # Build list of input headers
+            list(APPEND COPIED_HEADERS ${COPIED_HEADER})
+            # Build list of mutated outputs from rewriter
+            list(APPEND REWRITTEN_HEADERS ${REWRITTEN_HEADER_DIR}/${HEADER_NAME})
+        endforeach()
+
+        set(HEADER_SRCS ${COPIED_HEADERS} ${PRIVATE_HEADERS})
+    else()
+        # Build list of mutated outputs from rewriter
+        set(REWRITTEN_HEADERS ${HEADERS})
+        list(TRANSFORM REWRITTEN_HEADERS PREPEND ${REWRITTEN_HEADER_DIR}/)
+
+        # Define list of input headers
+        set(COPIED_HEADERS ${HEADERS})
+
+        set(HEADER_SRCS ${COPIED_HEADERS} ${PRIVATE_HEADERS})
+        list(TRANSFORM HEADER_SRCS PREPEND ${ORIGINAL_HEADER_DIR}/)
+    endif()
+
 
     # Run the header rewriter itself
     add_custom_command(
-        OUTPUT ${HEADERS} wrapper.c
+        OUTPUT ${REWRITTEN_HEADERS} wrapper.c
+        # Copy headers to their REWRITTEN_HEADERS locations
         COMMAND cp ${HEADER_SRCS} ${CMAKE_CURRENT_BINARY_DIR}
         COMMAND ia2-header-rewriter
           --output-header ${CMAKE_CURRENT_BINARY_DIR}/${OUTPUT_HEADER}
           ${CMAKE_CURRENT_BINARY_DIR}/wrapper.c
-          ${HEADERS}
+          ${REWRITTEN_HEADERS}
           --
           -I ${REWRITTEN_HEADER_DIR}
           -isystem ${C_SYSTEM_INCLUDE}

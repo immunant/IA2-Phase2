@@ -1,0 +1,4 @@
+// TYPEDEF-CHECK: typedef struct IA2_fnptr__ZTSPFvP15libusb_transferE libusb_transfer_cb_fn;
+// TYPEDEF-CHECK: typedef struct IA2_fnptr__ZTSPFvisPvE libusb_pollfd_added_cb;
+// TYPEDEF-CHECK: typedef struct IA2_fnptr__ZTSPFviPvE libusb_pollfd_removed_cb;
+// TYPEDEF-CHECK: typedef struct IA2_fnptr__ZTSPFiP14libusb_contextP13libusb_device20libusb_hotplug_eventPvE libusb_hotplug_callback_fn;

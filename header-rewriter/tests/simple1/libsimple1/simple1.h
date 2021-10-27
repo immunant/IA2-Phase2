@@ -1,6 +1,6 @@
 /*
 RUN: cp %s %t.h
-RUN: ia2-header-rewriter --output-header %T/simple1_ia2.h wrapper.c %t.h -- -I%resource_dir
+RUN: ia2-header-rewriter --output-header %T/simple1_ia2.h %T/wrapper.c %t.h -- -I%resource_dir
 RUN: cat %t.h | sed 's/^.*CHECK.*$//' | FileCheck %s
 */
 #pragma once

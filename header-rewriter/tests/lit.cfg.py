@@ -29,6 +29,7 @@ llvm_config.use_default_substitutions()
 llvm_config.use_clang()
 
 config.substitutions.extend([
+    ('%ia2_generate_checks', '%s/tests/generate-checks.sh' % config.ia2_src_root),
     ('%ia2_include', '%s/../include' % config.ia2_src_root),
     ('%binary_dir', config.ia2_obj_root)
 ])

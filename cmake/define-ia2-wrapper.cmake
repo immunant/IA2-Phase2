@@ -30,7 +30,8 @@ function(define_ia2_wrapper)
     else()
         # Use system path for system libs and `source/include` for in-tree libs
         if(${DEFINE_IA2_WRAPPER_USE_SYSTEM_HEADERS})
-            set(INCLUDE_DIR /usr/include)
+            pkg_check_modules(LIB REQUIRED lib${WRAPPED_LIB})
+            set(INCLUDE_DIR ${LIB_INCLUDEDIR})
         else()
             set(INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
         endif()
@@ -47,7 +48,7 @@ function(define_ia2_wrapper)
         foreach(SYSTEM_HEADER ${HEADERS})
             # Make path absolute
             if(NOT IS_ABSOLUTE ${SYSTEM_HEADER})
-                set(SYSTEM_HEADER /usr/include/${SYSTEM_HEADER})
+                set(SYSTEM_HEADER ${INCLUDE_DIR}/${SYSTEM_HEADER})
             endif()
 
             # Copy the header to build dir under `system` subdir

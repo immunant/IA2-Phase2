@@ -8,7 +8,7 @@ set(MAIN ${TEST_NAME}-main)
 define_ia2_wrapper(
     WRAPPER libusb_wrapper
     WRAPPED_LIB usb-1.0
-    HEADERS /usr/include/libusb-1.0/libusb.h
+    HEADERS libusb-1.0/libusb.h
     USE_SYSTEM_HEADERS
 )
 

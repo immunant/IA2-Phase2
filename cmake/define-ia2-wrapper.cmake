@@ -97,6 +97,7 @@ function(define_ia2_wrapper)
           ${CMAKE_CURRENT_BINARY_DIR}/${WRAPPER_SRC}
           ${REWRITTEN_HEADERS}
           --
+          -fgnuc-version=6
           -I ${REWRITTEN_HEADER_DIR}
           -isystem ${C_SYSTEM_INCLUDE}
           -isystem ${C_SYSTEM_INCLUDE_FIXED}

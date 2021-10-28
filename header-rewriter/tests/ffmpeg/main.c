@@ -30,6 +30,7 @@
 
 #include <libavformat/avformat.h>
 #include <libavutil/dict.h>
+#include <libavutil/common.h>
 
 int main (int argc, char **argv)
 {

@@ -4,7 +4,7 @@ set(WRAPPER ${TEST_NAME}-wrapper)
 set(MAIN ${TEST_NAME}-main)
 
 set(AVFORMAT_HEADERS libavformat/avformat.h libavformat/avio.h)
-set(AVUTIL_HEADERS libavutil/dict.h libavutil/version.h libavutil/macros.h)
+set(AVUTIL_HEADERS libavutil/dict.h libavutil/version.h libavutil/macros.h libavutil/common.h)
 
 set(ORIGINAL_HEADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/)
 set(REWRITTEN_HEADER_DIR ${CMAKE_CURRENT_BINARY_DIR})

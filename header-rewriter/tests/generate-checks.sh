@@ -10,6 +10,7 @@ list_functions() {
 	clang -fno-diagnostics-color -Xclang -ast-dump "$1" | \
 	fgrep -A99999 "$1" | \
 	fgrep FunctionDecl | \
+	grep -aPzo '(.*(<line|'"$1"').*\n)+' | tr '\0' '\a' | sed -e '/\a/,$d' | \
 	fgrep -v inline | \
 	fgrep -v ... | \
 	sed -r -e 's/.*<.*> [^ ]+ ([^ ]+ )*([^ ]+) \x27.*/\2/'

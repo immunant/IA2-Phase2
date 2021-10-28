@@ -31,6 +31,7 @@
 #include <libavformat/avformat.h>
 #include <libavutil/dict.h>
 #include <libavutil/common.h>
+#include "libavutil/mem.h"
 
 int main (int argc, char **argv)
 {

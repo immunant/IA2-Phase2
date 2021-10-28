@@ -1,13 +1,12 @@
 # Use the directory as the test name
 get_filename_component(TEST_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)
-set(WRAPPER ${TEST_NAME}-wrapper)
 set(MAIN ${TEST_NAME}-main)
 
 set(AVFORMAT_HEADERS libavformat/avformat.h libavformat/avio.h)
-set(AVUTIL_HEADERS libavutil/dict.h libavutil/version.h libavutil/macros.h libavutil/common.h)
-
-set(ORIGINAL_HEADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/)
-set(REWRITTEN_HEADER_DIR ${CMAKE_CURRENT_BINARY_DIR})
+set(AVUTIL_HEADERS libavutil/dict.h libavutil/version.h libavutil/macros.h
+    libavutil/common.h libavutil/mem.h libavutil/attributes.h libavutil/avutil.h
+    libavutil/rational.h libavutil/mathematics.h libavutil/intfloat.h
+    libavutil/log.h libavutil/pixfmt.h libavutil/error.h)
 
 # Build wrapper libs
 define_ia2_wrapper(

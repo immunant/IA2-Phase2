@@ -9,6 +9,7 @@ list_functions() {
 	# skips variadic functions for now
 	clang -fno-diagnostics-color -Xclang -ast-dump "$1" | \
 	fgrep -A99999 "$1" | \
+	pcregrep -M -v 'FunctionDecl.+\n.+BuiltinAttr' | \
 	fgrep FunctionDecl | \
 	grep -aPzo '(.*(<line|'"$1"').*\n)+' | tr '\0' '\a' | sed -e '/\a/,$d' | \
 	fgrep -v inline | \

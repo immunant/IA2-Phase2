@@ -19,7 +19,7 @@ jobs:
       - name: Provision build environment
         run: |
           sudo apt install -y libusb-1.0-0-dev libclang-${{ matrix.clang-version }}-dev \
-            ninja-build zlib1g-dev libavformat-dev libavutil-dev
+            ninja-build zlib1g-dev libavformat-dev libavutil-dev pcregrep
           pip3 install lit
       - name: Check out code
         uses: actions/checkout@v2

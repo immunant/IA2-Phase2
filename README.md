@@ -13,7 +13,7 @@ Ubuntu 20.04 is used for testing. Other Linux distributions may or may not work.
 ```
 sudo apt install -y libusb-1.0-0-dev libclang-dev llvm-dev \
             ninja-build zlib1g-dev python3-pip cmake \
-            libavformat-dev libavutil-dev
+            libavformat-dev libavutil-dev pcregrep
 pip install lit
 ```
 

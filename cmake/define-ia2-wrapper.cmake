@@ -23,7 +23,7 @@ function(define_ia2_wrapper)
     if(DEFINED DEFINE_IA2_WRAPPER_OUTPUT_HEADER)
         set(OUTPUT_HEADER ${DEFINE_IA2_WRAPPER_OUTPUT_HEADER})
     else()
-        set(OUTPUT_HEADER "fn_ptr_ia2.h")
+        set(OUTPUT_HEADER "${WRAPPED_LIB}_fn_ptr_ia2.h")
     endif()
     if(DEFINED DEFINE_IA2_WRAPPER_INCLUDE_DIR)
         set(INCLUDE_DIR ${DEFINE_IA2_WRAPPER_INCLUDE_DIR})
@@ -84,15 +84,17 @@ function(define_ia2_wrapper)
         file(GLOB HEADER_SRC_DIRS ${ORIGINAL_HEADER_DIR}/*)
     endif()
 
+    set(WRAPPER_SRC ${WRAPPED_LIB}_wrapper.c)
+
     # Run the header rewriter
     add_custom_command(
-        OUTPUT ${REWRITTEN_HEADERS} wrapper.c
+        OUTPUT ${REWRITTEN_HEADERS} ${WRAPPER_SRC}
         # Copy headers to their REWRITTEN_HEADERS locations
         COMMAND cp -r ${HEADER_SRC_DIRS} ${REWRITTEN_HEADER_DIR}
         # Run the rewriter itself, mutating the headers
         COMMAND ia2-header-rewriter
           --output-header ${REWRITTEN_HEADER_DIR}/${OUTPUT_HEADER}
-          ${CMAKE_CURRENT_BINARY_DIR}/wrapper.c
+          ${CMAKE_CURRENT_BINARY_DIR}/${WRAPPER_SRC}
           ${REWRITTEN_HEADERS}
           --
           -I ${REWRITTEN_HEADER_DIR}
@@ -102,10 +104,10 @@ function(define_ia2_wrapper)
         VERBATIM)
 
     # Define wrapper library target
-    add_library(${WRAPPER_TARGET} SHARED wrapper.c)
+    add_library(${WRAPPER_TARGET} SHARED ${WRAPPER_SRC})
     target_compile_options(${WRAPPER_TARGET} PRIVATE "-Wno-deprecated-declarations")
     target_link_libraries(${WRAPPER_TARGET}
-        PRIVATE -Wl,--version-script,${CMAKE_CURRENT_BINARY_DIR}/wrapper.c.syms
+        PRIVATE -Wl,--version-script,${CMAKE_CURRENT_BINARY_DIR}/${WRAPPER_SRC}.syms
         PUBLIC ${WRAPPED_LIB})
 
     # Add IA2 and wrapper include dirs

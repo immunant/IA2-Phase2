@@ -7,3 +7,4 @@ set(IA2_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/include/)
 set(IA2_LIB ${PROJECT_SOURCE_DIR}/libia2/target/release/libia2.so)
 
 add_subdirectory(header-rewriter)
+add_subdirectory(libia2)

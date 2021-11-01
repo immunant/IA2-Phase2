@@ -144,13 +144,15 @@ pub extern "C" fn initialize_heap_pkey(heap_start: *const u8, heap_len: usize) {
             }
 
             unsafe {
-                libc::syscall(
-                    libc::SYS_pkey_mprotect,
-                    heap_start,
-                    heap_len,
-                    libc::PROT_READ | libc::PROT_WRITE,
-                    pkey,
-                );
+                if heap_len != 0 && !heap_start.is_null() {
+                    libc::syscall(
+                        libc::SYS_pkey_mprotect,
+                        heap_start,
+                        heap_len,
+                        libc::PROT_READ | libc::PROT_WRITE,
+                        pkey,
+                    );
+                }
 
                 // Iterate through all ELF segments and assign
                 // protection keys to ours

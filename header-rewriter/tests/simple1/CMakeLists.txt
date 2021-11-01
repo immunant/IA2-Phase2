@@ -10,7 +10,7 @@ define_ia2_wrapper(
 )
 
 add_executable(simple1-main main.c)
-target_link_libraries(simple1-main PRIVATE simple1-wrapper)
+target_link_libraries(simple1-main PRIVATE simple1-wrapper ${IA2_LIB})
 target_compile_options(simple1-main PRIVATE -Werror=incompatible-pointer-types)
 
 add_dependencies(check-ia2 simple1-main)

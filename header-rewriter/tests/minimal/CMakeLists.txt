@@ -18,7 +18,8 @@ add_custom_command(
   VERBATIM)
 add_executable(main main.c)
 target_link_libraries(main PRIVATE
-  wrapper)
+  wrapper
+  ${IA2_LIB})
 target_include_directories(main BEFORE PRIVATE ${IA2_INCLUDE_DIR})
 
 add_dependencies(check-ia2 main)

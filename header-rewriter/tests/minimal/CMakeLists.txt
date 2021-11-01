@@ -1,6 +1,7 @@
 set(ORIGINAL_HEADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/)
 add_library(original SHARED minimal.c)
 target_include_directories(original BEFORE PRIVATE ${ORIGINAL_HEADER_DIR})
+target_link_options(original PRIVATE "-Wl,-z,now")
 
 # Build the wrapper lib
 define_ia2_wrapper(

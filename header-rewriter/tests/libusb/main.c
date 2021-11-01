@@ -19,6 +19,7 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <ia2.h>
 
 #include "libusb.h"
 #include "usb-1.0_fn_ptr_ia2.h"
@@ -53,6 +54,7 @@ static void print_devs(libusb_device **devs)
 
 int main(void)
 {
+    initialize_heap_pkey(NULL, 0);
 	libusb_device **devs;
 	int r;
 	ssize_t cnt;

@@ -14,6 +14,7 @@ define_ia2_wrapper(
 
 # Build the test
 add_executable(${MAIN} main.c)
+target_link_options(${MAIN} PRIVATE "-Wl,-z,now")
 target_link_libraries(${MAIN} PRIVATE
     libusb_wrapper
     ${IA2_LIB})

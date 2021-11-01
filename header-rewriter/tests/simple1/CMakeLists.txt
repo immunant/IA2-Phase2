@@ -1,4 +1,5 @@
 add_library(simple1 SHARED libsimple1/simple1.c)
+target_link_options(simple1 PRIVATE "-Wl,-z,now")
 
 define_ia2_wrapper(
     WRAPPER simple1-wrapper

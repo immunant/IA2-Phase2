@@ -17,6 +17,7 @@ define_ia2_wrapper(
 # Build the original lib
 add_library(${ORIGINAL_LIB} SHARED random.cpp)
 target_include_directories(${ORIGINAL_LIB} BEFORE PRIVATE ${ORIGINAL_HEADER_DIR})
+target_link_options(${ORIGINAL_LIB} PRIVATE "-Wl,-z,now")
 
 # Build the test
 add_executable(${MAIN} main.cpp)

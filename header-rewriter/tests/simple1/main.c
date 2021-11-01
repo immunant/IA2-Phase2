@@ -46,6 +46,7 @@ static int main_map(int x) {
 }
 
 int main() {
+  initialize_heap_pkey(NULL, 0);
   struct SimpleCallbacks scb = {
 #if MAIN_USE_IA2
     .read_cb = IA2_FNPTR_WRAPPER(main_read, _ZTSPFiiE),

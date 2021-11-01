@@ -7,8 +7,10 @@ RUN: cat impl.h | sed 's/^.*CHECK.*$//' | FileCheck %S/include/impl.h
 #include "liboption.h"
 #include "types.h"
 #include <stdio.h>
+#include <ia2.h>
 
 int main() {
+    initialize_heap_pkey(NULL, 0);
     Option x = Some(3);
     Option none = None();
     printf("`x` has value %d\n", unwrap_or(x, -1));

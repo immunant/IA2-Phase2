@@ -107,6 +107,7 @@ function(define_ia2_wrapper)
     # Define wrapper library target
     add_library(${WRAPPER_TARGET} SHARED ${WRAPPER_SRC})
     target_compile_options(${WRAPPER_TARGET} PRIVATE "-Wno-deprecated-declarations")
+    target_link_options(${WRAPPER_TARGET} PRIVATE "-Wl,-z,now")
     target_link_libraries(${WRAPPER_TARGET}
         PRIVATE -Wl,--version-script,${CMAKE_CURRENT_BINARY_DIR}/${WRAPPER_SRC}.syms
         PUBLIC ${WRAPPED_LIB})

@@ -20,6 +20,7 @@ define_ia2_wrapper(
 add_library(${ORIGINAL_LIB} SHARED liboption.c impl.c)
 set(ORIGINAL_HEADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/)
 target_include_directories(${ORIGINAL_LIB} BEFORE PRIVATE ${ORIGINAL_HEADER_DIR})
+target_link_options(${ORIGINAL_LIB} PRIVATE "-Wl,-z,now")
 
 # Build the test
 add_executable(${MAIN} main.c)

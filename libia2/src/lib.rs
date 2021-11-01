@@ -170,7 +170,7 @@ pub extern "C" fn initialize_heap_pkey(heap_start: *const u8, heap_len: usize) {
 
 const PAGE_SIZE: usize = 4096;
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 struct PageRange {
     start_page: *const u8,
     end_page: *const u8,
@@ -215,6 +215,8 @@ extern "C" {
     static __start_ia2_init_data: *const u8;
     #[linkage = "extern_weak"]
     static __stop_ia2_init_data: *const u8;
+    #[linkage = "extern_weak"]
+    static _start: *const u8;
 }
 
 unsafe extern "C" fn phdr_callback(
@@ -224,16 +226,12 @@ unsafe extern "C" fn phdr_callback(
 ) -> libc::c_int {
     let info = &*info;
 
-    // FIXME: this assumes that all Rust code is statically linked,
-    // so this function is in the same ELF segment as the rest of the
-    // Rust code
-    let cb_addr = phdr_callback as usize as u64;
     let is_this_module = (0..info.dlpi_phnum).any(|i| {
         let phdr = &*info.dlpi_phdr.add(i.into());
         if phdr.p_type == libc::PT_LOAD {
             let start = info.dlpi_addr + phdr.p_vaddr;
             let end = start + phdr.p_memsz;
-            (start..end).contains(&cb_addr)
+            (start..end).contains(&(_start as u64))
         } else {
             false
         }
@@ -333,6 +331,7 @@ unsafe extern "C" fn phdr_callback(
             );
         }
     }
+    // Return a non-zero value to stop iterating through phdrs
     return 1;
 }
 

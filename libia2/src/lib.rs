@@ -91,13 +91,13 @@ pub extern "C" fn __libia2_untrusted_gate(untrusted: bool) {
 // FIXME: could use a BitVec
 thread_local!(static THREAD_COMPARTMENT_STACK: RefCell<Vec<bool>> = RefCell::new(Vec::new()));
 
-/// Function that switches to the trusted compartment
+/// Function that switches to the untrusted compartment
 /// after saving the old compartment to an internal stack.
 /// To return to the old compartment, call `__libia2_untrusted_gate_pop`.
 #[no_mangle]
 #[inline(always)]
 pub extern "C" fn __libia2_untrusted_gate_push() {
-    let old_compartment = modify_pkru(false);
+    let old_compartment = modify_pkru(true);
     THREAD_COMPARTMENT_STACK.with(|stack| {
         stack.borrow_mut().push(old_compartment);
     });

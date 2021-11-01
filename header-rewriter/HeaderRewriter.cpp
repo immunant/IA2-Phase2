@@ -243,9 +243,9 @@ public:
 
         WrapperOut << llvm::formatv(
             "{0}({1}) {\n"
-            "    __libia2_untrusted_gate(true);\n"
+            "    __libia2_untrusted_gate_push();\n"
             "    {2}{3}({4});\n"
-            "    __libia2_untrusted_gate(false);\n"
+            "    __libia2_untrusted_gate_pop();\n"
             "{5}"
             "}\n",
             replace_type_placeholder(ret_type_string, wrapper_name),

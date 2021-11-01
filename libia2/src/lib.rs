@@ -228,7 +228,7 @@ unsafe extern "C" fn phdr_callback(
 ) -> libc::c_int {
     let info = &*info;
 
-    let is_this_module = (0..info.dlpi_phnum).any(|i| {
+    let is_trusted_compartment = (0..info.dlpi_phnum).any(|i| {
         let phdr = &*info.dlpi_phdr.add(i.into());
         if phdr.p_type == libc::PT_LOAD {
             let start = info.dlpi_addr + phdr.p_vaddr;
@@ -239,7 +239,7 @@ unsafe extern "C" fn phdr_callback(
         }
     });
 
-    if !is_this_module {
+    if !is_trusted_compartment {
         return 0;
     }
 

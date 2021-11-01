@@ -1,7 +1,10 @@
 #include "functions.h"
-#include "fn_ptr_ia2.h"
+#include "macro_attr-original_fn_ptr_ia2.h"
 
 int main() {
     f();
     g();
+    i();
+    j();
+    k();
 }

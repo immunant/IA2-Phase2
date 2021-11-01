@@ -21,7 +21,7 @@
 #include <stdint.h>
 
 #include "libusb.h"
-#include "fn_ptr_ia2.h"
+#include "usb-1.0_fn_ptr_ia2.h"
 
 static void print_devs(libusb_device **devs)
 {

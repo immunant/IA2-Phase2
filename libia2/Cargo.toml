@@ -8,7 +8,7 @@ edition = "2018"
 
 [lib]
 name = "ia2"
-crate-type = ["staticlib"]
+crate-type = ["cdylib"]
 
 [dependencies]
 libc = { version = "0.2", default_features = false }

@@ -21,6 +21,7 @@ target_include_directories(${ORIGINAL_LIB} BEFORE PRIVATE ${ORIGINAL_HEADER_DIR}
 # Build the test
 add_executable(${MAIN} main.c)
 target_link_libraries(${MAIN} PRIVATE
-    ${WRAPPER})
+    ${WRAPPER}
+    ${IA2_LIB})
 
 add_dependencies(check-ia2 ${MAIN})

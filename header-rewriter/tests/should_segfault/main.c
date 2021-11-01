@@ -7,6 +7,6 @@ uint32_t secret = 0xdeadbeef;
 
 int main() {
     initialize_heap_pkey(NULL, 0);
-    printf("the secret is %d\n", secret);
+    printf("TRUSTED: the secret is %d\n", secret);
     print_secret();
 }

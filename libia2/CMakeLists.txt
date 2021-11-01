@@ -8,4 +8,3 @@ add_custom_target(libia2
     COMMAND cargo build "--release"
     BYPRODUCTS ${PROJECT_SOURCE_DIR}/target/release/libia2.so
 )
-add_dependencies(ia2-header-rewriter libia2)

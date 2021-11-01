@@ -118,5 +118,7 @@ function(define_ia2_wrapper)
         INTERFACE ${REWRITTEN_HEADER_DIR}
     )
 
+    add_dependencies(${WRAPPER_TARGET} libia2)
+
     return()
 endfunction()

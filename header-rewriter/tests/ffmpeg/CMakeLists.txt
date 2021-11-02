@@ -26,7 +26,9 @@ define_ia2_wrapper(
 # Build the test
 add_executable(${MAIN} main.c)
 target_link_libraries(${MAIN} PRIVATE
-     avformat_wrapper avutil_wrapper)
+     avformat_wrapper
+     avutil_wrapper
+     ${IA2_LIB})
 
 add_dependencies(check-ia2 ${MAIN})
 

@@ -147,10 +147,7 @@ pub extern "C" fn initialize_heap_pkey(heap_start: *const u8, heap_len: usize) {
 
                 // Iterate through all ELF segments and assign
                 // protection keys to ours
-                libc::dl_iterate_phdr(
-                    Some(phdr_callback),
-                    ptr::null_mut(),
-                );
+                libc::dl_iterate_phdr(Some(phdr_callback), ptr::null_mut());
 
                 // Now that all segmentss are setup correctly and we've done
                 // the one time init (above) revoke the write protections on
@@ -215,6 +212,8 @@ unsafe extern "C" fn phdr_callback(
 ) -> libc::c_int {
     let info = &*info;
 
+    // Use the address of `_start` to determine which program headers belong to the trusted
+    // compartment
     let is_trusted_compartment = (0..info.dlpi_phnum).any(|i| {
         let phdr = &*info.dlpi_phdr.add(i.into());
         if phdr.p_type == libc::PT_LOAD {

@@ -27,7 +27,7 @@ struct IA2InitDataSection {
     // compartment if initialized or the initialization status if not.  See
     // values defined above.
     tc_pkey: AtomicI32,
-    _padding: [u8; 4084],
+    _padding: [u8; 4092],
 }
 
 #[link_section = "ia2_init_data"]

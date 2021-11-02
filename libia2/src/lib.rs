@@ -206,10 +206,13 @@ extern "C" {
     static __start_ia2_init_data: *const u8;
     #[linkage = "extern_weak"]
     static __stop_ia2_init_data: *const u8;
+    // Address used to determine which ELF segment is the trusted compartment 
     #[linkage = "extern_weak"]
     static _start: *const u8;
 }
 
+/// Assigns the protection key to the pages in the ELF segment for the trusted compartment. Skips
+/// all other segments.
 unsafe extern "C" fn phdr_callback(
     info: *mut libc::dl_phdr_info,
     _size: libc::size_t,

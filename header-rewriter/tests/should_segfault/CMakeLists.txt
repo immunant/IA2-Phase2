@@ -21,6 +21,7 @@ target_link_options(${ORIGINAL_LIB} PRIVATE "-Wl,-z,now")
 
 # Build the test
 add_executable(${MAIN} main.c)
+target_link_directories(main PRIVATE ${IA2_LIB_DIR})
 target_link_libraries(${MAIN} PRIVATE
     ${WRAPPER}
     ${IA2_LIB})

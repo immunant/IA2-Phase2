@@ -81,12 +81,6 @@ fn modify_pkru(untrusted: bool) -> bool {
     was_untrusted
 }
 
-#[no_mangle]
-#[inline(always)]
-pub extern "C" fn __libia2_untrusted_gate(untrusted: bool) {
-    let _ = modify_pkru(untrusted);
-}
-
 // FIXME: could use a BitVec
 thread_local!(static THREAD_COMPARTMENT_STACK: RefCell<Vec<bool>> = RefCell::new(Vec::new()));
 
@@ -94,7 +88,6 @@ thread_local!(static THREAD_COMPARTMENT_STACK: RefCell<Vec<bool>> = RefCell::new
 /// after saving the old compartment to an internal stack.
 /// To return to the old compartment, call `__libia2_untrusted_gate_pop`.
 #[no_mangle]
-#[inline(always)]
 pub extern "C" fn __libia2_untrusted_gate_push() {
     let old_compartment = modify_pkru(true);
     THREAD_COMPARTMENT_STACK.with(|stack| {
@@ -103,7 +96,6 @@ pub extern "C" fn __libia2_untrusted_gate_push() {
 }
 
 #[no_mangle]
-#[inline(always)]
 pub extern "C" fn __libia2_untrusted_gate_pop() {
     let old_compartment = THREAD_COMPARTMENT_STACK.with(|stack| {
         stack
@@ -205,10 +197,6 @@ where
 
 extern "C" {
     #[linkage = "extern_weak"]
-    static __start_ia2_call_gates: *const u8;
-    #[linkage = "extern_weak"]
-    static __stop_ia2_call_gates: *const u8;
-    #[linkage = "extern_weak"]
     static __start_ia2_shared_data: *const u8;
     #[linkage = "extern_weak"]
     static __stop_ia2_shared_data: *const u8;
@@ -243,10 +231,6 @@ unsafe extern "C" fn phdr_callback(
     }
 
     let ignore_ranges = &mut [
-        address_page_range(
-            __start_ia2_call_gates as usize,
-            __stop_ia2_call_gates as usize,
-        ),
         address_page_range(
             __start_ia2_shared_data as usize,
             __stop_ia2_shared_data as usize,

@@ -33,7 +33,7 @@ struct IA2InitDataSection {
 #[link_section = "ia2_init_data"]
 static IA2_INIT_DATA: IA2InitDataSection = IA2InitDataSection {
     tc_pkey: AtomicI32::new(TC_PKEY_UNINITIALIZED),
-    _padding: [0; 4084],
+    _padding: [0; 4092],
 };
 
 #[cfg(feature = "insecure")]

@@ -21,12 +21,10 @@ jobs:
           sudo apt install -y libusb-1.0-0-dev libclang-${{ matrix.clang-version }}-dev \
             ninja-build zlib1g-dev libavformat-dev libavutil-dev pcregrep
           pip3 install lit
+          rustup install nightly
       - name: Check out code
         uses: actions/checkout@v2
       - name: Build
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly
         run: |
           mkdir build
           pushd build

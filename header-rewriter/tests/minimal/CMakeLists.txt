@@ -18,6 +18,7 @@ add_custom_command(
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/main.c
   VERBATIM)
 add_executable(main main.c)
+target_link_directories(main PRIVATE ${IA2_LIB_DIR})
 target_link_libraries(main PRIVATE
   wrapper
   ${IA2_LIB})

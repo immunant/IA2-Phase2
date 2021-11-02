@@ -4,7 +4,6 @@ use core::cell::{Cell, RefCell};
 use core::convert::TryInto;
 use core::ffi::c_void;
 use core::fmt::Debug;
-use core::mem;
 use core::ptr;
 use core::sync::atomic::{AtomicI32, Ordering};
 
@@ -157,7 +156,7 @@ pub extern "C" fn initialize_heap_pkey(heap_start: *const u8, heap_len: usize) {
                 // Iterate through all ELF segments and assign
                 // protection keys to ours
                 libc::dl_iterate_phdr(
-                    Some(mem::transmute(phdr_callback as usize)),
+                    Some(phdr_callback),
                     ptr::null_mut(),
                 );
 

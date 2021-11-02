@@ -24,6 +24,9 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v2
       - name: Build
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
         run: |
           mkdir build
           pushd build

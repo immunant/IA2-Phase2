@@ -19,14 +19,9 @@ lazy_static = "*"
 cbindgen = "0.20.0"
 
 [dev-dependencies]
-untrusted-test-ffi = { path = "./untrusted-test-ffi", untrusted = true }
 nix = "^0.19"
 criterion = "^0.3"
 rand = "^0.8"
-
-[[bench]]
-name = "micro"
-harness = false
 
 [features]
 # Disables compartment switching (for testing and benchmarking)

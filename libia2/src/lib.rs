@@ -113,6 +113,7 @@ thread_local!(static THREAD_HEAP_PKEY_FLAG: Cell<bool> = Cell::new(false));
 /// Allocates a protection key and calls `pkey_mprotect` on all pages in the trusted compartment and
 //the pages defined by `heap_start` and `heap_len`. The input heap is ignored if either argument is
 //zero.
+/// cbindgen:ignore
 #[no_mangle]
 pub extern "C" fn initialize_heap_pkey(heap_start: *const u8, heap_len: usize) {
     THREAD_HEAP_PKEY_FLAG.with(|pkey_flag| {

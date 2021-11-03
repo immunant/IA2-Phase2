@@ -1,8 +1,9 @@
 /*
 RUN: cp %s %t.h
-RUN: ia2-header-rewriter %t.c %t.h
+RUN: ia2-header-rewriter %t.c %t.h -- -I%resource_dir
 RUN: cat %t.h | sed 's/^.*CHECK.*$//' | FileCheck %s
-RUN: %binary_dir/tests/minimal/main | diff %S/../Output/minimal.out -
+RUN: %binary_dir/tests/minimal/main > %T/stdout
+RUN: diff %S/../Output/minimal.out %T/stdout
 */
 
 #pragma once

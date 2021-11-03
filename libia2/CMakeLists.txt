@@ -9,7 +9,10 @@ set(LIBIA2_SRC
 
 add_custom_target(libia2
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    COMMAND cargo +nightly build "--release" "--features" insecure
+    COMMAND cargo +nightly build
+        "--release"
+        "--features" insecure
+        "--target-dir" ${CARGO_OUTPUT_DIR}
     BYPRODUCTS ${IA2_LIB}
     DEPENDS ${LIBIA2_SRC}
 )

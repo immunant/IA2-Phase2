@@ -28,3 +28,8 @@
 })
 
 #include "call_gates.h"
+
+/**
+ * Allocates a protection key and calls `pkey_mprotect` on all pages in the trusted compartment and
+ */
+__attribute__((constructor)) void initialize_heap_pkey(const uint8_t *heap_start, uintptr_t heap_len);

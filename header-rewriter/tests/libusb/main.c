@@ -54,7 +54,6 @@ static void print_devs(libusb_device **devs)
 
 int main(void)
 {
-    initialize_heap_pkey(NULL, 0);
 	libusb_device **devs;
 	int r;
 	ssize_t cnt;

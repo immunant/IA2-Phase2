@@ -8,7 +8,6 @@
 uint32_t secret = 0xdeadbeef;
 
 int main() {
-    initialize_heap_pkey(NULL, 0);
     // This program should terminate in the sighandler so we should avoid
     // using printf since flushing stdout is not async-signal-safe
     char buf[40];

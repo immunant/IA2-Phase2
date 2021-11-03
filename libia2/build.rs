@@ -9,6 +9,7 @@ fn main() {
     let crate_dir = env::var("CARGO_MANIFEST_DIR").expect("Could not find CARGO_MANIFEST_DIR");
     cbindgen::Builder::new()
         .with_crate(crate_dir)
+        .with_include_guard("CALL_GATES_H")
         .with_language(Language::C)
         .generate()
         .expect("Unable to generate bindings")

@@ -207,7 +207,7 @@ extern "C" {
     static __start_ia2_init_data: *const u8;
     #[linkage = "extern_weak"]
     static __stop_ia2_init_data: *const u8;
-    // Address used to determine which ELF segment is the trusted compartment 
+    // Address used to determine which ELF segment is the trusted compartment
     #[linkage = "extern_weak"]
     static _start: *const u8;
 }

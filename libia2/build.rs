@@ -2,7 +2,7 @@ use cbindgen;
 use cbindgen::Language;
 use std::env;
 
-const HEADER_NAME: &str = "../include/call_gates.h";
+const HEADER_NAME: &str = "call_gates.h";
 
 fn main() {
     println!("cargo:rerun-if-changed={}", HEADER_NAME);

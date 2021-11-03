@@ -2,8 +2,7 @@
 RUN: cp %s %t.h
 RUN: ia2-header-rewriter %T/wrapper.c %t.h -- -I%resource_dir
 RUN: cat %t.h | sed 's/^.*CHECK.*$//' | FileCheck %s
-RUN: %binary_dir/tests/should_segfault/should_segfault-main > %T/stdout
-RUN: diff %S/../Output/should_segfault.out %T/stdout
+RUN: %binary_dir/tests/should_segfault/should_segfault-main | diff %S/../Output/should_segfault.insecure.out -
 */
 #pragma once
 #include <stdint.h>

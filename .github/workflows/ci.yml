@@ -38,6 +38,6 @@ jobs:
       - name: Check
         run: |
           pushd build
-          $HOME/.local/bin/lit -vv -v header-rewriter/tests/
+          ninja -v check-ia2
           popd
 

@@ -3,6 +3,18 @@ project(libia2)
 
 # TODO: find_package(cargo REQUIRED)
 
+
+if(DEFINED ENV{CARGO_TARGET_DIR})
+    set(CARGO_OUTPUT_DIR $ENV{CARGO_TARGET_DIR})
+else()
+    set(CARGO_OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR})
+endif()
+set(IA2_LIB_DIR ${CARGO_OUTPUT_DIR}/release/)
+set(IA2_LIB_DIR ${CARGO_OUTPUT_DIR}/release/ PARENT_SCOPE)
+set(IA2_LIB ${IA2_LIB_DIR}/libia2.so)
+set(IA2_LIB ${IA2_LIB_DIR}/libia2.so PARENT_SCOPE)
+
+
 set(LIBIA2_SRC
     src/lib.rs
     src/scrub_registers.s)
@@ -13,6 +25,7 @@ add_custom_target(libia2
         "--release"
         "--features" insecure
         "--target-dir" ${CARGO_OUTPUT_DIR}
+    COMMAND mv call_gates.h ${IA2_INCLUDE_DIR}/
     BYPRODUCTS ${IA2_LIB}
     DEPENDS ${LIBIA2_SRC}
 )

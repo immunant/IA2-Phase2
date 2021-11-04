@@ -29,7 +29,13 @@
 
 #include "call_gates.h"
 
-/**
- * Allocates a protection key and calls `pkey_mprotect` on all pages in the trusted compartment and
- */
-__attribute__((constructor)) void initialize_heap_pkey(const uint8_t *heap_start, uintptr_t heap_len);
+// The init heap ctor should only be defined in the main program
+#ifndef IA2_WRAPPER
+// Since `initialize_heap_pkey` is defined in libia2.so adding a constructor
+// attribute to its declaration won't put it in the main program's .ctors
+// section, so we have to create this wrapper instead.
+__attribute__((constructor)) void init_heap_ctor() {
+    initialize_heap_pkey(NULL, 0);
+}
+#endif
+

@@ -111,9 +111,8 @@ thread_local!(static THREAD_HEAP_PKEY_FLAG: Cell<bool> = Cell::new(false));
 // TODO: Remove the heap arguments to initialize_heap_pkey. This is just a stopgap until we figure
 // out what to do for the allocator
 /// Allocates a protection key and calls `pkey_mprotect` on all pages in the trusted compartment and
-//the pages defined by `heap_start` and `heap_len`. The input heap is ignored if either argument is
-//zero.
-/// cbindgen:ignore
+/// the pages defined by `heap_start` and `heap_len`. The input heap is ignored if either argument is
+/// zero.
 #[no_mangle]
 pub extern "C" fn initialize_heap_pkey(heap_start: *const u8, heap_len: usize) {
     THREAD_HEAP_PKEY_FLAG.with(|pkey_flag| {

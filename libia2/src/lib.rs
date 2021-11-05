@@ -199,6 +199,10 @@ where
 
 extern "C" {
     #[linkage = "extern_weak"]
+    static __start_ia2_call_gates: *const u8;
+    #[linkage = "extern_weak"]
+    static __stop_ia2_call_gates: *const u8;
+    #[linkage = "extern_weak"]
     static __start_ia2_shared_data: *const u8;
     #[linkage = "extern_weak"]
     static __stop_ia2_shared_data: *const u8;
@@ -238,6 +242,10 @@ unsafe extern "C" fn phdr_callback(
     }
 
     let ignore_ranges = &mut [
+        address_page_range(
+            __start_ia2_call_gates as usize,
+            __stop_ia2_call_gates as usize,
+        ),
         address_page_range(
             __start_ia2_shared_data as usize,
             __stop_ia2_shared_data as usize,

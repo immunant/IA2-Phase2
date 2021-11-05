@@ -8,6 +8,7 @@
 #endif
 
 #define IA2_FNPTR_WRAPPER(target, ty) ({               \
+  __attribute__((section("ia2_call_gates")))           \
   IA2_FNPTR_WRAPPER_##ty(IA2_fnptr_wrapper_##target) { \
     IA2_FNPTR_RETURN_##ty(__res) =                     \
       target(IA2_FNPTR_ARG_NAMES_##ty);                \
@@ -19,6 +20,7 @@
 })
 
 #define IA2_FNPTR_WRAPPER_VOID(target, ty) ({          \
+  __attribute__((section("ia2_call_gates")))           \
   IA2_FNPTR_WRAPPER_##ty(IA2_fnptr_wrapper_##target) { \
     target(IA2_FNPTR_ARG_NAMES_##ty);                  \
   }                                                    \

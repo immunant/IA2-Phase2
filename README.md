@@ -15,11 +15,12 @@ sudo apt install -y libusb-1.0-0-dev libclang-dev llvm-dev \
             ninja-build zlib1g-dev python3-pip cmake \
             libavformat-dev libavutil-dev pcregrep
 pip install lit
+rustup install nightly
 ```
 
 ### Configure with CMake
 
-*Note*: Adjust paths to your version of Clang/LLVM.
+*Note*: Adjust paths to your version of Clang/LLVM and set `LIBIA2_INSECURE` to `ON` if MPK is not available.
 
 ```
 mkdir build && pushd build
@@ -27,6 +28,7 @@ cmake ..                                        \
             -DClang_DIR=/usr/lib/cmake/clang-12 \
             -DLLVM_DIR=/usr/lib/llvm-12/cmake   \
             -DLLVM_EXTERNAL_LIT=`which lit`     \
+            -DLIBIA2_INSECURE=OFF               \
             -G Ninja
 ```
 

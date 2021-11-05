@@ -4,6 +4,13 @@ set(ORIGINAL_LIB ${TEST_NAME}-original)
 set(WRAPPER ${TEST_NAME}-wrapper)
 set(MAIN ${TEST_NAME}-main)
 
+if(LIBIA2_INSECURE)
+    set(STDOUT_REF ${CMAKE_CURRENT_SOURCE_DIR}/Output/should_segfault.insecure.out)
+else()
+    set(STDOUT_REF ${CMAKE_CURRENT_SOURCE_DIR}/Output/should_segfault.out)
+endif()
+    configure_file(${STDOUT_REF} ${CMAKE_CURRENT_BINARY_DIR}/should_segfault.out)
+
 set(HEADERS print_secret.h)
 
 # Build the wrapper lib

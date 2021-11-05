@@ -32,6 +32,7 @@ jobs:
             -DClang_DIR=/usr/lib/cmake/clang-${{ matrix.clang-version }} \
             -DLLVM_DIR=/usr/lib/llvm-${{ matrix.clang-version }}/cmake   \
             -DLLVM_EXTERNAL_LIT=$HOME/.local/bin/lit                     \
+            -DLIBIA2_INSECURE=ON                                         \
             -G Ninja
           ninja
           popd

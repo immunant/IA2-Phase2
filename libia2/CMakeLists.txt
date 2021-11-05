@@ -14,6 +14,11 @@ set(IA2_LIB_DIR ${CARGO_OUTPUT_DIR}/release/ PARENT_SCOPE)
 set(IA2_LIB ${IA2_LIB_DIR}/libia2.so)
 set(IA2_LIB ${IA2_LIB_DIR}/libia2.so PARENT_SCOPE)
 
+option(LIBIA2_INSECURE "Build libia2 with no-op call-gates")
+if(LIBIA2_INSECURE)
+    set(LIBIA2_FEATURES "--features" "insecure")
+endif()
+
 
 set(LIBIA2_SRC
     src/lib.rs
@@ -23,7 +28,7 @@ add_custom_target(libia2
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     COMMAND cargo +nightly build
         "--release"
-        "--features" insecure
+        ${LIBIA2_FEATURES}
         "--target-dir" ${CARGO_OUTPUT_DIR}
     COMMAND mv call_gates.h ${IA2_INCLUDE_DIR}/
     BYPRODUCTS ${IA2_LIB}

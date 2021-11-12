@@ -1,5 +1,6 @@
 #pragma once
 
+#define IA2_SHARED_DATA __attribute__((section("ia2_shared_data")))
 #ifdef IA2_WRAPPER
 #define IA2_WRAP_FUNCTION(name)
 #else
@@ -8,10 +9,11 @@
 #endif
 
 #define IA2_FNPTR_WRAPPER(target, ty) ({               \
-  __attribute__((section("ia2_call_gates")))           \
   IA2_FNPTR_WRAPPER_##ty(IA2_fnptr_wrapper_##target) { \
+    __libia2_untrusted_gate_pop_ptr();                 \
     IA2_FNPTR_RETURN_##ty(__res) =                     \
       target(IA2_FNPTR_ARG_NAMES_##ty);                \
+    __libia2_untrusted_gate_push_ptr();                \
     return __res;                                      \
   }                                                    \
   (struct IA2_fnptr_##ty){                             \
@@ -20,9 +22,10 @@
 })
 
 #define IA2_FNPTR_WRAPPER_VOID(target, ty) ({          \
-  __attribute__((section("ia2_call_gates")))           \
   IA2_FNPTR_WRAPPER_##ty(IA2_fnptr_wrapper_##target) { \
+    __libia2_untrusted_gate_pop_ptr();                 \
     target(IA2_FNPTR_ARG_NAMES_##ty);                  \
+    __libia2_untrusted_gate_push_ptr();                \
   }                                                    \
   (struct IA2_fnptr_##ty){                             \
     (char*)IA2_fnptr_wrapper_##target                  \
@@ -33,6 +36,15 @@
 
 // The init heap ctor should only be defined in the main program
 #ifndef IA2_WRAPPER
+
+// For untrusted -> trusted indirect calls we can't call
+// `__libia2_untrusted_gate_pop` through the main program's PLT stub since the
+// pkru state is untrusted. Instead we call the gates through these function
+// pointers which are placed in sections of the main program that are ignored by
+// libia2's pkey_mprotect calls.
+const void (*__libia2_untrusted_gate_push_ptr)(void) IA2_SHARED_DATA = &__libia2_untrusted_gate_push;
+const void (*__libia2_untrusted_gate_pop_ptr)(void) IA2_SHARED_DATA = &__libia2_untrusted_gate_pop;
+
 // Since `initialize_heap_pkey` is defined in libia2.so adding a constructor
 // attribute to its declaration won't put it in the main program's .ctors
 // section, so we have to create this wrapper instead.

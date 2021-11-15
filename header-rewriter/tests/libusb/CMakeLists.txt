@@ -1,7 +1,6 @@
 # Use the directory as the test name
 get_filename_component(TEST_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)
 set(WRAPPER ${TEST_NAME}-wrapper)
-set(MAIN ${TEST_NAME}-main)
 
 
 # Build the wrapper lib
@@ -13,11 +12,7 @@ define_ia2_wrapper(
 )
 
 # Build the test
-add_executable(${MAIN} main.c)
-target_link_options(${MAIN} PRIVATE "-Wl,-z,now")
-target_link_libraries(${MAIN} PRIVATE
-    libusb_wrapper
-    ${IA2_LIB})
-
-add_dependencies(check-ia2 ${MAIN})
-
+define_test(
+    SRCS main.c
+    WRAPPERS libusb_wrapper
+)

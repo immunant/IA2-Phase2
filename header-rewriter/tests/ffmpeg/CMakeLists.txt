@@ -1,7 +1,3 @@
-# Use the directory as the test name
-get_filename_component(TEST_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)
-set(MAIN ${TEST_NAME}-main)
-
 set(AVFORMAT_HEADERS libavformat/avformat.h libavformat/avio.h)
 set(AVUTIL_HEADERS libavutil/dict.h libavutil/version.h libavutil/macros.h
     libavutil/common.h libavutil/mem.h libavutil/attributes.h libavutil/avutil.h
@@ -24,11 +20,7 @@ define_ia2_wrapper(
 )
 
 # Build the test
-add_executable(${MAIN} main.c)
-target_link_libraries(${MAIN} PRIVATE
-     avformat_wrapper
-     avutil_wrapper
-     ${IA2_LIB})
-
-add_dependencies(check-ia2 ${MAIN})
-
+define_test(
+    SRCS main.c
+    WRAPPERS avformat_wrapper avutil_wrapper
+)

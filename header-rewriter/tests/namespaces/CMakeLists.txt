@@ -2,7 +2,6 @@
 get_filename_component(TEST_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)
 set(ORIGINAL_LIB ${TEST_NAME}-original)
 set(WRAPPER ${TEST_NAME}-wrapper)
-set(MAIN ${TEST_NAME}-main)
 
 set(HEADERS random.hpp)
 
@@ -15,13 +14,11 @@ define_ia2_wrapper(
 )
 
 # Build the original lib
-add_library(${ORIGINAL_LIB} SHARED random.cpp)
-target_include_directories(${ORIGINAL_LIB} BEFORE PRIVATE ${ORIGINAL_HEADER_DIR})
-target_link_options(${ORIGINAL_LIB} PRIVATE "-Wl,-z,now")
+define_shared_lib(
+    SRCS random.cpp
+)
 
 # Build the test
-add_executable(${MAIN} main.cpp)
-target_link_libraries(${MAIN} PRIVATE
-    ${WRAPPER})
-
-add_dependencies(check-ia2 ${MAIN})
+define_test(
+    SRCS main.cpp
+)

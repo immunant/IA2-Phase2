@@ -1,14 +1,7 @@
-# Use the directory as the test name
-get_filename_component(TEST_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)
-set(ORIGINAL_LIB ${TEST_NAME}-original)
-set(WRAPPER ${TEST_NAME}-wrapper)
-
 set(HEADERS functions.h)
 
 # Build the wrapper lib
 define_ia2_wrapper(
-    WRAPPER ${WRAPPER}
-    WRAPPED_LIB ${ORIGINAL_LIB}
     HEADERS ${HEADERS}
 )
 

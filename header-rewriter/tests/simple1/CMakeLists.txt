@@ -5,7 +5,6 @@ define_shared_lib(
 )
 
 define_ia2_wrapper(
-    WRAPPER simple1-wrapper
     WRAPPED_LIB simple1
     OUTPUT_HEADER simple1_ia2.h
     HEADERS simple1.h

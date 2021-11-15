@@ -1,8 +1,3 @@
-# Use the directory as the test name
-get_filename_component(TEST_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)
-set(WRAPPER ${TEST_NAME}-wrapper)
-
-
 # Build the wrapper lib
 define_ia2_wrapper(
     WRAPPER libusb_wrapper

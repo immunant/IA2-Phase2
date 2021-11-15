@@ -1,8 +1,3 @@
-# Use the directory as the test name
-get_filename_component(TEST_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)
-set(ORIGINAL_LIB ${TEST_NAME}-original)
-set(WRAPPER ${TEST_NAME}-wrapper)
-
 if(LIBIA2_INSECURE)
     set(STDOUT_REF ${CMAKE_CURRENT_SOURCE_DIR}/Output/should_segfault.insecure.out)
 else()
@@ -14,8 +9,6 @@ set(HEADERS print_secret.h)
 
 # Build the wrapper lib
 define_ia2_wrapper(
-    WRAPPER ${WRAPPER}
-    WRAPPED_LIB ${ORIGINAL_LIB}
     HEADERS ${HEADERS}
 )
 

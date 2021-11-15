@@ -1,5 +1,8 @@
-add_library(simple1 SHARED libsimple1/simple1.c)
-target_link_options(simple1 PRIVATE "-Wl,-z,now")
+define_shared_lib(
+    LIBNAME simple1
+    SRCS libsimple1/simple1.c
+    INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libsimple1
+)
 
 define_ia2_wrapper(
     WRAPPER simple1-wrapper
@@ -10,8 +13,7 @@ define_ia2_wrapper(
     INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libsimple1
 )
 
-add_executable(simple1-main main.c)
-target_link_libraries(simple1-main PRIVATE simple1-wrapper ${IA2_LIB})
-target_compile_options(simple1-main PRIVATE -Werror=incompatible-pointer-types)
-
-add_dependencies(check-ia2 simple1-main)
+define_test(
+    SRCS main.c
+    COMPILE_OPTS -Werror=incompatible-pointer-types
+)

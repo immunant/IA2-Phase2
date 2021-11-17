@@ -485,7 +485,12 @@ static int emit_output_header(const FnPtrPrinter &printer) {
 }
 
 int main(int argc, const char **argv) {
+  #if LLVM_VERSION_MAJOR >= 13
+  auto parser_ptr = CommonOptionsParser::create(argc, argv, HeaderRewriterCategory);
+  CommonOptionsParser &options_parser = *parser_ptr;
+  #else
   CommonOptionsParser options_parser(argc, argv, HeaderRewriterCategory);
+  #endif
 
   RefactoringTool tool(options_parser.getCompilations(),
                        options_parser.getSourcePathList());

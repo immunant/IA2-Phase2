@@ -3,7 +3,7 @@ if(LIBIA2_INSECURE)
 else()
     set(STDOUT_REF ${CMAKE_CURRENT_SOURCE_DIR}/Output/should_segfault.out)
 endif()
-    configure_file(${STDOUT_REF} ${CMAKE_CURRENT_BINARY_DIR}/should_segfault.out)
+configure_file(${STDOUT_REF} ${CMAKE_CURRENT_BINARY_DIR}/should_segfault.out)
 
 set(HEADERS print_secret.h)
 

@@ -1,5 +1,7 @@
+#include <signal.h>
 #include "foo.h"
 #include "stdio.h"
+#include "untrusted_segfault_handler.h"
 
 uint64_t pick_lhs(uint64_t x, uint64_t y) {
     return x;
@@ -24,6 +26,7 @@ uint64_t apply_callback(uint64_t x, uint64_t y) {
 void unregister_callback() {
     function = pick_lhs;
     if (last_result) {
-        printf("0x%lx\n", *(uint64_t *)last_result);
+        uint64_t stolen_secret = *(uint64_t *)last_result;
+        printf("UNTRUSTED: the secret is 0x%lx\n", stolen_secret);
     }
 }

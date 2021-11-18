@@ -13,7 +13,7 @@ uint64_t leak_secret_address(uint64_t x, uint64_t y) {
     return (uint64_t)&secret;
 }
 
-uint64_t main() {
+int main() {
     printf("TRUSTED: the secret is 0x%lx\n", secret);
     printf("0x%lx\n", apply_callback(1, 2));
 

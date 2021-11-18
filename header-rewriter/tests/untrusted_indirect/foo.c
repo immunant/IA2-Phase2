@@ -23,7 +23,7 @@ uint64_t apply_callback(uint64_t x, uint64_t y) {
 
 void unregister_callback() {
     function = pick_lhs;
-    //if (last_result) {
-    //    printf("0x%lx\n", *(uint64_t *)last_result);
-    //}
+    if (last_result) {
+        printf("0x%lx\n", *(uint64_t *)last_result);
+    }
 }

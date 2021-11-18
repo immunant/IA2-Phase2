@@ -1,9 +1,7 @@
 #![feature(asm, linkage, global_asm)]
 
 use core::cell::{Cell, RefCell};
-use core::convert::TryInto;
 use core::ffi::c_void;
-use core::fmt::Debug;
 use core::ptr;
 use core::sync::atomic::{AtomicI32, Ordering};
 
@@ -163,45 +161,7 @@ pub extern "C" fn initialize_heap_pkey(heap_start: *const u8, heap_len: usize) {
     })
 }
 
-const PAGE_SIZE: usize = 4096;
-
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
-struct PageRange {
-    start_page: *const u8,
-    end_page: *const u8,
-}
-
-#[inline]
-fn address_page_range<T: TryInto<usize>>(start_addr: T, end_addr: T) -> PageRange
-where
-    <T as TryInto<usize>>::Error: Debug,
-{
-    let start_addr = start_addr.try_into().unwrap() as *const u8;
-    let end_addr = end_addr.try_into().unwrap() as *const u8;
-
-    unsafe {
-        let start_offset = start_addr.align_offset(PAGE_SIZE);
-        let start_page = if start_offset == 0 {
-            start_addr
-        } else {
-            start_addr.add(start_offset).sub(PAGE_SIZE)
-        };
-
-        let end_offset = end_addr.align_offset(PAGE_SIZE);
-        let end_page = end_addr.add(end_offset);
-
-        PageRange {
-            start_page,
-            end_page,
-        }
-    }
-}
-
 extern "C" {
-    #[linkage = "extern_weak"]
-    static __start_ia2_call_gates: *const u8;
-    #[linkage = "extern_weak"]
-    static __stop_ia2_call_gates: *const u8;
     #[linkage = "extern_weak"]
     static __start_ia2_shared_data: *const u8;
     #[linkage = "extern_weak"]
@@ -214,6 +174,8 @@ extern "C" {
     #[linkage = "extern_weak"]
     static _start: *const u8;
 }
+
+const PAGE_SIZE: usize = 4096;
 
 /// Assigns the protection key to the pages in the ELF segment for the trusted compartment. Skips
 /// all other segments.
@@ -241,21 +203,16 @@ unsafe extern "C" fn phdr_callback(
         return 0;
     }
 
-    let ignore_ranges = &mut [
-        address_page_range(
-            __start_ia2_call_gates as usize,
-            __stop_ia2_call_gates as usize,
-        ),
-        address_page_range(
-            __start_ia2_shared_data as usize,
-            __stop_ia2_shared_data as usize,
-        ),
-        address_page_range(
-            __start_ia2_init_data as usize,
-            __stop_ia2_init_data as usize,
-        ),
-    ];
-    ignore_ranges.sort();
+    struct AddressRange {
+        start: *const u8,
+        end: *const u8,
+    }
+
+    // ia2_shared_data is the only section in the trusted compartment that we should ignore.
+    let ignore_range = AddressRange {
+        start: __start_ia2_shared_data,
+        end: __stop_ia2_shared_data,
+    };
 
     let pkey = IA2_INIT_DATA.tc_pkey.load(Ordering::Relaxed);
 
@@ -280,55 +237,39 @@ unsafe extern "C" fn phdr_callback(
 
         let start = info.dlpi_addr + phdr.p_vaddr;
         let end = start + phdr.p_memsz;
-        let mut mprotect_range = address_page_range(start, end);
-        for ignore_range in ignore_ranges.iter() {
-            if ignore_range.end_page <= mprotect_range.start_page {
-                // This ignore range is entirely before the
-                // mprotect_range, skip it
-                continue;
-            }
-            if ignore_range.start_page >= mprotect_range.end_page {
-                // This ignore range is entirely after the
-                // mprotect_range, stop the loop (the ignore ranges
-                // are sorted, so all the later ones will be outside)
-                break;
-            }
-            if ignore_range.start_page <= mprotect_range.start_page
-                && mprotect_range.end_page <= ignore_range.end_page
-            {
-                // Unlikely: this ignore range covers the entire
-                // remaining mprotect() call
-                mprotect_range.start_page = mprotect_range.end_page;
-                break;
-            }
+        let mut mprotect_range = AddressRange { start: start as *const u8, end: end as *const u8 };
 
-            let mprotect_len = ignore_range
-                .start_page
-                .offset_from(mprotect_range.start_page);
-            if mprotect_len > 0 {
-                libc::syscall(
-                    libc::SYS_pkey_mprotect,
-                    mprotect_range.start_page,
-                    mprotect_len,
-                    prot,
-                    pkey,
-                );
-            }
+        fn pkey_mprotect(start: *const u8, end: *const u8, prot: i32, pkey: i32) {
+            assert!(start.align_offset(PAGE_SIZE) == 0, "Start of section at {:p} is not page-aligned", start);
+            assert!(end.align_offset(PAGE_SIZE) == 0, "End of section at {:p} is not page-aligned", end);
 
-            mprotect_range.start_page = ignore_range.end_page.min(mprotect_range.end_page);
+            let addr = start;
+                unsafe {
+            let len = end.offset_from(start);
+            if len > 0 {
+                    libc::syscall(libc::SYS_pkey_mprotect, addr, len, prot, pkey);
+                }
+            }
         }
+        // If the ignore range splits the phdr in two non-zero subsegments, we need two calls to pkey_mprotect
+        let ignore_splits_phdr = ignore_range.start > mprotect_range.start
+            && ignore_range.end < mprotect_range.end;
+        if ignore_splits_phdr {
+            // protect region before ignored range
+            pkey_mprotect(mprotect_range.start, ignore_range.start, prot, pkey);
 
-        let mprotect_len = mprotect_range
-            .end_page
-            .offset_from(mprotect_range.start_page);
-        if mprotect_len > 0 {
-            libc::syscall(
-                libc::SYS_pkey_mprotect,
-                mprotect_range.start_page,
-                mprotect_len,
-                prot,
-                pkey,
-            );
+            // protect region after ignored range
+            pkey_mprotect(ignore_range.end, mprotect_range.end, prot, pkey);
+        } else {
+            // If the ignore range overlaps the phdr we need to shift either the start or the end
+            let ignore_overlaps_start = ignore_range.end > mprotect_range.start && ignore_range.start <= mprotect_range.start;
+            let ignore_overlaps_end = ignore_range.start < mprotect_range.end && ignore_range.end >= mprotect_range.end;
+            if ignore_overlaps_start {
+                mprotect_range.start = ignore_range.end.min(mprotect_range.end);
+            } else if ignore_overlaps_end {
+                mprotect_range.end = ignore_range.start.max(mprotect_range.start);
+            }
+            pkey_mprotect(mprotect_range.start, mprotect_range.end, prot, pkey);
         }
     }
     // Return a non-zero value to stop iterating through phdrs

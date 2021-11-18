@@ -47,9 +47,10 @@ function(define_test)
         set(WRAPPERS ${TEST_NAME}-wrapper)
     endif()
 
+    set(LINKER_SCRIPT ${libia2_BINARY_DIR}/padding.ld)
     add_executable(${MAIN} ${DEFINE_TEST_SRCS})
     target_compile_options(${MAIN} PRIVATE ${DEFINE_TEST_COMPILE_OPTS})
-    target_link_options(${MAIN} PRIVATE "-Wl,-z,now")
+    target_link_options(${MAIN} PRIVATE "-Wl,-z,now" "-Wl,-T${LINKER_SCRIPT}")
     target_link_libraries(${MAIN} PRIVATE
         ${WRAPPERS}
         ${IA2_LIB})

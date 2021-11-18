@@ -48,7 +48,10 @@ const void (*__libia2_untrusted_gate_pop_ptr)(void) IA2_SHARED_DATA = &__libia2_
 // We must declare the sections used to pad the end of each program header
 // segment to make sure their rwx permissions match the segment they're placed
 // in. Otherwise the padding sections will be declared in the linker script
-// which defaults to rwx for the section and the corresponding segment.
+// which defaults to rwx for the section and the corresponding segment. We avoid
+// using .balign to align the sections at the start of each segment because it
+// inserts a fill value (defaults to 0) which may break some sections (e.g.
+// insert null pointers into .init_array).
 #define NEW_SECTION(name) \
     __asm__(".section " #name "\n\
              .previous");
@@ -57,6 +60,10 @@ NEW_SECTION(".fini_padding");
 NEW_SECTION(".rela.plt_padding");
 NEW_SECTION(".eh_frame_padding");
 NEW_SECTION(".bss_padding");
+
+__asm__(".section ia2_shared_data\n\
+    .balign 4096\n\
+    .previous");
 
 // Since `initialize_heap_pkey` is defined in libia2.so adding a constructor
 // attribute to its declaration won't put it in the main program's .ctors

@@ -13,6 +13,7 @@ set(IA2_LIB_DIR ${CARGO_OUTPUT_DIR}/release/)
 set(IA2_LIB_DIR ${CARGO_OUTPUT_DIR}/release/ PARENT_SCOPE)
 set(IA2_LIB ${IA2_LIB_DIR}/libia2.so)
 set(IA2_LIB ${IA2_LIB_DIR}/libia2.so PARENT_SCOPE)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/padding.ld ${CMAKE_CURRENT_BINARY_DIR}/)
 
 option(LIBIA2_INSECURE "Build libia2 with no-op call-gates")
 if(LIBIA2_INSECURE)

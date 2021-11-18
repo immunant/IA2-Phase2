@@ -22,7 +22,10 @@ function(define_shared_lib)
     endif()
 
     add_library(${LIBNAME} SHARED ${SHARED_LIB_SRCS})
-    target_include_directories(${LIBNAME} BEFORE PRIVATE ${ORIGINAL_HEADER_DIR})
+    target_include_directories(${LIBNAME} BEFORE PRIVATE
+        ${ORIGINAL_HEADER_DIR}
+        # Add top-level include directory for segfault handler
+        ${IA2_INCLUDE_DIR})
     target_link_options(${LIBNAME} PRIVATE "-Wl,-z,now")
 endfunction()
 

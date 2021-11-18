@@ -10,8 +10,6 @@ uint32_t secret = 0xdeadbeef;
 int main() {
     // This program should terminate in the sighandler so we should avoid
     // using printf since flushing stdout is not async-signal-safe
-    char buf[40];
-    sprintf(buf, "TRUSTED: the secret is %x\n", secret);
-    write(1, buf, strlen(buf));
+    printf("TRUSTED: the secret is %x\n", secret);
     print_secret();
 }

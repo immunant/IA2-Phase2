@@ -8,6 +8,7 @@
     .text
     .p2align 5
 __libia2_scrub_registers_avx512:
+    # zero avx512 vector registers (subsume xmm/ymm)
     vpxorq %zmm16, %zmm16, %zmm16
     vpxorq %zmm17, %zmm17, %zmm17
     vpxorq %zmm18, %zmm18, %zmm18
@@ -24,6 +25,7 @@ __libia2_scrub_registers_avx512:
     vpxorq %zmm29, %zmm29, %zmm29
     vpxorq %zmm30, %zmm30, %zmm30
     vpxorq %zmm31, %zmm31, %zmm31
+    # zero avx512 vector mask registers
     kxorb %k0, %k0, %k0
     kxorb %k1, %k1, %k1
     kxorb %k2, %k2, %k2

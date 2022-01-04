@@ -8,6 +8,18 @@
     __asm__(".symver " #name ",__ia2_" #name "@IA2")
 #endif
 
+// TODO: Add fn signature to output header for the target.ptr cast
+#define IA2_FNPTR_UNWRAPPER(target, ty) ({               \
+  IA2_FNPTR_WRAPPER_##ty(IA2_fnptr_wrapper_##target) { \
+      __libia2_untrusted_gate_push(); \
+      IA2_FNPTR_RETURN_##ty(__res) = \
+        ((int(*)(int))target.ptr)(IA2_FNPTR_ARG_NAMES_##ty); \
+      __libia2_untrusted_gate_pop_ptr(); \
+      return __res; \
+  } \
+  IA2_fnptr_wrapper_##target; \
+})
+
 #define IA2_FNPTR_WRAPPER(target, ty) ({               \
   IA2_FNPTR_WRAPPER_##ty(IA2_fnptr_wrapper_##target) { \
     __libia2_untrusted_gate_pop_ptr();                 \
@@ -37,6 +49,7 @@
 // The init heap ctor should only be defined in the main program
 #ifndef IA2_WRAPPER
 
+// TODO: Update this comment for the other direction. Also do we even need gate_push_ptr?
 // For untrusted -> trusted indirect calls we can't call
 // `__libia2_untrusted_gate_pop` through the main program's PLT stub since the
 // pkru state is untrusted. Instead we call the gates through these function

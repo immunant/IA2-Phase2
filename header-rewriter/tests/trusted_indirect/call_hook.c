@@ -15,7 +15,9 @@ void change_fn() {
     incr = !incr;
 }
 
-struct Op  get_fn(void) {
+// TODO: This only returns a struct instead of a function pointer because the
+// rewriter currently doesn't support functions that return function pointers.
+struct Op get_fn(void) {
     if (incr) {
         return (struct Op){
             .op = &increment

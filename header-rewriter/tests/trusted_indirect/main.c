@@ -10,8 +10,7 @@ int main() {
         //    int IA2_fnptr_wrapper_f(int __ia2_arg_0) {
         //        __libia2_untrusted_gate_push();
         //        int __res = ((int(*)(int))f.ptr)(__ia2_arg_0);
-        //        __libia2_untrusted_gate_pop();
-        //        printf("pop\n");
+        //        __libia2_untrusted_gate_pop_ptr();
         //        return __res;
         //    }
         //    IA2_fnptr_wrapper_f;

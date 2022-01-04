@@ -21,7 +21,7 @@ jobs:
           sudo apt install -y libusb-1.0-0-dev \
             ninja-build zlib1g-dev libavformat-dev libavutil-dev pcregrep
           pip3 install lit
-          rustup install nightly
+          rustup install stable
       - name: Install Clang from distro repo
         if: ${{ matrix.clang-version < 13 }}
         run: |

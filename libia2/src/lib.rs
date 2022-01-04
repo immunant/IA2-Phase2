@@ -37,6 +37,12 @@ static IA2_INIT_DATA: IA2InitDataSection = IA2InitDataSection {
 #[cfg(feature = "insecure")]
 #[inline(always)]
 fn modify_pkru(untrusted: bool) -> bool {
+    let target = if untrusted {
+        "untrusted"
+    } else {
+        "trusted"
+    };
+    println!("switching to {} compartment", target);
     !untrusted
 }
 

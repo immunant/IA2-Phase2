@@ -13,6 +13,8 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FormatVariadic.h"
 #include "llvm/Support/raw_ostream.h"
+#include "DetermineAbi.h"
+#include "GenCallAsm.h"
 #include <fstream>
 #include <map>
 
@@ -249,15 +251,19 @@ public:
           ret_stmt = "    return res;\n";
         }
 
+        auto cAbiSig = determineAbiForDecl(*fn_decl); //CAbiSignature
+        auto call_asm = emit_call_asm(cAbiSig, fn_name);
+
+        // Generate wrapper symbol definition, invoking call gates around call
         WrapperOut << llvm::formatv(
-            "{0}({1}) {\n"
-            "    __libia2_untrusted_gate_push();\n"
-            "    {2}{3}({4});\n"
-            "    __libia2_untrusted_gate_pop();\n"
-            "{5}"
-            "}\n",
+            "{0}({1});\n"
+            "    asm(\n"
+            "    {2}\n"
+            "    );\n"
+            "\n",
             replace_type_placeholder(ret_type_string, wrapper_name),
-            param_decls, ret_val, fn_name, param_names, ret_stmt);
+            param_decls,
+            call_asm);
 
         SymsOut << "    " << wrapper_name << ";\n";
       }

@@ -27,7 +27,7 @@ set(LIBIA2_SRC
 
 add_custom_target(libia2
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    COMMAND cargo build
+    COMMAND cargo +nightly build
         "--release"
         ${LIBIA2_FEATURES}
         "--target-dir" ${CARGO_OUTPUT_DIR}

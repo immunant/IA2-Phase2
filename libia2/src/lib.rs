@@ -1,9 +1,14 @@
-#![feature(asm, linkage, global_asm)]
+#![feature(linkage)]
 
+use core::mem::size_of;
+use crate::pkru::PKRU;
+use core::arch::global_asm;
 use core::cell::{Cell, RefCell};
 use core::ffi::c_void;
 use core::ptr;
 use core::sync::atomic::{AtomicI32, Ordering};
+
+mod pkru;
 
 // Import the (assembly!) definition of __libia2_scrub_registers
 global_asm!(include_str!("scrub_registers.s"), options(att_syntax));
@@ -28,86 +33,134 @@ struct IA2InitDataSection {
     _padding: [u8; 4092],
 }
 
+impl IA2InitDataSection {
+    pub fn load_tc_pkey(&self) -> i32 {
+    let tc_pkey = self.tc_pkey.load(Ordering::Relaxed);
+    if tc_pkey == TC_PKEY_UNINITIALIZED {
+        panic!("Entering untrusted code without a protection key");
+    }
+    tc_pkey
+    }
+}
+
 #[link_section = "ia2_init_data"]
 static IA2_INIT_DATA: IA2InitDataSection = IA2InitDataSection {
     tc_pkey: AtomicI32::new(TC_PKEY_UNINITIALIZED),
     _padding: [0; 4092],
 };
 
-#[cfg(feature = "insecure")]
-#[inline(always)]
-fn modify_pkru(untrusted: bool) -> bool {
-    let target = if untrusted {
-        "untrusted"
-    } else {
-        "trusted"
-    };
-    println!("switching to {} compartment", target);
-    !untrusted
+#[repr(C, align(4096))]
+pub struct AlignedBuffer([PKRU; FixedVec::MAX_LEN]);
+
+impl AlignedBuffer {
+    pub fn new() -> Self {
+        AlignedBuffer([PKRU::default(); FixedVec::MAX_LEN])
+    }
+
+    pub fn as_ptr(&self) -> *const PKRU {
+        self.0.as_ptr()
+    }
 }
 
-#[cfg(not(feature = "insecure"))]
-#[inline(always)]
-fn modify_pkru(untrusted: bool) -> bool {
-    let tc_pkey = IA2_INIT_DATA.tc_pkey.load(Ordering::Relaxed);
-    if tc_pkey == TC_PKEY_UNINITIALIZED {
-        panic!("Entering untrusted code without a protection key");
+use core::ops::{Deref, DerefMut};
+impl Deref for AlignedBuffer {
+    type Target = [PKRU; FixedVec::MAX_LEN];
+    fn deref(&self) -> &[PKRU; FixedVec::MAX_LEN] {
+        &self.0
+    }
+}
+
+impl DerefMut for AlignedBuffer {
+    fn deref_mut(&mut self) -> &mut <Self as Deref>::Target {
+        &mut self.0
+    }
+}
+
+pub struct FixedVec {
+    buf: Box<AlignedBuffer>,
+    len: usize,
+}
+
+impl FixedVec {
+    const MAX_LEN: usize = PAGE_SIZE / size_of::<PKRU>();
+    pub fn new() -> Self {
+        let tc_pkey = IA2_INIT_DATA.load_tc_pkey();
+        let prot = libc::PROT_WRITE | libc::PROT_READ;
+        let buf = Box::new(AlignedBuffer::new());
+        let start = buf.as_ptr() as *const u8;
+        unsafe {
+            let end = buf.as_ptr().add(FixedVec::MAX_LEN) as *const u8;
+            pkey_mprotect(start, end, prot, tc_pkey);
+        }
+        FixedVec {
+            buf, len: 0,
+        }
+    }
+    pub fn push(&mut self, val: PKRU) -> bool {
+        if self.len == Self::MAX_LEN {
+            return false;
+        }
+        self.buf[self.len] = val;
+        self.len += 1;
+        true
+    }
+    pub fn pop(&mut self) -> Option<PKRU> {
+        let last = self.last();
+        if last.is_some() {
+            self.len -= 1;
+        }
+        last
     }
 
-    let mut pkru: i32;
-    unsafe {
-        asm!(
-            "rdpkru",
-            out("eax") pkru,
-            in("ecx") 0,
-            out("edx") _,
-        );
+    pub fn last(&self) -> Option<PKRU> {
+        if self.len == 0 {
+            return None;
+        }
+        Some(self.buf[self.len - 1])
     }
-
-    let pkey_mask = 3i32 << (2 * tc_pkey);
-    // FIXME: do we want both bits set for was_set???
-    let was_untrusted = (pkru & pkey_mask) != 0;
-    if untrusted {
-        pkru |= pkey_mask;
-    } else {
-        pkru &= !pkey_mask;
-    }
-
-    unsafe {
-        asm!(
-            "wrpkru",
-            in("eax") pkru,
-            in("ecx") 0,
-            in("edx") 0,
-        );
-    }
-
-    was_untrusted
 }
 
 // FIXME: could use a BitVec
-thread_local!(static THREAD_COMPARTMENT_STACK: RefCell<Vec<bool>> = RefCell::new(Vec::new()));
+thread_local!(static THREAD_COMPARTMENT_STACK: RefCell<FixedVec> = RefCell::new(FixedVec::new()));
 
 /// Function that switches to the untrusted compartment
 /// after saving the old compartment to an internal stack.
 /// To return to the old compartment, call `__libia2_untrusted_gate_pop`.
 #[no_mangle]
 pub extern "C" fn __libia2_untrusted_gate_push() {
-    let old_compartment = modify_pkru(true);
-    THREAD_COMPARTMENT_STACK.with(|stack| {
-        stack.borrow_mut().push(old_compartment);
-    });
+    let tc_pkey = IA2_INIT_DATA.load_tc_pkey();
+
+    let mut pkru = PKRU::load();
+
+    assert!(THREAD_COMPARTMENT_STACK.with(|stack| {
+        stack
+            .borrow_mut()
+            .push(pkru)
+    }));
+
+    pkru.forbid_write(tc_pkey);
+    pkru.store();
 }
 
 #[no_mangle]
 pub extern "C" fn __libia2_untrusted_gate_pop() {
-    let old_compartment = THREAD_COMPARTMENT_STACK.with(|stack| {
-        stack
-            .borrow_mut()
-            .pop()
-            .expect("pop() called without push()")
-    });
-    let _ = modify_pkru(old_compartment);
+    let pkru = PKRU::load();
+    let tc_pkey = IA2_INIT_DATA.load_tc_pkey();
+    let old_pkru = if pkru.can_write(tc_pkey) {
+        THREAD_COMPARTMENT_STACK.with(|stack| {
+            stack.borrow_mut().pop().expect("pop() called without push()")
+        })
+    } else {
+        THREAD_COMPARTMENT_STACK.with(|stack| {
+            stack.borrow().last().expect("last() called without push()")
+        })
+    };
+    old_pkru.store();
+    if !pkru.can_write(tc_pkey) {
+        THREAD_COMPARTMENT_STACK.with(|stack| {
+            stack.borrow_mut().pop().expect("pop() called without push()");
+        });
+    };
 }
 
 thread_local!(static THREAD_HEAP_PKEY_FLAG: Cell<bool> = Cell::new(false));
@@ -183,6 +236,27 @@ extern "C" {
 
 const PAGE_SIZE: usize = 4096;
 
+fn pkey_mprotect(start: *const u8, end: *const u8, prot: i32, pkey: i32) {
+    assert!(
+        start.align_offset(PAGE_SIZE) == 0,
+        "Start of section at {:p} is not page-aligned",
+        start
+    );
+    assert!(
+        end.align_offset(PAGE_SIZE) == 0,
+        "End of section at {:p} is not page-aligned",
+        end
+    );
+
+    let addr = start;
+    unsafe {
+        let len = end.offset_from(start);
+        if len > 0 {
+            libc::syscall(libc::SYS_pkey_mprotect, addr, len, prot, pkey);
+        }
+    }
+}
+
 /// Assigns the protection key to the pages in the ELF segment for the trusted compartment. Skips
 /// all other segments.
 unsafe extern "C" fn phdr_callback(
@@ -245,18 +319,6 @@ unsafe extern "C" fn phdr_callback(
         let end = start + phdr.p_memsz;
         let mut mprotect_range = AddressRange { start: start as *const u8, end: end as *const u8 };
 
-        fn pkey_mprotect(start: *const u8, end: *const u8, prot: i32, pkey: i32) {
-            assert!(start.align_offset(PAGE_SIZE) == 0, "Start of section at {:p} is not page-aligned", start);
-            assert!(end.align_offset(PAGE_SIZE) == 0, "End of section at {:p} is not page-aligned", end);
-
-            let addr = start;
-                unsafe {
-            let len = end.offset_from(start);
-            if len > 0 {
-                    libc::syscall(libc::SYS_pkey_mprotect, addr, len, prot, pkey);
-                }
-            }
-        }
         // If the ignore range splits the phdr in two non-zero subsegments, we need two calls to pkey_mprotect
         let ignore_splits_phdr = ignore_range.start > mprotect_range.start
             && ignore_range.end < mprotect_range.end;

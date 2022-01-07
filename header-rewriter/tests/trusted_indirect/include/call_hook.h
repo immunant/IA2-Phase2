@@ -1,11 +1,11 @@
 #pragma once
+#include <stdint.h>
 
-typedef int (*F)(int);
+typedef uint16_t (*F)(uint16_t *addr);
 
-struct Op {
-    F op;
+struct Function {
+    F fn;
 };
 
-struct Op get_fn(void);
-
-void change_fn();
+void set_default(F f);
+struct Function get_fn();

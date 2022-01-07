@@ -1,29 +1,25 @@
+#include <stdio.h>
+#include <stdint.h>
 #include <stdbool.h>
 #include "call_hook.h"
 
-static bool incr = true;
+static F default_fn = NULL;
 
-static int increment(int x) {
-    return x + 1;
+void set_default(F f) {
+    default_fn = f;
 }
 
-static int decrement(int x) {
-    return x - 1;
+static uint16_t increment(uint16_t *addr) {
+    return *addr;
 }
 
-void change_fn() {
-    incr = !incr;
-}
-
-// TODO: This only returns a struct instead of a function pointer because the
-// rewriter currently doesn't support functions that return function pointers.
-struct Op get_fn(void) {
-    if (incr) {
-        return (struct Op){
-            .op = &increment
+struct Function get_fn() {
+    if (!default_fn) {
+        return (struct Function){
+            .fn = &increment
         };
     }
-    return (struct Op){
-        .op = &decrement
+    return (struct Function){
+        .fn = default_fn
     };
 }

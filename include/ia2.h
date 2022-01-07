@@ -11,10 +11,10 @@
 // TODO: Add fn signature to output header for the target.ptr cast
 #define IA2_FNPTR_UNWRAPPER(target, ty) ({               \
   IA2_FNPTR_WRAPPER_##ty(IA2_fnptr_wrapper_##target) { \
-      __libia2_untrusted_gate_push(); \
+      __libia2_untrusted_gate_push_ptr(target.ptr); \
       IA2_FNPTR_RETURN_##ty(__res) = \
-        ((int(*)(int))target.ptr)(IA2_FNPTR_ARG_NAMES_##ty); \
-      __libia2_untrusted_gate_pop_ptr(); \
+        ((uint16_t(*)(uint16_t *))target.ptr)(IA2_FNPTR_ARG_NAMES_##ty); \
+      __libia2_untrusted_gate_pop_ptr(target.ptr); \
       return __res; \
   } \
   IA2_fnptr_wrapper_##target; \
@@ -22,10 +22,10 @@
 
 #define IA2_FNPTR_WRAPPER(target, ty) ({               \
   IA2_FNPTR_WRAPPER_##ty(IA2_fnptr_wrapper_##target) { \
-    __libia2_untrusted_gate_pop_ptr();                 \
+    __libia2_untrusted_gate_push_ptr(target);          \
     IA2_FNPTR_RETURN_##ty(__res) =                     \
       target(IA2_FNPTR_ARG_NAMES_##ty);                \
-    __libia2_untrusted_gate_push_ptr();                \
+    __libia2_untrusted_gate_pop_ptr(target);           \
     return __res;                                      \
   }                                                    \
   (struct IA2_fnptr_##ty){                             \
@@ -35,9 +35,9 @@
 
 #define IA2_FNPTR_WRAPPER_VOID(target, ty) ({          \
   IA2_FNPTR_WRAPPER_##ty(IA2_fnptr_wrapper_##target) { \
-    __libia2_untrusted_gate_pop_ptr();                 \
+    __libia2_untrusted_gate_push_ptr(target);          \
     target(IA2_FNPTR_ARG_NAMES_##ty);                  \
-    __libia2_untrusted_gate_push_ptr();                \
+    __libia2_untrusted_gate_pop_ptr(target);           \
   }                                                    \
   (struct IA2_fnptr_##ty){                             \
     (char*)IA2_fnptr_wrapper_##target                  \
@@ -55,8 +55,8 @@
 // pkru state is untrusted. Instead we call the gates through these function
 // pointers which are placed in sections of the main program that are ignored by
 // libia2's pkey_mprotect calls.
-const void (*__libia2_untrusted_gate_push_ptr)(void) IA2_SHARED_DATA = &__libia2_untrusted_gate_push;
-const void (*__libia2_untrusted_gate_pop_ptr)(void) IA2_SHARED_DATA = &__libia2_untrusted_gate_pop;
+const void (*__libia2_untrusted_gate_push_ptr)(const void *) IA2_SHARED_DATA = &__libia2_indirect_push;
+const void (*__libia2_untrusted_gate_pop_ptr)(const void *) IA2_SHARED_DATA = &__libia2_indirect_pop;
 
 // We must declare the sections used to pad the end of each program header
 // segment to make sure their rwx permissions match the segment they're placed

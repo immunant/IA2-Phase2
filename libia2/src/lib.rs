@@ -50,11 +50,11 @@ static IA2_INIT_DATA: IA2InitDataSection = IA2InitDataSection {
 };
 
 #[repr(C, align(4096))]
-pub struct AlignedBuffer([PKRU; FixedVec::MAX_LEN]);
+pub struct PKRUStackPage([PKRU; PKRUStack::MAX_LEN]);
 
-impl AlignedBuffer {
+impl PKRUStackPage {
     pub fn new() -> Self {
-        AlignedBuffer([PKRU::default(); FixedVec::MAX_LEN])
+        PKRUStackPage([PKRU::default(); PKRUStack::MAX_LEN])
     }
 
     pub fn as_ptr(&self) -> *const PKRU {
@@ -63,36 +63,36 @@ impl AlignedBuffer {
 }
 
 use core::ops::{Deref, DerefMut};
-impl Deref for AlignedBuffer {
-    type Target = [PKRU; FixedVec::MAX_LEN];
-    fn deref(&self) -> &[PKRU; FixedVec::MAX_LEN] {
+impl Deref for PKRUStackPage {
+    type Target = [PKRU; PKRUStack::MAX_LEN];
+    fn deref(&self) -> &[PKRU; PKRUStack::MAX_LEN] {
         &self.0
     }
 }
 
-impl DerefMut for AlignedBuffer {
+impl DerefMut for PKRUStackPage {
     fn deref_mut(&mut self) -> &mut <Self as Deref>::Target {
         &mut self.0
     }
 }
 
-pub struct FixedVec {
-    buf: Box<AlignedBuffer>,
+pub struct PKRUStack {
+    buf: Box<PKRUStackPage>,
     len: usize,
 }
 
-impl FixedVec {
+impl PKRUStack {
     const MAX_LEN: usize = PAGE_SIZE / size_of::<PKRU>();
     pub fn new() -> Self {
         let stack_pkey = load_pkey(&IA2_INIT_DATA.stack_pkey);
         let prot = libc::PROT_WRITE | libc::PROT_READ;
-        let buf = Box::new(AlignedBuffer::new());
+        let buf = Box::new(PKRUStackPage::new());
         let start = buf.as_ptr() as *const u8;
         unsafe {
-            let end = buf.as_ptr().add(FixedVec::MAX_LEN) as *const u8;
+            let end = buf.as_ptr().add(PKRUStack::MAX_LEN) as *const u8;
             pkey_mprotect(start, end, prot, stack_pkey);
         }
-        FixedVec {
+        PKRUStack {
             buf, len: 0,
         }
     }
@@ -121,7 +121,7 @@ impl FixedVec {
 }
 
 // FIXME: could use a BitVec
-thread_local!(static THREAD_COMPARTMENT_STACK: RefCell<FixedVec> = RefCell::new(FixedVec::new()));
+thread_local!(static THREAD_COMPARTMENT_STACK: RefCell<PKRUStack> = RefCell::new(PKRUStack::new()));
 
 /// Function that switches to the untrusted compartment
 /// after saving the old compartment to an internal stack.
@@ -138,8 +138,13 @@ pub extern "C" fn __libia2_untrusted_gate_push() {
             .push(pkru)
     }));
 
-    pkru.forbid_read(tc_pkey);
-    pkru.forbid_write(tc_pkey);
+    if pkru.can_read(tc_pkey) && pkru.can_write(tc_pkey) {
+        pkru.forbid_read(tc_pkey);
+        pkru.forbid_write(tc_pkey);
+    } else {
+        pkru.allow_read(tc_pkey);
+        pkru.allow_write(tc_pkey);
+    };
     pkru.store();
 }
 

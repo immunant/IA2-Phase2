@@ -43,9 +43,19 @@ impl PKRU {
         (self.0 & mask) == 0
     }
 
+    pub fn allow_read(&mut self, key: i32) {
+        let mask = PKRU::read_mask(key);
+        self.0 &= !mask;
+    }
+
     pub fn allow_write(&mut self, key: i32) {
         let mask = PKRU::write_mask(key);
         self.0 &= !mask;
+    }
+
+    pub fn forbid_read(&mut self, key: i32) {
+        let mask = PKRU::read_mask(key);
+        self.0 |= mask;
     }
 
     pub fn forbid_write(&mut self, key: i32) {

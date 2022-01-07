@@ -18,7 +18,7 @@ global_asm!(include_str!("scrub_registers.s"), options(att_syntax));
 // -1 == unsupported
 //  0 == ERROR (this would be the default untrusted pkey)
 // >0 == trusted key
-const TC_PKEY_UNINITIALIZED: i32 = -2;
+const PKEY_UNINITIALIZED: i32 = -2;
 
 // The ia2_init_data section contains data which must be written during
 // library initialization, and then become readable to both trusted and
@@ -30,23 +30,23 @@ struct IA2InitDataSection {
     // compartment if initialized or the initialization status if not.  See
     // values defined above.
     tc_pkey: AtomicI32,
-    _padding: [u8; 4092],
+    stack_pkey: AtomicI32,
+    _padding: [u8; PAGE_SIZE - (size_of::<AtomicI32>() * 2)],
 }
 
-impl IA2InitDataSection {
-    pub fn load_tc_pkey(&self) -> i32 {
-    let tc_pkey = self.tc_pkey.load(Ordering::Relaxed);
-    if tc_pkey == TC_PKEY_UNINITIALIZED {
+pub fn load_pkey(pkey: &AtomicI32) -> i32 {
+    let pkey = pkey.load(Ordering::Relaxed);
+    if pkey == PKEY_UNINITIALIZED {
         panic!("Entering untrusted code without a protection key");
     }
-    tc_pkey
-    }
+    pkey
 }
 
 #[link_section = "ia2_init_data"]
 static IA2_INIT_DATA: IA2InitDataSection = IA2InitDataSection {
-    tc_pkey: AtomicI32::new(TC_PKEY_UNINITIALIZED),
-    _padding: [0; 4092],
+    tc_pkey: AtomicI32::new(PKEY_UNINITIALIZED),
+    stack_pkey: AtomicI32::new(PKEY_UNINITIALIZED),
+    _padding: [0; PAGE_SIZE - (size_of::<AtomicI32>() * 2)],
 };
 
 #[repr(C, align(4096))]
@@ -84,13 +84,13 @@ pub struct FixedVec {
 impl FixedVec {
     const MAX_LEN: usize = PAGE_SIZE / size_of::<PKRU>();
     pub fn new() -> Self {
-        let tc_pkey = IA2_INIT_DATA.load_tc_pkey();
+        let stack_pkey = load_pkey(&IA2_INIT_DATA.stack_pkey);
         let prot = libc::PROT_WRITE | libc::PROT_READ;
         let buf = Box::new(AlignedBuffer::new());
         let start = buf.as_ptr() as *const u8;
         unsafe {
             let end = buf.as_ptr().add(FixedVec::MAX_LEN) as *const u8;
-            pkey_mprotect(start, end, prot, tc_pkey);
+            pkey_mprotect(start, end, prot, stack_pkey);
         }
         FixedVec {
             buf, len: 0,
@@ -128,7 +128,7 @@ thread_local!(static THREAD_COMPARTMENT_STACK: RefCell<FixedVec> = RefCell::new(
 /// To return to the old compartment, call `__libia2_untrusted_gate_pop`.
 #[no_mangle]
 pub extern "C" fn __libia2_untrusted_gate_push() {
-    let tc_pkey = IA2_INIT_DATA.load_tc_pkey();
+    let tc_pkey = load_pkey(&IA2_INIT_DATA.tc_pkey);
 
     let mut pkru = PKRU::load();
 
@@ -138,6 +138,7 @@ pub extern "C" fn __libia2_untrusted_gate_push() {
             .push(pkru)
     }));
 
+    pkru.forbid_read(tc_pkey);
     pkru.forbid_write(tc_pkey);
     pkru.store();
 }
@@ -145,7 +146,7 @@ pub extern "C" fn __libia2_untrusted_gate_push() {
 #[no_mangle]
 pub extern "C" fn __libia2_untrusted_gate_pop() {
     let pkru = PKRU::load();
-    let tc_pkey = IA2_INIT_DATA.load_tc_pkey();
+    let tc_pkey = load_pkey(&IA2_INIT_DATA.tc_pkey);
     let old_pkru = if pkru.can_write(tc_pkey) {
         THREAD_COMPARTMENT_STACK.with(|stack| {
             stack.borrow_mut().pop().expect("pop() called without push()")
@@ -165,6 +166,28 @@ pub extern "C" fn __libia2_untrusted_gate_pop() {
 
 thread_local!(static THREAD_HEAP_PKEY_FLAG: Cell<bool> = Cell::new(false));
 
+fn initialize_pkey(atomic_pkey: &AtomicI32) -> i32 {
+    let mut pkey = atomic_pkey.load(Ordering::Relaxed);
+    if pkey == PKEY_UNINITIALIZED {
+        pkey = unsafe { libc::syscall(libc::SYS_pkey_alloc, 0u32, 0u32) as i32 };
+        let result = atomic_pkey.compare_exchange(
+            PKEY_UNINITIALIZED,
+            pkey,
+            Ordering::Relaxed,
+            Ordering::Relaxed,
+        );
+        if let Err(other_pkey) = result {
+            assert!(other_pkey != PKEY_UNINITIALIZED);
+            // Another thread beat us to it and already
+            // allocated a key, so release ours
+            unsafe {
+                libc::syscall(libc::SYS_pkey_free, pkey);
+            }
+            pkey = other_pkey;
+        }
+    }
+    pkey
+}
 // TODO: Remove the heap arguments to initialize_heap_pkey. This is just a stopgap until we figure
 // out what to do for the allocator
 /// Allocates a protection key and calls `pkey_mprotect` on all pages in the trusted compartment and
@@ -176,25 +199,8 @@ pub extern "C" fn initialize_heap_pkey(heap_start: *const u8, heap_len: usize) {
         if !pkey_flag.get() {
             pkey_flag.set(true);
 
-            let mut pkey = IA2_INIT_DATA.tc_pkey.load(Ordering::Relaxed);
-            if pkey == TC_PKEY_UNINITIALIZED {
-                pkey = unsafe { libc::syscall(libc::SYS_pkey_alloc, 0u32, 0u32) as i32 };
-                let result = IA2_INIT_DATA.tc_pkey.compare_exchange(
-                    TC_PKEY_UNINITIALIZED,
-                    pkey,
-                    Ordering::Relaxed,
-                    Ordering::Relaxed,
-                );
-                if let Err(other_pkey) = result {
-                    assert!(other_pkey != TC_PKEY_UNINITIALIZED);
-                    // Another thread beat us to it and already
-                    // allocated a key, so release ours
-                    unsafe {
-                        libc::syscall(libc::SYS_pkey_free, pkey);
-                    }
-                    pkey = other_pkey;
-                }
-            }
+            let pkey = initialize_pkey(&IA2_INIT_DATA.tc_pkey);
+            initialize_pkey(&IA2_INIT_DATA.stack_pkey);
 
             unsafe {
                 if heap_len != 0 && !heap_start.is_null() {

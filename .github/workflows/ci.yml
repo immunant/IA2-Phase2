@@ -18,6 +18,7 @@ jobs:
     steps:
       - name: Provision build environment
         run: |
+          sudo apt-get update
           sudo apt install -y libusb-1.0-0-dev \
             ninja-build zlib1g-dev libavformat-dev libavutil-dev pcregrep
           pip3 install lit

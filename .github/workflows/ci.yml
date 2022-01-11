@@ -10,6 +10,27 @@ on:
       - main
 
 jobs:
+  test-on-pkru-enabled-host:
+    runs-on: self-hosted
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+      - name: Build
+        run: |
+          mkdir build
+          pushd build
+          cmake ..                                                       \
+            -DClang_DIR=/usr/lib/cmake/clang-13                          \
+            -DLLVM_DIR=/usr/lib/llvm-13/cmake                            \
+            -DLLVM_EXTERNAL_LIT=$HOME/.local/bin/lit                     \
+            -G Ninja
+          ninja
+          popd
+      - name: Check
+        run: |
+          pushd build
+          ninja -v check-ia2
+          popd
   test-on-ubuntu-focal:
     runs-on: ubuntu-20.04
     strategy:

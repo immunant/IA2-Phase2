@@ -1,5 +1,6 @@
-#![feature(asm, linkage, global_asm)]
+#![feature(linkage)]
 
+use core::arch::{asm,global_asm};
 use core::cell::{Cell, RefCell};
 use core::ffi::c_void;
 use core::ptr;

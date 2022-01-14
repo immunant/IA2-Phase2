@@ -33,3 +33,4 @@ build.ninja
 Cargo.lock
 libia2/target
 include/call_gates.h
+libia2/call_gates.h

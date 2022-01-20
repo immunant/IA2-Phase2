@@ -33,3 +33,5 @@ config.substitutions.extend([
     ('%ia2_include', '%s/../include' % config.ia2_src_root),
     ('%binary_dir', config.ia2_obj_root)
 ])
+
+config.environment['LD_BIND_NOW'] = '1'

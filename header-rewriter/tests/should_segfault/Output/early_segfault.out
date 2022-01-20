@@ -1,2 +1,2 @@
 TRUSTED: the secret is deadbeef
-SIGNAL HANDLER: unexpected seg fault
+CHECK_VIOLATION: unexpected seg fault

@@ -26,7 +26,7 @@ uint64_t apply_callback(uint64_t x, uint64_t y) {
 void unregister_callback() {
     function = pick_lhs;
     if (last_result) {
-        uint64_t stolen_secret = *(uint64_t *)last_result;
+        uint64_t stolen_secret = CHECK_VIOLATION(*(uint64_t *)last_result);
         printf("UNTRUSTED: the secret is 0x%lx\n", stolen_secret);
     }
 }

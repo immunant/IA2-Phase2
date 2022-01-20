@@ -1,2 +1,2 @@
 TRUSTED: the secret is deadbeef
-UNTRUSTED: the secret is deadbeef
+SIGNAL HANDLER: did not seg fault as expected

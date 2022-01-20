@@ -1,0 +1,4 @@
+read 23 from shared variable
+writing 255 to shared variable
+read 254 from shared variable
+writing 23 to shared variable

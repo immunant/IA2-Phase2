@@ -60,10 +60,7 @@ NEW_SECTION(".fini_padding");
 NEW_SECTION(".rela.plt_padding");
 NEW_SECTION(".eh_frame_padding");
 NEW_SECTION(".bss_padding");
-
-__asm__(".section ia2_shared_data\n\
-    .balign 4096\n\
-    .previous");
+NEW_SECTION("ia2_shared_data");
 
 // Since `initialize_heap_pkey` is defined in libia2.so adding a constructor
 // attribute to its declaration won't put it in the main program's .ctors

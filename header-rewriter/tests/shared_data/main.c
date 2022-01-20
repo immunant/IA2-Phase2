@@ -1,0 +1,21 @@
+#include <stdint.h>
+#include <assert.h>
+#include <ia2.h>
+#include "access_shared.h"
+
+uint8_t shared_val[4097] IA2_SHARED_DATA = { 0 };
+
+void check_shared_access(uint8_t *shared) {
+    uint8_t original = *shared;
+    read_shared(shared);
+    assert(original == *shared);
+    uint8_t new_val = write_shared(shared);
+    assert(new_val == *shared);
+}
+
+int main() {
+    shared_val[0] = 23;
+    shared_val[4096] = 254;
+    check_shared_access(&shared_val[0]);
+    check_shared_access(&shared_val[4096]);
+}

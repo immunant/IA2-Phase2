@@ -1,7 +1,7 @@
 #include <signal.h>
 #include "foo.h"
 #include "stdio.h"
-#include "untrusted_segfault_handler.h"
+#include "test_fault_handler.h"
 
 uint64_t pick_lhs(uint64_t x, uint64_t y) {
     return x;

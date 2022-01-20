@@ -1,2 +1,2 @@
 TRUSTED: the secret is deadbeef
-SIGNAL HANDLER: seg faulted as expected
+CHECK_VIOLATION: seg faulted as expected

@@ -38,4 +38,8 @@ SECTIONS {
     .bss_padding : {
         . = ALIGN(4096);
     }
+    ia2_shared_data : {
+        *(ia2_shared_data)
+        . = ALIGN(4096);
+    }
 } INSERT AFTER .bss;

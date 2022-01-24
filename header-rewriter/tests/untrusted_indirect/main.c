@@ -3,6 +3,8 @@
 #include "foo.h"
 #include "untrusted_indirect-original_fn_ptr_ia2.h"
 
+INIT_COMPARTMENT;
+
 /*
     This program tests that a trusted binary can pass function pointers to an untrusted shared
     library. Function pointers passed between compartments must be wrapped in call gates to ensure

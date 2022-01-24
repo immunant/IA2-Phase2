@@ -32,6 +32,9 @@
 #include <libavutil/dict.h>
 #include <libavutil/common.h>
 #include "libavutil/mem.h"
+#include <ia2.h>
+
+INIT_COMPARTMENT;
 
 int main (int argc, char **argv)
 {

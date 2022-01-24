@@ -9,6 +9,8 @@ RUN: cat impl.h | sed 's/^.*CHECK.*$//' | FileCheck %S/include/impl.h
 #include <stdio.h>
 #include <ia2.h>
 
+INIT_COMPARTMENT;
+
 int main() {
     Option x = Some(3);
     Option none = None();

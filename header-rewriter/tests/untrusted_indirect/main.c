@@ -3,15 +3,24 @@
 #include "foo.h"
 #include "untrusted_indirect-original_fn_ptr_ia2.h"
 
-static uint64_t secret = 0xcafed00d;
+/*
+    This program tests that a trusted binary can pass function pointers to an untrusted shared
+    library. Function pointers passed between compartments must be wrapped in call gates to ensure
+    that code from each compartment is executed with the appropriate pkru state. Function pointers
+    must be wrapped by manually rewriting them as IA2_FNPTR_WRAPPER(ptr). This produces an opaque
+    pointer which can then be passed across compartments.
+*/
 
-// This test defines some variables, constants and functions in unique
-// sections as a way to stress test the linker script `padding.ld` which was
-// required to fix this test's behavior.
-uint32_t initialized_var __attribute__((section("my_var_section"))) = 0x11223344;
-const uint32_t immutable_var __attribute__((section("my_const_var_section"))) = 0x55667788;
-uint32_t uninit_var __attribute__((section("my_uninit_var_section")));
+// This test required aligning and padding the segments in the mpk-protected binary using the
+// `padding.ld` script. To stress test the script let's define some variables, sections and
+// functions that will be placed in various segments.
 
+// Declare a read-write variable, read-only variable and uninitialized variable in custom sections.
+uint32_t initialized_var __attribute__((section("my_var_section"))) __attribute__((used)) = 0x11223344;
+const uint32_t immutable_var __attribute__((section("my_const_var_section"))) __attribute__((used)) = 0x55667788;
+uint32_t uninit_var __attribute__((section("my_uninit_var_section"))) __attribute__((used));
+
+// Declare some new sections with different flags.
 __asm__(".section my_alloc_section, \"a\"\n\
     .byte 0\n\
     .previous");
@@ -24,9 +33,12 @@ __asm__(".section my_executable_section, \"x\"\n\
     .byte 0\n\
     .previous");
 
+// Place a function in a custom section.
 __attribute__((section("my_fn_section"))) uint64_t pick_rhs(uint64_t x, uint64_t y) {
     return y;
 }
+
+static uint64_t secret = 0xcafed00d;
 
 uint64_t leak_secret_address(uint64_t x, uint64_t y) {
     return (uint64_t)&secret;

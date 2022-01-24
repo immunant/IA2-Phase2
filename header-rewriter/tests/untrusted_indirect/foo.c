@@ -18,6 +18,7 @@ bool register_callback(callback_t cb) {
     return true;
 }
 
+// Applies a binary operation to the args using either a registered callback or an internal default function.
 uint64_t apply_callback(uint64_t x, uint64_t y) {
     last_result = function(x, y);
     return last_result;
@@ -26,6 +27,7 @@ uint64_t apply_callback(uint64_t x, uint64_t y) {
 void unregister_callback() {
     function = pick_lhs;
     if (last_result) {
+        // Check for an mpk violation when the library tries to read the main binary's memory
         uint64_t stolen_secret = CHECK_VIOLATION(*(uint64_t *)last_result);
         printf("UNTRUSTED: the secret is 0x%lx\n", stolen_secret);
     }

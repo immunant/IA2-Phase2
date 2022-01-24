@@ -8,6 +8,7 @@
     __asm__(".symver " #name ",__ia2_" #name "@IA2")
 #endif
 
+// FIXME: All the IA2_FNPTR_* macros only work if `target` is a valid identifier unique to the binary.
 #define IA2_FNPTR_WRAPPER(target, ty) ({               \
   IA2_FNPTR_WRAPPER_##ty(IA2_fnptr_wrapper_##target) { \
     __libia2_untrusted_gate_pop_ptr();                 \
@@ -30,6 +31,26 @@
   (struct IA2_fnptr_##ty){                             \
     (char*)IA2_fnptr_wrapper_##target                  \
   };                                                   \
+})
+
+#define IA2_FNPTR_UNWRAPPER(target, ty) ({                \
+  IA2_FNPTR_WRAPPER_##ty(IA2_fnptr_wrapper_##target) {    \
+    __libia2_untrusted_gate_push_ptr();                \
+    IA2_FNPTR_RETURN_##ty(__res) =                     \
+      ((IA2_FNPTR_TYPE_##ty)(target.ptr))(IA2_FNPTR_ARG_NAMES_##ty); \
+    __libia2_untrusted_gate_pop_ptr();                 \
+    return __res;                                      \
+  }                                                    \
+  IA2_fnptr_wrapper_##target;        \
+})
+
+#define IA2_FNPTR_UNWRAPPER_VOID(target, ty) ({           \
+  IA2_FNPTR_WRAPPER_##ty(IA2_fnptr_wrapper_##target) {    \
+    __libia2_untrusted_gate_push_ptr();                \
+    ((IA2_FNPTR_TYPE_##ty)(target.ptr))(IA2_FNPTR_ARG_NAMES_##ty);   \
+    __libia2_untrusted_gate_pop_ptr();                 \
+  }                                                    \
+  IA2_fnptr_wrapper_##target;             \
 })
 
 #include "call_gates.h"

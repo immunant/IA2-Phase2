@@ -1,10 +1,13 @@
 #include <stdio.h>
 #include "rand_op.h"
+#include <ia2.h>
 
 /*
     This program tests that a trusted binary can receive and call function pointers from an
     untrusted shared library.
 */
+
+INIT_COMPARTMENT;
 
 // Declare some functions to ensure that we can call a function pointer regardless of whether it
 // points to an untrusted shared library or this binary.
@@ -29,9 +32,9 @@ void call_fn_ptr() {
     uint32_t y = 142151;
     printf("%s(%d, %d) = %d\n", f.name, x, y, op(x, y));
     op = multiply;
-    printf("mul(%d, %d) = %d\n", f.name, x, y, op(x, y));
+    printf("mul(%d, %d) = %d\n", x, y, op(x, y));
     op = divide;
-    printf("div(%d, %d) = %d\n", f.name, x, y, op(x, y));
+    printf("div(%d, %d) = %d\n", x, y, op(x, y));
 }
 
 int main() {
@@ -42,6 +45,7 @@ int main() {
     swap_function();
     call_fn_ptr();
 
+    // Test a that segfault occurs if the pointee tries to access memory it shouldn't
     function_t f = get_bad_function();
     binary_op wrapped_op = f.op;
     bin_op op = IA2_FNPTR_UNWRAPPER(wrapped_op, _ZTSPFjjjE);

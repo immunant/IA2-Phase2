@@ -4,6 +4,8 @@
 #include <print_secret.h>
 #include <ia2.h>
 
+INIT_COMPARTMENT;
+
 uint32_t secret = 0xdeadbeef;
 
 // This tests that mpk violations call the signal handler in

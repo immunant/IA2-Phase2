@@ -3,6 +3,8 @@
 #include <ia2.h>
 #include "access_shared.h"
 
+INIT_COMPARTMENT;
+
 uint8_t shared_val[4097] IA2_SHARED_DATA = { 0 };
 
 void check_shared_access(uint8_t *shared) {

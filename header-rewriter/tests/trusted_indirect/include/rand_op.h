@@ -2,7 +2,7 @@
 RUN: cp %s %t.h
 RUN: ia2-header-rewriter %T/wrapper.c %t.h -- -I%resource_dir
 RUN: cat %t.h | sed 's/^.*CHECK.*$//' | FileCheck %s
-RUN: %binary_dir/tests/untrusted_indirect/untrusted_indirect-main | diff %binary_dir/tests/untrusted_indirect/untrusted_indirect.out -
+RUN: %binary_dir/tests/trusted_indirect/trusted_indirect-main | diff %binary_dir/tests/trusted_indirect/trusted_indirect.out -
 */
 #pragma once
 #include <stdint.h>
@@ -15,7 +15,7 @@ typedef struct function_s {
     const char *name;
 } function_t;
 
-// CHECK: IA2_WRAP_FUNCTION(change_op);
+// CHECK: IA2_WRAP_FUNCTION(swap_function);
 void swap_function(void);
 
 // CHECK: IA2_WRAP_FUNCTION(get_function);

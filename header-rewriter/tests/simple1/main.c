@@ -12,6 +12,8 @@
 #include "hooks.h"
 #include "simple1.h"
 
+INIT_COMPARTMENT;
+
 static HookFn exit_hook_fn = NULL;
 
 HookFn get_exit_hook(void) {

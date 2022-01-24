@@ -51,6 +51,14 @@ static const std::string kTypePlaceHolder = "$$$IA2_PLACEHOLDER$$$";
 // Prefix we prepend to each rewritten function pointer type
 static const std::string kFnPtrTypePrefix = "struct IA2_fnptr_";
 
+// Convert a QualType to a string. TODO: What does this print for types with a left and right side?
+static std::string type_string(clang::QualType ty) {
+  std::string result;
+  llvm::raw_string_ostream os{result};
+  ty.print(os, clang::LangOptions());
+  return result;
+}
+
 // Convert a QualType to a string that contains kTypePlaceholder
 static std::string type_string_with_placeholder(clang::QualType ty) {
   std::string result;
@@ -309,7 +317,12 @@ struct FunctionInfo {
   // The return type of the function
   std::string return_type;
 
-  // The list of parameters, e.g., "int a, int b"
+  // The list of parameter types, e.g. "void f(int a, float b)" would be
+  // ["int", "float"]
+  std::vector<std::string> parameter_types;
+
+  // The list of parameters with names, e.g. "void f(int a, float b)" would be
+  // ["int __ia2_arg_0", "float __ia2_arg_1"]
   std::vector<std::string> parameters;
 };
 
@@ -412,6 +425,7 @@ public:
           auto arg_name = llvm::formatv("__ia2_arg_{0}", i).str();
           fi.parameters.push_back(
               replace_type_placeholder(std::move(s), arg_name));
+          fi.parameter_types.push_back(type_string(param_type));
         }
 
         m_function_info.insert({mangled_type, fi});
@@ -479,6 +493,13 @@ static int emit_output_header(const FnPtrPrinter &printer) {
       os << " __ia2_arg_" << i;
     }
     os << '\n';
+    os << "#define IA2_FNPTR_TYPE_" << mangled_type << " ";
+    if (!fi.return_type.empty()) {
+        os << replace_type_placeholder(fi.return_type, "(*)");
+    } else {
+        os << "void(*)";
+    }
+    os << "(" << llvm::join(fi.parameter_types, ", ") << ")\n";
   }
 
   return EXIT_SUCCESS;

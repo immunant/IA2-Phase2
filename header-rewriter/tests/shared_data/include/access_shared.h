@@ -13,6 +13,6 @@ RUN: %binary_dir/tests/shared_data/shared_data-main | diff %S/../Output/shared_d
 void read_shared(uint8_t *shared);
 
 // CHECK: IA2_WRAP_FUNCTION(write_shared);
-uint8_t write_shared(uint8_t *shared);
+uint8_t write_shared(uint8_t *shared, uint8_t new_value);
 
 #endif

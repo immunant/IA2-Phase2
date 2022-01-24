@@ -9,8 +9,8 @@ void check_shared_access(uint8_t *shared) {
     uint8_t original = *shared;
     read_shared(shared);
     assert(original == *shared);
-    uint8_t new_val = write_shared(shared);
-    assert(new_val == *shared);
+    uint8_t old_val = write_shared(shared, original + 1);
+    assert(original == old_val);
 }
 
 int main() {

@@ -1,20 +1,13 @@
 #include <stdio.h>
 #include "access_shared.h"
 
-static uint8_t previous = 255;
-
 void read_shared(uint8_t *shared) {
-    if (shared) {
-        printf("read %d from shared variable\n", *shared);
-    }
+    printf("read %d from shared variable\n", *shared);
 }
 
-uint8_t write_shared(uint8_t *shared) {
-    uint8_t new_val = previous;
-    if (shared) {
-        previous = *shared;
-        printf("writing %d to shared variable\n", new_val);
-        *shared = new_val;
-    }
-    return new_val;
+uint8_t write_shared(uint8_t *shared, uint8_t new_value) {
+    uint8_t old_value = *shared;
+    printf("writing %d to shared variable\n", new_value);
+    *shared = new_value;
+    return old_value;
 }

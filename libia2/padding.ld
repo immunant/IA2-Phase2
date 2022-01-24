@@ -38,6 +38,12 @@ SECTIONS {
     .bss_padding : {
         . = ALIGN(4096);
     }
+    /*
+      The ALIGN in .bss_padding ensures ia2_shared_data is aligned and the next
+      ALIGN ensures it is padded to a multiple of a page. In no input files
+      contain ia2_shared_data sections this section will not be created in the
+      output and the following ALIGN will have no effect.
+    */
     ia2_shared_data : {
         *(ia2_shared_data)
         . = ALIGN(4096);

@@ -51,7 +51,7 @@ static const std::string kTypePlaceHolder = "$$$IA2_PLACEHOLDER$$$";
 // Prefix we prepend to each rewritten function pointer type
 static const std::string kFnPtrTypePrefix = "struct IA2_fnptr_";
 
-// Convert a QualType to a string. TODO: What does this print for types with a left and right side?
+// Convert a QualType to a string.
 static std::string type_string(clang::QualType ty) {
   std::string result;
   llvm::raw_string_ostream os{result};

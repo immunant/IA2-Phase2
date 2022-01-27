@@ -43,7 +43,7 @@ fn modify_pkru(untrusted: bool) -> bool {
 
 #[cfg(not(feature = "insecure"))]
 #[inline(always)]
-fn modify_pkru(untrusted: bool) -> bool {
+fn modify_pkru() -> bool {
     let tc_pkey = IA2_INIT_DATA.tc_pkey.load(Ordering::Relaxed);
     if tc_pkey == TC_PKEY_UNINITIALIZED {
         panic!("Entering untrusted code without a protection key");
@@ -62,11 +62,8 @@ fn modify_pkru(untrusted: bool) -> bool {
     let pkey_mask = 3i32 << (2 * tc_pkey);
     // FIXME: do we want both bits set for was_set???
     let was_untrusted = (pkru & pkey_mask) != 0;
-    if untrusted {
-        pkru |= pkey_mask;
-    } else {
-        pkru &= !pkey_mask;
-    }
+    // Toggle at each transition for now
+    pkru ^= pkey_mask;
 
     unsafe {
         asm!(
@@ -88,7 +85,7 @@ thread_local!(static THREAD_COMPARTMENT_STACK: RefCell<Vec<bool>> = RefCell::new
 /// To return to the old compartment, call `__libia2_untrusted_gate_pop`.
 #[no_mangle]
 pub extern "C" fn __libia2_untrusted_gate_push() {
-    let old_compartment = modify_pkru(true);
+    let old_compartment = modify_pkru();
     THREAD_COMPARTMENT_STACK.with(|stack| {
         stack.borrow_mut().push(old_compartment);
     });
@@ -96,13 +93,13 @@ pub extern "C" fn __libia2_untrusted_gate_push() {
 
 #[no_mangle]
 pub extern "C" fn __libia2_untrusted_gate_pop() {
-    let old_compartment = THREAD_COMPARTMENT_STACK.with(|stack| {
+    let _old_compartment = THREAD_COMPARTMENT_STACK.with(|stack| {
         stack
             .borrow_mut()
             .pop()
             .expect("pop() called without push()")
     });
-    let _ = modify_pkru(old_compartment);
+    let _ = modify_pkru();
 }
 
 thread_local!(static THREAD_HEAP_PKEY_FLAG: Cell<bool> = Cell::new(false));

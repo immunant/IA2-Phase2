@@ -545,7 +545,8 @@ int main(int argc, const char **argv) {
     return EC.value();
   }
 
-  wrapper_out << "#define IA2_WRAPPER\n";
+  wrapper_out << "#define IA2_WRAPPER\n"
+                 "#include <ia2.h>\n";
   syms_out << "IA2 {\n"
            << "  global:\n";
 

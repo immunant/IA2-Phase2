@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 // Configure the signal handler to expect an mpk violation when `expr` is
 // evaluated. If `expr` doesn't trigger a fault, this macro manually raises a

@@ -7,6 +7,26 @@ execute_process(COMMAND ${CMAKE_C_COMPILER} -print-file-name=include-fixed
   OUTPUT_VARIABLE C_SYSTEM_INCLUDE_FIXED
   OUTPUT_STRIP_TRAILING_WHITESPACE)
 
+# Define an IA2 shim library for direct call wrappers.
+#
+# This runs the rewriter on the headers exported by the library that will be
+# wrapped. Public headers are those that can be explicitly `#include`d by source
+# files and private headers are those that are used internally (i.e. require
+# context to be parsed. see issue #4).
+#
+# HEADERS - Public headers to rewrite
+# PRIVATE_HEADERS - Private headers to rewrite
+# USE_SYSTEM_HEADERS - Use headers for library installed on the system
+# WRAP_MAIN - Creates a shim for the main binary and changes the default target
+#             name.
+# WRAPPER - Wrapper target name. Defaults to ${TEST_NAME}-wrapper or
+#           ${TEST_NAME}-main-wrapper.
+# WRAPPED_LIB - Target name for library to wrap.Defaults to ${TEST_NAME}-original or
+#               ${TEST_NAME}-main.
+# OUTPUT_HEADER - Header for IA2's type-specific function pointer macros.
+#                 Defaults to ${WRAPPED_LIB}_fn_ptr_ia2.h.
+# INCLUDE_DIR - Added to search path in rewriter invocation. Defaults to
+#               SRC_DIR/include.
 function(define_ia2_wrapper)
     # Parse options
     set(options USE_SYSTEM_HEADERS WRAP_MAIN)

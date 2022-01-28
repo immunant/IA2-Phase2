@@ -14,14 +14,23 @@
 
 INIT_COMPARTMENT;
 
-static HookFn exit_hook_fn = NULL;
+// Redeclare the HookFn typedef since it becomes an opaque pointer in the
+// rewritten headers.
+typedef void (*HookFnInternal)(void);
+
+static HookFnInternal exit_hook_fn = NULL;
 
 HookFn get_exit_hook(void) {
-  return exit_hook_fn;
+  // We must wrap exit_hook_fn before passing it to another compartment.
+  // This is enforced by the types in the rewritten headers.
+  return IA2_FNPTR_WRAPPER_VOID(exit_hook_fn, _ZTSPFvvE);
 }
 
 void set_exit_hook(HookFn new_exit_hook_fn) {
-  exit_hook_fn = new_exit_hook_fn;
+  // We must unwrap new_exit_hook_fn since it comes from another compartment.
+  // This is enforced because exit_hook_fn is a function pointer while HookFn is
+  // opaque.
+  exit_hook_fn = IA2_FNPTR_UNWRAPPER_VOID(new_exit_hook_fn, _ZTSPFvvE);
 }
 
 // Secret values: a secret string and decryption value.

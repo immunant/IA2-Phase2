@@ -6,7 +6,7 @@
 function(define_shared_lib)
     set(options "")
     set(oneValueArgs LIBNAME INCLUDE_DIR)
-    set(multiValueArgs SRCS)
+    set(multiValueArgs SRCS LINK_OPTS WRAPPERS)
     cmake_parse_arguments(SHARED_LIB "${options}" "${oneValueArgs}"
                           "${multiValueArgs}" ${ARGN})
     get_filename_component(TEST_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)
@@ -27,6 +27,9 @@ function(define_shared_lib)
         # Add top-level include directory for segfault handler
         ${IA2_INCLUDE_DIR})
     target_link_options(${LIBNAME} PRIVATE "-Wl,-z,now")
+    target_link_libraries(${LIBNAME} PRIVATE
+        ${SHARED_LIB_WRAPPERS}
+        ${IA2_LIB})
 endfunction()
 
 
@@ -35,7 +38,7 @@ endfunction()
 # wrapper target arguments following `WRAPPERS`.
 function(define_test)
     # Parse options
-    set(options "")
+    set(options)
     set(oneValueArgs "")
     set(multiValueArgs SRCS WRAPPERS COMPILE_OPTS)
     cmake_parse_arguments(DEFINE_TEST "${options}" "${oneValueArgs}"

@@ -9,7 +9,7 @@ execute_process(COMMAND ${CMAKE_C_COMPILER} -print-file-name=include-fixed
 
 function(define_ia2_wrapper)
     # Parse options
-    set(options USE_SYSTEM_HEADERS)
+    set(options USE_SYSTEM_HEADERS WRAP_MAIN)
     set(oneValueArgs WRAPPER WRAPPED_LIB OUTPUT_HEADER INCLUDE_DIR)
     set(multiValueArgs HEADERS PRIVATE_HEADERS)
     cmake_parse_arguments(DEFINE_IA2_WRAPPER "${options}" "${oneValueArgs}"
@@ -19,11 +19,15 @@ function(define_ia2_wrapper)
     get_filename_component(TEST_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)
     if(DEFINED DEFINE_IA2_WRAPPER_WRAPPER)
         set(WRAPPER_TARGET ${DEFINE_IA2_WRAPPER_WRAPPER})
+    elseif(DEFINE_IA2_WRAPPER_WRAP_MAIN)
+        set(WRAPPER_TARGET ${TEST_NAME}-main-wrapper)
     else()
         set(WRAPPER_TARGET ${TEST_NAME}-wrapper)
     endif()
     if(DEFINED DEFINE_IA2_WRAPPER_WRAPPED_LIB)
         set(WRAPPED_LIB ${DEFINE_IA2_WRAPPER_WRAPPED_LIB})
+    elseif(DEFINE_IA2_WRAPPER_WRAP_MAIN)
+        set(WRAPPED_LIB ${TEST_NAME}-main)
     else()
         set(WRAPPED_LIB ${TEST_NAME}-original)
     endif()
@@ -113,6 +117,11 @@ function(define_ia2_wrapper)
         DEPENDS ${HEADER_SRCS}
         VERBATIM)
 
+    # If we're producing a wrapper for the main binary we don't need to link
+    # against any library
+    if(DEFINE_IA2_WRAPPER_WRAP_MAIN)
+        unset(WRAPPED_LIB)
+    endif()
     # Define wrapper library target
     add_library(${WRAPPER_TARGET} SHARED ${WRAPPER_SRC})
     target_compile_options(${WRAPPER_TARGET} PRIVATE "-Wno-deprecated-declarations")

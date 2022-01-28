@@ -1,12 +1,15 @@
-# Defines a shared library target from the source file arguments following
-# `SRCS` with the linker options required for compartmentalization. Adds the
-# argument following `INCLUDE_DIR` to the search path (defaults to
-# `test_dir/include`). The target is named `LIBNAME` (defaults to
-# `${TEST_NAME}-original`)
+# Defines a shared library target.
+#
+# Disables lazy binding (see issue #44).
+#
+# SRCS - source files for shared library
+# LIBNAME - target name (defaults to ${TEST_NAME}-original
+# INCLUDE_DIR - directories added to the search path (defaults to SRC_DIR/include)
+# LINK_LIBS - additional libraries to link against (e.g. another lib's wrapper)
 function(define_shared_lib)
     set(options "")
     set(oneValueArgs LIBNAME INCLUDE_DIR)
-    set(multiValueArgs SRCS LINK_OPTS WRAPPERS)
+    set(multiValueArgs SRCS LINK_LIBS)
     cmake_parse_arguments(SHARED_LIB "${options}" "${oneValueArgs}"
                           "${multiValueArgs}" ${ARGN})
     get_filename_component(TEST_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)
@@ -28,14 +31,18 @@ function(define_shared_lib)
         ${IA2_INCLUDE_DIR})
     target_link_options(${LIBNAME} PRIVATE "-Wl,-z,now")
     target_link_libraries(${LIBNAME} PRIVATE
-        ${SHARED_LIB_WRAPPERS}
-        ${IA2_LIB})
+        ${SHARED_LIB_LINK_LIBS})
 endfunction()
 
 
-# Defines an executable target for a test using the source file arguments
-# following `SRCS`. Links against the default wrapper library name or the
-# wrapper target arguments following `WRAPPERS`.
+# Defines an executable target for a test.
+#
+# Disables lazy binding (see issue #44) and page-aligns the executable's
+# segments. Unconditionally links against libia2.so.
+#
+# SRCS - source files for the executable
+# WRAPPERS - Additional libraries to link against.
+# COMPILE_OPTS - compile options for the executable
 function(define_test)
     # Parse options
     set(options)

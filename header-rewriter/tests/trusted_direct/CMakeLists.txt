@@ -21,7 +21,7 @@ define_ia2_wrapper(
 # Build the plugin lib
 define_shared_lib(
     SRCS plugin.c
-    WRAPPERS trusted_direct-main-wrapper
+    LINK_LIBS trusted_direct-main-wrapper
     INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR}/
 )
 

@@ -28,5 +28,4 @@ define_shared_lib(
 # Build the test
 define_test(
     SRCS main.c
-    WRAP_MAIN
 )

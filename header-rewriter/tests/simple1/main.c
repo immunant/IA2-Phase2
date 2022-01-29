@@ -1,7 +1,5 @@
-#if __has_include("simple1_ia2.h")
-#include "simple1_ia2.h"
-#define MAIN_USE_IA2 1
-#endif
+#include "main_fn_ptr_ia2.h"
+#include "simple1_fn_ptr_ia2.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,7 +7,7 @@
 
 #include <ia2.h>
 
-#include "hooks.h"
+#include "hook_ty.h"
 #include "simple1.h"
 
 INIT_COMPARTMENT;
@@ -58,13 +56,8 @@ static int main_map(int x) {
 
 int main() {
   struct SimpleCallbacks scb = {
-#if MAIN_USE_IA2
     .read_cb = IA2_FNPTR_WRAPPER(main_read, _ZTSPFiiE),
     .write_cb = IA2_FNPTR_WRAPPER_VOID(main_write, _ZTSPFviE),
-#else
-    .read_cb = main_read,
-    .write_cb = main_write,
-#endif
   };
 
   struct Simple *s = simple_new(scb);
@@ -74,15 +67,9 @@ int main() {
   }
 
   srand(time(NULL));
-#if MAIN_USE_IA2
   simple_foreach_v1(s, IA2_FNPTR_WRAPPER(main_map, _ZTSPFiiE));
   simple_reset(s);
   simple_foreach_v2(s, IA2_FNPTR_WRAPPER(main_map, _ZTSPFiiE));
-#else
-  simple_foreach_v1(s, main_map);
-  simple_reset(s);
-  simple_foreach_v2(s, main_map);
-#endif
   simple_destroy(s);
 
   if (exit_hook_fn != NULL) {

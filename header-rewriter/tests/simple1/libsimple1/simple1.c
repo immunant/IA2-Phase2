@@ -2,6 +2,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+// We treat libsimple1 as a prebuilt in the sense that function pointers are not
+// wrapped when received/sent to another compartment. However, because it has
+// direct calls to the main binary (which must be wrapped) we link it against
+// libsimple1-main-wrapper.so so it's not exactly a prebuilt and requires the
+// .symver statements on the hooks.h functions.
+#define PREBUILT_LIB
+typedef void (*HookFn)(void);
+
 #include "hooks.h"
 #include "simple1.h"
 

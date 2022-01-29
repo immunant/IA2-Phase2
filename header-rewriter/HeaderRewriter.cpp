@@ -207,13 +207,13 @@ public:
 
         auto wrapper_name = "__ia2_" + fn_name;
         auto ret_type = fn_decl->getReturnType();
-        if (ret_type->isFunctionPointerType()) {
-          auto &sm = fn_decl->getASTContext().getSourceManager();
-          llvm::errs() << "Function that returns a function pointer "
-                          "is not supported, location:"
-                       << fn_decl->getSourceRange().printToString(sm) << "\n";
-          return;
-        }
+        //if (ret_type->isFunctionPointerType()) {
+        //  auto &sm = fn_decl->getASTContext().getSourceManager();
+        //  llvm::errs() << "Function that returns a function pointer "
+        //                  "is not supported, location:"
+        //               << fn_decl->getSourceRange().printToString(sm) << "\n";
+        //  return;
+        //}
 
         std::string param_decls;
         std::string param_names;

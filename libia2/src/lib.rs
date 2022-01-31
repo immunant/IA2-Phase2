@@ -37,8 +37,13 @@ static IA2_INIT_DATA: IA2InitDataSection = IA2InitDataSection {
 
 #[cfg(feature = "insecure")]
 #[inline(always)]
-fn modify_pkru(untrusted: bool) -> bool {
-    !untrusted
+fn modify_pkru() -> bool {
+    // Toggle at each transition for now (see issue #61)
+    static mut untrusted: bool = true;
+    unsafe {
+        untrusted = !untrusted;
+        !untrusted
+    }
 }
 
 #[cfg(not(feature = "insecure"))]
@@ -62,7 +67,7 @@ fn modify_pkru() -> bool {
     let pkey_mask = 3i32 << (2 * tc_pkey);
     // FIXME: do we want both bits set for was_set???
     let was_untrusted = (pkru & pkey_mask) != 0;
-    // Toggle at each transition for now
+    // Toggle at each transition for now (see issue #61)
     pkru ^= pkey_mask;
 
     unsafe {

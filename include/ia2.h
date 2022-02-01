@@ -1,7 +1,12 @@
 #pragma once
-#include "call_gates.h"
+#include <stdio.h>
+#include "pkey_init.h"
+
+#define PKRU_UNTRUSTED 0xFFFFFFFC
+#define NO_PKEY -1
 
 #define IA2_SHARED_DATA __attribute__((section("ia2_shared_data")))
+
 
 #ifdef IA2_WRAPPER
 #define IA2_WRAP_FUNCTION(name)
@@ -10,26 +15,56 @@
     __asm__(".symver " #name ",__ia2_" #name "@IA2")
 #endif
 
-// For untrusted -> trusted indirect calls we can't call
-// `__libia2_untrusted_gate_pop` through the main program's PLT stub since the
-// pkru state is untrusted. Instead we call the gates through these function
-// pointers which are placed in sections of the main program that are ignored by
-// libia2's pkey_mprotect calls.
-#define IA2_DECLARE_GATE_PTRS                                                  \
-    static const void (*__libia2_untrusted_gate_push_ptr)(void)                \
-        IA2_SHARED_DATA = &__libia2_untrusted_gate_push;                       \
-    static const void (*__libia2_untrusted_gate_pop_ptr)(void)                 \
-        IA2_SHARED_DATA = &__libia2_untrusted_gate_pop;
+
+// Reads the pkru state into the uint32_t `pkru`.
+#define READ_PKRU(pkru)                                                        \
+        __asm__ ("rdpkru"                                          \
+            : "=a" (pkru)                                                      \
+            : "c" (0)                                                          \
+            : "edx");                                                          \
+
+
+// Set the pkru state to the uint32_t `pkru`.
+#define WRITE_PKRU(pkru)                                                       \
+        __asm__("wrpkru"                                                       \
+            :                                                                  \
+            : "a" (pkru), "c" (0), "d" (0));
+
+
+#define __libia2_gate_push(idx)                                                \
+    uint32_t new_pkru = PKRU_UNTRUSTED;                                        \
+    if (idx != NO_PKEY) {                                                      \
+        static const int32_t *pkey_ptr IA2_SHARED_DATA =                       \
+            ((int32_t *)&IA2_INIT_DATA) + idx;                                 \
+        int32_t pkey = *pkey_ptr;                                              \
+        if (pkey == PKEY_UNINITIALIZED) {                                      \
+            printf("Entering another compartment without a protection key\n"); \
+            exit(-1);                                                          \
+        }                                                                      \
+        new_pkru &= ~(3 << (2 * pkey));                                        \
+    }                                                                          \
+    uint32_t old_pkru;                                                         \
+    READ_PKRU(old_pkru);                                                       \
+    WRITE_PKRU(new_pkru);
+
+
+#define __libia2_gate_pop()                                                \
+    uint32_t pkru;                                                         \
+    READ_PKRU(pkru);                                                       \
+    if (pkru != new_pkru) {                                                \
+        printf("PKRU changed inside compartment\n");                       \
+        exit(-1);                                                          \
+    }                                                                      \
+    WRITE_PKRU(old_pkru);
 
 
 // FIXME: All the IA2_FNPTR_* macros only work if `target` is a valid identifier unique to the binary.
-#define IA2_FNPTR_WRAPPER(target, ty) ({               \
+#define IA2_FNPTR_WRAPPER(target, ty, idx) ({               \
   IA2_FNPTR_WRAPPER_##ty(IA2_fnptr_wrapper_##target) { \
-    IA2_DECLARE_GATE_PTRS;                             \
-    __libia2_untrusted_gate_pop_ptr();                 \
+    __libia2_gate_push(idx);                              \
     IA2_FNPTR_RETURN_##ty(__res) =                     \
       target(IA2_FNPTR_ARG_NAMES_##ty);                \
-    __libia2_untrusted_gate_push_ptr();                \
+    __libia2_gate_pop();                               \
     return __res;                                      \
   }                                                    \
   (struct IA2_fnptr_##ty){                             \
@@ -37,36 +72,33 @@
   };                                                   \
 })
 
-#define IA2_FNPTR_WRAPPER_VOID(target, ty) ({          \
+#define IA2_FNPTR_WRAPPER_VOID(target, ty, idx) ({          \
   IA2_FNPTR_WRAPPER_##ty(IA2_fnptr_wrapper_##target) { \
-    IA2_DECLARE_GATE_PTRS;                             \
-    __libia2_untrusted_gate_pop_ptr();                 \
+    __libia2_gate_push(idx);                              \
     target(IA2_FNPTR_ARG_NAMES_##ty);                  \
-    __libia2_untrusted_gate_push_ptr();                \
+    __libia2_gate_pop();                               \
   }                                                    \
   (struct IA2_fnptr_##ty){                             \
     (char*)IA2_fnptr_wrapper_##target                  \
   };                                                   \
 })
 
-#define IA2_FNPTR_UNWRAPPER(target, ty) ({                           \
+#define IA2_FNPTR_UNWRAPPER(target, ty, idx) ({                           \
   IA2_FNPTR_WRAPPER_##ty(IA2_fnptr_wrapper_##target) {               \
-    IA2_DECLARE_GATE_PTRS;                                           \
-    __libia2_untrusted_gate_push_ptr();                              \
+    __libia2_gate_push(idx);                                            \
     IA2_FNPTR_RETURN_##ty(__res) =                                   \
       ((IA2_FNPTR_TYPE_##ty)(target.ptr))(IA2_FNPTR_ARG_NAMES_##ty); \
-    __libia2_untrusted_gate_pop_ptr();                               \
+    __libia2_gate_pop();                                             \
     return __res;                                                    \
   }                                                                  \
   IA2_fnptr_wrapper_##target;                                        \
 })
 
-#define IA2_FNPTR_UNWRAPPER_VOID(target, ty) ({                      \
+#define IA2_FNPTR_UNWRAPPER_VOID(target, ty, idx) ({                      \
   IA2_FNPTR_WRAPPER_##ty(IA2_fnptr_wrapper_##target) {               \
-    IA2_DECLARE_GATE_PTRS;                                           \
-    __libia2_untrusted_gate_push_ptr();                              \
+    __libia2_gate_push(idx);                                            \
     ((IA2_FNPTR_TYPE_##ty)(target.ptr))(IA2_FNPTR_ARG_NAMES_##ty);   \
-    __libia2_untrusted_gate_pop_ptr();                               \
+    __libia2_gate_pop();                                             \
   }                                                                  \
   IA2_fnptr_wrapper_##target;                                        \
 })
@@ -85,12 +117,14 @@
 // Since `initialize_heap_pkey` is defined in libia2.so adding a constructor
 // attribute to its declaration won't put it in the main program's .ctors
 // section, so we have to create this wrapper instead.
-#define INIT_COMPARTMENT                                   \
+#define INIT_COMPARTMENT INIT_COMPARTMENT_N(0)
+
+#define INIT_COMPARTMENT_N(x)                              \
     NEW_SECTION(".fini_padding");                          \
     NEW_SECTION(".rela.plt_padding");                      \
     NEW_SECTION(".eh_frame_padding");                      \
     NEW_SECTION(".bss_padding");                           \
     __attribute__((constructor)) void init_heap_ctor() {   \
-        initialize_heap_pkey(NULL, 0);                     \
+        initialize_heap_pkey(x);                           \
     }
 

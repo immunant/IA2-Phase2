@@ -14,6 +14,7 @@ define_ia2_wrapper(
 # Build the wrapper lib for the main binary
 define_ia2_wrapper(
     WRAP_MAIN
+    COMPARTMENT_KEY 0
     HEADERS exported_fn.h
     INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/main/
 )

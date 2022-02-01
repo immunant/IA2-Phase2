@@ -27,10 +27,11 @@ execute_process(COMMAND ${CMAKE_C_COMPILER} -print-file-name=include-fixed
 #                 Defaults to ${WRAPPED_LIB}_fn_ptr_ia2.h.
 # INCLUDE_DIR - Added to search path in rewriter invocation. Defaults to
 #               SRC_DIR/include.
+# COMPARTMENT_PKEy - Key to use in compartment transitions.
 function(define_ia2_wrapper)
     # Parse options
     set(options USE_SYSTEM_HEADERS WRAP_MAIN)
-    set(oneValueArgs WRAPPER WRAPPED_LIB OUTPUT_HEADER INCLUDE_DIR)
+    set(oneValueArgs WRAPPER WRAPPED_LIB OUTPUT_HEADER INCLUDE_DIR COMPARTMENT_KEY)
     set(multiValueArgs HEADERS PRIVATE_HEADERS)
     cmake_parse_arguments(DEFINE_IA2_WRAPPER "${options}" "${oneValueArgs}"
                           "${multiValueArgs}" ${ARGN} )
@@ -68,6 +69,10 @@ function(define_ia2_wrapper)
         else()
             set(INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
         endif()
+    endif()
+    if(DEFINED DEFINE_IA2_WRAPPER_COMPARTMENT_KEY)
+        set(COMPARTMENT_PKEY_OPTION
+            "--compartment-key=${DEFINE_IA2_WRAPPER_COMPARTMENT_KEY}")
     endif()
 
     # Collect headers
@@ -127,6 +132,7 @@ function(define_ia2_wrapper)
         # Run the rewriter itself, mutating the headers
         COMMAND ia2-header-rewriter
           --output-header ${REWRITTEN_HEADER_DIR}/${OUTPUT_HEADER}
+          ${COMPARTMENT_PKEY_OPTION}
           ${CMAKE_CURRENT_BINARY_DIR}/${WRAPPER_SRC}
           ${REWRITTEN_HEADERS}
           --

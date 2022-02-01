@@ -1,113 +1,44 @@
 #![feature(linkage)]
 
-use core::arch::{asm,global_asm};
-use core::cell::{Cell, RefCell};
+use core::mem::size_of;
+use core::cell::Cell;
 use core::ffi::c_void;
-use core::ptr;
 use core::sync::atomic::{AtomicI32, Ordering};
-
-// Import the (assembly!) definition of __libia2_scrub_registers
-global_asm!(include_str!("scrub_registers.s"), options(att_syntax));
 
 // Values for the 'trusted compartment pkey' field below.
 // -2 == uninitialized
 // -1 == unsupported
 //  0 == ERROR (this would be the default untrusted pkey)
 // >0 == trusted key
-const TC_PKEY_UNINITIALIZED: i32 = -2;
+pub const PKEY_UNINITIALIZED: i32 = -2;
+pub const MPK_UNSUPPORTED: i32 = -1;
+const NUM_KEYS: usize = 16;
+
+type CompartmentKeys = [AtomicI32; NUM_KEYS];
 
 // The ia2_init_data section contains data which must be written during
 // library initialization, and then become readable to both trusted and
 // untrusted code, but not writeable from untrusted.  It may (but doesn't
 // currently) remain writeable from trusted.
 #[repr(align(4096))]
-struct IA2InitDataSection {
+pub struct IA2InitDataSection {
     // Trusted Compartment PKEY. This is the value of the pkey for the trusted
     // compartment if initialized or the initialization status if not.  See
     // values defined above.
-    tc_pkey: AtomicI32,
-    _padding: [u8; 4092],
+    pub pkeys: CompartmentKeys,
+    _padding: [u8; PAGE_SIZE - size_of::<CompartmentKeys>()],
 }
+
+const UNINIT_PKEY: AtomicI32 = AtomicI32::new(PKEY_UNINITIALIZED);
 
 #[link_section = "ia2_init_data"]
-static IA2_INIT_DATA: IA2InitDataSection = IA2InitDataSection {
-    tc_pkey: AtomicI32::new(TC_PKEY_UNINITIALIZED),
-    _padding: [0; 4092],
+#[no_mangle]
+pub static IA2_INIT_DATA: IA2InitDataSection = IA2InitDataSection {
+    pkeys: [UNINIT_PKEY; NUM_KEYS],
+    _padding: [0; PAGE_SIZE - size_of::<CompartmentKeys>()],
 };
 
-#[cfg(feature = "insecure")]
-#[inline(always)]
-fn modify_pkru() -> bool {
-    // Toggle at each transition for now (see issue #61)
-    static mut untrusted: bool = true;
-    unsafe {
-        untrusted = !untrusted;
-        !untrusted
-    }
-}
-
-#[cfg(not(feature = "insecure"))]
-#[inline(always)]
-fn modify_pkru() -> bool {
-    let tc_pkey = IA2_INIT_DATA.tc_pkey.load(Ordering::Relaxed);
-    if tc_pkey == TC_PKEY_UNINITIALIZED {
-        panic!("Entering untrusted code without a protection key");
-    }
-
-    let mut pkru: i32;
-    unsafe {
-        asm!(
-            "rdpkru",
-            out("eax") pkru,
-            in("ecx") 0,
-            out("edx") _,
-        );
-    }
-
-    let pkey_mask = 3i32 << (2 * tc_pkey);
-    // FIXME: do we want both bits set for was_set???
-    let was_untrusted = (pkru & pkey_mask) != 0;
-    // Toggle at each transition for now (see issue #61)
-    pkru ^= pkey_mask;
-
-    unsafe {
-        asm!(
-            "wrpkru",
-            in("eax") pkru,
-            in("ecx") 0,
-            in("edx") 0,
-        );
-    }
-
-    was_untrusted
-}
-
-// FIXME: could use a BitVec
-thread_local!(static THREAD_COMPARTMENT_STACK: RefCell<Vec<bool>> = RefCell::new(Vec::new()));
-
-/// Function that switches to the untrusted compartment
-/// after saving the old compartment to an internal stack.
-/// To return to the old compartment, call `__libia2_untrusted_gate_pop`.
-#[no_mangle]
-pub extern "C" fn __libia2_untrusted_gate_push() {
-    let old_compartment = modify_pkru();
-    THREAD_COMPARTMENT_STACK.with(|stack| {
-        stack.borrow_mut().push(old_compartment);
-    });
-}
-
-#[no_mangle]
-pub extern "C" fn __libia2_untrusted_gate_pop() {
-    let _old_compartment = THREAD_COMPARTMENT_STACK.with(|stack| {
-        stack
-            .borrow_mut()
-            .pop()
-            .expect("pop() called without push()")
-    });
-    let _ = modify_pkru();
-}
-
-thread_local!(static THREAD_HEAP_PKEY_FLAG: Cell<bool> = Cell::new(false));
+thread_local!(static THREAD_HEAP_PKEY_FLAG: Cell<[bool; NUM_KEYS]> = Cell::new([false; NUM_KEYS]));
 
 // TODO: Remove the heap arguments to initialize_heap_pkey. This is just a stopgap until we figure
 // out what to do for the allocator
@@ -115,45 +46,36 @@ thread_local!(static THREAD_HEAP_PKEY_FLAG: Cell<bool> = Cell::new(false));
 /// the pages defined by `heap_start` and `heap_len`. The input heap is ignored if either argument is
 /// zero.
 #[no_mangle]
-pub extern "C" fn initialize_heap_pkey(heap_start: *const u8, heap_len: usize) {
-    THREAD_HEAP_PKEY_FLAG.with(|pkey_flag| {
-        if !pkey_flag.get() {
-            pkey_flag.set(true);
+pub extern "C" fn initialize_heap_pkey(pkey_idx: usize) {
+    THREAD_HEAP_PKEY_FLAG.with(|pkey_flags| {
+        let mut flags = pkey_flags.get();
+        if !flags[pkey_idx] {
+            flags[pkey_idx] = true;
+            pkey_flags.set(flags);
 
-            let mut pkey = IA2_INIT_DATA.tc_pkey.load(Ordering::Relaxed);
-            if pkey == TC_PKEY_UNINITIALIZED {
+            let mut pkey = IA2_INIT_DATA.pkeys[pkey_idx].load(Ordering::Relaxed);
+            if pkey == PKEY_UNINITIALIZED {
                 pkey = unsafe { libc::syscall(libc::SYS_pkey_alloc, 0u32, 0u32) as i32 };
-                let result = IA2_INIT_DATA.tc_pkey.compare_exchange(
-                    TC_PKEY_UNINITIALIZED,
+                let result = IA2_INIT_DATA.pkeys[pkey_idx].compare_exchange(
+                    PKEY_UNINITIALIZED,
                     pkey,
                     Ordering::Relaxed,
                     Ordering::Relaxed,
                 );
                 if let Err(other_pkey) = result {
-                    assert!(other_pkey != TC_PKEY_UNINITIALIZED);
+                    assert!(other_pkey != PKEY_UNINITIALIZED);
                     // Another thread beat us to it and already
                     // allocated a key, so release ours
                     unsafe {
                         libc::syscall(libc::SYS_pkey_free, pkey);
                     }
-                    pkey = other_pkey;
                 }
             }
 
             unsafe {
-                if heap_len != 0 && !heap_start.is_null() {
-                    libc::syscall(
-                        libc::SYS_pkey_mprotect,
-                        heap_start,
-                        heap_len,
-                        libc::PROT_READ | libc::PROT_WRITE,
-                        pkey,
-                    );
-                }
-
                 // Iterate through all ELF segments and assign
                 // protection keys to ours
-                libc::dl_iterate_phdr(Some(phdr_callback), ptr::null_mut());
+                libc::dl_iterate_phdr(Some(phdr_callback), &pkey_idx as *const usize as *mut _);
 
                 // Now that all segmentss are setup correctly and we've done
                 // the one time init (above) revoke the write protections on
@@ -185,7 +107,7 @@ const PAGE_SIZE: usize = 4096;
 unsafe extern "C" fn phdr_callback(
     info: *mut libc::dl_phdr_info,
     _size: libc::size_t,
-    _data: *mut libc::c_void,
+    data: *mut libc::c_void,
 ) -> libc::c_int {
     let info = &*info;
 
@@ -217,7 +139,8 @@ unsafe extern "C" fn phdr_callback(
         end: __stop_ia2_shared_data,
     };
 
-    let pkey = IA2_INIT_DATA.tc_pkey.load(Ordering::Relaxed);
+    let pkey_idx = *(data as *const usize);
+    let pkey = IA2_INIT_DATA.pkeys[pkey_idx].load(Ordering::Relaxed);
 
     // Assign our secret protection key to every segment
     // in the current binary

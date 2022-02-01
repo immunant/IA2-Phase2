@@ -50,10 +50,10 @@ int main() {
     printf("TRUSTED: the secret is 0x%lx\n", secret);
     printf("0x%lx\n", apply_callback(1, 2));
 
-    register_callback(IA2_FNPTR_WRAPPER(pick_rhs, _ZTSPFmmmE));
+    register_callback(IA2_FNPTR_WRAPPER(pick_rhs, _ZTSPFmmmE, NO_PKEY));
     printf("0x%lx\n", apply_callback(3, 4));
 
-    register_callback(IA2_FNPTR_WRAPPER(leak_secret_address, _ZTSPFmmmE));
+    register_callback(IA2_FNPTR_WRAPPER(leak_secret_address, _ZTSPFmmmE, NO_PKEY));
     printf("TRUSTED: oops we leaked the address of the secret\n");
     apply_callback(5, 6);
 

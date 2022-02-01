@@ -41,6 +41,12 @@ static llvm::cl::opt<std::string>
                           llvm::cl::cat(HeaderRewriterCategory),
                           llvm::cl::desc("<wrapper output filename>"));
 
+// Specifies the compartment's protection key index, if any.
+static llvm::cl::opt<int32_t>
+    CompartmentKey("compartment-key",
+                   llvm::cl::desc("The compartment's protection key index"),
+                   llvm::cl::cat(HeaderRewriterCategory), llvm::cl::Optional);
+
 // For types that have both a left and right side, this is what
 // we emit for the name between the two sides, e.g.,
 // int (*$$$IA2_PLACEHOLDER$$$)(int).
@@ -211,11 +217,13 @@ public:
 
         std::string param_decls;
         std::string param_names;
+        std::string param_types;
 
         for (auto &p : fn_decl->parameters()) {
           if (!param_names.empty()) {
             param_decls.append(", ");
             param_names.append(", ");
+            param_types.append(", ");
           }
           auto name = p->getNameAsString();
           if (name.empty()) {
@@ -232,10 +240,12 @@ public:
             auto param_decl = llvm::formatv("{0}{1} {2}", kFnPtrTypePrefix,
                                             mangled_type, name);
             param_decls.append(param_decl);
+            param_types.append(mangled_type);
           } else {
             auto param_type_string = type_string_with_placeholder(param_type);
             param_decls.append(
                 replace_type_placeholder(param_type_string, name));
+            param_types.append(type_string(param_type));
           }
           param_names.append(name);
         }
@@ -251,13 +261,13 @@ public:
 
         WrapperOut << llvm::formatv(
             "{0}({1}) {\n"
-            "    __libia2_untrusted_gate_push();\n"
+            "    __libia2_gate_push(_pkey_idx);\n"
             "    {2}{3}({4});\n"
-            "    __libia2_untrusted_gate_pop();\n"
+            "    __libia2_gate_pop();\n"
             "{5}"
             "}\n",
             replace_type_placeholder(ret_type_string, wrapper_name),
-            param_decls, ret_val, fn_name, param_names, ret_stmt);
+            param_decls, ret_val, fn_name, param_names, ret_stmt);//, type_string(ret_type), param_types);
 
         SymsOut << "    " << wrapper_name << ";\n";
       }
@@ -495,9 +505,9 @@ static int emit_output_header(const FnPtrPrinter &printer) {
     os << '\n';
     os << "#define IA2_FNPTR_TYPE_" << mangled_type << " ";
     if (!fi.return_type.empty()) {
-        os << replace_type_placeholder(fi.return_type, "(*)");
+      os << replace_type_placeholder(fi.return_type, "(*)");
     } else {
-        os << "void(*)";
+      os << "void(*)";
     }
     os << "(" << llvm::join(fi.parameter_types, ", ") << ")\n";
   }
@@ -506,12 +516,13 @@ static int emit_output_header(const FnPtrPrinter &printer) {
 }
 
 int main(int argc, const char **argv) {
-  #if LLVM_VERSION_MAJOR >= 13
-  auto parser_ptr = CommonOptionsParser::create(argc, argv, HeaderRewriterCategory);
+#if LLVM_VERSION_MAJOR >= 13
+  auto parser_ptr =
+      CommonOptionsParser::create(argc, argv, HeaderRewriterCategory);
   CommonOptionsParser &options_parser = *parser_ptr;
-  #else
+#else
   CommonOptionsParser options_parser(argc, argv, HeaderRewriterCategory);
-  #endif
+#endif
 
   RefactoringTool tool(options_parser.getCompilations(),
                        options_parser.getSourcePathList());
@@ -526,7 +537,8 @@ int main(int argc, const char **argv) {
     // Get a `FileEntryRef` for each input header
     auto input_ref_result = file_mgr.getFileRef(s);
     if (auto err = input_ref_result.takeError()) {
-      llvm::errs() << "Error getting FileEntryRef for " << s << ": " << err << '\n';
+      llvm::errs() << "Error getting FileEntryRef for " << s << ": " << err
+                   << '\n';
     }
     clang::FileEntryRef input_ref = *input_ref_result;
     input_files.push_back(input_ref);
@@ -545,7 +557,14 @@ int main(int argc, const char **argv) {
     return EC.value();
   }
 
-  wrapper_out << "#define IA2_WRAPPER\n";
+  wrapper_out << "#define IA2_WRAPPER\n"
+              << "#include <ia2.h>\n";
+  if (CompartmentKey.getNumOccurrences() == 0) {
+    wrapper_out << "static const int32_t _pkey_idx = NO_PKEY;\n";
+  } else {
+    wrapper_out << "static const int32_t _pkey_idx = " << CompartmentKey
+                << ";\n";
+  }
   syms_out << "IA2 {\n"
            << "  global:\n";
 

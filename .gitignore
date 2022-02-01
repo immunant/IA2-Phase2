@@ -32,5 +32,5 @@ build.ninja
 # Rust artifacts
 Cargo.lock
 libia2/target
-include/call_gates.h
-libia2/call_gates.h
+include/pkey_init.h
+libia2/pkey_init.h

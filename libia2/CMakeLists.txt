@@ -21,9 +21,7 @@ if(LIBIA2_INSECURE)
 endif()
 
 
-set(LIBIA2_SRC
-    src/lib.rs
-    src/scrub_registers.s)
+set(LIBIA2_SRC src/lib.rs)
 
 add_custom_target(libia2
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
@@ -31,7 +29,7 @@ add_custom_target(libia2
         "--release"
         ${LIBIA2_FEATURES}
         "--target-dir" ${CARGO_OUTPUT_DIR}
-    COMMAND mv call_gates.h ${IA2_INCLUDE_DIR}/
+    COMMAND mv pkey_init.h ${IA2_INCLUDE_DIR}/
     BYPRODUCTS ${IA2_LIB}
     DEPENDS ${LIBIA2_SRC}
 )

@@ -24,6 +24,7 @@ struct Simple {
   int state;
 };
 
+  extern int main(int, char **);
 struct Simple *simple_new(struct SimpleCallbacks scb) {
   if (!did_set_exit_hook) {
     set_exit_hook(simple_exit_hook);
@@ -37,6 +38,9 @@ struct Simple *simple_new(struct SimpleCallbacks scb) {
   }
 
   s->scb = scb;
+  printf("%p\n", (void *)main);
+  printf("%p\n", (void *)scb.read_cb);
+  printf("%p\n", (void *)scb.write_cb);
   s->state = 0;
 
   return s;

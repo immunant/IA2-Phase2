@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include "foo.h"
 #include "untrusted_indirect-original_fn_ptr_ia2.h"
+#include <ia2.h>
 
 INIT_COMPARTMENT;
 

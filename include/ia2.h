@@ -57,6 +57,27 @@
     }                                                                      \
     WRITE_PKRU(old_pkru);
 
+#define __libia2_gate_push_asm(idx) \
+    pushq %rcx \
+    pushq %rdx \
+    mov $IA2_INIT_DATA, %rax \
+    mov (%rax,idx,4), %eax \
+    movl PKRU_UNTRUSTED, %r10 \
+    cmpl NO_PKEY, %eax \
+    je l2 \
+    add %eax, %eax \
+    mov 3, %edx \
+    mov %eax, %ecx \
+    shl %cl, %edx \
+    mov %edx, %eax \
+    not %eax \
+    and %eax, %r10 \
+    mov 0, %ecx \
+    l2: \
+    mov 0, %eax \
+    rdpkru \
+    wrpkru
+
 
 // FIXME: All the IA2_FNPTR_* macros only work if `target` is a valid identifier unique to the binary.
 #define IA2_FNPTR_WRAPPER(target, ty, idx) ({               \
@@ -124,7 +145,7 @@
     NEW_SECTION(".rela.plt_padding");                      \
     NEW_SECTION(".eh_frame_padding");                      \
     NEW_SECTION(".bss_padding");                           \
-    __attribute__((constructor)) void init_heap_ctor() {   \
-        initialize_heap_pkey(x);                           \
+    __attribute__((constructor)) static void init_pkey_ctor() {   \
+        initialize_compartment(x, &init_pkey_ctor);        \
     }
 

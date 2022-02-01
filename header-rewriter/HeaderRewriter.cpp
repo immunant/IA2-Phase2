@@ -261,7 +261,7 @@ public:
 
         WrapperOut << llvm::formatv(
             "{0}({1}) {\n"
-            "    __libia2_gate_push(_pkey_idx);\n"
+            "    __libia2_gate_push(PKEY_IDX);\n"
             "    {2}{3}({4});\n"
             "    __libia2_gate_pop();\n"
             "{5}"
@@ -560,10 +560,10 @@ int main(int argc, const char **argv) {
   wrapper_out << "#define IA2_WRAPPER\n"
               << "#include <ia2.h>\n";
   if (CompartmentKey.getNumOccurrences() == 0) {
-    wrapper_out << "static const int32_t _pkey_idx = NO_PKEY;\n";
+    wrapper_out << "#define PKEY_IDX NO_PKEY\n";
   } else {
-    wrapper_out << "static const int32_t _pkey_idx = " << CompartmentKey
-                << ";\n";
+    wrapper_out << "#define PKEY_IDX " << CompartmentKey
+                << "\n";
   }
   syms_out << "IA2 {\n"
            << "  global:\n";

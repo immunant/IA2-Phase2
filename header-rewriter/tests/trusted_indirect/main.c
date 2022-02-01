@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "rand_op.h"
+#include "trusted_indirect-original_fn_ptr_ia2.h"
 #include <ia2.h>
 
 /*

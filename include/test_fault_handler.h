@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <ia2.h>
 
 // Configure the signal handler to expect an mpk violation when `expr` is
 // evaluated. If `expr` doesn't trigger a fault, this macro manually raises a
@@ -21,6 +22,7 @@ static bool expect_fault = false;
 // expected place.
 void handle_segfault(int sig) {
     if (sig == SIGSEGV) {
+        WRITE_PKRU(0);
         // Write directly to stdout since printf is not async-signal-safe
         const char *ok_msg = "CHECK_VIOLATION: seg faulted as expected\n";
         const char *early_fault_msg = "CHECK_VIOLATION: unexpected seg fault\n";

@@ -21,14 +21,14 @@ static HookFnInternal exit_hook_fn = NULL;
 HookFn get_exit_hook(void) {
   // We must wrap exit_hook_fn before passing it to another compartment.
   // This is enforced by the types in the rewritten headers.
-  return IA2_FNPTR_WRAPPER_VOID(exit_hook_fn, _ZTSPFvvE);
+  return IA2_FNPTR_WRAPPER_VOID(exit_hook_fn, _ZTSPFvvE, NO_PKEY);
 }
 
 void set_exit_hook(HookFn new_exit_hook_fn) {
   // We must unwrap new_exit_hook_fn since it comes from another compartment.
   // This is enforced because exit_hook_fn is a function pointer while HookFn is
   // opaque.
-  exit_hook_fn = IA2_FNPTR_UNWRAPPER_VOID(new_exit_hook_fn, _ZTSPFvvE);
+  exit_hook_fn = IA2_FNPTR_UNWRAPPER_VOID(new_exit_hook_fn, _ZTSPFvvE, NO_PKEY);
 }
 
 // Secret values: a secret string and decryption value.
@@ -56,8 +56,8 @@ static int main_map(int x) {
 
 int main() {
   struct SimpleCallbacks scb = {
-    .read_cb = IA2_FNPTR_WRAPPER(main_read, _ZTSPFiiE),
-    .write_cb = IA2_FNPTR_WRAPPER_VOID(main_write, _ZTSPFviE),
+    .read_cb = IA2_FNPTR_WRAPPER(main_read, _ZTSPFiiE, 0),
+    .write_cb = IA2_FNPTR_WRAPPER_VOID(main_write, _ZTSPFviE, 0),
   };
 
   struct Simple *s = simple_new(scb);
@@ -67,12 +67,13 @@ int main() {
   }
 
   srand(time(NULL));
-  simple_foreach_v1(s, IA2_FNPTR_WRAPPER(main_map, _ZTSPFiiE));
+  simple_foreach_v1(s, IA2_FNPTR_WRAPPER(main_map, _ZTSPFiiE, 0));
   simple_reset(s);
-  simple_foreach_v2(s, IA2_FNPTR_WRAPPER(main_map, _ZTSPFiiE));
+  simple_foreach_v2(s, IA2_FNPTR_WRAPPER(main_map, _ZTSPFiiE, 0));
   simple_destroy(s);
 
   if (exit_hook_fn != NULL) {
+    printf("%p\n%p\n", main, exit_hook_fn);
     (*exit_hook_fn)();
   }
 

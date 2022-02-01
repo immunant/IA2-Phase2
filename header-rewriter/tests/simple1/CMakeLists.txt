@@ -1,7 +1,7 @@
 # Build a wrapper for the main binary
 define_ia2_wrapper(
     WRAP_MAIN
-    #WRAPPER simple1-main-wrapper
+    COMPARTMENT_KEY 0
     OUTPUT_HEADER main_fn_ptr_ia2.h
     HEADERS hooks.h hook_ty.h
     INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/main
@@ -27,5 +27,4 @@ define_ia2_wrapper(
 define_test(
     SRCS main.c
     COMPILE_OPTS -Werror=incompatible-pointer-types
-    INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR}/
 )

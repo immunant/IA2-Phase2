@@ -24,5 +24,3 @@ criterion = "^0.3"
 rand = "^0.8"
 
 [features]
-# Disables compartment switching (for testing and benchmarking)
-insecure = []

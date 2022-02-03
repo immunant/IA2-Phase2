@@ -16,11 +16,6 @@ set(IA2_LIB ${IA2_LIB_DIR}/libia2.so PARENT_SCOPE)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/padding.ld ${CMAKE_CURRENT_BINARY_DIR}/)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/shared_lib.ld ${CMAKE_CURRENT_BINARY_DIR}/)
 
-option(LIBIA2_INSECURE "Build libia2 with no-op call-gates")
-if(LIBIA2_INSECURE)
-    set(LIBIA2_FEATURES "--features" "insecure")
-endif()
-
 
 set(LIBIA2_SRC src/lib.rs)
 

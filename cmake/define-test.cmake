@@ -62,6 +62,10 @@ function(define_test)
         set(WRAPPERS ${TEST_NAME}-wrapper)
     endif()
 
+    if(LIBIA2_INSECURE)
+        add_compile_definitions(LIBIA2_INSECURE=1)
+    endif()
+
     set(LINKER_SCRIPT ${libia2_BINARY_DIR}/padding.ld)
     add_executable(${MAIN} ${DEFINE_TEST_SRCS})
     target_compile_options(${MAIN} PRIVATE

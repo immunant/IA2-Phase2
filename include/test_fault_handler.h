@@ -3,7 +3,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include <ia2.h>
 
 // Configure the signal handler to expect an mpk violation when `expr` is
 // evaluated. If `expr` doesn't trigger a fault, this macro manually raises a
@@ -16,13 +15,18 @@
     _tmp;                                                       \
 })                                                              \
 
-// This is shared data to allow checking for violations in multiple compartments.
-bool expect_fault IA2_SHARED_DATA = false;
+// This is shared data to allow checking for violations in multiple
+// compartments. The attribute was added manually here to avoid including ia2.h
+// since that would pull in libia2 as a dependency (the libia2 build generates a
+// header included in ia2.h).
+bool expect_fault __attribute__((section("ia2_shared_data"))) = false;
 
 // The test output should be checked to see that the segfault occurred at the
 // expected place.
 void handle_segfault(int sig) {
-    WRITE_PKRU(0);
+    // Remove all MPK restrictions to ensure we can print a message regardless
+    // of which compartment the violation occurred in.
+    __asm__("wrpkru":: "a" (0), "c" (0), "d" (0));
     if (sig == SIGSEGV) {
         // Write directly to stdout since printf is not async-signal-safe
         const char *ok_msg = "CHECK_VIOLATION: seg faulted as expected\n";

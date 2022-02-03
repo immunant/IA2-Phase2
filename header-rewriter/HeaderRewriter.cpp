@@ -546,6 +546,10 @@ int main(int argc, const char **argv) {
   }
 
   wrapper_out << "#define IA2_WRAPPER\n";
+  wrapper_out << "char untrusted_stack[8192];\n";
+  wrapper_out << "void* ia2_untrusted_stackptr = &untrusted_stack[4096];\n";
+  wrapper_out << "void* ia2_trusted_stackptr;\n";
+  wrapper_out << "void __libia2_scrub_registers(void) {}\n";
   syms_out << "IA2 {\n"
            << "  global:\n";
 

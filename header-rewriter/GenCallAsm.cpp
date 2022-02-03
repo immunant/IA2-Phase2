@@ -215,6 +215,17 @@ auto emit_call_asm(const CAbiSignature &sig, const std::string &name, int pkey)
   // call wrapped
   add_comment_line(ss, "call wrapped function");
   add_asm_line(ss, "call "s + name);
+
+  // save return regs while we change pkru
+  add_comment_line(
+      ss, "push return regs to stack to preserve them while changing pkru");
+  auto return_locs = return_locations(sig);
+  for (auto loc : return_locs) {
+    if (!loc.is_stack()) {
+      add_asm_line(ss, "push "s + loc.as_str());
+    }
+  }
+
   // any prefix of the following may be skipped by untrusted code, so be
   // careful:
   /////////////////////////////////////////////////////////////////////////
@@ -222,7 +233,14 @@ auto emit_call_asm(const CAbiSignature &sig, const std::string &name, int pkey)
   add_comment_line(ss, "change pkru to trusted");
   add_asm_line(ss, "call __libia2_gate_pop");
 
-  auto return_locs = return_locations(sig);
+  // restore return regs
+  add_comment_line(ss, "pop return regs");
+  for (auto loc : return_locs) {
+    if (!loc.is_stack()) {
+      add_asm_line(ss, "pop "s + loc.as_str());
+    }
+  }
+
 #ifdef STACK_RETURNS
   // copy any stack returns to trusted stack
   add_comment_line(ss, "copy any stack return values to trusted stack");

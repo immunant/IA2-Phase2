@@ -150,6 +150,9 @@ function(define_ia2_wrapper)
     endif()
     # Define wrapper library target
     add_library(${WRAPPER_TARGET} SHARED ${WRAPPER_SRC})
+    if(LIBIA2_INSECURE)
+        target_compile_definitions(${WRAPPER_TARGET} PUBLIC LIBIA2_INSECURE=1)
+    endif()
     target_compile_options(${WRAPPER_TARGET} PRIVATE "-Wno-deprecated-declarations")
     target_link_options(${WRAPPER_TARGET} PRIVATE "-Wl,-z,now")
     target_link_libraries(${WRAPPER_TARGET}

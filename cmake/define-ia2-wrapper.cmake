@@ -27,7 +27,7 @@ execute_process(COMMAND ${CMAKE_C_COMPILER} -print-file-name=include-fixed
 #                 Defaults to ${WRAPPED_LIB}_fn_ptr_ia2.h.
 # INCLUDE_DIR - Added to search path in rewriter invocation. Defaults to
 #               SRC_DIR/include.
-# COMPARTMENT_PKEy - Key to use in compartment transitions.
+# COMPARTMENT_PKEY - Key to use in compartment transitions.
 function(define_ia2_wrapper)
     # Parse options
     set(options USE_SYSTEM_HEADERS WRAP_MAIN)

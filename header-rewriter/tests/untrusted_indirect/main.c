@@ -3,7 +3,7 @@
 #include "foo.h"
 #include "untrusted_indirect-original_fn_ptr_ia2.h"
 
-INIT_COMPARTMENT;
+INIT_COMPARTMENT(0);
 
 /*
     This program tests that a trusted binary can pass function pointers to an untrusted shared

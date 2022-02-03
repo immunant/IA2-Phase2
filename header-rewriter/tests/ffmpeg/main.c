@@ -34,7 +34,7 @@
 #include "libavutil/mem.h"
 #include <ia2.h>
 
-INIT_COMPARTMENT;
+INIT_COMPARTMENT(0);
 
 int main (int argc, char **argv)
 {

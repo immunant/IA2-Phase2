@@ -4,12 +4,7 @@
 #include "plugin.h"
 #include "test_fault_handler.h"
 
-#define LOG(...)              \
-    printf("%s: ", __func__); \
-    printf(__VA_ARGS__);      \
-    printf("\n")
-
-INIT_COMPARTMENT;
+INIT_COMPARTMENT(0);
 
 uint32_t secret = 0x09431233;
 

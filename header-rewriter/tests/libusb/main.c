@@ -24,7 +24,7 @@
 #include "libusb.h"
 #include "usb-1.0_fn_ptr_ia2.h"
 
-INIT_COMPARTMENT;
+INIT_COMPARTMENT(0);
 
 static void print_devs(libusb_device **devs)
 {

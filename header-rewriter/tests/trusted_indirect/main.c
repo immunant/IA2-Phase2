@@ -7,7 +7,7 @@
     untrusted shared library.
 */
 
-INIT_COMPARTMENT;
+INIT_COMPARTMENT(0);
 
 // Declare some functions to ensure that we can call a function pointer regardless of whether it
 // points to an untrusted shared library or this binary.

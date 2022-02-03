@@ -8,8 +8,8 @@
 # LINK_LIBS - additional libraries to link against (e.g. another lib's wrapper)
 function(define_shared_lib)
     set(options "")
-    set(oneValueArgs LIBNAME INCLUDE_DIR)
-    set(multiValueArgs SRCS LINK_LIBS)
+    set(oneValueArgs LIBNAME)
+    set(multiValueArgs SRCS LINK_LIBS LINK_OPTS INCLUDE_DIR)
     cmake_parse_arguments(SHARED_LIB "${options}" "${oneValueArgs}"
                           "${multiValueArgs}" ${ARGN})
     get_filename_component(TEST_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)
@@ -19,17 +19,18 @@ function(define_shared_lib)
         set(LIBNAME ${TEST_NAME}-original)
     endif()
     if(DEFINED SHARED_LIB_INCLUDE_DIR)
-        set(ORIGINAL_HEADER_DIR ${SHARED_LIB_INCLUDE_DIR})
+        set(HEADER_DIR ${SHARED_LIB_INCLUDE_DIR})
     else()
-        set(ORIGINAL_HEADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/)
+        set(HEADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/)
     endif()
 
     add_library(${LIBNAME} SHARED ${SHARED_LIB_SRCS})
     target_include_directories(${LIBNAME} BEFORE PRIVATE
-        ${ORIGINAL_HEADER_DIR}
+        ${HEADER_DIR}
         # Add top-level include directory for segfault handler
         ${IA2_INCLUDE_DIR})
-    target_link_options(${LIBNAME} PRIVATE "-Wl,-z,now")
+    target_link_options(${LIBNAME} PRIVATE "-Wl,-z,now"
+        ${SHARED_LIB_LINK_OPTS})
     target_link_libraries(${LIBNAME} PRIVATE
         ${SHARED_LIB_LINK_LIBS})
 endfunction()
@@ -38,7 +39,8 @@ endfunction()
 # Defines an executable target for a test.
 #
 # Disables lazy binding (see issue #44) and page-aligns the executable's
-# segments. Unconditionally links against libia2.so.
+# segments. Unconditionally links against libia2.so and uses
+# -Werror=incompatible-pointer-types.
 #
 # SRCS - source files for the executable
 # WRAPPERS - Additional libraries to link against.
@@ -62,8 +64,13 @@ function(define_test)
 
     set(LINKER_SCRIPT ${libia2_BINARY_DIR}/padding.ld)
     add_executable(${MAIN} ${DEFINE_TEST_SRCS})
-    target_compile_options(${MAIN} PRIVATE ${DEFINE_TEST_COMPILE_OPTS})
+    target_compile_options(${MAIN} PRIVATE "-Werror=incompatible-pointer-types"
+        ${DEFINE_TEST_COMPILE_OPTS})
     target_link_options(${MAIN} PRIVATE "-Wl,-z,now" "-Wl,-T${LINKER_SCRIPT}")
+    target_include_directories(${MAIN} BEFORE PRIVATE
+        ${CMAKE_CURRENT_BINARY_DIR}
+        # Add top-level include directory for segfault handler
+        ${IA2_INCLUDE_DIR})
     target_link_libraries(${MAIN} PRIVATE
         ${WRAPPERS}
         ${IA2_LIB})

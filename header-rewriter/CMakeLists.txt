@@ -15,6 +15,8 @@ add_executable(ia2-header-rewriter
     HeaderRewriter.cpp
     )
 
+set_property(TARGET ia2-header-rewriter PROPERTY CXX_STANDARD 20)
+
 target_link_libraries(ia2-header-rewriter PRIVATE
     clang-cpp
     LLVM

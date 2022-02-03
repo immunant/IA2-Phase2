@@ -109,10 +109,8 @@ pub extern "C" fn initialize_compartment(pkey_idx: usize, address: *const libc::
                 // Now that all segmentss are setup correctly and we've done
                 // the init (above) revoke the write protections on
                 // the ia2_init_data section.
-                unsafe {
-                    let res = libc::mprotect(start as *mut c_void, size, libc::PROT_READ);
-                    assert!(res == 0);
-                }
+                let res = libc::mprotect(start as *mut c_void, size, libc::PROT_READ);
+                assert!(res == 0);
             }
         }
     })

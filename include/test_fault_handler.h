@@ -4,10 +4,8 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#define LOG(...)              \
-    printf("%s: ", __func__); \
-    printf(__VA_ARGS__);      \
-    printf("\n")
+#define VA_ARGS(...)  ,##__VA_ARGS__
+#define LOG(msg, ...) printf("%s: " msg "\n", __func__ VA_ARGS(__VA_ARGS__))
 
 // Configure the signal handler to expect an mpk violation when `expr` is
 // evaluated. If `expr` doesn't trigger a fault, this macro manually raises a
@@ -29,12 +27,13 @@ bool expect_fault __attribute__((section("ia2_shared_data"))) = false;
 // The test output should be checked to see that the segfault occurred at the
 // expected place.
 void handle_segfault(int sig) {
-#ifndef LIBIA2_INSECURE
-    // Remove all MPK restrictions to ensure we can print a message regardless
-    // of which compartment the violation occurred in.
-    __asm__("wrpkru":: "a" (0), "c" (0), "d" (0));
-#endif
     if (sig == SIGSEGV) {
+#ifndef LIBIA2_INSECURE
+        // The installed handler is in the main binary, but signal handlers
+        // don't run with the same pkru state as the interrupted context so
+        // remove all MPK restrictions to ensure we can access the main binary.
+        __asm__("wrpkru":: "a" (0), "c" (0), "d" (0));
+#endif
         // Write directly to stdout since printf is not async-signal-safe
         const char *ok_msg = "CHECK_VIOLATION: seg faulted as expected\n";
         const char *early_fault_msg = "CHECK_VIOLATION: unexpected seg fault\n";
@@ -45,8 +44,8 @@ void handle_segfault(int sig) {
             msg = early_fault_msg;
         }
         write(1, msg, strlen(msg));
-        _exit(0);
     }
+    _exit(0);
 }
 
 bool handler_installed = false;

@@ -11,8 +11,8 @@ use core::sync::atomic::{AtomicI32, Ordering};
 //  0 == ERROR (this would be the default untrusted pkey)
 // >0 == trusted key
 pub const PKEY_UNINITIALIZED: i32 = -2;
-pub const MPK_UNSUPPORTED: i32 = -1;
-const NUM_KEYS: usize = 16;
+const MPK_UNSUPPORTED: i32 = -1;
+const NUM_KEYS: usize = 15;
 
 type CompartmentKeys = [AtomicI32; NUM_KEYS];
 
@@ -40,13 +40,19 @@ pub static IA2_INIT_DATA: IA2InitDataSection = IA2InitDataSection {
 
 thread_local!(static THREAD_HEAP_PKEY_FLAG: Cell<[bool; NUM_KEYS]> = Cell::new([false; NUM_KEYS]));
 
+#[repr(C)]
+struct PhdrArgs {
+    pkey_idx: usize,
+    address: *const libc::c_void,
+}
+
 // TODO: Remove the heap arguments to initialize_heap_pkey. This is just a stopgap until we figure
 // out what to do for the allocator
 /// Allocates a protection key and calls `pkey_mprotect` on all pages in the trusted compartment and
 /// the pages defined by `heap_start` and `heap_len`. The input heap is ignored if either argument is
 /// zero.
 #[no_mangle]
-pub extern "C" fn initialize_heap_pkey(pkey_idx: usize) {
+pub extern "C" fn initialize_compartment(pkey_idx: usize, address: *const libc::c_void) {
     THREAD_HEAP_PKEY_FLAG.with(|pkey_flags| {
         let mut flags = pkey_flags.get();
         if !flags[pkey_idx] {
@@ -56,6 +62,7 @@ pub extern "C" fn initialize_heap_pkey(pkey_idx: usize) {
             let mut pkey = IA2_INIT_DATA.pkeys[pkey_idx].load(Ordering::Relaxed);
             if pkey == PKEY_UNINITIALIZED {
                 pkey = unsafe { libc::syscall(libc::SYS_pkey_alloc, 0u32, 0u32) as i32 };
+                assert!(pkey != MPK_UNSUPPORTED);
                 let result = IA2_INIT_DATA.pkeys[pkey_idx].compare_exchange(
                     PKEY_UNINITIALIZED,
                     pkey,
@@ -73,14 +80,18 @@ pub extern "C" fn initialize_heap_pkey(pkey_idx: usize) {
             }
 
             unsafe {
+                let mut args = PhdrArgs {
+                    pkey_idx,
+                    address,
+                };
                 // Iterate through all ELF segments and assign
                 // protection keys to ours
-                libc::dl_iterate_phdr(Some(phdr_callback), &pkey_idx as *const usize as *mut _);
+                libc::dl_iterate_phdr(Some(phdr_callback), &mut args as *mut PhdrArgs as *mut _);
 
                 // Now that all segmentss are setup correctly and we've done
                 // the one time init (above) revoke the write protections on
                 // the ia2_init_data section.
-                protect_ia2_init_data();
+                //protect_ia2_init_data();
             }
         }
     })
@@ -95,9 +106,6 @@ extern "C" {
     static __start_ia2_init_data: *const u8;
     #[linkage = "extern_weak"]
     static __stop_ia2_init_data: *const u8;
-    // Address used to determine which ELF segment is the trusted compartment
-    #[linkage = "extern_weak"]
-    static _start: *const u8;
 }
 
 const PAGE_SIZE: usize = 4096;
@@ -111,6 +119,9 @@ unsafe extern "C" fn phdr_callback(
 ) -> libc::c_int {
     let info = &*info;
 
+    let phdr_args = &*(data as *const PhdrArgs);
+    let pkey_idx = phdr_args.pkey_idx;
+    let address = phdr_args.address;
     // Use the address of `_start` to determine which program headers belong to the trusted
     // compartment
     let is_trusted_compartment = (0..info.dlpi_phnum).any(|i| {
@@ -118,7 +129,7 @@ unsafe extern "C" fn phdr_callback(
         if phdr.p_type == libc::PT_LOAD {
             let start = info.dlpi_addr + phdr.p_vaddr;
             let end = start + phdr.p_memsz;
-            (start..end).contains(&(_start as u64))
+            (start..end).contains(&(address as u64))
         } else {
             false
         }
@@ -139,7 +150,6 @@ unsafe extern "C" fn phdr_callback(
         end: __stop_ia2_shared_data,
     };
 
-    let pkey_idx = *(data as *const usize);
     let pkey = IA2_INIT_DATA.pkeys[pkey_idx].load(Ordering::Relaxed);
 
     // Assign our secret protection key to every segment

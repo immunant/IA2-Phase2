@@ -124,7 +124,7 @@
     NEW_SECTION(".rela.plt_padding");                      \
     NEW_SECTION(".eh_frame_padding");                      \
     NEW_SECTION(".bss_padding");                           \
-    __attribute__((constructor)) void init_heap_ctor() {   \
-        initialize_heap_pkey(x);                           \
+    __attribute__((constructor)) static void init_pkey_ctor() {   \
+        initialize_compartment(x, &init_pkey_ctor);        \
     }
 

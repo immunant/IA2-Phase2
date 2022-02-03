@@ -40,8 +40,7 @@ endfunction()
 # Defines an executable target for a test.
 #
 # Disables lazy binding (see issue #44) and page-aligns the executable's
-# segments. Unconditionally links against libia2.so and uses
-# -Werror=incompatible-pointer-types and -fPIC.
+# segments. Unconditionally uses -Werror=incompatible-pointer-types and -fPIC.
 #
 # SRCS - source files for the executable
 # WRAPPERS - Additional libraries to link against.
@@ -75,7 +74,6 @@ function(define_test)
         # Add top-level include directory for segfault handler
         ${IA2_INCLUDE_DIR})
     target_link_libraries(${MAIN} PRIVATE
-        ${WRAPPERS}
-        ${IA2_LIB})
+        ${WRAPPERS})
     add_dependencies(check-ia2 ${MAIN})
 endfunction()

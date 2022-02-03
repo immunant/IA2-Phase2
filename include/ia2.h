@@ -34,9 +34,7 @@
 #define __libia2_gate_push(idx)                                                \
     uint32_t new_pkru = PKRU_UNTRUSTED;                                        \
     if (idx != NO_PKEY) {                                                      \
-        static const int32_t *pkey_ptr IA2_SHARED_DATA =                       \
-            ((int32_t *)&IA2_INIT_DATA) + idx;                                 \
-        int32_t pkey = *pkey_ptr;                                              \
+        int32_t pkey = ((int32_t *)&IA2_INIT_DATA)[idx]; \
         if (pkey == PKEY_UNINITIALIZED) {                                      \
             printf("Entering another compartment without a protection key\n"); \
             exit(-1);                                                          \
@@ -59,9 +57,9 @@
 
 
 // FIXME: All the IA2_FNPTR_* macros only work if `target` is a valid identifier unique to the binary.
-#define IA2_FNPTR_WRAPPER(target, ty, idx) ({               \
+#define IA2_FNPTR_WRAPPER(target, ty) ({               \
   IA2_FNPTR_WRAPPER_##ty(IA2_fnptr_wrapper_##target) { \
-    __libia2_gate_push(idx);                              \
+    __libia2_gate_push(NO_PKEY);                       \
     IA2_FNPTR_RETURN_##ty(__res) =                     \
       target(IA2_FNPTR_ARG_NAMES_##ty);                \
     __libia2_gate_pop();                               \
@@ -72,9 +70,9 @@
   };                                                   \
 })
 
-#define IA2_FNPTR_WRAPPER_VOID(target, ty, idx) ({          \
+#define IA2_FNPTR_WRAPPER_VOID(target, ty) ({          \
   IA2_FNPTR_WRAPPER_##ty(IA2_fnptr_wrapper_##target) { \
-    __libia2_gate_push(idx);                              \
+    __libia2_gate_push(NO_PKEY);                       \
     target(IA2_FNPTR_ARG_NAMES_##ty);                  \
     __libia2_gate_pop();                               \
   }                                                    \
@@ -83,9 +81,9 @@
   };                                                   \
 })
 
-#define IA2_FNPTR_UNWRAPPER(target, ty, idx) ({                           \
+#define IA2_FNPTR_UNWRAPPER(target, ty) ({                           \
   IA2_FNPTR_WRAPPER_##ty(IA2_fnptr_wrapper_##target) {               \
-    __libia2_gate_push(idx);                                            \
+    __libia2_gate_push(NO_PKEY);                                     \
     IA2_FNPTR_RETURN_##ty(__res) =                                   \
       ((IA2_FNPTR_TYPE_##ty)(target.ptr))(IA2_FNPTR_ARG_NAMES_##ty); \
     __libia2_gate_pop();                                             \
@@ -94,9 +92,9 @@
   IA2_fnptr_wrapper_##target;                                        \
 })
 
-#define IA2_FNPTR_UNWRAPPER_VOID(target, ty, idx) ({                      \
+#define IA2_FNPTR_UNWRAPPER_VOID(target, ty) ({                      \
   IA2_FNPTR_WRAPPER_##ty(IA2_fnptr_wrapper_##target) {               \
-    __libia2_gate_push(idx);                                            \
+    __libia2_gate_push(NO_PKEY);                                     \
     ((IA2_FNPTR_TYPE_##ty)(target.ptr))(IA2_FNPTR_ARG_NAMES_##ty);   \
     __libia2_gate_pop();                                             \
   }                                                                  \

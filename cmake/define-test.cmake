@@ -25,6 +25,9 @@ function(define_shared_lib)
     endif()
 
     add_library(${LIBNAME} SHARED ${SHARED_LIB_SRCS})
+    if(LIBIA2_INSECURE)
+        target_compile_definitions(${LIBNAME} PUBLIC LIBIA2_INSECURE=1)
+    endif()
     target_compile_options(${LIBNAME} PRIVATE "-fPIC")
     target_include_directories(${LIBNAME} BEFORE PRIVATE
         ${ORIGINAL_HEADER_DIR}
@@ -62,12 +65,11 @@ function(define_test)
         set(WRAPPERS ${TEST_NAME}-wrapper)
     endif()
 
-    if(LIBIA2_INSECURE)
-        add_compile_definitions(LIBIA2_INSECURE=1)
-    endif()
-
     set(LINKER_SCRIPT ${libia2_BINARY_DIR}/padding.ld)
     add_executable(${MAIN} ${DEFINE_TEST_SRCS})
+    if(LIBIA2_INSECURE)
+        target_compile_definitions(${MAIN} PUBLIC LIBIA2_INSECURE=1)
+    endif()
     target_compile_options(${MAIN} PRIVATE
         "-Werror=incompatible-pointer-types"
         "-fPIC"

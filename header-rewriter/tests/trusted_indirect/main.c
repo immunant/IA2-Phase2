@@ -27,7 +27,7 @@ void call_fn_ptr() {
     function_t f = get_function();
     printf("Got the function %s from the library\n", f.name);
     binary_op wrapped_op = f.op;
-    bin_op op = IA2_FNPTR_UNWRAPPER(wrapped_op, _ZTSPFjjjE, NO_PKEY);
+    bin_op op = IA2_FNPTR_UNWRAPPER(wrapped_op, _ZTSPFjjjE);
     uint32_t x = 987234;
     uint32_t y = 142151;
     printf("%s(%d, %d) = %d\n", f.name, x, y, op(x, y));
@@ -48,7 +48,7 @@ int main() {
     // Test a that segfault occurs if the pointee tries to access memory it shouldn't
     function_t f = get_bad_function();
     binary_op wrapped_op = f.op;
-    bin_op op = IA2_FNPTR_UNWRAPPER(wrapped_op, _ZTSPFjjjE, NO_PKEY);
+    bin_op op = IA2_FNPTR_UNWRAPPER(wrapped_op, _ZTSPFjjjE);
 
     static uint32_t secret = 34;
     leak_secret_address(&secret);

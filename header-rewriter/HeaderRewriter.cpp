@@ -217,13 +217,11 @@ public:
 
         std::string param_decls;
         std::string param_names;
-        std::string param_types;
 
         for (auto &p : fn_decl->parameters()) {
           if (!param_names.empty()) {
             param_decls.append(", ");
             param_names.append(", ");
-            param_types.append(", ");
           }
           auto name = p->getNameAsString();
           if (name.empty()) {
@@ -240,12 +238,10 @@ public:
             auto param_decl = llvm::formatv("{0}{1} {2}", kFnPtrTypePrefix,
                                             mangled_type, name);
             param_decls.append(param_decl);
-            param_types.append(mangled_type);
           } else {
             auto param_type_string = type_string_with_placeholder(param_type);
             param_decls.append(
                 replace_type_placeholder(param_type_string, name));
-            param_types.append(type_string(param_type));
           }
           param_names.append(name);
         }
@@ -267,7 +263,7 @@ public:
             "{5}"
             "}\n",
             replace_type_placeholder(ret_type_string, wrapper_name),
-            param_decls, ret_val, fn_name, param_names, ret_stmt);//, type_string(ret_type), param_types);
+            param_decls, ret_val, fn_name, param_names, ret_stmt);
 
         SymsOut << "    " << wrapper_name << ";\n";
       }

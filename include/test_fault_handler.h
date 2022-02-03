@@ -16,13 +16,14 @@
     _tmp;                                                       \
 })                                                              \
 
-static bool expect_fault = false;
+// This is shared data to allow checking for violations in multiple compartments.
+bool expect_fault IA2_SHARED_DATA = false;
 
 // The test output should be checked to see that the segfault occurred at the
 // expected place.
 void handle_segfault(int sig) {
+    WRITE_PKRU(0);
     if (sig == SIGSEGV) {
-        WRITE_PKRU(0);
         // Write directly to stdout since printf is not async-signal-safe
         const char *ok_msg = "CHECK_VIOLATION: seg faulted as expected\n";
         const char *early_fault_msg = "CHECK_VIOLATION: unexpected seg fault\n";
@@ -37,9 +38,15 @@ void handle_segfault(int sig) {
     }
 }
 
+bool handler_installed = false;
+
 // Installs the previously defined signal handler and disables buffering on
 // stdout to allow using printf prior to the sighandler
 __attribute__((constructor)) void install_segfault_handler(void) {
+    if (handler_installed) {
+        return;
+    }
+    handler_installed = true;
     setbuf(stdout, NULL);
     signal(SIGSEGV, handle_segfault);
 }

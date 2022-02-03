@@ -1,6 +1,6 @@
 # Defines a shared library target.
 #
-# Disables lazy binding (see issue #44).
+# Disables lazy binding (see issue #44). Unconditionally uses -fPIC.
 #
 # SRCS - source files for shared library
 # LIBNAME - target name (defaults to ${TEST_NAME}-original
@@ -19,14 +19,15 @@ function(define_shared_lib)
         set(LIBNAME ${TEST_NAME}-original)
     endif()
     if(DEFINED SHARED_LIB_INCLUDE_DIR)
-        set(HEADER_DIR ${SHARED_LIB_INCLUDE_DIR})
+        set(ORIGINAL_HEADER_DIR ${SHARED_LIB_INCLUDE_DIR})
     else()
-        set(HEADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/)
+        set(ORIGINAL_HEADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/)
     endif()
 
     add_library(${LIBNAME} SHARED ${SHARED_LIB_SRCS})
+    target_compile_options(${LIBNAME} PRIVATE "-fPIC")
     target_include_directories(${LIBNAME} BEFORE PRIVATE
-        ${HEADER_DIR}
+        ${ORIGINAL_HEADER_DIR}
         # Add top-level include directory for segfault handler
         ${IA2_INCLUDE_DIR})
     target_link_options(${LIBNAME} PRIVATE "-Wl,-z,now"
@@ -40,7 +41,7 @@ endfunction()
 #
 # Disables lazy binding (see issue #44) and page-aligns the executable's
 # segments. Unconditionally links against libia2.so and uses
-# -Werror=incompatible-pointer-types.
+# -Werror=incompatible-pointer-types and -fPIC.
 #
 # SRCS - source files for the executable
 # WRAPPERS - Additional libraries to link against.
@@ -64,7 +65,9 @@ function(define_test)
 
     set(LINKER_SCRIPT ${libia2_BINARY_DIR}/padding.ld)
     add_executable(${MAIN} ${DEFINE_TEST_SRCS})
-    target_compile_options(${MAIN} PRIVATE "-Werror=incompatible-pointer-types"
+    target_compile_options(${MAIN} PRIVATE
+        "-Werror=incompatible-pointer-types"
+        "-fPIC"
         ${DEFINE_TEST_COMPILE_OPTS})
     target_link_options(${MAIN} PRIVATE "-Wl,-z,now" "-Wl,-T${LINKER_SCRIPT}")
     target_include_directories(${MAIN} BEFORE PRIVATE

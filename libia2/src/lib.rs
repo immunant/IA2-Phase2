@@ -59,6 +59,24 @@ pub extern "C" fn initialize_compartment(pkey_idx: usize, address: *const libc::
             flags[pkey_idx] = true;
             pkey_flags.set(flags);
 
+            // Note: We carefully arranged above that the contents of this section
+            // are one object of exactly page size which is page aligned.  Assert
+            // that we succeeded, then mprotect.
+            let (start, size) = unsafe {
+                let start = __start_ia2_init_data as usize;
+                let stop = __stop_ia2_init_data as usize;
+                assert!(start % PAGE_SIZE == 0 && stop % PAGE_SIZE == 0);
+                let size = stop - start;
+                assert!(size % PAGE_SIZE == 0);
+                (start, size)
+            };
+
+            // Change the permissions on the memory containing the ia2_init_data section.
+            unsafe {
+                let res = libc::mprotect(start as *mut c_void, size, libc::PROT_READ | libc::PROT_WRITE);
+                assert!(res == 0);
+            }
+
             let mut pkey = IA2_INIT_DATA.pkeys[pkey_idx].load(Ordering::Relaxed);
             if pkey == PKEY_UNINITIALIZED {
                 pkey = unsafe { libc::syscall(libc::SYS_pkey_alloc, 0u32, 0u32) as i32 };
@@ -89,9 +107,12 @@ pub extern "C" fn initialize_compartment(pkey_idx: usize, address: *const libc::
                 libc::dl_iterate_phdr(Some(phdr_callback), &mut args as *mut PhdrArgs as *mut _);
 
                 // Now that all segmentss are setup correctly and we've done
-                // the one time init (above) revoke the write protections on
+                // the init (above) revoke the write protections on
                 // the ia2_init_data section.
-                //protect_ia2_init_data();
+                unsafe {
+                    let res = libc::mprotect(start as *mut c_void, size, libc::PROT_READ);
+                    assert!(res == 0);
+                }
             }
         }
     })
@@ -210,18 +231,4 @@ unsafe extern "C" fn phdr_callback(
     }
     // Return a non-zero value to stop iterating through phdrs
     return 1;
-}
-
-// Mark the memory containing the ia2_init_data section as readonly
-unsafe extern "C" fn protect_ia2_init_data() {
-    // Note: We carefully arranged above that the contents of this section
-    // are one object of exactly page size which is page aligned.  Assert
-    // that we succeeded, then mprotect.
-    let start = __start_ia2_init_data as usize;
-    let stop = __stop_ia2_init_data as usize;
-    assert!(start % PAGE_SIZE == 0 && stop % PAGE_SIZE == 0);
-    let size = stop - start;
-    assert!(size % PAGE_SIZE == 0);
-    let res = libc::mprotect(start as *mut c_void, size, libc::PROT_READ);
-    assert!(res == 0);
 }

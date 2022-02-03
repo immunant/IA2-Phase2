@@ -3,7 +3,7 @@
 #include <ia2.h>
 #include "access_shared.h"
 
-INIT_COMPARTMENT;
+INIT_COMPARTMENT(0);
 
 uint8_t shared_val[4097] IA2_SHARED_DATA = { 0 };
 

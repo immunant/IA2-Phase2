@@ -124,9 +124,7 @@
 // Since `initialize_heap_pkey` is defined in libia2.so adding a constructor
 // attribute to its declaration won't put it in the main program's .ctors
 // section, so we have to create this wrapper instead.
-#define INIT_COMPARTMENT INIT_COMPARTMENT_N(0)
-
-#define INIT_COMPARTMENT_N(x)                              \
+#define INIT_COMPARTMENT(x)                                \
     NEW_SECTION(".fini_padding");                          \
     NEW_SECTION(".rela.plt_padding");                      \
     NEW_SECTION(".eh_frame_padding");                      \

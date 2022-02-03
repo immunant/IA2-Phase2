@@ -4,6 +4,11 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+#define LOG(...)              \
+    printf("%s: ", __func__); \
+    printf(__VA_ARGS__);      \
+    printf("\n")
+
 // Configure the signal handler to expect an mpk violation when `expr` is
 // evaluated. If `expr` doesn't trigger a fault, this macro manually raises a
 // fault with a different message.

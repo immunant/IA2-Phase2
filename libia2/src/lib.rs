@@ -11,7 +11,6 @@ use core::sync::atomic::{AtomicI32, Ordering};
 //  0 == ERROR (this would be the default untrusted pkey)
 // >0 == trusted key
 pub const PKEY_UNINITIALIZED: i32 = -2;
-const MPK_UNSUPPORTED: i32 = -1;
 const NUM_KEYS: usize = 15;
 
 type CompartmentKeys = [AtomicI32; NUM_KEYS];
@@ -80,7 +79,6 @@ pub extern "C" fn initialize_compartment(pkey_idx: usize, address: *const libc::
             let mut pkey = IA2_INIT_DATA.pkeys[pkey_idx].load(Ordering::Relaxed);
             if pkey == PKEY_UNINITIALIZED {
                 pkey = unsafe { libc::syscall(libc::SYS_pkey_alloc, 0u32, 0u32) as i32 };
-                assert!(pkey != MPK_UNSUPPORTED);
                 let result = IA2_INIT_DATA.pkeys[pkey_idx].compare_exchange(
                     PKEY_UNINITIALIZED,
                     pkey,

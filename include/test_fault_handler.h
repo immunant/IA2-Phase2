@@ -29,9 +29,11 @@ bool expect_fault __attribute__((section("ia2_shared_data"))) = false;
 // The test output should be checked to see that the segfault occurred at the
 // expected place.
 void handle_segfault(int sig) {
+#ifndef LIBIA2_INSECURE
     // Remove all MPK restrictions to ensure we can print a message regardless
     // of which compartment the violation occurred in.
     __asm__("wrpkru":: "a" (0), "c" (0), "d" (0));
+#endif
     if (sig == SIGSEGV) {
         // Write directly to stdout since printf is not async-signal-safe
         const char *ok_msg = "CHECK_VIOLATION: seg faulted as expected\n";

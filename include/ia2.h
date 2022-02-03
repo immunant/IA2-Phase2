@@ -31,6 +31,13 @@
             : "a" (pkru), "c" (0), "d" (0));
 
 
+#ifdef LIBIA2_INSECURE
+
+#define __libia2_gate_push(idx)
+#define __libia2_gate_pop()
+
+#else
+
 #define __libia2_gate_push(idx)                                                \
     uint32_t new_pkru = PKRU_UNTRUSTED;                                        \
     if (idx != NO_PKEY) {                                                      \
@@ -54,6 +61,8 @@
         exit(-1);                                                          \
     }                                                                      \
     WRITE_PKRU(old_pkru);
+
+#endif
 
 
 // FIXME: All the IA2_FNPTR_* macros only work if `target` is a valid identifier unique to the binary.

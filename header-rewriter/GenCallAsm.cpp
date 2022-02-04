@@ -21,20 +21,20 @@ struct ParamLocation {
 			return ParamLocation(nullptr);
 		}
 
-		bool is_stack() {
+		bool is_stack() const {
 			return reg == nullptr;
 		}
-		bool is_xmm() {
+		bool is_xmm() const {
 			return reg != nullptr && reg[0] == 'x' && reg[1] == 'm' && reg[2] == 'm';
 		}
-		const char* as_str() {
+		const char* as_str() const {
 			if (reg) {
 				return reg;
 			} else {
 				return "<stack>";
 			}
 		}
-		operator const char*() {
+		operator const char*() const {
 			return as_str();
 		}
 };
@@ -110,7 +110,7 @@ auto return_locations(const CAbiSignature& func) -> std::vector<ParamLocation> {
 }
 
 static void print_locs(const std::vector<ParamLocation>& locs) {
-	for (auto loc : locs) {
+	for (const auto& loc : locs) {
 		std::cout << loc.as_str() << " ";
 	}
 	std::cout << std::endl;
@@ -177,7 +177,7 @@ auto emit_call_asm(const CAbiSignature& sig, const std::string& name) -> std::st
 	size_t stack_arg_count = std::ranges::count_if(param_locs, &ParamLocation::is_stack);
 	//TODO: emit memcpy(untrusted_stack, trusted_stack, stack_size);
 	size_t arg_stack_offset = 16;
-	for (auto loc : param_locs) {
+	for (const auto& loc : param_locs) {
 		if (loc.is_stack()) {
 			add_asm_line(ss, "push qword [rax+"s + std::to_string(arg_stack_offset) + "]");
 			arg_stack_offset += 8;
@@ -187,7 +187,7 @@ auto emit_call_asm(const CAbiSignature& sig, const std::string& name) -> std::st
 
 	//push any arg regs
 	add_comment_line(ss, "save used arg regs as they are needed post-scrubbing");
-	for (auto loc : param_locs) {
+	for (const auto& loc : param_locs) {
 		if (!loc.is_stack()) {
 			if (loc.is_xmm()) {
 				add_asm_line(ss, "sub rsp, 16");
@@ -226,7 +226,7 @@ auto emit_call_asm(const CAbiSignature& sig, const std::string& name) -> std::st
 	//save return regs while we change pkru
 	add_comment_line(ss, "push return regs to stack to preserve them while changing pkru");
 	auto return_locs = return_locations(sig);
-	for (auto loc : return_locs) {
+	for (const auto& loc : return_locs) {
 		if (!loc.is_stack()) {
 			add_asm_line(ss, "push "s + loc.as_str());
 		}
@@ -240,7 +240,7 @@ auto emit_call_asm(const CAbiSignature& sig, const std::string& name) -> std::st
 
 	//restore return regs
 	add_comment_line(ss, "pop return regs");
-	for (auto loc : return_locs) {
+	for (const auto& loc : return_locs) {
 		if (!loc.is_stack()) {
 			add_asm_line(ss, "pop "s + loc.as_str());
 		}

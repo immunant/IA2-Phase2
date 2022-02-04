@@ -19,13 +19,15 @@ static auto classifyType(const clang::Type& type) -> std::vector<CAbiArgKind> {
 				return {CAbiArgKind::Float};
 			case clang::Type::ScalarTypeKind::STK_IntegralComplex:
 			case clang::Type::ScalarTypeKind::STK_FloatingComplex:
-				assert(0 && "complex types not yet supported for ABI computation");
+				puts("complex types not yet supported for ABI computation");
+				abort();
 			case clang::Type::ScalarTypeKind::STK_BlockPointer:
 			case clang::Type::ScalarTypeKind::STK_ObjCObjectPointer:
 			case clang::Type::ScalarTypeKind::STK_MemberPointer:
 				/* these may have special ABI handling due to containing code
 				pointers or having special calling convention */
-				assert(0 && "unsupported scalar type for ABI computation");
+				puts("unsupported scalar type (obj-C object, Clang block, or C++ member) found during ABI computation");
+				abort();
 		}
 	} else {
 		return {CAbiArgKind::Integral};

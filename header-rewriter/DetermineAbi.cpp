@@ -145,6 +145,17 @@ auto determineAbiForDecl(const clang::FunctionDecl &fnDecl) -> CAbiSignature {
   printf("computing abi for %s\n", name.c_str());
   const auto &info = cgFunctionInfo(cgm, fnDecl);
 
+  const auto &convention = info.getEffectiveCallingConvention();
+
+  // our ABI computation assumes SysV ABI; bail if another ABI is explicitly
+  // selected
+  if (convention != clang::CallingConv::CC_X86_64SysV &&
+      convention != clang::CallingConv::CC_C) {
+    printf("calling convention of %s was not SysV (%d)\n", name.c_str(),
+           info.getASTCallingConvention());
+    abort();
+  }
+
   // get ABI for return type and each parameter
   CAbiSignature sig;
   sig.variadic = fnDecl.isVariadic();

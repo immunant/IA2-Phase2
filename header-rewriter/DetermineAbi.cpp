@@ -5,16 +5,18 @@
 #include "clang/Lex/HeaderSearchOptions.h"
 #include "clang/Lex/PreprocessorOptions.h"
 
-static auto classifyType(const clang::Type &type) -> CAbiArgKind {
+static auto classifyType(const clang::Type &type) -> std::vector<CAbiArgKind> {
+  if (type.isVoidType())
+    return {};
   if (type.isScalarType()) {
     switch (type.getScalarTypeKind()) {
     case clang::Type::ScalarTypeKind::STK_CPointer:
     case clang::Type::ScalarTypeKind::STK_Bool:
     case clang::Type::ScalarTypeKind::STK_Integral:
     case clang::Type::ScalarTypeKind::STK_FixedPoint:
-      return CAbiArgKind::Integral;
+      return {CAbiArgKind::Integral};
     case clang::Type::ScalarTypeKind::STK_Floating:
-      return CAbiArgKind::Float;
+      return {CAbiArgKind::Float};
     case clang::Type::ScalarTypeKind::STK_IntegralComplex:
     case clang::Type::ScalarTypeKind::STK_FloatingComplex:
       assert(0 && "complex types not yet supported for ABI computation");
@@ -26,7 +28,7 @@ static auto classifyType(const clang::Type &type) -> CAbiArgKind {
       assert(0 && "unsupported scalar type for ABI computation");
     }
   } else {
-    return CAbiArgKind::Integral;
+    return {CAbiArgKind::Integral};
     // assert(0 && "classifyType called on non-scalar type");
   }
   printf("could not classify type!\n");
@@ -47,7 +49,7 @@ static auto classifyLlvmType(const llvm::Type &type) -> CAbiArgKind {
   abort();
 }
 
-static auto abiSlotsForArg(clang::QualType &qt,
+static auto abiSlotsForArg(const clang::QualType &qt,
                            const clang::CodeGen::ABIArgInfo &argInfo,
                            const clang::ASTContext &astContext)
     -> std::vector<CAbiArgKind> {
@@ -78,7 +80,7 @@ static auto abiSlotsForArg(clang::QualType &qt,
       }
     }
     // if not flattenable, classify the single-register value
-    return {classifyType(*qt.getCanonicalType())};
+    return classifyType(*qt.getCanonicalType());
   }
   case Ignore:   // no ABI presence
                  // fall through
@@ -143,7 +145,8 @@ auto determineAbiForDecl(const clang::FunctionDecl &fnDecl) -> CAbiSignature {
   // get ABI for return type and each parameter
   CAbiSignature sig;
   sig.variadic = fnDecl.isVariadic();
-  sig.ret = classifyType(*fnDecl.getReturnType());
+  auto &returnInfo = info.getReturnInfo();
+  sig.ret = abiSlotsForArg(fnDecl.getReturnType(), returnInfo, astContext);
   for (auto &argInfo : info.arguments()) {
     clang::QualType paramType = argInfo.type;
     auto slots = abiSlotsForArg(paramType, argInfo.info, astContext);

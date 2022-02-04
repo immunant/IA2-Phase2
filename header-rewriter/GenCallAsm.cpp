@@ -37,6 +37,9 @@ struct ParamLocation {
 		operator const char*() const {
 			return as_str();
 		}
+		size_t size() const {
+			return is_xmm() ? 16 : 8;
+		}
 };
 
 const std::array<const char*, 6> int_param_reg_order = {"rdi","rsi","rdx","rcx","r8","r9"};
@@ -205,7 +208,6 @@ auto emit_call_asm(const CAbiSignature& sig, const std::string& name) -> std::st
 		if (loc.is_stack()) {
 			add_asm_line(ss, "push qword [rax+"s + std::to_string(arg_stack_offset) + "]");
 			arg_stack_offset += 8;
-			//XXX: do we have to worry about 128b-vs-64b stack entries here?
 		}
 	}
 
@@ -273,8 +275,12 @@ auto emit_call_asm(const CAbiSignature& sig, const std::string& name) -> std::st
 	auto pushed_offset = 0;
 	for (auto loc : return_locs) {
 		if (!loc.is_stack()) {
-			pushed_offset += 8;
-			add_asm_line(ss, "mov [rdi-"s + std::to_string(pushed_offset) + "], " + loc.as_str());
+			pushed_offset += loc.size();
+			if (loc.is_xmm()) {
+				add_asm_line(ss, "movdqu [rdi-"s + std::to_string(pushed_offset) + "], " + loc.as_str());
+			} else {
+				add_asm_line(ss, "mov [rdi-"s + std::to_string(pushed_offset) + "], " + loc.as_str());
+			}
 		}
 	}
 

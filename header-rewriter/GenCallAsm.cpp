@@ -72,26 +72,35 @@ auto param_locations(const CAbiSignature &func) -> std::vector<ParamLocation> {
 
 auto return_locations(const CAbiSignature &func) -> std::vector<ParamLocation> {
   std::vector<ParamLocation> locs = {};
-  size_t size_in_qwords = 1;
-  switch (func.ret) {
-  case CAbiArgKind::Integral:
-    locs.push_back(ParamLocation::Register(int_ret_reg_order[0]));
-    if (size_in_qwords == 2) {
-      locs.push_back(ParamLocation::Register(int_ret_reg_order[1]));
+  size_t size_in_qwords = func.ret.size();
+
+  if (func.ret.empty()) {
+    return locs;
+  }
+
+  // TODO: handle size_in_qwords!
+  for (auto &kind : func.ret) {
+    printf("return loc kind %d (size %zd)\n", (int)kind, size_in_qwords);
+    switch (kind) {
+    case CAbiArgKind::Integral:
+      locs.push_back(ParamLocation::Register(int_ret_reg_order[0]));
+      if (size_in_qwords == 2) {
+        locs.push_back(ParamLocation::Register(int_ret_reg_order[1]));
+      }
+      // locs.push_back(ParamLocation::Stack());
+      break;
+    case CAbiArgKind::Float:
+      // TODO: handle x87 in st0 and complex x87 in st0+st1
+      locs.push_back(ParamLocation::Register(xmms[0]));
+      if (size_in_qwords == 2) {
+        locs.push_back(ParamLocation::Register(xmms[1]));
+      }
+      break;
     }
-    // locs.push_back(ParamLocation::Stack());
-    break;
-  case CAbiArgKind::Float:
-    // TODO: handle x87 in st0 and complex x87 in st0+st1
-    locs.push_back(ParamLocation::Register(xmms[0]));
-    if (size_in_qwords == 2) {
-      locs.push_back(ParamLocation::Register(xmms[1]));
-    }
-    break;
   }
 
   // TODO: do we need to handle __int128/vectors/etc. here?
-  assert(size_in_qwords == 1);
+  // assert(size_in_qwords == 1);
 
   return locs;
 }
@@ -299,7 +308,7 @@ static auto gen_call_asm_test_main() -> int {
   using enum CAbiArgKind;
   auto sig = CAbiSignature{
       .args = {Integral, Integral, Integral},
-      .ret = Integral,
+      .ret = {Integral},
       .variadic = false,
   };
   print_locs(param_locations(sig));
@@ -313,7 +322,7 @@ static auto gen_call_asm_test_main() -> int {
               Integral, Integral, Integral, Integral, Integral, Integral,
               Integral, Integral, Integral, Integral, Integral, Integral,
           },
-      .ret = Integral,
+      .ret = {Integral},
       .variadic = false,
   };
   print_locs(param_locations(sig2));
@@ -321,7 +330,7 @@ static auto gen_call_asm_test_main() -> int {
   auto sig3 = CAbiSignature{
       .args = {Integral, Integral, Integral, Integral, Integral, Integral,
                Integral, Float, Integral},
-      .ret = Integral,
+      .ret = {Integral},
       .variadic = false,
   };
   print_locs(param_locations(sig3));

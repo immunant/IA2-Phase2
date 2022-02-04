@@ -1,4 +1,5 @@
 #pragma once
+#include <vector>
 
 //stack order is rtl
 enum class CAbiArgKind {
@@ -8,6 +9,6 @@ enum class CAbiArgKind {
 
 struct CAbiSignature {
 	std::vector<CAbiArgKind> args;
-	CAbiArgKind ret;
+	std::vector<CAbiArgKind> ret;
 	bool variadic;
 };

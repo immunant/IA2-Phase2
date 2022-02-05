@@ -1,8 +1,6 @@
 # IA2 Phase 2
 
-This repo provides a tool to wrap external libraries with wrappers that use libia2 call gates to keep host applications safe from untrusted libraries.
-
-IA2 Phase 3 will explore other trust models such as mutually-untrusted compartments.
+This repo provides tools for compartmentalizing an application and its dependencies using Intel's memory protection keys (MPK) for userspace. The repo includes a tool that rewrites headers to create call gate wrappers as well as the runtime to initialize the protection keys for trusted compartments.
 
 ## Setup
 
@@ -42,10 +40,19 @@ ninja check-ia2
 
 ## Usage
 
-### From CMake
+### Defining compartments
 
-IA2 Phase 2 provides a CMake rule to wrap a dependency library; this rule builds a wrapper and provides its dependency information to consumers of its outputs.
-Specifically, wrapper libs also depend on libia2 and have additional required compilation flags (-fno-omit-frame-pointer) for application code.
+The [`INIT_COMPARTMENT`](https://github.com/immunant/IA2-Phase2/blob/main/include/ia2.h) macro is used to define trusted compartments at the shared object level. This can be the main executable ELF or any dynamically-linked shared libraries. Memory belonging to a trusted compartment is assigned one of the [15 protection keys](https://man7.org/linux/man-pages/man7/pkeys.7.html) and can only be accessed by the shared object itself. Objects that don't explicitly define a compartment are treated as untrusted by default.
+
+To assign a protection key to a trusted compartment insert `INIT_COMPARTMENT(n)` with an argument between 0-14 specifying the index of the protection key. This argument must differ from the other trusted compartments. Trusted compartments must also be aligned and padded properly by using the linker scripts in `libia2/` (`padding.ld` for executables or `shared_lib.ld` for shared libraries). In CMake this is done automatically for executables built with `define_test` while libraries built with `define_shared_lib` must add `LINK_OPTS "-Wl,-T${libia2_BINARY_DIR}/shared_lib.ld"`. To use in manual builds just include `-Wl,-T$SCRIPT_NAME.ld` in the final compilation step. Manual builds also require disabling lazy binding with `-Wl,-z,now`.
+
+### Wrapping calls
+
+Calls between compartments must have call gates to toggle the PKRU permissions at each transition. For direct calls, this is done by rewriting headers to create the source for a wrapper that provides versions of every function with call gates. This wrapper must then be linked against every shared object that links against the wrapped library.
+
+#### From CMake
+
+We provide a CMake rule to wrap a library or the main executable. This rule builds a wrapper and provides its dependency information to consumers of its outputs. Specifically, wrapper libs also depend on libia2 and have additional required compilation flags (-fno-omit-frame-pointer) for application code.
 
 Usage from CMake looks like this (wrapping `myunsafelib` which is used by your existing `my_prog` target):
 ```diff
@@ -60,9 +67,28 @@ Usage from CMake looks like this (wrapping `myunsafelib` which is used by your e
 +target_link_libraries(my_prog PRIVATE my_wrapper_target)
 ```
 
-### Manual usage
+Wrapped libraries are treated as untrusted by default. If the library being wrapped defined a trusted compartment, `COMPARTMENT_KEY n` must be specified in define_ia2_wrapper. Here `n` is the argument used in `INIT_COMPARTMENT` to define the compartment. To create a wrapper for the main binary (i.e. if shared libraries call it directly) the `WRAP_MAIN` option must be specified.
 
-Alternatively, you can manually build a wrapper library for a given library:
+#### Manual usage
+
+Alternatively, you can manually build a wrapper library using the header rewriter. The header rewriter is an out-of-tree clang tool based on LibTooling.
+
+To run it, use the following command after building it:
+```
+$ /path/to/header-rewriter /path/to/wrapper_output_file.c /path/to/source_1.h /path/to/source_2.h -- -I/usr/lib/clang/A.B.C/include
+```
+
+If the library being wrapped defined a trusted compartment pass in the `--compartment-key=n` option before the `--`.
+
+The wrapper library can then be compiled with (assuming the original library is liboriginal.so):
+```
+$ gcc /path/to/wrapper_output_file.c -shared -Wl,--version-script,/path/to/wrapper_output_file.c.syms -loriginal -o libwrapper.so
+```
+
+The user application can then link against libwrapper.so using the rewritten
+header. For testing you will likely need to add `-Wl,-rpath=path/to/libs` so
+that the linker and dynamic loader can find the original and wrapper libraries.
+
 ```
 # build your library
 $ gcc -g -I../../include/ va_wrap.c -fPIC -shared -o libva_wrap.so
@@ -83,19 +109,3 @@ $ gcc -g output.o -L. -lva_wrap -loutput -o binary
 $ LD_LIBRARY_PATH=. ./binary
 Hello, World!
 ```
-
-### Using the Header Rewriter directly
-The header rewriter is an out-of-tree clang tool based on LibTooling.
-To run it, use the following command after building it:
-```
-$ /path/to/header-rewriter /path/to/wrapper_output_file.c /path/to/source_1.h /path/to/source_2.h -- -I/usr/lib/clang/A.B.C/include
-```
-
-The wrapper library can then be compiled with (assuming the original library is liboriginal.so):
-```
-$ clang /path/to/wrapper_output_file.c -shared -Wl,--version-script,/path/to/wrapper_output_file.c.syms -loriginal -o libwrapper.so
-```
-
-The user application can then link against libwrapper.so using the rewritten
-header. For testing you will likely need to add `-Wl,-rpath=path/to/libs` so
-that the linker and dynamic loader can find the original and wrapper libraries.

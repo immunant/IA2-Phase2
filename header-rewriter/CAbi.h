@@ -1,10 +1,11 @@
 #pragma once
 #include <vector>
 
-// stack order is rtl
+/* the SysV ABI parameter classification of an eightbyte */
 enum class CAbiArgKind {
   Integral,
   Float,
+  Memory,
 };
 
 struct CAbiSignature {

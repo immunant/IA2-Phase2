@@ -211,6 +211,7 @@ auto emit_call_asm(const CAbiSignature& sig, const std::string& name) -> std::st
 	//add_asm_line(ss, "mov rax, [ia2_trusted_stackptr]"); // use rax to point at the trusted stack
 	auto param_locs = param_locations(sig);
 	size_t stack_arg_count = std::ranges::count_if(param_locs, &ParamLocation::is_stack);
+	size_t reg_arg_count = param_locs.size() - stack_arg_count;
 	//TODO: emit memcpy(untrusted_stack, trusted_stack, stack_size);
 	size_t arg_stack_offset = 16;
 	for (const auto& loc : param_locs) {
@@ -220,8 +221,10 @@ auto emit_call_asm(const CAbiSignature& sig, const std::string& name) -> std::st
 		}
 	}
 
-	//push any arg regs
-	add_comment_line(ss, "save used arg regs as they are needed post-scrubbing");
+	//push any reg args
+	if (reg_arg_count > 0) {
+		add_comment_line(ss, "save used arg regs as they are needed post-scrubbing");
+	}
 	for (const auto& loc : param_locs) {
 		if (!loc.is_stack()) {
 			emit_reg_push(ss, loc);
@@ -237,7 +240,9 @@ auto emit_call_asm(const CAbiSignature& sig, const std::string& name) -> std::st
 	add_asm_line(ss, "call __libia2_untrusted_gate_push");
 
 	//pop arg regs
-	add_comment_line(ss, "restore arg regs for call");
+	if (reg_arg_count > 0) {
+		add_comment_line(ss, "restore arg regs for call");
+	}
 	for (auto loc : std::ranges::views::reverse(param_locs)) {
 		if (!loc.is_stack()) {
 			emit_reg_pop(ss, loc);
@@ -249,8 +254,9 @@ auto emit_call_asm(const CAbiSignature& sig, const std::string& name) -> std::st
 	add_asm_line(ss, "call "s + name);
 
 	//save return regs while we change pkru
-	add_comment_line(ss, "push return regs to stack to preserve them while changing pkru");
-	auto return_locs = return_locations(sig);
+	if (reg_arg_count > 0) {
+		add_comment_line(ss, "push return regs to untrusted stack to preserve them while changing pkru");
+	}
 	for (const auto& loc : return_locs) {
 		if (!loc.is_stack()) {
 			emit_reg_push(ss, loc);
@@ -264,7 +270,9 @@ auto emit_call_asm(const CAbiSignature& sig, const std::string& name) -> std::st
 	add_asm_line(ss, "call __libia2_untrusted_gate_pop");
 
 	//restore return regs
-	add_comment_line(ss, "pop return regs");
+	if (reg_arg_count > 0) {
+		add_comment_line(ss, "pop return regs");
+	}
 	for (const auto& loc : return_locs) {
 		if (!loc.is_stack()) {
 			emit_reg_pop(ss, loc);
@@ -277,7 +285,7 @@ auto emit_call_asm(const CAbiSignature& sig, const std::string& name) -> std::st
 	size_t stack_ret_count = std::ranges::count_if(return_locs, &ParamLocation::is_stack);
 	#endif
 
-	add_comment_line(ss, "push return values to trusted stack");
+	add_comment_line(ss, "push return regs to trusted stack before scrubbing registers");
 	add_asm_line(ss, "mov rdi, QWORD PTR ia2_trusted_stackptr@GOTPCREL[rip]");
 	add_asm_line(ss, "mov rdi, [rdi]"); // read the location of top-of-stack
 	//push return regs to trusted stack redzone

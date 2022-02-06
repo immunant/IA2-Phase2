@@ -47,12 +47,20 @@ const std::array<const char*, 8> xmms = {"xmm0","xmm1","xmm2","xmm3","xmm4","xmm
 
 const std::array<const char*, 6> int_ret_reg_order = {"rax","rdx"};
 
+const std::array<const char*, 3> cabi_arg_kind_names = {"int", "float", "mem"};
+
 /*
 compute abi locations for parameters of a C-abi function, given its sequence of argument kinds
 */
 auto param_locations(const CAbiSignature& func) -> std::vector<ParamLocation> {
 	std::vector<ParamLocation> locs = {};
 	size_t ints_used = 0;
+	/* if the return is in memory, the first integer argument is the location to write the return value */
+	size_t memory_return_slots = std::ranges::count_if(func.ret, [](auto& x) { return x == CAbiArgKind::Memory; });
+	if (memory_return_slots > 0) {
+		locs.push_back(ParamLocation::Register(int_param_reg_order[0]));
+		ints_used++;
+	}
 	size_t floats_used = 0;
 	for (const auto& arg : func.args) {
 		switch (arg) {
@@ -72,6 +80,9 @@ auto param_locations(const CAbiSignature& func) -> std::vector<ParamLocation> {
 				}
 				floats_used += 1;
 				break;
+			case CAbiArgKind::Memory:
+				locs.push_back(ParamLocation::Stack());
+				break;
 		}
 	}
 	return locs;
@@ -85,16 +96,13 @@ auto return_locations(const CAbiSignature& func) -> std::vector<ParamLocation> {
 		return locs;
 	}
 
-	//TODO: handle size_in_qwords!
 	for (auto& kind : func.ret) {
-		printf("return loc kind %d (size %zd)\n", (int)kind, size_in_qwords);
 		switch (kind) {
 			case CAbiArgKind::Integral:
 				locs.push_back(ParamLocation::Register(int_ret_reg_order[0]));
 				if (size_in_qwords == 2) {
 					locs.push_back(ParamLocation::Register(int_ret_reg_order[1]));
 				}
-				//locs.push_back(ParamLocation::Stack());
 				break;
 			case CAbiArgKind::Float:
 				//TODO: handle x87 in st0 and complex x87 in st0+st1
@@ -103,11 +111,15 @@ auto return_locations(const CAbiSignature& func) -> std::vector<ParamLocation> {
 					locs.push_back(ParamLocation::Register(xmms[1]));
 				}
 				break;
+			case CAbiArgKind::Memory:
+				/* memory return also returns address in first return register */
+				if (locs.empty()) {
+					locs.push_back(ParamLocation::Register(int_ret_reg_order[0]));
+				}
+				locs.push_back(ParamLocation::Stack());
+				break;
 		}
 	}
-
-	//TODO: do we need to handle __int128/vectors/etc. here?
-	//assert(size_in_qwords == 1);
 
 	return locs;
 }
@@ -159,14 +171,7 @@ static void append_arg_kinds(std::stringstream& ss, std::vector<CAbiArgKind> arg
 		if (!first) {
 			ss << ", ";
 		}
-		switch (arg) {
-			case CAbiArgKind::Integral:
-				ss << "int";
-				break;
-			case CAbiArgKind::Float:
-				ss << "float";
-				break;
-		}
+		ss << cabi_arg_kind_names[(int)arg];
 		first = false;
 	}
 }
@@ -206,18 +211,35 @@ auto emit_call_asm(const CAbiSignature& sig, const std::string& name) -> std::st
 	add_asm_line(ss, "mov rsp, QWORD PTR ia2_untrusted_stackptr@GOTPCREL[rip]");
 	add_asm_line(ss, "mov rsp, [rsp]");
 
-	//copy stack args to untrusted stack
-	add_comment_line(ss, "copy any stack arguments to the untrusted stack");
-	//add_asm_line(ss, "mov rax, [ia2_trusted_stackptr]"); // use rax to point at the trusted stack
 	auto param_locs = param_locations(sig);
 	size_t stack_arg_count = std::ranges::count_if(param_locs, &ParamLocation::is_stack);
+	size_t stack_arg_size = stack_arg_count * 8;
 	size_t reg_arg_count = param_locs.size() - stack_arg_count;
-	//TODO: emit memcpy(untrusted_stack, trusted_stack, stack_size);
-	size_t arg_stack_offset = 16;
-	for (const auto& loc : param_locs) {
+	auto return_locs = return_locations(sig);
+	size_t stack_return_count = std::ranges::count_if(return_locs, &ParamLocation::is_stack);
+	size_t stack_return_size = stack_return_count * 8;
+
+	//if returning via memory, allocate stack space and pass address in rdi
+	if (stack_return_size > 0) {
+		add_comment_line(ss, "set rdi to location to return via memory");
+		add_asm_line(ss, "push rdi");
+		add_asm_line(ss, "sub rsp, "s + std::to_string(stack_return_size));
+		add_asm_line(ss, "mov rdi, rsp");
+	}
+
+	//copy stack args to untrusted stack
+	if (stack_arg_count > 0) {
+		//use rax to point at the trusted stack
+		add_comment_line(ss, "copy stack arguments to the untrusted stack");
+		add_asm_line(ss, "mov rax, QWORD PTR ia2_trusted_stackptr@GOTPCREL[rip]");
+		add_asm_line(ss, "mov rax, [rax]");
+	}
+	//effectively memcpy(untrusted_stack, trusted_stack, stack_size);
+	size_t arg_stack_offset = stack_arg_size;
+	for (const auto& loc : std::ranges::views::reverse(param_locs)) {
 		if (loc.is_stack()) {
+			arg_stack_offset -= 8;
 			add_asm_line(ss, "push qword [rax+"s + std::to_string(arg_stack_offset) + "]");
-			arg_stack_offset += 8;
 		}
 	}
 
@@ -279,11 +301,25 @@ auto emit_call_asm(const CAbiSignature& sig, const std::string& name) -> std::st
 		}
 	}
 
-	#ifdef STACK_RETURNS
+	//return stack space used for stack args
+	if (stack_arg_count > 0) {
+		add_comment_line(ss, "return stack space used for stack args");
+		add_asm_line(ss, "add rsp, "s + std::to_string(stack_arg_size));
+	}
+
 	//copy any stack returns to trusted stack
-	add_comment_line(ss, "copy any stack return values to trusted stack");
-	size_t stack_ret_count = std::ranges::count_if(return_locs, &ParamLocation::is_stack);
-	#endif
+	if (stack_return_size > 0) {
+		//free stack space
+		add_asm_line(ss, "add rsp, "s + std::to_string(stack_return_size));
+		//if we pushed rdi for memory return, pop it now
+		add_comment_line(ss, "copy stack return values to trusted stack");
+		add_asm_line(ss, "pop rdi"); //rdi is the implicit return pointer argument for stack memory
+		add_comment_line(ss, "copy "s + std::to_string(stack_return_size) + " bytes from *rax to *rdi");
+	}
+	for (int i = 0; i < stack_return_size; i += 8) {
+		add_asm_line(ss, "mov rsi, [rax+"s + std::to_string(i) + "]");
+		add_asm_line(ss, "mov [rdi+"s + std::to_string(i) + "], rsi");
+	}
 
 	add_comment_line(ss, "push return regs to trusted stack before scrubbing registers");
 	add_asm_line(ss, "mov rdi, QWORD PTR ia2_trusted_stackptr@GOTPCREL[rip]");

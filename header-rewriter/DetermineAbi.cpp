@@ -1,4 +1,5 @@
 #include "clang/AST/AST.h"
+#include "clang/AST/RecordLayout.h"
 #include "clang/Lex/HeaderSearchOptions.h"
 #include "clang/Lex/PreprocessorOptions.h"
 #include "clang/CodeGen/CodeGenABITypes.h"
@@ -30,10 +31,28 @@ static auto classifyType(const clang::Type& type) -> std::vector<CAbiArgKind> {
 				abort();
 		}
 	} else {
-		return {CAbiArgKind::Integral};
-		//assert(0 && "classifyType called on non-scalar type");
+		const clang::RecordType* rec = type.getAsStructureType();
+		const clang::RecordDecl* decl = rec->getDecl();
+
+		std::vector<CAbiArgKind> out;
+		if (decl->canPassInRegisters()) {
+			for (const auto& x : decl->fields()) {
+				auto recur = classifyType(*x->getType());
+				if(recur.size() != 1) {
+					puts("size of register-passable field not 1!");
+					abort();
+				}
+				out.push_back(recur[0]);
+			}
+			return out;
+		}
+
+		for (const auto& x : decl->fields()) {
+			out.push_back(CAbiArgKind::Memory);
+		}
+		return out;
 	}
-	printf("could not classify type!\n");
+	puts("could not classify type!\n");
 	abort();
 }
 
@@ -60,7 +79,46 @@ static auto abiSlotsForArg(const clang::QualType& qt, const clang::CodeGen::ABIA
 		case Indirect: /* ptr in register */
 			/* fall through */
 		case IndirectAliased: /* ptr in register */
-			return {CAbiArgKind::Integral};//{classifyType(*qt)};
+		{
+			const clang::RecordType* rec = qt->getAsStructureType();
+			if (rec != nullptr) {
+				const clang::RecordDecl* decl = rec->getDecl();
+				const clang::ASTRecordLayout& layout = astContext.getASTRecordLayout(decl);
+				int64_t size = layout.getSize().getQuantity();
+				std::vector<CAbiArgKind> out;
+				if (size > 64) {
+					/* aggregates larger than 8 eightbytes are passed in memory */
+					for (int64_t i = 0; i < size; i += 8) {
+						out.push_back(CAbiArgKind::Memory);
+					}
+					return out;
+				}
+
+				/* aggregates of 1-8 eightbytes have each eightbyte classified individually.
+				we have to iterate over fields to determine which fields are present in each
+				eightbyte, then resolve conflicts with the logic from SysV ABI §3.3.3 (step 4): */
+				auto field_iter = decl->field_begin();
+				auto field_end = decl->field_end();
+				while (field_iter != field_end) {
+					/* for now, just assume all arguments are integral */
+					out.push_back(CAbiArgKind::Integral);
+					field_iter++;
+				}
+
+				/* apply the "post-merger cleanup" described in SysV ABI §3.3.3 (step 5) */
+				/* we do not yet handle x87up, so ignore 5b */
+				/* 5c (n.b. that we ignore the sseup condition as we do not yet handle sseup) */
+				if (out.size() > 2 && out[0] != CAbiArgKind::Float) {
+					for(auto& i : out) {
+						i = CAbiArgKind::Memory;
+					}
+					return out;
+				}
+				/* we do not yet handle sseup, so ignore 5d */
+
+				return out;
+			}
+		}
 		case Direct: /* in register */
 		{
 			llvm::StructType *STy = dyn_cast<llvm::StructType>(argInfo.getCoerceToType());

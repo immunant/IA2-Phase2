@@ -150,18 +150,14 @@ static auto abiSlotsForArg(const clang::QualType &qt,
                  // fall through
   case InAlloca: // via implicit pointer
     return {};
-  case Expand: // split aggregate into multiple registers
-    assert(0 && "unhandled \"Expand\" type when computing ABI slots");
-    // return getExpansionSize(qt, astContext);
+  case Expand: // split aggregate into multiple registers -- already handled
+               // before our logic runs?
+    puts("unhandled \"Expand\" type when computing ABI slots");
+    abort();
   case CoerceAndExpand: // same as Expand for our concerns
-  {
-    const auto &seq = argInfo.getCoerceAndExpandTypeSequence();
-    std::vector<CAbiArgKind> out = {};
-    for (const auto &elem : seq) {
-      out.push_back(classifyLlvmType(*elem));
-    }
-    return out;
-  }
+    // this code is, afaict, dead
+    puts("unhandled \"CoerceAndExpand\" type when computing ABI slots");
+    abort();
   }
   printf("could not compute ABI slots for arg!\n");
   abort();

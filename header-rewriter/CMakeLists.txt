@@ -13,6 +13,8 @@ include_directories(${CLANG_INCLUDE_DIRS} ${LLVM_INCLUDE_DIRS})
 
 add_executable(ia2-header-rewriter
     HeaderRewriter.cpp
+    DetermineAbi.cpp
+    GenCallAsm.cpp
     )
 
 set_property(TARGET ia2-header-rewriter PROPERTY CXX_STANDARD 20)

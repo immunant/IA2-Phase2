@@ -28,33 +28,37 @@
 
 #ifdef LIBIA2_INSECURE
 
-#define __libia2_gate_push(idx)
-#define __libia2_gate_pop()
+void __libia2_gate_push(uint32_t idx) {}
+void __libia2_gate_pop() {}
 
 #else
 
-#define __libia2_gate_push(idx)                                                \
-  uint32_t new_pkru = PKRU_UNTRUSTED;                                          \
-  if (idx != NO_PKEY) {                                                        \
-    int32_t pkey = ((int32_t *)&IA2_INIT_DATA)[idx];                           \
-    if (pkey == PKEY_UNINITIALIZED) {                                          \
-      printf("Entering another compartment without a protection key\n");       \
-      exit(-1);                                                                \
-    }                                                                          \
-    new_pkru &= ~(3 << (2 * pkey));                                            \
-  }                                                                            \
-  uint32_t old_pkru;                                                           \
-  READ_PKRU(old_pkru);                                                         \
+// FIXME: new_pkru needs to be stored in trusted TLS to be accessible from
+// __libia2_gate_pop
+void __libia2_gate_push(uint32_t idx) {
+  uint32_t new_pkru = PKRU_UNTRUSTED;
+  if (idx != NO_PKEY) {
+    int32_t pkey = ((int32_t *)&IA2_INIT_DATA)[idx];
+    if (pkey == PKEY_UNINITIALIZED) {
+      printf("Entering another compartment without a protection key\n");
+      exit(-1);
+    }
+    new_pkru &= ~(3 << (2 * pkey));
+  }
+  uint32_t old_pkru;
+  READ_PKRU(old_pkru);
   WRITE_PKRU(new_pkru);
+}
 
-#define __libia2_gate_pop()                                                    \
-  uint32_t pkru;                                                               \
-  READ_PKRU(pkru);                                                             \
-  if (pkru != new_pkru) {                                                      \
-    printf("PKRU changed inside compartment\n");                               \
-    exit(-1);                                                                  \
-  }                                                                            \
-  WRITE_PKRU(old_pkru);
+void __libia2_gate_pop() {
+  uint32_t pkru;
+  READ_PKRU(pkru);
+  /*if (pkru != new_pkru) {
+      printf("PKRU changed inside compartment\n");
+      exit(-1);
+  }*/
+  WRITE_PKRU(0);
+}
 
 #endif
 

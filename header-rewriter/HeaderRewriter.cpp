@@ -1,3 +1,5 @@
+#include "DetermineAbi.h"
+#include "GenCallAsm.h"
 #include "clang/AST/AST.h"
 #include "clang/AST/GlobalDecl.h"
 #include "clang/AST/Mangle.h"
@@ -255,15 +257,17 @@ public:
           ret_stmt = "    return res;\n";
         }
 
+        auto cAbiSig = determineAbiForDecl(*fn_decl);
+        auto call_asm = emit_call_asm(cAbiSig, fn_name, CompartmentKey);
+
+        // Generate wrapper symbol definition, invoking call gates around call
         WrapperOut << llvm::formatv(
-            "{0}({1}) {\n"
-            "    __libia2_gate_push(PKEY_IDX);\n"
-            "    {2}{3}({4});\n"
-            "    __libia2_gate_pop();\n"
-            "{5}"
-            "}\n",
+            "{0}({1});\n"
+            "asm(\n"
+            "{2}\n"
+            ");\n\n",
             replace_type_placeholder(ret_type_string, wrapper_name),
-            param_decls, ret_val, fn_name, param_names, ret_stmt);
+            param_decls, call_asm);
 
         SymsOut << "    " << wrapper_name << ";\n";
       }

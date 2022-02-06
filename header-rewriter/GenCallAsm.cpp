@@ -147,12 +147,10 @@ static void emit_reg_pop(std::stringstream &ss, const ParamLocation &loc) {
   }
 }
 
-static auto sig_string(const CAbiSignature &sig, const std::string &name)
-    -> std::string {
-  std::stringstream ss = {};
+static void append_arg_kinds(std::stringstream &ss,
+                             std::vector<CAbiArgKind> args) {
   bool first = true;
-  ss << name << "(";
-  for (auto arg : sig.args) {
+  for (auto arg : args) {
     if (!first) {
       ss << ", ";
     }
@@ -164,8 +162,20 @@ static auto sig_string(const CAbiSignature &sig, const std::string &name)
       ss << "float";
       break;
     }
+    first = false;
   }
+}
+
+static auto sig_string(const CAbiSignature &sig, const std::string &name)
+    -> std::string {
+  std::stringstream ss = {};
+  ss << name << "(";
+  append_arg_kinds(ss, sig.args);
   ss << ")";
+  if (!sig.ret.empty()) {
+    ss << " -> ";
+    append_arg_kinds(ss, sig.ret);
+  }
   return ss.str();
 }
 

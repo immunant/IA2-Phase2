@@ -127,14 +127,15 @@ static void print_locs(const std::vector<ParamLocation> &locs) {
   std::cout << std::endl;
 }
 
-static void add_asm_line(std::stringstream &ss, const std::string &s) {
-  ss << "\"" << s << "\\n\"" << std::endl;
-}
-
+#define INDENT "    "
 #define COMMENT_PREFIX "// "
 
+static void add_asm_line(std::stringstream &ss, const std::string &s) {
+  ss << INDENT << "\"" << s << "\\n\"" << std::endl;
+}
+
 static void add_comment_line(std::stringstream &ss, const std::string &s) {
-  ss << COMMENT_PREFIX << s << std::endl;
+  ss << INDENT << COMMENT_PREFIX << s << std::endl;
 }
 
 static void emit_reg_push(std::stringstream &ss, const ParamLocation &loc) {
@@ -197,8 +198,8 @@ auto emit_call_asm(const CAbiSignature &sig, const std::string &name, int pkey)
   add_comment_line(ss, "wrapper for "s + sig_string(sig, name) + ":");
 
   // declare symbol
-  ss << "\".global __ia2_" << name << "\\n\"" << std::endl;
-  ss << "\"__ia2_" << name << ":\\n\"" << std::endl;
+  ss << INDENT << "\".global __ia2_" << name << "\\n\"" << std::endl;
+  ss << INDENT << "\"__ia2_" << name << ":\\n\"" << std::endl;
 
   // save trusted stack ptr to trusted tls
   add_comment_line(ss, "save trusted stack ptr to trusted tls");

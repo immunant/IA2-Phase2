@@ -140,7 +140,7 @@ function(define_ia2_wrapper)
           -I ${REWRITTEN_HEADER_DIR}
           -isystem ${C_SYSTEM_INCLUDE}
           -isystem ${C_SYSTEM_INCLUDE_FIXED}
-        DEPENDS ${HEADER_SRCS}
+        DEPENDS ${HEADER_SRCS} ia2-header-rewriter
         VERBATIM)
 
     # If we're producing a wrapper for the main binary we don't need to link

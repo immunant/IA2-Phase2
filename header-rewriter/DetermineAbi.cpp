@@ -106,7 +106,7 @@ static auto abiSlotsForArg(const clang::QualType &qt,
       auto field_iter = decl->field_begin();
       auto field_end = decl->field_end();
       while (field_iter != field_end) {
-        // for now, just assume all arguments are integral
+        // FIXME: for now, just assume all arguments are integral
         out.push_back(CAbiArgKind::Integral);
         field_iter++;
       }

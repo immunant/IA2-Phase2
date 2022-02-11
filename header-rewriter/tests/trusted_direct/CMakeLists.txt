@@ -15,10 +15,12 @@ define_ia2_wrapper(
 # Build the wrapper lib for the main binary
 define_ia2_wrapper(
     WRAP_MAIN
+    # The main binary has key 0
     COMPARTMENT_KEY 0
     HEADERS exported_fn.h
     INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/main/
-    CALLER_KEY 1
+    # This wrapper's caller is the library which is untrusted
+    CALLER_KEY NO_PKEY
 )
 
 # Build the plugin lib

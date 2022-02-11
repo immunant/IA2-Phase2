@@ -557,13 +557,13 @@ int main(int argc, const char **argv) {
     return EC.value();
   }
 
+  if (CompartmentKey.getNumOccurrences() == 0) {
+    wrapper_out << "#define CALLEE_PKEY NO_PKEY\n";
+  } else {
+    wrapper_out << "#define CALLEE_PKEY " << CompartmentKey << "\n";
+  }
   wrapper_out << "#define IA2_WRAPPER\n"
               << "#include <ia2.h>\n";
-  if (CompartmentKey.getNumOccurrences() == 0) {
-    wrapper_out << "#define PKEY_IDX NO_PKEY\n";
-  } else {
-    wrapper_out << "#define PKEY_IDX " << CompartmentKey << "\n";
-  }
   // Add dummy definitions of the untrusted stack, trusted TLS storage
   // for stack pointers, and the __libia2_scrub_registers function
   wrapper_out

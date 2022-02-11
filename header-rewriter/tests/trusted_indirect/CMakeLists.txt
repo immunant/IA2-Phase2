@@ -11,6 +11,7 @@ define_shared_lib(
 
 define_ia2_wrapper(
     HEADERS rand_op.h
+    CALLER_KEY 0
 )
 
 define_test(

@@ -9,7 +9,7 @@ use core::sync::atomic::{AtomicI32, Ordering};
 // -1 == unsupported
 //  0 == ERROR (this would be the default untrusted pkey)
 // >0 == trusted key
-pub const PKEY_UNINITIALIZED: i32 = -2;
+const PKEY_UNINITIALIZED: i32 = -2;
 
 // On linux protection key 0 (the two LSBits of PKRU) is the default for
 // anything not covered by pkey_mprotect so we only have 15 keys to work with.

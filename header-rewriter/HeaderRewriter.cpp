@@ -558,8 +558,7 @@ int main(int argc, const char **argv) {
   if (CompartmentKey.getNumOccurrences() == 0) {
     wrapper_out << "#define PKEY_IDX NO_PKEY\n";
   } else {
-    wrapper_out << "#define PKEY_IDX " << CompartmentKey
-                << "\n";
+    wrapper_out << "#define PKEY_IDX " << CompartmentKey << "\n";
   }
   syms_out << "IA2 {\n"
            << "  global:\n";

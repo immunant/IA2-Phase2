@@ -9,6 +9,7 @@ configure_file(${STDOUT_REF} ${CMAKE_CURRENT_BINARY_DIR}/trusted_direct.out)
 define_ia2_wrapper(
     HEADERS plugin.h
     INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/plugin/
+    CALLER_KEY 0
 )
 
 # Build the wrapper lib for the main binary
@@ -17,6 +18,7 @@ define_ia2_wrapper(
     COMPARTMENT_KEY 0
     HEADERS exported_fn.h
     INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/main/
+    CALLER_KEY 1
 )
 
 # Build the plugin lib

@@ -3,6 +3,7 @@ set(HEADERS functions.h)
 # Build the wrapper lib
 define_ia2_wrapper(
     HEADERS ${HEADERS}
+    CALLER_KEY 0
 )
 
 # Build the wrapped lib

@@ -91,18 +91,9 @@
 
 #endif
 
-// FIXME: All the IA2_FNPTR_* macros only work if `target` is a valid identifier
-// unique to the binary.
-#define IA2_FNPTR_WRAPPER(target, ty)                                          \
-  ({                                                                           \
-    IA2_FNPTR_WRAPPER_##ty(IA2_fnptr_wrapper_##target) {                       \
-      __libia2_gate_push(NO_PKEY);                                             \
-      IA2_FNPTR_RETURN_##ty(__res) = target(IA2_FNPTR_ARG_NAMES_##ty);         \
-      __libia2_gate_pop();                                                     \
-      return __res;                                                            \
-    }                                                                          \
-    (struct IA2_fnptr_##ty){(char *)IA2_fnptr_wrapper_##target};               \
-  })
+// TODO: Remove this after adding the integrated gates to indirect wrappers
+#define __libia2_gate_push(x)
+#define __libia2_gate_pop()
 
 #define IA2_FNPTR_WRAPPER_VOID(target, ty)                                     \
   ({                                                                           \

@@ -7,6 +7,7 @@ define_shared_lib(
 
 define_ia2_wrapper(
     HEADERS structs.h
+    CALLER_KEY 0
 )
 
 define_test(

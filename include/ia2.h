@@ -64,8 +64,20 @@
 
 #ifdef LIBIA2_INSECURE
 #define GATE(x)
+#define DISABLE_PKRU
 #else
 #define GATE(pkey) _GATE(pkey)
+// FIXME: Remove this after removing INIT_DATA (see issue #66).
+#define DISABLE_PKRU    \
+    "mov r10d, ecx\n"   \
+    "mov r11d, edx\n"   \
+    "mov eax, 0\n"      \
+    "mov ecx, 0\n"      \
+    "mov edx, 0\n"      \
+    "wrpkru\n"          \
+    "mov edx, r11d\n"   \
+    "mov ecx, r10d\n"
+
 #endif
 
 #define _GATE(pkey) GATE_##pkey
@@ -84,17 +96,6 @@
 #define GATE_12 GATE_TRUSTED(12)
 #define GATE_13 GATE_TRUSTED(13)
 #define GATE_14 GATE_TRUSTED(14)
-
-// FIXME: Remove this after removing INIT_DATA (see issue #66).
-#define DISABLE_PKRU    \
-    "mov r10d, ecx\n"   \
-    "mov r11d, edx\n"   \
-    "mov eax, 0\n"      \
-    "mov ecx, 0\n"      \
-    "mov edx, 0\n"      \
-    "wrpkru\n"          \
-    "mov edx, r11d\n"   \
-    "mov ecx, r10d\n"
 
 // FIXME: This doesn't support arguments on the stack or in r9 (the last
 // register). Also doesn't support returning 128-bit values (rdx).

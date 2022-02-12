@@ -13,6 +13,8 @@
 
 #define XSTR(s) STR(s)
 #define STR(s) #s
+// TODO: Incorporate __FILE_NAME__ and __COUNTER__ if possible to make this more
+// flexible.
 #define UNIQUE_STR(s) s XSTR(__LINE__)
 
 // On linux protection key 0 is the default for anything not covered by
@@ -83,7 +85,7 @@
 #define GATE_13 GATE_TRUSTED(13)
 #define GATE_14 GATE_TRUSTED(14)
 
-// FIXME: Remove this after removing INIT_DATA (see issue #66)
+// FIXME: Remove this after removing INIT_DATA (see issue #66).
 #define DISABLE_PKRU    \
     "mov r10d, ecx\n"   \
     "mov r11d, edx\n"   \
@@ -94,20 +96,27 @@
     "mov edx, r11d\n"   \
     "mov ecx, r10d\n"
 
+// FIXME: This doesn't support arguments on the stack or in r9 (the last
+// register). Also doesn't support returning 128-bit values (rdx).
 #define INDIRECT_WRAPPER(target, caller_pkey, target_pkey)                     \
     ".intel_syntax noprefix\n"                                                 \
     /* Jump to a subsection of .text to prevent inlining this function */      \
     ".text 1\n"                                                                \
+    /* This is the symbol name that will appear in the executable */           \
     "__ia2_" UNIQUE_STR(#target) "_wrapper:\n"                                 \
+    /* Set the value of the wrapper name used by asm to this location */       \
     ".equ __ia2_" UNIQUE_STR(#target) ",.\n"                                   \
     DISABLE_PKRU                                                               \
     "mov r9, QWORD PTR " UNIQUE_STR(#target) "@GOTPCREL[rip]\n"                \
     "mov r9, QWORD PTR [r9]\n"                                                 \
+    /* Switch PKRU to the target compartment */                                \
     GATE(target_pkey)                                                          \
     "call r9\n"                                                                \
+    /* Save return value before toggling PKRU */                               \
     "mov r9, rax\n"                                                            \
     DISABLE_PKRU                                                               \
     GATE(caller_pkey)                                                          \
+    /* Put return value back in the right register */                          \
     "mov rax, r9\n"                                                            \
     "ret\n"                                                                    \
     /* Jump back to the previous location in .text */                          \

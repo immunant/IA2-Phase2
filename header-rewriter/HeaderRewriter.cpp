@@ -558,11 +558,12 @@ int main(int argc, const char **argv) {
   }
 
   if (CompartmentKey.getNumOccurrences() == 0) {
-    wrapper_out << "#define CALLEE_PKEY NO_PKEY\n";
+    wrapper_out << "#define GATE_PUSH GATE(NO_PKEY)\n";
   } else {
-    wrapper_out << "#define CALLEE_PKEY " << CompartmentKey << "\n";
+    wrapper_out << "#define GATE_PUSH GATE(" << CompartmentKey << ")\n";
   }
-  wrapper_out << "#define IA2_WRAPPER\n"
+  wrapper_out << "#define GATE_POP GATE(CALLER_PKEY)\n"
+              << "#define IA2_WRAPPER\n"
               << "#include <ia2.h>\n";
   // Add dummy definitions of the untrusted stack, trusted TLS storage
   // for stack pointers, and the __libia2_scrub_registers function

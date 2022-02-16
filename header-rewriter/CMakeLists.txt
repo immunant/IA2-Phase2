@@ -17,7 +17,7 @@ add_executable(ia2-header-rewriter
     GenCallAsm.cpp
     )
 
-set_property(TARGET ia2-header-rewriter PROPERTY
+set_target_properties(ia2-header-rewriter PROPERTIES
     CXX_STANDARD 20
     CXX_STANDARD_REQUIRED ON)
 

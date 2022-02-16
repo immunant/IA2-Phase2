@@ -1,11 +1,13 @@
 #include "CAbi.h"
 #include "clang/AST/AST.h"
 #include "clang/AST/RecordLayout.h"
+#include "clang/Basic/CodeGenOptions.h"
 #include "clang/CodeGen/CGFunctionInfo.h"
 #include "clang/CodeGen/CodeGenABITypes.h"
 #include "clang/CodeGen/ModuleBuilder.h"
 #include "clang/Lex/HeaderSearchOptions.h"
 #include "clang/Lex/PreprocessorOptions.h"
+#include "llvm/IR/LLVMContext.h"
 
 static auto classifyType(const clang::Type &type) -> std::vector<CAbiArgKind> {
   if (type.isVoidType())
@@ -79,12 +81,16 @@ static auto abiSlotsForArg(const clang::QualType &qt,
   // this function is most similar to Clang's `ClangToLLVMArgMapping::construct`
   typedef enum clang::CodeGen::ABIArgInfo::Kind Kind;
   switch (argInfo.getKind()) {
-  case Kind::Extend:          // in register with zext/sext
-                              // fall through
-  case Kind::Indirect:        // ptr in register
-                              // fall through
-  case Kind::IndirectAliased: // ptr in register
-  {
+  // in register with zext/sext
+  case Kind::Extend:
+    [[fallthrough]];
+#if LLVM_VERSION_MAJOR >= 12
+  // ptr in register
+  case Kind::IndirectAliased:
+    [[fallthrough]];
+#endif
+  // ptr in register
+  case Kind::Indirect: {
     const clang::RecordType *rec = qt->getAsStructureType();
     if (rec != nullptr) {
       const clang::RecordDecl *decl = rec->getDecl();

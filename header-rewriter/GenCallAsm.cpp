@@ -134,7 +134,7 @@ static void add_asm_line(std::stringstream &ss, const std::string &s) {
   ss << INDENT << "\"" << s << "\\n\"" << std::endl;
 }
 
-static void add_unquoted_line(std::stringstream &ss, const std::string &s) {
+static void add_raw_line(std::stringstream &ss, const std::string &s) {
   ss << INDENT << s << std::endl;
 }
 
@@ -267,9 +267,7 @@ auto emit_call_asm(const CAbiSignature &sig, const std::string &name, int pkey)
 
   // change pkru to untrusted
   add_comment_line(ss, "change pkru to untrusted");
-  // TODO: this likely isn't necessary
-  add_asm_line(ss, "mov rdi, " + std::to_string(pkey));
-  add_unquoted_line(ss, "GATE_PUSH");
+  add_raw_line(ss, "GATE_PUSH");
 
   // pop arg regs
   if (reg_arg_count > 0) {
@@ -303,7 +301,7 @@ auto emit_call_asm(const CAbiSignature &sig, const std::string &name, int pkey)
   // change pkru to trusted
   add_comment_line(ss, "change pkru to trusted");
   // add_asm_line(ss, "call __libia2_gate_pop");
-  add_unquoted_line(ss, "GATE_POP");
+  add_raw_line(ss, "GATE_POP");
 
   // restore return regs
   if (reg_arg_count > 0) {

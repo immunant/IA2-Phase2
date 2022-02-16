@@ -199,7 +199,6 @@ auto determineAbiForDecl(const clang::FunctionDecl &fnDecl) -> CAbiSignature {
   clang::CodeGen::CodeGenModule &cgm = codeGenerator->CGM();
 
   auto name = fnDecl.getNameInfo().getAsString();
-  printf("computing abi for %s\n", name.c_str());
   const auto &info = cgFunctionInfo(cgm, fnDecl);
 
   const auto &convention = info.getEffectiveCallingConvention();

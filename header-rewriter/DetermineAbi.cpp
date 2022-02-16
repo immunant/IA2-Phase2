@@ -76,13 +76,13 @@ static auto abiSlotsForArg(const clang::QualType &qt,
                            const clang::ASTContext &astContext)
     -> std::vector<CAbiArgKind> {
   // this function is most similar to Clang's `ClangToLLVMArgMapping::construct`
-  using enum clang::CodeGen::ABIArgInfo::Kind;
+  typedef enum clang::CodeGen::ABIArgInfo::Kind Kind;
   switch (argInfo.getKind()) {
-  case Extend:          // in register with zext/sext
+  case Kind::Extend:          // in register with zext/sext
                         // fall through
-  case Indirect:        // ptr in register
+  case Kind::Indirect:        // ptr in register
                         // fall through
-  case IndirectAliased: // ptr in register
+  case Kind::IndirectAliased: // ptr in register
   {
     const clang::RecordType *rec = qt->getAsStructureType();
     if (rec != nullptr) {
@@ -126,7 +126,7 @@ static auto abiSlotsForArg(const clang::QualType &qt,
       return out;
     }
   }
-  case Direct: // in register
+  case Kind::Direct: // in register
   {
     llvm::StructType *STy =
         dyn_cast<llvm::StructType>(argInfo.getCoerceToType());
@@ -146,15 +146,15 @@ static auto abiSlotsForArg(const clang::QualType &qt,
     // if not flattenable, classify the single-register value
     return classifyType(*qt.getCanonicalType());
   }
-  case Ignore:   // no ABI presence
+  case Kind::Ignore:   // no ABI presence
                  // fall through
-  case InAlloca: // via implicit pointer
+  case Kind::InAlloca: // via implicit pointer
     return {};
-  case Expand: // split aggregate into multiple registers -- already handled
+  case Kind::Expand: // split aggregate into multiple registers -- already handled
                // before our logic runs?
     puts("unhandled \"Expand\" type when computing ABI slots");
     abort();
-  case CoerceAndExpand: // same as Expand for our concerns
+  case Kind::CoerceAndExpand: // same as Expand for our concerns
     // this code is, afaict, dead
     puts("unhandled \"CoerceAndExpand\" type when computing ABI slots");
     abort();

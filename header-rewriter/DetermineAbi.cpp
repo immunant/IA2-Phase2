@@ -1,6 +1,7 @@
 #include "CAbi.h"
 #include "clang/AST/AST.h"
 #include "clang/AST/RecordLayout.h"
+#include "clang/CodeGen/CGFunctionInfo.h"
 #include "clang/CodeGen/CodeGenABITypes.h"
 #include "clang/CodeGen/ModuleBuilder.h"
 #include "clang/Lex/HeaderSearchOptions.h"
@@ -79,9 +80,9 @@ static auto abiSlotsForArg(const clang::QualType &qt,
   typedef enum clang::CodeGen::ABIArgInfo::Kind Kind;
   switch (argInfo.getKind()) {
   case Kind::Extend:          // in register with zext/sext
-                        // fall through
+                              // fall through
   case Kind::Indirect:        // ptr in register
-                        // fall through
+                              // fall through
   case Kind::IndirectAliased: // ptr in register
   {
     const clang::RecordType *rec = qt->getAsStructureType();
@@ -147,11 +148,11 @@ static auto abiSlotsForArg(const clang::QualType &qt,
     return classifyType(*qt.getCanonicalType());
   }
   case Kind::Ignore:   // no ABI presence
-                 // fall through
+                       // fall through
   case Kind::InAlloca: // via implicit pointer
     return {};
-  case Kind::Expand: // split aggregate into multiple registers -- already handled
-               // before our logic runs?
+  case Kind::Expand: // split aggregate into multiple registers -- already
+                     // handled before our logic runs?
     puts("unhandled \"Expand\" type when computing ABI slots");
     abort();
   case Kind::CoerceAndExpand: // same as Expand for our concerns

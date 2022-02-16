@@ -569,7 +569,7 @@ int main(int argc, const char **argv) {
   // for stack pointers, and the __libia2_scrub_registers function
   wrapper_out
       << "static char untrusted_stack[8 * 1024 * 1024];\n"
-      << "static void* ia2_untrusted_stackptr = &untrusted_stack[4 * 1024 * 1024 + 8];\n"
+      << "static void* ia2_untrusted_stackptr = &untrusted_stack[4 * 1024 * 1024];\n"
       << "static void* ia2_trusted_stackptr;\n"
       << "void __libia2_scrub_registers(void) {}\n";
   syms_out << "IA2 {\n"

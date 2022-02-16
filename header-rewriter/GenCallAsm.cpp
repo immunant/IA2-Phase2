@@ -235,13 +235,18 @@ auto emit_call_asm(const CAbiSignature &sig, const std::string &name, int pkey)
 
   // copy stack args to untrusted stack
   if (stack_arg_count > 0) {
-    // use rax to point at the trusted stack
-    add_comment_line(ss, "copy stack arguments to the untrusted stack");
+    // use rax to point at the trusted stack which we are copying from
+    add_comment_line(ss, "copy stack arguments from the trusted stack to the untrusted stack");
     add_asm_line(ss, "mov rax, QWORD PTR ia2_trusted_stackptr@GOTPCREL[rip]");
     add_asm_line(ss, "mov rax, [rax]");
   }
   // effectively memcpy(untrusted_stack, trusted_stack, stack_size);
   size_t arg_stack_offset = stack_arg_size;
+  size_t stack_misalignment = arg_stack_offset % 16;
+  if (stack_misalignment != 0) {
+      assert(stack_misalignment == 8);
+      add_asm_line(ss, "sub rsp, 8");
+  }
   for (const auto &loc : std::ranges::views::reverse(param_locs)) {
     if (loc.is_stack()) {
       arg_stack_offset -= 8;
@@ -314,9 +319,9 @@ auto emit_call_asm(const CAbiSignature &sig, const std::string &name, int pkey)
   }
 
   // return stack space used for stack args
-  if (stack_arg_count > 0) {
+  if (stack_arg_size > 0) {
     add_comment_line(ss, "return stack space used for stack args");
-    add_asm_line(ss, "add rsp, "s + std::to_string(stack_arg_size));
+    add_asm_line(ss, "add rsp, "s + std::to_string(stack_arg_size + stack_misalignment));
   }
 
   // copy any stack returns to trusted stack

@@ -571,9 +571,9 @@ int main(int argc, const char **argv) {
   // Add dummy definitions of the untrusted stack, trusted TLS storage
   // for stack pointers, and the __libia2_scrub_registers function
   wrapper_out
-      << "static char untrusted_stack[8 * 1024 * 1024] __attribute__((aligned(16)));\n"
-      << "static void* ia2_untrusted_stackptr = &untrusted_stack[4 * 1024 * 1024];\n"
-      << "static void* ia2_trusted_stackptr;\n"
+      << "static char untrusted_stack[8 * 1024 * 1024] __attribute__((aligned(16))) __attribute__((used));\n"
+      << "static void* ia2_untrusted_stackptr __attribute__((used)) = &untrusted_stack[4 * 1024 * 1024];\n"
+      << "static void* ia2_trusted_stackptr __attribute__((used));\n"
       << "void __libia2_scrub_registers(void) {}\n";
   syms_out << "IA2 {\n"
            << "  global:\n";

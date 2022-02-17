@@ -250,7 +250,7 @@ auto emit_asm_wrapper(const CAbiSignature &sig, const std::string &name)
   for (const auto &loc : std::ranges::views::reverse(param_locs)) {
     if (loc.is_stack()) {
       arg_stack_offset -= 8;
-      add_asm_line(ss, "push qword [rax+"s + std::to_string(arg_stack_offset) +
+      add_asm_line(ss, "push qword ptr [rax+"s + std::to_string(arg_stack_offset) +
                            "]");
     }
   }

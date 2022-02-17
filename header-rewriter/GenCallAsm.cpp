@@ -191,7 +191,7 @@ static auto sig_string(const CAbiSignature &sig, const std::string &name)
   return ss.str();
 }
 
-auto emit_call_asm(const CAbiSignature &sig, const std::string &name, int pkey)
+auto emit_asm_wrapper(const CAbiSignature &sig, const std::string &name)
     -> std::string {
   using namespace std::string_literals;
 

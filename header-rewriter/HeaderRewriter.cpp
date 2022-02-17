@@ -258,7 +258,7 @@ public:
         }
 
         auto cAbiSig = determineAbiForDecl(*fn_decl);
-        auto call_asm = emit_call_asm(cAbiSig, fn_name, CompartmentKey);
+        auto asm_wrapper = emit_asm_wrapper(cAbiSig, fn_name);
 
         // Generate wrapper symbol definition, invoking call gates around call
         WrapperOut << llvm::formatv(
@@ -267,7 +267,7 @@ public:
             "{2}\n"
             ");\n\n",
             replace_type_placeholder(ret_type_string, wrapper_name),
-            param_decls, call_asm);
+            param_decls, asm_wrapper);
 
         SymsOut << "    " << wrapper_name << ";\n";
       }

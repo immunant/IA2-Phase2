@@ -50,8 +50,9 @@ auto param_locations(const CAbiSignature &func) -> std::vector<ParamLocation> {
   size_t ints_used = 0;
   // if the return is in memory, the first integer argument is the location to
   // write the return value
-  size_t memory_return_slots = std::ranges::count_if(
-      func.ret, [](auto &x) { return x == CAbiArgKind::Memory; });
+  size_t memory_return_slots =
+      std::count_if(func.ret.begin(), func.ret.end(),
+                    [](auto &x) { return x == CAbiArgKind::Memory; });
   if (memory_return_slots > 0) {
     locs.push_back(ParamLocation::Register(int_param_reg_order[0]));
     ints_used++;
@@ -215,13 +216,14 @@ auto emit_asm_wrapper(const CAbiSignature &sig, const std::string &name)
   add_asm_line(ss, "mov rsp, [rsp]");
 
   auto param_locs = param_locations(sig);
-  size_t stack_arg_count =
-      std::ranges::count_if(param_locs, &ParamLocation::is_stack);
+  size_t stack_arg_count = std::count_if(param_locs.begin(), param_locs.end(),
+                                         [](auto &x) { return x.is_stack(); });
   size_t stack_arg_size = stack_arg_count * 8;
   size_t reg_arg_count = param_locs.size() - stack_arg_count;
   auto return_locs = return_locations(sig);
   size_t stack_return_count =
-      std::ranges::count_if(return_locs, &ParamLocation::is_stack);
+      std::count_if(return_locs.begin(), return_locs.end(),
+                    [](auto &x) { return x.is_stack(); });
   size_t stack_return_size = stack_return_count * 8;
 
   // if returning via memory, allocate stack space and pass address in rdi

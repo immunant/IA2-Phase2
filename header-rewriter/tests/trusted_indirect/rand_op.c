@@ -43,6 +43,7 @@ static uint32_t steal_secret(uint32_t x, uint32_t y) {
     if (secret_address) {
         printf("the secret is %x\n", CHECK_VIOLATION(*secret_address));
     }
+    return 0;
 }
 
 function_t get_bad_function(void) {

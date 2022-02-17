@@ -559,6 +559,9 @@ int main(int argc, const char **argv) {
 
   wrapper_out << "#define IA2_WRAPPER\n"
               << "#include <ia2.h>\n"
+              << "#ifndef CALLER_PKEY\n"
+              << "#error CALLER_PKEY must be defined to compile this file\n"
+              << "#endif\n"
               << "#define GATE_POP GATE(CALLER_PKEY)\n";
   if (CompartmentKey.getNumOccurrences() == 0) {
     wrapper_out << "#define GATE_PUSH GATE(NO_PKEY)\n";

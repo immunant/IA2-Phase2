@@ -23,16 +23,14 @@ static auto classifyType(const clang::Type &type) -> std::vector<CAbiArgKind> {
       return {CAbiArgKind::Float};
     case clang::Type::ScalarTypeKind::STK_IntegralComplex:
     case clang::Type::ScalarTypeKind::STK_FloatingComplex:
-      puts("complex types not yet supported for ABI computation");
-      abort();
+      llvm::report_fatal_error("complex types not yet supported for ABI computation");
     case clang::Type::ScalarTypeKind::STK_BlockPointer:
     case clang::Type::ScalarTypeKind::STK_ObjCObjectPointer:
     case clang::Type::ScalarTypeKind::STK_MemberPointer:
       // these may have special ABI handling due to containing code
       // pointers or having special calling convention
-      puts(
+      llvm::report_fatal_error(
           "unsupported scalar type (obj-C object, Clang block, or C++ member) found during ABI computation");
-      abort();
     }
   } else {
     const clang::RecordType *rec = type.getAsStructureType();
@@ -43,8 +41,7 @@ static auto classifyType(const clang::Type &type) -> std::vector<CAbiArgKind> {
       for (const auto &x : decl->fields()) {
         auto recur = classifyType(*x->getType());
         if (recur.size() != 1) {
-          puts("size of register-passable field not 1!");
-          abort();
+          llvm::report_fatal_error("size of register-passable field not 1!");
         }
         out.push_back(recur[0]);
       }
@@ -56,8 +53,7 @@ static auto classifyType(const clang::Type &type) -> std::vector<CAbiArgKind> {
     }
     return out;
   }
-  puts("could not classify type!\n");
-  abort();
+  llvm::report_fatal_error("could not classify type!\n");
 }
 
 static auto classifyLlvmType(const llvm::Type &type) -> CAbiArgKind {
@@ -159,15 +155,13 @@ static auto abiSlotsForArg(const clang::QualType &qt,
     return {};
   case Kind::Expand: // split aggregate into multiple registers -- already
                      // handled before our logic runs?
-    puts("unhandled \"Expand\" type when computing ABI slots");
-    abort();
+    llvm::report_fatal_error("unhandled \"Expand\" type when computing ABI slots");
   case Kind::CoerceAndExpand: // same as Expand for our concerns
     // this code is, afaict, dead
-    puts("unhandled \"CoerceAndExpand\" type when computing ABI slots");
-    abort();
+    llvm::report_fatal_error(
+        "unhandled \"CoerceAndExpand\" type when computing ABI slots");
   }
-  printf("could not compute ABI slots for arg!\n");
-  abort();
+  llvm::report_fatal_error("could not compute ABI slots for arg!\n");
 }
 
 /// Get CGFunctionInfo for a given function declaration.

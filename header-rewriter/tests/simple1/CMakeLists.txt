@@ -10,7 +10,7 @@ define_ia2_wrapper(
     HEADERS simple1.h
     PRIVATE_HEADERS hooks.h
     INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libsimple1
-    CALLER_KEY 0
+    CALLER_PKEY 0
 )
 
 define_test(

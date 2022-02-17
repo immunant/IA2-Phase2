@@ -45,7 +45,7 @@ static llvm::cl::opt<std::string>
 
 // Specifies the compartment's protection key index, if any.
 static llvm::cl::opt<int32_t>
-    CompartmentKey("compartment-key",
+    CompartmentPkey("compartment-pkey",
                    llvm::cl::desc("The compartment's protection key index"),
                    llvm::cl::cat(HeaderRewriterCategory), llvm::cl::Optional);
 
@@ -563,10 +563,10 @@ int main(int argc, const char **argv) {
               << "#error CALLER_PKEY must be defined to compile this file\n"
               << "#endif\n"
               << "#define GATE_POP GATE(CALLER_PKEY)\n";
-  if (CompartmentKey.getNumOccurrences() == 0) {
+  if (CompartmentPkey.getNumOccurrences() == 0) {
     wrapper_out << "#define GATE_PUSH GATE(NO_PKEY)\n";
   } else {
-    wrapper_out << "#define GATE_PUSH GATE(" << CompartmentKey << ")\n";
+    wrapper_out << "#define GATE_PUSH GATE(" << CompartmentPkey << ")\n";
   }
   // Add dummy definitions of the untrusted stack, trusted TLS storage
   // for stack pointers, and the __libia2_scrub_registers function

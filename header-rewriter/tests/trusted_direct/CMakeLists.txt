@@ -9,18 +9,18 @@ configure_file(${STDOUT_REF} ${CMAKE_CURRENT_BINARY_DIR}/trusted_direct.out)
 define_ia2_wrapper(
     HEADERS plugin.h
     INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/plugin/
-    CALLER_KEY 0
+    CALLER_PKEY 0
 )
 
 # Build the wrapper lib for the main binary
 define_ia2_wrapper(
     WRAP_MAIN
     # The main binary has key 0
-    COMPARTMENT_KEY 0
+    COMPARTMENT_PKEY 0
     HEADERS exported_fn.h
     INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/main/
     # This wrapper's caller is the library which is untrusted
-    CALLER_KEY NO_PKEY
+    CALLER_PKEY NO_PKEY
 )
 
 # Build the plugin lib

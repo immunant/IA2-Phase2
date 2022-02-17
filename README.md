@@ -67,7 +67,7 @@ Usage from CMake looks like this (wrapping `myunsafelib` which is used by your e
 +target_link_libraries(my_prog PRIVATE my_wrapper_target)
 ```
 
-Wrapped libraries are treated as untrusted by default. If the library being wrapped defined a trusted compartment, `COMPARTMENT_KEY n` must be specified in define_ia2_wrapper. Here `n` is the argument used in `INIT_COMPARTMENT` to define the compartment. To create a wrapper for the main binary (i.e. if shared libraries call it directly) the `WRAP_MAIN` option must be specified.
+Wrapped libraries are treated as untrusted by default. If the library being wrapped defined a trusted compartment, `COMPARTMENT_PKEY n` must be specified in define_ia2_wrapper. Here `n` is the argument used in `INIT_COMPARTMENT` to define the compartment. To create a wrapper for the main binary (i.e. if shared libraries call it directly) the `WRAP_MAIN` option must be specified.
 
 #### Manual usage
 
@@ -78,7 +78,7 @@ To run it, use the following command after building it:
 $ /path/to/header-rewriter /path/to/wrapper_output_file.c /path/to/source_1.h /path/to/source_2.h -- -I/usr/lib/clang/A.B.C/include
 ```
 
-If the library being wrapped defined a trusted compartment pass in the `--compartment-key=n` option before the `--`.
+If the library being wrapped defined a trusted compartment pass in the `--compartment-pkey=n` option before the `--`.
 
 The wrapper library can then be compiled with (assuming the original library is liboriginal.so):
 ```

@@ -10,7 +10,7 @@ define_ia2_wrapper(
     WRAPPED_LIB avformat
     HEADERS ${AVFORMAT_HEADERS}
     USE_SYSTEM_HEADERS
-    CALLER_KEY 0
+    CALLER_PKEY 0
 )
 
 define_ia2_wrapper(
@@ -18,7 +18,7 @@ define_ia2_wrapper(
     WRAPPED_LIB avutil
     HEADERS ${AVUTIL_HEADERS}
     USE_SYSTEM_HEADERS
-    CALLER_KEY 0
+    CALLER_PKEY 0
 )
 
 # Build the test

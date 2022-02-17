@@ -1,7 +1,7 @@
 # Build the wrapper lib
 define_ia2_wrapper(
     HEADERS access_shared.h
-    CALLER_KEY 0
+    CALLER_PKEY 0
 )
 
 # Build the wrapped lib

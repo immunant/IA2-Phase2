@@ -13,9 +13,9 @@ pub const PKEY_UNINITIALIZED: i32 = -2;
 
 // On linux protection key 0 (the two LSBits of PKRU) is the default for
 // anything not covered by pkey_mprotect so we only have 15 keys to work with.
-const NUM_KEYS: usize = 15;
+const NUM_PKEYS: usize = 15;
 
-type CompartmentKeys = [AtomicI32; NUM_KEYS];
+type CompartmentKeys = [AtomicI32; NUM_PKEYS];
 
 // The ia2_init_data section contains data which is written to during
 // compartment initialization and then becomes read-only. Loading a library that
@@ -35,7 +35,7 @@ const UNINIT_PKEY: AtomicI32 = AtomicI32::new(PKEY_UNINITIALIZED);
 #[link_section = "ia2_init_data"]
 #[no_mangle]
 pub static IA2_INIT_DATA: IA2InitDataSection = IA2InitDataSection {
-    pkeys: [UNINIT_PKEY; NUM_KEYS],
+    pkeys: [UNINIT_PKEY; NUM_PKEYS],
     _padding: [0; PAGE_SIZE - size_of::<CompartmentKeys>()],
 };
 

@@ -27,13 +27,13 @@ execute_process(COMMAND ${CMAKE_C_COMPILER} -print-file-name=include-fixed
 #                 Defaults to ${WRAPPED_LIB}_fn_ptr_ia2.h.
 # INCLUDE_DIR - Added to search path in rewriter invocation. Defaults to
 #               SRC_DIR/include.
-# COMPARTMENT_KEY - Optional protection key for wrapped library, if any.
-# CALLER_KEY - Protection key for the wrapper's caller. Set to `NO_PKEY` if
-#              caller is untrusted. This is required.
+# COMPARTMENT_PKEY - Optional protection key for wrapped library, if any.
+# CALLER_PKEY - Protection key for the wrapper's caller. Set to `NO_PKEY` if
+#               caller is untrusted. This is required.
 function(define_ia2_wrapper)
     # Parse options
     set(options USE_SYSTEM_HEADERS WRAP_MAIN)
-    set(oneValueArgs WRAPPER WRAPPED_LIB OUTPUT_HEADER INCLUDE_DIR COMPARTMENT_KEY CALLER_KEY)
+    set(oneValueArgs WRAPPER WRAPPED_LIB OUTPUT_HEADER INCLUDE_DIR COMPARTMENT_PKEY CALLER_PKEY)
     set(multiValueArgs HEADERS PRIVATE_HEADERS)
     cmake_parse_arguments(DEFINE_IA2_WRAPPER "${options}" "${oneValueArgs}"
                           "${multiValueArgs}" ${ARGN} )
@@ -72,15 +72,15 @@ function(define_ia2_wrapper)
             set(INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
         endif()
     endif()
-    if(DEFINED DEFINE_IA2_WRAPPER_COMPARTMENT_KEY)
+    if(DEFINED DEFINE_IA2_WRAPPER_COMPARTMENT_PKEY)
         set(COMPARTMENT_PKEY_OPTION
-            "--compartment-key=${DEFINE_IA2_WRAPPER_COMPARTMENT_KEY}")
+            "--compartment-pkey=${DEFINE_IA2_WRAPPER_COMPARTMENT_PKEY}")
     endif()
-    if(DEFINED DEFINE_IA2_WRAPPER_CALLER_KEY)
-        set(DEFINE_CALLER_KEY "-DCALLER_PKEY=${DEFINE_IA2_WRAPPER_CALLER_KEY}")
+    if(DEFINED DEFINE_IA2_WRAPPER_CALLER_PKEY)
+        set(DEFINE_CALLER_PKEY "-DCALLER_PKEY=${DEFINE_IA2_WRAPPER_CALLER_PKEY}")
     else()
         message(FATAL_ERROR
-            "CALLER_KEY (0-14) must be defined to build a wrapper. \
+            "CALLER_PKEY (0-14) must be defined to build a wrapper. \
             Set to `NO_PKEY` if the caller compartment is untrusted")
     endif()
 
@@ -164,7 +164,7 @@ function(define_ia2_wrapper)
     endif()
     target_compile_options(${WRAPPER_TARGET} PRIVATE
         "-Wno-deprecated-declarations"
-        ${DEFINE_CALLER_KEY})
+        ${DEFINE_CALLER_PKEY})
     target_link_options(${WRAPPER_TARGET} PRIVATE "-Wl,-z,now")
     target_link_libraries(${WRAPPER_TARGET}
         PRIVATE -Wl,--version-script,${CMAKE_CURRENT_BINARY_DIR}/${WRAPPER_SRC}.syms

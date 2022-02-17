@@ -4,7 +4,7 @@ define_ia2_wrapper(
     WRAPPED_LIB usb-1.0
     HEADERS libusb-1.0/libusb.h
     USE_SYSTEM_HEADERS
-    CALLER_KEY 0
+    CALLER_PKEY 0
 )
 
 # Build the test

@@ -171,7 +171,8 @@ static void append_arg_kinds(std::stringstream &ss,
   }
 }
 
-static std::string sig_string(const CAbiSignature &sig, const std::string &name) {
+static std::string sig_string(const CAbiSignature &sig,
+                              const std::string &name) {
   std::stringstream ss = {};
   ss << name << "(";
   append_arg_kinds(ss, sig.args);
@@ -183,39 +184,74 @@ static std::string sig_string(const CAbiSignature &sig, const std::string &name)
   return ss.str();
 }
 
-std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name) {
+std::string emit_asm_wrapper(const CAbiSignature &sig,
+                             const std::string &name) {
   using namespace std::string_literals;
 
   std::stringstream ss = {};
 
   auto param_locs = param_locations(sig);
-  size_t stack_arg_count = std::count_if(param_locs.begin(),
-    param_locs.end(), [](auto &x) { return x.is_stack(); });
+  size_t stack_arg_count = std::count_if(param_locs.begin(), param_locs.end(),
+                                         [](auto &x) { return x.is_stack(); });
   size_t stack_arg_size = stack_arg_count * 8;
   size_t reg_arg_count = param_locs.size() - stack_arg_count;
 
   auto return_locs = return_locations(sig);
-  size_t stack_return_count = std::count_if(return_locs.begin(),
-    return_locs.end(), [](auto &x) { return x.is_stack(); });
+  size_t stack_return_count =
+      std::count_if(return_locs.begin(), return_locs.end(),
+                    [](auto &x) { return x.is_stack(); });
   size_t stack_return_size = stack_return_count * 8;
   size_t reg_return_size = 0;
   for (auto loc : return_locs) {
-      if (!loc.is_stack()) {
-          reg_return_size += loc.size();
-      }
+    if (!loc.is_stack()) {
+      reg_return_size += loc.size();
+    }
   }
 
-  // Before the call the compartment's stack consists of the stack arguments and
-  // return value, if any, plus the return address.
-  // The return value takes up `stack_return_size + 1` qwords since we also need
-  // to store a pointer to the previous return value memory which was passed in
-  // via rdi. If the return value does not use memory, this entire subexpression
-  // is zero. We also unconditionally add one qword for the return address which
-  // is implicitly pushed onto the stack by the call.
-  size_t compartment_stack_space = stack_arg_size + (stack_return_size > 0 ? 8 + stack_return_size : 0) + 8;
-  // Before each call the value %rsp + 8 should be a multiple of 16. In other words, `stack_alignment` should equal 8.
-  size_t stack_alignment = compartment_stack_space % 16;
+  /*
+    Just before calling the wrapped function, its compartment's stack may
+    contain any of the following.
 
+    +--------+
+    |Top of the stack (stack grows down on x86-64)
+    +--------+
+    |        |
+    |Space for the compartment's return value if it has class MEMORY. This space
+    |is only allocated if the pointer to the caller's return value memory is also
+    |placed on the compartment's stack.
+    |        |
+    +--------+
+    |An 8-byte pointer to the caller's memory for return value. This is only placed
+    |on the stack if the return type has class MEMORY. See System V ABI
+    |section 3.2.3, subsection "Returning of Values" for details.
+    +--------+
+    |8 bytes for alignment. If the size of the other items on the stack
+    |(including the return address) aren't a multiple 16, these 8 bytes are
+    |inserted to ensure the stack is aligned for the call. Otherwise this doesn't
+    |get placed on the stack. The System V ABI specifies this must be placed at the end of the
+    |argument area so this cannot go anywhere else.
+    +--------+
+    |        |
+    |Space required for stack arguments. This is initialized from the analogous
+    |part of the caller's stack. If all arguments are passed in registers this
+    |space isn't allocated.
+    |        |
+    +--------+
+    |Return address for wrapped function. This is implicitly placed on the stack
+    |by the call to the wrapped function.
+    +--------+
+
+
+  */
+
+  // The return value takes up `stack_return_size + 1` eightbytes since we also
+  // need to store a pointer to the previous return value memory. If the return
+  // value doesn't use memory, this entire subexpression is zero.
+  size_t compartment_stack_space =
+      stack_arg_size + (stack_return_size > 0 ? 8 + stack_return_size : 0);
+  // Compute the stack alignment before calling the wrapped function without the 8 bytes for
+  // alignment.
+  size_t stack_alignment = compartment_stack_space % 16;
 
   add_comment_line(ss, "Wrapper for "s + sig_string(sig, name) + ":");
   // Declare symbol
@@ -233,42 +269,52 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name) 
   add_asm_line(ss, "movq (%rsp), %rsp");
 
   // When returning via memory, the address of the return value is passed in
-  // rdi. Since this is not a shared buffer, we can't reuse the caller's return
-  // memory. Instead we must save the initial rdi then allocate space on the
-  // compartment's stack and set rdi to that address.
+  // rdi. Since this memory belongs to the caller, we first allocate space for
+  // the return value, then save a pointer to the caller's return value and set
+  // rdi to the newly allocated space. Allocating space before saving the old
+  // pointer makes it easier to undo these operations after the call. The System V ABI only
+  // specifies that the memory for the return value must not overlap any other memory available to
+  // the callee so the order of these two stack items doesn't matter.
   if (stack_return_size > 0) {
-    add_comment_line(ss, "Allocate space on the compartment's stack for the return value");
+    add_comment_line(
+        ss, "Allocate space on the compartment's stack for the return value");
     add_asm_line(ss, "subq $"s + std::to_string(stack_return_size) + ", %rsp");
     add_comment_line(ss, "Save address of the caller's return value");
     add_asm_line(ss, "pushq %rdi");
-    add_comment_line(ss, "Set rdi to the compartment's return memory");
+    add_comment_line(ss, "Set rdi to the compartment's return value memory");
     add_asm_line(ss, "movq %rsp, %rdi");
+    // The new return value is 8 bytes above the bottom of the stack so we need
+    // to add 8 to rdi
     add_asm_line(ss, "addq $8, %rdi");
   }
 
-  if (stack_alignment != 8) {
-      assert(stack_alignment == 0);
-      add_asm_line(ss, "subq $8, %rsp");
+  // Insert 8 bytes to align the stack to 16 bytes if necessary.
+  if (stack_alignment != 0) {
+    assert(stack_alignment == 8);
+    add_asm_line(ss, "subq $8, %rsp");
   }
 
   // Copy stack args to untrusted stack
   if (stack_arg_count > 0) {
-    // Use rax to point at the trusted stack which we are copying from
-    add_comment_line(ss, "Copy stack arguments from the caller's stack to the compartment's");
+    // Set rax to the caller's stack so we can copy the stack args to the compartment's stack.
+    add_comment_line(ss, "Copy stack arguments from the caller's stack to the compartment");
     add_asm_line(ss, "movq ia2_trusted_stackptr@GOTPCREL(%rip), %rax");
     add_asm_line(ss, "movq (%rax), %rax");
     // This is effectively a memcpy of size `stack_arg_size` from the caller's
     // stack to the compartment's
-    size_t arg_stack_offset = 0;
     for (int i = 0; i < stack_arg_size; i += 8) {
-      add_asm_line(ss, "pushq " + std::to_string(stack_arg_size - i) + "(%rax)");
+      // The index into the caller's stack is backwards since pushq will copy to the compartment's
+      // stack from the highest addresses to the lowest.
+      add_asm_line(ss,
+                   "pushq " + std::to_string(stack_arg_size - i) + "(%rax)");
     }
   }
 
-
-  // Zero out all unused registers. First we save all registers containing args
+  // Zero out all unused registers. First we save all registers containing args.
+  // These pushes have matching pops before calling the wrapped function so this stack space is not
+  // shown in the diagram above.
   if (reg_arg_count > 0) {
-    add_comment_line(ss, "Save used arg regs as they are needed post-scrubbing");
+    add_comment_line(ss, "Save registers containing arguments");
     for (const auto &loc : param_locs) {
       if (!loc.is_stack()) {
         emit_reg_push(ss, loc);
@@ -277,12 +323,13 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name) 
   }
 
   // Zero all registers except rsp
-  //add_comment_line(ss, "Scrub registers before call");
-  //add_asm_line(ss, "call __libia2_scrub_registers");
+  add_comment_line(ss, "Zero all registers except rsp");
+  // FIXME: If this will use the System V ABI make sure that the %rsp is aligned before this call
+  add_asm_line(ss, "call __libia2_scrub_registers");
 
   // Restore used arg regs after zeroing registers
   if (reg_arg_count > 0) {
-    add_comment_line(ss, "Restore arg regs for call");
+    add_comment_line(ss, "Restore registers containing arguments");
     for (auto loc = param_locs.rbegin(); loc != param_locs.rend(); loc++) {
       if (!loc->is_stack()) {
         emit_reg_pop(ss, *loc);
@@ -290,17 +337,20 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name) 
     }
   }
 
-  // Change pkru to untrusted using rax, r10 and r11 as scratch registers
-  add_comment_line(ss, "Change pkru to untrusted");
+  // Change pkru to the compartment's value using rax, r10 and r11 as scratch registers
+  add_comment_line(ss, "Set PKRU to the compartment's value");
   add_raw_line(ss, "GATE_PUSH");
 
   // Call wrapped function
-  add_comment_line(ss, "call wrapped function");
+  add_comment_line(ss, "Call wrapped function");
   add_asm_line(ss, "call "s + name);
 
-  add_comment_line(ss, "Change pkru to trusted");
+  add_comment_line(ss, "Set PKRU to the caller's value");
+  // FIXME: The GATE macros use rax as a scratch register, but it may contain a return value after
+  // the call so we save it in r9. We should fix this when we combine PKRU and stack switching for
+  // indirect calls.
   add_asm_line(ss, "movq %rax, %r9");
-  // Change pkru to trusted using rax, r10 and r11 as scratch registers
+  // Change pkru to the caller's value using rax, r10 and r11 as scratch registers
   add_raw_line(ss, "GATE_POP");
   add_asm_line(ss, "movq %r9, %rax");
 
@@ -310,42 +360,43 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name) 
     add_asm_line(ss, "addq $"s + std::to_string(stack_arg_size) + ", %rsp");
   }
 
-  if (stack_alignment != 8) {
-    assert(stack_alignment == 0);
+  // If we inserted 8 bytes to align the stack before calling the wrapped
+  // function, free this space.
+  if (stack_alignment != 0) {
+    assert(stack_alignment == 8);
     add_asm_line(ss, "addq $8, %rsp");
   }
 
   // Copy any stack returns to caller's stack
   if (stack_return_size > 0) {
-    // If the return value is in memory, we must've pushed the initial rdi
-    // (which pointed to the caller's return memory) onto the compartment's stack
-
+    // If the return value is in memory, we pushed the initial rdi (which pointed to the caller's
+    // return value memory) onto the compartment's stack. Now we pop it into rax which is where the
+    // address of the return value must be on return.
     add_asm_line(ss, "popq %rax");
 
-    add_comment_line(ss, "Copy stack return values to caller's stack");
-    add_comment_line(ss, "Copy "s + std::to_string(stack_return_size) + " bytes from *rax to *rdi");
+    // After the pop rsp points to the memory for the return value on the compartment's stack.
+    add_comment_line(ss, "Copy "s + std::to_string(stack_return_size) + " bytes for the return value to the caller's stack");
     for (int i = 0; i < stack_return_size; i += 8) {
       add_asm_line(ss, "popq "s + std::to_string(i) + "(%rax)");
-      //add_asm_line(ss, "movq "s + std::to_string(i) + "(%rax), %rsi");
-      //add_asm_line(ss, "movq %rsi, "s + std::to_string(i) + "(%rdi)");
     }
-    // Free space for return value on the compartment's stack
-    //add_asm_line(ss, "addq $"s + std::to_string(stack_return_size) + ", %rsp");
   }
 
-  add_comment_line(ss, "Push return regs to caller's stack before scrubbing registers");
   add_asm_line(ss, "movq ia2_trusted_stackptr@GOTPCREL(%rip), %rsp");
   add_asm_line(ss, "movq (%rsp), %rsp");
-  // Push return regs to the caller's stack
+
+  add_comment_line(ss, "Push return regs to caller's stack before scrubbing registers");
+  // Push return regs to the caller's stack. These pushes have matching pops before the return so it
+  // has no net effect on the caller's stack pointer.
   for (auto loc : return_locs) {
     if (!loc.is_stack()) {
-        emit_reg_push(ss, loc);
+      emit_reg_push(ss, loc);
     }
   }
 
   // Zero all registers except rsp
-  //add_comment_line(ss, "Scrub registers after call");
-  //add_asm_line(ss, "call __libia2_scrub_registers");
+  add_comment_line(ss, "Scrub registers after call");
+  // FIXME: If this will use the System V ABI make sure that the %rsp is aligned before this call
+  add_asm_line(ss, "call __libia2_scrub_registers");
 
   // pop return regs
   add_comment_line(ss, "Pop return regs");
@@ -355,8 +406,8 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name) 
     }
   }
 
-  // Return
-  add_comment_line(ss, "Return");
+  // Return to the caller
+  add_comment_line(ss, "Return to the caller");
   add_asm_line(ss, "ret");
 
   return ss.str();

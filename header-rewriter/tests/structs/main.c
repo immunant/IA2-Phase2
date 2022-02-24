@@ -22,14 +22,14 @@ INIT_COMPARTMENT(0);
 
 #define check_field_ptr(name, val) { printf("s.%s = %p (expected %p)\n", #name, s.name, val); }
 
-#define check_eq_i128(name, val) { __int128 out = name(s); \
+#define check_eq_i128(name, upper, lower) { __int128 out = name(s); \
 	printf("%s(s) = %016x%016x (expected %016x%016x)\n", #name, \
 	(int64_t)(out >> 64), (int64_t)(out & 0xffffffffffffffff), \
-	(int64_t)(((__int128)val) >> 64), (uint64_t)(((__int128)val) & 0xffffffffffffffff)); }
-#define check_field_i128(name, val) { __int128 out = s.name; \
+	(int64_t)(((__int128)upper) >> 64), (uint64_t)(((__int128)lower) & 0xffffffffffffffff)); }
+#define check_field_i128(name, upper, lower) { __int128 out = s.name; \
 	printf("s.%s = %016x%016x (expected %016x%016x)\n", #name, \
 	(int64_t)(out >> 64), (int64_t)(out & 0xffffffffffffffff), \
-	(int64_t)(((__int128)val) >> 64), (uint64_t)(((__int128)val) & 0xffffffffffffffff)); }
+	(int64_t)(((__int128)upper) >> 64), (uint64_t)(((__int128)lower) & 0xffffffffffffffff)); }
 
 int main() {
 	/* For each struct, test passing it to functions, returning it from functions
@@ -171,7 +171,7 @@ int main() {
 			.i2 = 549,
 			.i3 = 1500,
 		};
-		check_eq_i128(cksum_s9, 2002 + 549 + 1500);
+		check_eq_i128(cksum_s9, 0, 2002 + 549 + 1500);
 		s = get_s9();
 		check_field_int(i1, 96506328);
 		check_field_int(i2, 1846);
@@ -185,11 +185,11 @@ int main() {
 			.i3 = 1240,
 			.z1 = 100500,
 		};
-		check_eq_i128(cksum_s10, 40504030 + 540 + 1240 + 100500);
+		check_eq_i128(cksum_s10, 0, 40504030 + 540 + 1240 + 100500);
 		s = get_s10();
-		check_field_i128(i1, 96506328);
-		check_field_i128(i2, 1846);
-		check_field_i128(i3, 3254);
+		check_field_i128(i1, 0, 96506328);
+		check_field_i128(i2, 0, 1846);
+		check_field_i128(i3, 0, 3254);
 		check_field_size(z1, 6853785);
 	}
 
@@ -197,6 +197,7 @@ int main() {
 		struct s11 s = {
 			.az1 = {'a', 'b', 'c', 4, 5, 5, 5, 1, 'f'},
 		};
+        //print_s11(s);
 		check_eq_int(cksum_s11,
 			9 * 'a' +
 			8 * 'b' +
@@ -244,5 +245,20 @@ int main() {
 		check_field_int(ac1[7], 8);
 		check_field_int(ac1[8], 9);
 	}
+
+    {
+        struct s13 s = {
+            .x = 0x7fffeeeeddddcccc
+        };
+        s.x <<= 64;
+        s.x |= 0xbbbbaaaa99998888;
+        check_eq_int(cksum_s13,
+            (0x99998888 & 0xffffffff) +
+            (0xbbbbaaaa & 0xffffffff) +
+            (0xddddcccc & 0xffffffff) +
+            (0x7fffeeee & 0xffffffff));
+        s = get_s13();
+        check_field_i128(x, 0x7fffeeeeddddcccc, 0xbbbbaaaa99998888);
+    }
 	return 0;
 }

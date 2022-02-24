@@ -45,7 +45,7 @@ const std::array<const char *, 3> cabi_arg_kind_names = {"int", "float", "mem"};
 
 /// Compute abi locations for parameters of a C-abi function, given its sequence
 /// of argument kinds.
-auto param_locations(const CAbiSignature &func) -> std::vector<ParamLocation> {
+std::vector<ParamLocation> param_locations(const CAbiSignature &func) {
   std::vector<ParamLocation> locs = {};
   size_t ints_used = 0;
   // if the return is in memory, the first integer argument is the location to
@@ -63,18 +63,18 @@ auto param_locations(const CAbiSignature &func) -> std::vector<ParamLocation> {
     case CAbiArgKind::Integral:
       if (ints_used < int_param_reg_order.size()) {
         locs.push_back(ParamLocation::Register(int_param_reg_order[ints_used]));
+        ints_used += 1;
       } else {
         locs.push_back(ParamLocation::Stack());
       }
-      ints_used += 1;
       break;
     case CAbiArgKind::Float:
       if (floats_used < xmms.size()) {
         locs.push_back(ParamLocation::Register(xmms[floats_used]));
+        floats_used += 1;
       } else {
         locs.push_back(ParamLocation::Stack());
       }
-      floats_used += 1;
       break;
     case CAbiArgKind::Memory:
       locs.push_back(ParamLocation::Stack());
@@ -84,7 +84,7 @@ auto param_locations(const CAbiSignature &func) -> std::vector<ParamLocation> {
   return locs;
 }
 
-auto return_locations(const CAbiSignature &func) -> std::vector<ParamLocation> {
+std::vector<ParamLocation> return_locations(const CAbiSignature &func) {
   std::vector<ParamLocation> locs = {};
   size_t size_in_qwords = func.ret.size();
 
@@ -120,13 +120,6 @@ auto return_locations(const CAbiSignature &func) -> std::vector<ParamLocation> {
   return locs;
 }
 
-static void print_locs(const std::vector<ParamLocation> &locs) {
-  for (const auto &loc : locs) {
-    std::cout << loc.as_str() << " ";
-  }
-  std::cout << std::endl;
-}
-
 #define INDENT "    "
 #define COMMENT_PREFIX "// "
 
@@ -147,10 +140,10 @@ static void emit_reg_push(std::stringstream &ss, const ParamLocation &loc) {
 
   assert(!loc.is_stack());
   if (loc.is_xmm()) {
-    add_asm_line(ss, "sub rsp, 16");
-    add_asm_line(ss, "movdqu [rsp], "s + loc.as_str());
+    add_asm_line(ss, "subq $16, %rsp");
+    add_asm_line(ss, "movdqu %"s + loc.as_str() + ", (%rsp)");
   } else {
-    add_asm_line(ss, "push "s + loc.as_str());
+    add_asm_line(ss, "pushq %"s + loc.as_str());
   }
 }
 
@@ -159,10 +152,10 @@ static void emit_reg_pop(std::stringstream &ss, const ParamLocation &loc) {
 
   assert(!loc.is_stack());
   if (loc.is_xmm()) {
-    add_asm_line(ss, "movdqu "s + loc.as_str() + ", [rsp]");
-    add_asm_line(ss, "add rsp, 16");
+    add_asm_line(ss, "movdqu (%rsp), %"s + loc.as_str());
+    add_asm_line(ss, "addq $16, %rsp");
   } else {
-    add_asm_line(ss, "pop "s + loc.as_str());
+    add_asm_line(ss, "popq %"s + loc.as_str());
   }
 }
 
@@ -178,8 +171,7 @@ static void append_arg_kinds(std::stringstream &ss,
   }
 }
 
-static auto sig_string(const CAbiSignature &sig, const std::string &name)
-    -> std::string {
+static std::string sig_string(const CAbiSignature &sig, const std::string &name) {
   std::stringstream ss = {};
   ss << name << "(";
   append_arg_kinds(ss, sig.args);
@@ -191,207 +183,181 @@ static auto sig_string(const CAbiSignature &sig, const std::string &name)
   return ss.str();
 }
 
-auto emit_asm_wrapper(const CAbiSignature &sig, const std::string &name)
-    -> std::string {
+std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name) {
   using namespace std::string_literals;
 
   std::stringstream ss = {};
 
-  // use intel syntax to save endangered percent-signs
-  add_asm_line(ss, ".intel_syntax noprefix");
-  add_comment_line(ss, "wrapper for "s + sig_string(sig, name) + ":");
+  auto param_locs = param_locations(sig);
+  size_t stack_arg_count = std::count_if(param_locs.begin(),
+    param_locs.end(), [](auto &x) { return x.is_stack(); });
+  size_t stack_arg_size = stack_arg_count * 8;
+  size_t reg_arg_count = param_locs.size() - stack_arg_count;
 
-  // declare symbol
+  auto return_locs = return_locations(sig);
+  size_t stack_return_count = std::count_if(return_locs.begin(),
+    return_locs.end(), [](auto &x) { return x.is_stack(); });
+  size_t stack_return_size = stack_return_count * 8;
+  size_t reg_return_size = 0;
+  for (auto loc : return_locs) {
+      if (!loc.is_stack()) {
+          reg_return_size += loc.size();
+      }
+  }
+
+  // Before the call the compartment's stack consists of the stack arguments and
+  // return value, if any, plus the return address.
+  // The return value takes up `stack_return_size + 1` qwords since we also need
+  // to store a pointer to the previous return value memory which was passed in
+  // via rdi. If the return value does not use memory, this entire subexpression
+  // is zero. We also unconditionally add one qword for the return address which
+  // is implicitly pushed onto the stack by the call.
+  size_t compartment_stack_space = stack_arg_size + (stack_return_size > 0 ? 8 + stack_return_size : 0) + 8;
+  // Before each call the value %rsp + 8 should be a multiple of 16. In other words, `stack_alignment` should equal 8.
+  size_t stack_alignment = compartment_stack_space % 16;
+
+
+  add_comment_line(ss, "Wrapper for "s + sig_string(sig, name) + ":");
+  // Declare symbol
   ss << INDENT << "\".global __ia2_" << name << "\\n\"" << std::endl;
   ss << INDENT << "\"__ia2_" << name << ":\\n\"" << std::endl;
 
-  // save trusted stack ptr to trusted tls
-  add_comment_line(ss, "save trusted stack ptr to trusted tls");
-  add_asm_line(ss, "mov rax, QWORD PTR ia2_trusted_stackptr@GOTPCREL[rip]");
-  add_asm_line(ss, "mov [rax], rsp");
+  // Save trusted stack pointer
+  add_comment_line(ss, "Save trusted stack pointer");
+  add_asm_line(ss, "movq ia2_trusted_stackptr@GOTPCREL(%rip), %rax");
+  add_asm_line(ss, "movq %rsp, (%rax)");
 
-  // switch to untrusted stack
-  add_comment_line(ss, "switch to untrusted stack");
-  add_asm_line(ss, "mov rsp, QWORD PTR ia2_untrusted_stackptr@GOTPCREL[rip]");
-  add_asm_line(ss, "mov rsp, [rsp]");
+  // Switch to untrusted stack
+  add_comment_line(ss, "Switch to untrusted stack");
+  add_asm_line(ss, "movq ia2_untrusted_stackptr@GOTPCREL(%rip), %rsp");
+  add_asm_line(ss, "movq (%rsp), %rsp");
 
-  auto param_locs = param_locations(sig);
-  size_t stack_arg_count = std::count_if(param_locs.begin(), param_locs.end(),
-                                         [](auto &x) { return x.is_stack(); });
-  size_t stack_arg_size = stack_arg_count * 8;
-  size_t reg_arg_count = param_locs.size() - stack_arg_count;
-  auto return_locs = return_locations(sig);
-  size_t stack_return_count =
-      std::count_if(return_locs.begin(), return_locs.end(),
-                    [](auto &x) { return x.is_stack(); });
-  size_t stack_return_size = stack_return_count * 8;
-
-  // if returning via memory, allocate stack space and pass address in rdi
+  // When returning via memory, the address of the return value is passed in
+  // rdi. Since this is not a shared buffer, we can't reuse the caller's return
+  // memory. Instead we must save the initial rdi then allocate space on the
+  // compartment's stack and set rdi to that address.
   if (stack_return_size > 0) {
-    add_comment_line(ss, "set rdi to location to return via memory");
-    add_asm_line(ss, "push rdi");
-    add_asm_line(ss, "sub rsp, "s + std::to_string(stack_return_size));
-    add_asm_line(ss, "mov rdi, rsp");
+    add_comment_line(ss, "Allocate space on the compartment's stack for the return value");
+    add_asm_line(ss, "subq $"s + std::to_string(stack_return_size) + ", %rsp");
+    add_comment_line(ss, "Save address of the caller's return value");
+    add_asm_line(ss, "pushq %rdi");
+    add_comment_line(ss, "Set rdi to the compartment's return memory");
+    add_asm_line(ss, "movq %rsp, %rdi");
+    add_asm_line(ss, "addq $8, %rdi");
   }
 
-  // copy stack args to untrusted stack
+  if (stack_alignment != 8) {
+      assert(stack_alignment == 0);
+      add_asm_line(ss, "subq $8, %rsp");
+  }
+
+  // Copy stack args to untrusted stack
   if (stack_arg_count > 0) {
-    // use rax to point at the trusted stack which we are copying from
-    add_comment_line(
-        ss,
-        "copy stack arguments from the trusted stack to the untrusted stack");
-    add_asm_line(ss, "mov rax, QWORD PTR ia2_trusted_stackptr@GOTPCREL[rip]");
-    add_asm_line(ss, "mov rax, [rax]");
-  }
-  // effectively memcpy(untrusted_stack, trusted_stack, stack_size);
-  size_t arg_stack_offset = stack_arg_size;
-  size_t stack_misalignment = arg_stack_offset % 16;
-  if (stack_misalignment != 0) {
-    assert(stack_misalignment == 8);
-    add_asm_line(ss, "sub rsp, 8");
-  }
-  for (auto loc = param_locs.rbegin(); loc != param_locs.rend(); loc++) {
-    if (loc->is_stack()) {
-      arg_stack_offset -= 8;
-      add_asm_line(ss, "push qword ptr [rax+"s +
-                           std::to_string(arg_stack_offset) + "]");
+    // Use rax to point at the trusted stack which we are copying from
+    add_comment_line(ss, "Copy stack arguments from the caller's stack to the compartment's");
+    add_asm_line(ss, "movq ia2_trusted_stackptr@GOTPCREL(%rip), %rax");
+    add_asm_line(ss, "movq (%rax), %rax");
+    // This is effectively a memcpy of size `stack_arg_size` from the caller's
+    // stack to the compartment's
+    size_t arg_stack_offset = 0;
+    for (int i = 0; i < stack_arg_size; i += 8) {
+      add_asm_line(ss, "pushq " + std::to_string(stack_arg_size - i) + "(%rax)");
     }
   }
 
-  // push any reg args
+
+  // Zero out all unused registers. First we save all registers containing args
   if (reg_arg_count > 0) {
-    add_comment_line(ss,
-                     "save used arg regs as they are needed post-scrubbing");
-  }
-  for (const auto &loc : param_locs) {
-    if (!loc.is_stack()) {
-      emit_reg_push(ss, loc);
+    add_comment_line(ss, "Save used arg regs as they are needed post-scrubbing");
+    for (const auto &loc : param_locs) {
+      if (!loc.is_stack()) {
+        emit_reg_push(ss, loc);
+      }
     }
   }
 
-  // call scrub
-  add_comment_line(ss, "scrub registers before call");
-  add_asm_line(ss, "call __libia2_scrub_registers");
+  // Zero all registers except rsp
+  //add_comment_line(ss, "Scrub registers before call");
+  //add_asm_line(ss, "call __libia2_scrub_registers");
 
-  // change pkru to untrusted
-  add_comment_line(ss, "change pkru to untrusted");
+  // Restore used arg regs after zeroing registers
+  if (reg_arg_count > 0) {
+    add_comment_line(ss, "Restore arg regs for call");
+    for (auto loc = param_locs.rbegin(); loc != param_locs.rend(); loc++) {
+      if (!loc->is_stack()) {
+        emit_reg_pop(ss, *loc);
+      }
+    }
+  }
+
+  // Change pkru to untrusted using rax, r10 and r11 as scratch registers
+  add_comment_line(ss, "Change pkru to untrusted");
   add_raw_line(ss, "GATE_PUSH");
 
-  // pop arg regs
-  if (reg_arg_count > 0) {
-    add_comment_line(ss, "restore arg regs for call");
+  // Call wrapped function
+  add_comment_line(ss, "call wrapped function");
+  add_asm_line(ss, "call "s + name);
+
+  add_comment_line(ss, "Change pkru to trusted");
+  add_asm_line(ss, "movq %rax, %r9");
+  // Change pkru to trusted using rax, r10 and r11 as scratch registers
+  add_raw_line(ss, "GATE_POP");
+  add_asm_line(ss, "movq %r9, %rax");
+
+  // Free stack space used for stack args on the untrusted stack
+  if (stack_arg_size > 0) {
+    add_comment_line(ss, "Free stack space used for stack args");
+    add_asm_line(ss, "addq $"s + std::to_string(stack_arg_size) + ", %rsp");
   }
-  for (auto loc = param_locs.rbegin(); loc != param_locs.rend(); loc++) {
+
+  if (stack_alignment != 8) {
+    assert(stack_alignment == 0);
+    add_asm_line(ss, "addq $8, %rsp");
+  }
+
+  // Copy any stack returns to caller's stack
+  if (stack_return_size > 0) {
+    // If the return value is in memory, we must've pushed the initial rdi
+    // (which pointed to the caller's return memory) onto the compartment's stack
+
+    add_asm_line(ss, "popq %rax");
+
+    add_comment_line(ss, "Copy stack return values to caller's stack");
+    add_comment_line(ss, "Copy "s + std::to_string(stack_return_size) + " bytes from *rax to *rdi");
+    for (int i = 0; i < stack_return_size; i += 8) {
+      add_asm_line(ss, "popq "s + std::to_string(i) + "(%rax)");
+      //add_asm_line(ss, "movq "s + std::to_string(i) + "(%rax), %rsi");
+      //add_asm_line(ss, "movq %rsi, "s + std::to_string(i) + "(%rdi)");
+    }
+    // Free space for return value on the compartment's stack
+    //add_asm_line(ss, "addq $"s + std::to_string(stack_return_size) + ", %rsp");
+  }
+
+  add_comment_line(ss, "Push return regs to caller's stack before scrubbing registers");
+  add_asm_line(ss, "movq ia2_trusted_stackptr@GOTPCREL(%rip), %rsp");
+  add_asm_line(ss, "movq (%rsp), %rsp");
+  // Push return regs to the caller's stack
+  for (auto loc : return_locs) {
+    if (!loc.is_stack()) {
+        emit_reg_push(ss, loc);
+    }
+  }
+
+  // Zero all registers except rsp
+  //add_comment_line(ss, "Scrub registers after call");
+  //add_asm_line(ss, "call __libia2_scrub_registers");
+
+  // pop return regs
+  add_comment_line(ss, "Pop return regs");
+  for (auto loc = return_locs.rbegin(); loc != return_locs.rend(); loc++) {
     if (!loc->is_stack()) {
       emit_reg_pop(ss, *loc);
     }
   }
 
-  // call wrapped
-  add_comment_line(ss, "call wrapped function");
-  add_asm_line(ss, "call "s + name);
-
-  // save return regs while we change pkru
-  if (reg_arg_count > 0) {
-    add_comment_line(
-        ss,
-        "push return regs to untrusted stack to preserve them while changing pkru");
-  }
-  for (const auto &loc : return_locs) {
-    if (!loc.is_stack()) {
-      emit_reg_push(ss, loc);
-    }
-  }
-
-  // any prefix of the following may be skipped by untrusted code, so be
-  // careful:
-  /////////////////////////////////////////////////////////////////////////
-  // change pkru to trusted
-  add_comment_line(ss, "change pkru to trusted");
-  // add_asm_line(ss, "call __libia2_gate_pop");
-  add_raw_line(ss, "GATE_POP");
-
-  // restore return regs
-  if (reg_arg_count > 0) {
-    add_comment_line(ss, "pop return regs");
-  }
-  for (const auto &loc : return_locs) {
-    if (!loc.is_stack()) {
-      emit_reg_pop(ss, loc);
-    }
-  }
-
-  // return stack space used for stack args
-  if (stack_arg_size > 0) {
-    add_comment_line(ss, "return stack space used for stack args");
-    add_asm_line(ss, "add rsp, "s +
-                         std::to_string(stack_arg_size + stack_misalignment));
-  }
-
-  // copy any stack returns to trusted stack
-  if (stack_return_size > 0) {
-    // free stack space
-    add_asm_line(ss, "add rsp, "s + std::to_string(stack_return_size));
-    // if we pushed rdi for memory return, pop it now
-    add_comment_line(ss, "copy stack return values to trusted stack");
-    add_asm_line(ss, "pop rdi"); // rdi is the implicit return pointer argument
-                                 // for stack memory
-    add_comment_line(ss, "copy "s + std::to_string(stack_return_size) +
-                             " bytes from *rax to *rdi");
-  }
-  for (int i = 0; i < stack_return_size; i += 8) {
-    add_asm_line(ss, "mov rsi, [rax+"s + std::to_string(i) + "]");
-    add_asm_line(ss, "mov [rdi+"s + std::to_string(i) + "], rsi");
-  }
-
-  add_comment_line(
-      ss, "push return regs to trusted stack before scrubbing registers");
-  add_asm_line(ss, "mov rdi, QWORD PTR ia2_trusted_stackptr@GOTPCREL[rip]");
-  add_asm_line(ss, "mov rdi, [rdi]"); // read the location of top-of-stack
-  // push return regs to trusted stack redzone
-  auto pushed_offset = 0;
-  for (auto loc : return_locs) {
-    if (!loc.is_stack()) {
-      pushed_offset += loc.size();
-      if (loc.is_xmm()) {
-        add_asm_line(ss, "movdqu [rdi-"s + std::to_string(pushed_offset) +
-                             "], " + loc.as_str());
-      } else {
-        add_asm_line(ss, "mov [rdi-"s + std::to_string(pushed_offset) + "], " +
-                             loc.as_str());
-      }
-    }
-  }
-
-  // call scrub
-  add_comment_line(ss, "scrub registers after call");
-  add_asm_line(ss, "call __libia2_scrub_registers");
-
-  // switch to trusted stack, adjusting stack ptr for the regs we saved on it
-  add_comment_line(
-      ss,
-      "switch to trusted stack, adjusting stack ptr for any return regs we saved on it");
-  add_asm_line(ss, "mov rsp, QWORD PTR ia2_trusted_stackptr@GOTPCREL[rip]");
-  add_asm_line(ss, "mov rsp, [rsp]");
-
-  // if any args were pushed to the stack, make room to pop them
-  if (pushed_offset > 0)
-    add_asm_line(ss, "sub rsp, "s + std::to_string(pushed_offset));
-
-  // pop return regs
-  add_comment_line(ss, "pop return regs");
-  for (auto loc : return_locs) {
-    if (!loc.is_stack()) {
-      emit_reg_pop(ss, loc);
-    }
-  }
-
-  // return
-  add_comment_line(ss, "return");
+  // Return
+  add_comment_line(ss, "Return");
   add_asm_line(ss, "ret");
-
-  // reset syntax to AT&T
-  add_asm_line(ss, ".att_syntax");
 
   return ss.str();
 }

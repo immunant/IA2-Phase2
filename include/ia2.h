@@ -15,7 +15,7 @@
 #define STR(s) #s
 // TODO: Incorporate __FILE_NAME__ and __COUNTER__ if possible to make this more
 // flexible.
-#define UNIQUE_STR(s) s XSTR(__LINE__)
+#define UNIQUE_STR(s) s "_line_" XSTR(__LINE__)
 
 // On linux protection key 0 is the default for anything not covered by
 // pkey_mprotect so untrusted compartments have the lower 2 bits of PKRU cleared
@@ -24,43 +24,43 @@
 // Suffix for GATE_ macro for untrusted gate code
 #define NO_PKEY UNTRUSTED
 
-// Set PKRU to untrusted using eax, r10 and r11 as scratch registers.
+// Set PKRU to untrusted using rax, r10 and r11 as scratch registers.
 #define GATE_UNTRUSTED                      \
-    "mov r10d, ecx\n"                       \
-    "mov r11d, edx\n"                       \
-    "mov eax, " XSTR(PKRU_UNTRUSTED) "\n"   \
-    "mov ecx, 0\n"                          \
-    "mov edx, 0\n"                          \
+    "movq %rcx, %r10\n"                     \
+    "movq %rdx, %r11\n"                     \
+    "movl $" XSTR(PKRU_UNTRUSTED) ", %eax\n" \
+    "xorl %ecx, %ecx\n"                     \
+    "xorl %edx, %edx\n"                     \
     "wrpkru\n"                              \
-    "mov edx, r11d\n"                       \
-    "mov ecx, r10d\n"
+    "movq %r10, %rcx\n"                     \
+    "movq %r11, %rdx\n"
 
 // TODO: Add static assert on pkey index if possible
-// Set PKRU based on pkey_idx using eax, r10 and r11 as scratch registers.
+// Set PKRU based on pkey_idx using rax, r10 and r11 as scratch registers.
 #define GATE_TRUSTED(pkey)                              \
-    "mov r10d, ecx\n"                                   \
-    "mov r11d, edx\n"                                   \
-    "mov rax, QWORD PTR IA2_INIT_DATA@GOTPCREL[rip]\n"  \
-    "mov ecx, " #pkey "\n"                              \
-    "mov eax, DWORD PTR [rax + rcx * 4]\n"              \
-    "cmp eax, " XSTR(PKEY_UNINITIALIZED) "\n"           \
+    "movq %rcx, %r10\n"                                 \
+    "movq %rdx, %r11\n"                                 \
+    "movq IA2_INIT_DATA@GOTPCREL(%rip), %rax\n"         \
+    "movl $" #pkey ", %ecx\n"                            \
+    "movl (%rax,%rcx,4), %eax\n"                        \
+    "cmpl $" XSTR(PKEY_UNINITIALIZED) ", %eax\n"         \
     "jne 0f\n"                                          \
     "call exit@plt\n"                                   \
     "0:\n"                                              \
     /* Calculate the new PKRU from the key index */     \
     /* new_pkru = ~((3 << (2 * pkey_idx)) | 3); */      \
-    "add eax, eax\n"                                    \
-    "mov edx, 3\n"                                      \
-    "mov ecx, eax\n"                                    \
-    "shl edx, cl\n"                                     \
-    "mov eax, edx\n"                                    \
-    "add eax, 3\n"                                      \
-    "not eax\n"                                         \
-    "mov ecx, 0\n"                                      \
-    "mov edx, 0\n"                                      \
+    "addl %eax, %eax\n"                                 \
+    "movl %eax, %ecx\n"                                 \
+    "movl $3, %edx\n"                                    \
+    "shll %cl, %edx\n"                                  \
+    "movl %edx, %eax\n"                                 \
+    "addl $3, %eax\n"                                    \
+    "notl %eax\n"                                       \
+    "xorl %ecx, %ecx\n"                                 \
+    "xorl %edx, %edx\n"                                 \
     "wrpkru\n"                                          \
-    "mov edx, r11d\n"                                   \
-    "mov ecx, r10d\n"
+    "movq %r10, %rcx\n"                                 \
+    "movq %r11, %rdx\n"
 
 #ifdef LIBIA2_INSECURE
 #define GATE(x)
@@ -69,14 +69,14 @@
 #define GATE(pkey) _GATE(pkey)
 // FIXME: Remove this after removing INIT_DATA (see issue #66).
 #define DISABLE_PKRU    \
-    "mov r10d, ecx\n"   \
-    "mov r11d, edx\n"   \
-    "mov eax, 0\n"      \
-    "mov ecx, 0\n"      \
-    "mov edx, 0\n"      \
-    "wrpkru\n"          \
-    "mov edx, r11d\n"   \
-    "mov ecx, r10d\n"
+    "movq %rcx, %r10\n"                                 \
+    "movq %rdx, %r11\n"                                 \
+    "xorl %eax, %eax\n"                                 \
+    "xorl %ecx, %ecx\n"                                 \
+    "xorl %edx, %edx\n"                                 \
+    "wrpkru\n"                                          \
+    "movq %r10, %rcx\n"                                 \
+    "movq %r11, %rdx\n"
 
 #endif
 
@@ -100,7 +100,6 @@
 // FIXME: This doesn't support arguments on the stack or in r9 (the last
 // register). Also doesn't support returning 128-bit values (rdx).
 #define INDIRECT_WRAPPER(target, caller_pkey, target_pkey)                     \
-    ".intel_syntax noprefix\n"                                                 \
     /* Jump to a subsection of .text to prevent inlining this function */      \
     ".text 1\n"                                                                \
     /* This is the symbol name that will appear in the executable */           \
@@ -108,21 +107,20 @@
     /* Set the value of the wrapper name used by asm to this location */       \
     ".equ __ia2_" UNIQUE_STR(#target) ",.\n"                                   \
     DISABLE_PKRU                                                               \
-    "mov r9, QWORD PTR " UNIQUE_STR(#target) "@GOTPCREL[rip]\n"                \
-    "mov r9, QWORD PTR [r9]\n"                                                 \
+    "movq " UNIQUE_STR(#target) "@GOTPCREL(%rip), %r9\n"                \
+    "movq (%r9), %r9\n"                                                 \
     /* Switch PKRU to the target compartment */                                \
     GATE(target_pkey)                                                          \
-    "call r9\n"                                                                \
+    "callq *%r9\n"                                                                \
     /* Save return value before toggling PKRU */                               \
-    "mov r9, rax\n"                                                            \
+    "movq %rax, %r9\n"                                                            \
     DISABLE_PKRU                                                               \
     GATE(caller_pkey)                                                          \
     /* Put return value back in the right register */                          \
-    "mov rax, r9\n"                                                            \
+    "movq %r9, %rax\n"                                                            \
     "ret\n"                                                                    \
     /* Jump back to the previous location in .text */                          \
     ".previous\n"                                                              \
-    ".att_syntax\n"
 
 // Takes a function pointer `target` and returns an opaque pointer for its call gate wrapper.
 #define IA2_FNPTR_WRAPPER(target, ty, caller_pkey, target_pkey)    ({    \

@@ -216,3 +216,19 @@ unsigned int cksum_s12(struct s12 s) {
 		+ 2 * s.ac1[7]
 		+ 1 * s.ac1[8];
 }
+
+struct s13 get_s13(void) {
+    struct s13 s = {
+        .x = 0x7fffeeeeddddcccc
+    };
+    s.x <<= 64;
+    s.x |= 0xbbbbaaaa99998888;
+}
+
+unsigned int cksum_s13(struct s13 s) {
+    unsigned int x0 = s.x & 0xffffffff;
+    unsigned int x1 = (s.x >> 32) & 0xffffffff;
+    unsigned int x2 = (s.x >> 64) & 0xffffffff;
+    unsigned int x3 = (s.x >> 96) & 0xffffffff;
+    return x0 + x1 + x2 + x3;
+}

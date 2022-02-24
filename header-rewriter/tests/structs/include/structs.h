@@ -81,6 +81,10 @@ struct s12 {
 	char ac1[9];
 };
 
+struct s13 {
+    __int128 x;
+};
+
 // CHECK: IA2_WRAP_FUNCTION(get_s1);
 struct s1 get_s1(void);
 
@@ -170,3 +174,9 @@ struct s12 get_s12(void);
 
 // CHECK: IA2_WRAP_FUNCTION(cksum_s12);
 unsigned int cksum_s12(struct s12);
+
+// CHECK: IA2_WRAP_FUNCTION(get_s13);
+struct s13 get_s13(void);
+
+// CHECK: IA2_WRAP_FUNCTION(cksum_s13);
+unsigned int cksum_s13(struct s13);

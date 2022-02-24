@@ -160,6 +160,16 @@ CAbiSignature determineAbi(const clang::CodeGen::CGFunctionInfo &info,
   sig.variadic = info.isVariadic();
   auto &returnInfo = info.getReturnInfo();
   sig.ret = abiSlotsForArg(info.getReturnType(), returnInfo, astContext);
+
+  auto is_integral = [](auto &x) { return x == CAbiArgKind::Integral; };
+  size_t num_regs = std::count_if(sig.ret.begin(), sig.ret.end(), is_integral);
+  if (num_regs > 2) {
+    std::erase_if(sig.ret, is_integral);
+    for (int i = 0; i < num_regs; i++) {
+        sig.ret.push_back(CAbiArgKind::Memory);
+    }
+  }
+
   for (auto &argInfo : info.arguments()) {
     clang::QualType paramType = argInfo.type;
     auto slots = abiSlotsForArg(paramType, argInfo.info, astContext);

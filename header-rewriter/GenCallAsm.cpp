@@ -61,7 +61,7 @@ std::vector<ParamLocation> param_locations(const CAbiSignature &func) {
   size_t floats_used = 0;
   for (const auto &arg : func.args) {
     switch (arg) {
-    case CAbiArgKind::Integral:
+    case CAbiArgKind::Integral: {
       if (ints_used < int_param_reg_order.size()) {
         locs.push_back(ParamLocation::Register(int_param_reg_order[ints_used]));
         ints_used += 1;
@@ -69,7 +69,8 @@ std::vector<ParamLocation> param_locations(const CAbiSignature &func) {
         locs.push_back(ParamLocation::Stack());
       }
       break;
-    case CAbiArgKind::Float:
+    }
+    case CAbiArgKind::Float: {
       if (floats_used < xmms.size()) {
         locs.push_back(ParamLocation::Register(xmms[floats_used]));
         floats_used += 1;
@@ -77,9 +78,11 @@ std::vector<ParamLocation> param_locations(const CAbiSignature &func) {
         locs.push_back(ParamLocation::Stack());
       }
       break;
-    case CAbiArgKind::Memory:
+    }
+    case CAbiArgKind::Memory: {
       locs.push_back(ParamLocation::Stack());
       break;
+    }
     }
   }
   return locs;
@@ -87,30 +90,25 @@ std::vector<ParamLocation> param_locations(const CAbiSignature &func) {
 
 std::vector<ParamLocation> return_locations(const CAbiSignature &func) {
   std::vector<ParamLocation> locs = {};
-  size_t size_in_qwords = func.ret.size();
 
   if (func.ret.empty()) {
     return locs;
   }
 
-  for (auto &kind : func.ret) {
+  size_t ints_used = 0;
+  size_t floats_used = 0;
+  for (const auto &kind : func.ret) {
     switch (kind) {
     case CAbiArgKind::Integral:
-      // FIXME: This returns [rax, rdx, rax, rdx, ...] when func.ret.size is
-      // greater than 1. However, we should fix the classification bug seen in
-      // the wrapper generated for struct s7 in tests/structs/ before fixing the
-      // double counting issue here
-      locs.push_back(ParamLocation::Register(int_ret_reg_order[0]));
-      if (size_in_qwords == 2) {
-        locs.push_back(ParamLocation::Register(int_ret_reg_order[1]));
-      }
+      assert(ints_used < 2);
+      locs.push_back(ParamLocation::Register(int_ret_reg_order[ints_used]));
+      ints_used += 1;
       break;
     case CAbiArgKind::Float:
       // TODO: handle x87 in st0 and complex x87 in st0+st1
-      locs.push_back(ParamLocation::Register(xmms[0]));
-      if (size_in_qwords == 2) {
-        locs.push_back(ParamLocation::Register(xmms[1]));
-      }
+      assert(floats_used < 2);
+      locs.push_back(ParamLocation::Register(xmms[floats_used]));
+      floats_used += 1;
       break;
     case CAbiArgKind::Memory:
       // memory return also returns address in first return register

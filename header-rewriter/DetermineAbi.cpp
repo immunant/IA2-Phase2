@@ -9,7 +9,7 @@
 #include "clang/Lex/PreprocessorOptions.h"
 #include "llvm/IR/LLVMContext.h"
 
-static auto classifyType(const clang::Type &type) -> std::vector<CAbiArgKind> {
+static std::vector<CAbiArgKind> classifyType(const clang::Type &type) {
   if (type.isVoidType())
     return {};
   if (type.isScalarType()) {
@@ -23,7 +23,8 @@ static auto classifyType(const clang::Type &type) -> std::vector<CAbiArgKind> {
       return {CAbiArgKind::Float};
     case clang::Type::ScalarTypeKind::STK_IntegralComplex:
     case clang::Type::ScalarTypeKind::STK_FloatingComplex:
-      llvm::report_fatal_error("complex types not yet supported for ABI computation");
+      llvm::report_fatal_error(
+          "complex types not yet supported for ABI computation");
     case clang::Type::ScalarTypeKind::STK_BlockPointer:
     case clang::Type::ScalarTypeKind::STK_ObjCObjectPointer:
     case clang::Type::ScalarTypeKind::STK_MemberPointer:
@@ -56,24 +57,23 @@ static auto classifyType(const clang::Type &type) -> std::vector<CAbiArgKind> {
   llvm::report_fatal_error("could not classify type!\n");
 }
 
-static auto classifyLlvmType(const llvm::Type &type) -> CAbiArgKind {
+static CAbiArgKind classifyLlvmType(const llvm::Type &type) {
   if (type.isFloatingPointTy()) {
     return CAbiArgKind::Float;
   } else if (type.isSingleValueType()) {
     return CAbiArgKind::Integral;
   } else if (type.isAggregateType()) {
-    assert(0 && "nested aggregates not currently handled");
+    llvm::report_fatal_error("nested aggregates not currently handled");
   } else {
-    assert(0 && "unhandled type when computing ABI slots");
+    llvm::report_fatal_error("unhandled type when computing ABI slots");
   }
-  printf("could not classify LLVM type!\n");
-  abort();
+  llvm::report_fatal_error("could not classify LLVM type!");
 }
 
-static auto abiSlotsForArg(const clang::QualType &qt,
-                           const clang::CodeGen::ABIArgInfo &argInfo,
-                           const clang::ASTContext &astContext)
-    -> std::vector<CAbiArgKind> {
+static std::vector<CAbiArgKind>
+abiSlotsForArg(const clang::QualType &qt,
+               const clang::CodeGen::ABIArgInfo &argInfo,
+               const clang::ASTContext &astContext) {
   // this function is most similar to Clang's `ClangToLLVMArgMapping::construct`
   typedef enum clang::CodeGen::ABIArgInfo::Kind Kind;
   switch (argInfo.getKind()) {
@@ -155,7 +155,8 @@ static auto abiSlotsForArg(const clang::QualType &qt,
     return {};
   case Kind::Expand: // split aggregate into multiple registers -- already
                      // handled before our logic runs?
-    llvm::report_fatal_error("unhandled \"Expand\" type when computing ABI slots");
+    llvm::report_fatal_error(
+        "unhandled \"Expand\" type when computing ABI slots");
   case Kind::CoerceAndExpand: // same as Expand for our concerns
     // this code is, afaict, dead
     llvm::report_fatal_error(
@@ -181,7 +182,7 @@ cgFunctionInfo(clang::CodeGen::CodeGenModule &cgm,
   }
 }
 
-auto determineAbiForDecl(const clang::FunctionDecl &fnDecl) -> CAbiSignature {
+CAbiSignature determineAbiForDecl(const clang::FunctionDecl &fnDecl) {
   clang::ASTContext &astContext = fnDecl.getASTContext();
 
   // set up context for codegen so we can ask about function ABI

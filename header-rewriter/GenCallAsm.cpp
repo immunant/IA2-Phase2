@@ -39,7 +39,7 @@ const std::array<const char *, 6> int_param_reg_order = {"rdi", "rsi", "rdx",
 const std::array<const char *, 8> xmms = {"xmm0", "xmm1", "xmm2", "xmm3",
                                           "xmm4", "xmm5", "xmm6", "xmm7"};
 
-const std::array<const char *, 6> int_ret_reg_order = {"rax", "rdx"};
+const std::array<const char *, 2> int_ret_reg_order = {"rax", "rdx"};
 
 const std::array<const char *, 3> cabi_arg_kind_names = {"int", "float", "mem"};
 
@@ -95,6 +95,10 @@ std::vector<ParamLocation> return_locations(const CAbiSignature &func) {
   for (auto &kind : func.ret) {
     switch (kind) {
     case CAbiArgKind::Integral:
+      // FIXME: This returns [rax, rdx, rax, rdx, ...] when func.ret.size is
+      // greater than 1. However, we should fix the classification bug seen in
+      // the wrapper generated for struct s7 in tests/structs/ before fixing the
+      // double counting issue here
       locs.push_back(ParamLocation::Register(int_ret_reg_order[0]));
       if (size_in_qwords == 2) {
         locs.push_back(ParamLocation::Register(int_ret_reg_order[1]));

@@ -246,19 +246,20 @@ int main() {
 		check_field_int(ac1[8], 9);
 	}
 
-    {
-        struct s13 s = {
-            .x = 0x7fffeeeeddddcccc
-        };
-        s.x <<= 64;
-        s.x |= 0xbbbbaaaa99998888;
-        check_eq_int(cksum_s13,
-            (0x99998888 & 0xffffffff) +
-            (0xbbbbaaaa & 0xffffffff) +
-            (0xddddcccc & 0xffffffff) +
-            (0x7fffeeee & 0xffffffff));
-        s = get_s13();
-        check_field_i128(x, 0x7fffeeeeddddcccc, 0xbbbbaaaa99998888);
-    }
+    // TODO: Enable this test when we get support for returning u128
+    //{
+    //    struct s13 s = {
+    //        .x = 0x7fffeeeeddddcccc
+    //    };
+    //    s.x <<= 64;
+    //    s.x |= 0xbbbbaaaa99998888;
+    //    check_eq_int(cksum_s13,
+    //        (0x99998888 & 0xffffffff) +
+    //        (0xbbbbaaaa & 0xffffffff) +
+    //        (0xddddcccc & 0xffffffff) +
+    //        (0x7fffeeee & 0xffffffff));
+    //    s = get_s13();
+    //    check_field_i128(x, 0x7fffeeeeddddcccc, 0xbbbbaaaa99998888);
+    //}
 	return 0;
 }

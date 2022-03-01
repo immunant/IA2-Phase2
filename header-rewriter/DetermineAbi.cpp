@@ -77,9 +77,6 @@ abiSlotsForArg(const clang::QualType &qt,
   // this function is most similar to Clang's `ClangToLLVMArgMapping::construct`
   typedef enum clang::CodeGen::ABIArgInfo::Kind Kind;
   switch (argInfo.getKind()) {
-  // in register with zext/sext
-  case Kind::Extend:
-    [[fallthrough]];
 #if LLVM_VERSION_MAJOR >= 12
   // ptr in register
   case Kind::IndirectAliased:
@@ -129,6 +126,9 @@ abiSlotsForArg(const clang::QualType &qt,
       return out;
     }
   }
+  // in register with zext/sext
+  case Kind::Extend:
+    [[fallthrough]];
   case Kind::Direct: // in register
   {
     llvm::StructType *STy =

@@ -91,38 +91,10 @@ abiSlotsForArg(const clang::QualType &qt,
           astContext.getASTRecordLayout(decl);
       int64_t size = layout.getSize().getQuantity();
       std::vector<CAbiArgKind> out;
-      if (size > 64) {
-        // aggregates larger than 8 eightbytes are passed in memory
-        for (int64_t i = 0; i < size; i += 8) {
-          out.push_back(CAbiArgKind::Memory);
-        }
-        return out;
+      // argument itself is in memory, so create enough memory-classified eightbytes to hold it
+      for (int64_t i = 0; i < size; i += 8) {
+        out.push_back(CAbiArgKind::Memory);
       }
-
-      // aggregates of 1-8 eightbytes have each eightbyte classified
-      // individually. we have to iterate over fields to determine which fields
-      // are present in each eightbyte, then resolve conflicts with the logic
-      // from SysV ABI §3.3.3 (step 4):
-      auto field_iter = decl->field_begin();
-      auto field_end = decl->field_end();
-      while (field_iter != field_end) {
-        // FIXME: for now, just assume all arguments are integral
-        out.push_back(CAbiArgKind::Integral);
-        field_iter++;
-      }
-
-      // apply the "post-merger cleanup" described in SysV ABI §3.3.3 (step 5)
-      // we do not yet handle x87up, so ignore 5b
-      // 5c (n.b. that we ignore the sseup condition as we do not yet handle
-      // sseup)
-      if (out.size() > 2 && out[0] != CAbiArgKind::Float) {
-        for (auto &i : out) {
-          i = CAbiArgKind::Memory;
-        }
-        return out;
-      }
-      // we do not yet handle sseup, so ignore 5d
-
       return out;
     }
   }

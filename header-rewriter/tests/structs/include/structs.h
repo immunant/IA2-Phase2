@@ -85,6 +85,48 @@ struct s13 {
     __int128 x;
 };
 
+struct s14 {
+	unsigned int u1 : 1;
+	unsigned int u2 : 1;
+	unsigned int u3 : 1;
+	unsigned int u4 : 1;
+	unsigned int u5 : 1;
+	unsigned int u6 : 1;
+	unsigned int u7 : 1;
+	unsigned int u8 : 1;
+	unsigned int u9 : 1;
+	unsigned int u10 : 1;
+	unsigned int u11 : 1;
+	unsigned int u12 : 1;
+	unsigned int u13 : 1;
+	unsigned int u14 : 1;
+	unsigned int u15 : 1;
+	unsigned int u16 : 1;
+	unsigned int u17 : 1;
+	unsigned int u18 : 1;
+	unsigned int u19 : 1;
+	unsigned int u20 : 1;
+	unsigned int u21 : 1;
+	unsigned int u22 : 1;
+	unsigned int u23 : 1;
+	unsigned int u24 : 1;
+	unsigned int u25 : 1;
+	unsigned int u26 : 1;
+	unsigned int u27 : 1;
+	unsigned int u28 : 1;
+	unsigned int u29 : 1;
+	unsigned int u30 : 1;
+	unsigned int u31 : 1;
+	unsigned int u32 : 1;
+	unsigned int field2;
+	unsigned int field3;
+	unsigned int field4;
+	unsigned int field5;
+	unsigned int field6;
+	unsigned int field7;
+	unsigned int field8;
+};
+
 // CHECK: IA2_WRAP_FUNCTION(get_s1);
 struct s1 get_s1(void);
 
@@ -180,3 +222,9 @@ struct s13 get_s13(void);
 
 // CHECK: IA2_WRAP_FUNCTION(cksum_s13);
 unsigned int cksum_s13(struct s13);
+
+// CHECK: IA2_WRAP_FUNCTION(get_s14);
+struct s14 get_s14(void);
+
+// CHECK: IA2_WRAP_FUNCTION(cksum_s14);
+unsigned int cksum_s14(struct s14);

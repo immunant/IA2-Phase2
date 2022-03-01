@@ -261,5 +261,52 @@ int main() {
     //    s = get_s13();
     //    check_field_i128(x, 0x7fffeeeeddddcccc, 0xbbbbaaaa99998888);
     //}
+
+	{
+		struct s14 s = { 0 };
+		s.u1 = 1;
+		s.u32 = 1;
+		check_eq_int(cksum_s14, 2);
+		s = get_s14();
+		check_field_int(u1, 0);
+		check_field_int(u2, 1);
+		check_field_int(u3, 0);
+		check_field_int(u4, 0);
+		check_field_int(u5, 1);
+		check_field_int(u6, 0);
+		check_field_int(u7, 0);
+		check_field_int(u8, 0);
+		check_field_int(u9, 1);
+		check_field_int(u10, 0);
+		check_field_int(u11, 0);
+		check_field_int(u12, 0);
+		check_field_int(u13, 0);
+		check_field_int(u14, 1);
+		check_field_int(u15, 0);
+		check_field_int(u16, 0);
+		check_field_int(u17, 0);
+		check_field_int(u18, 0);
+		check_field_int(u19, 0);
+		check_field_int(u20, 1);
+		check_field_int(u21, 0);
+		check_field_int(u22, 0);
+		check_field_int(u23, 0);
+		check_field_int(u24, 0);
+		check_field_int(u25, 0);
+		check_field_int(u26, 1);
+		check_field_int(u27, 0);
+		check_field_int(u28, 1);
+		check_field_int(u29, 1);
+		check_field_int(u30, 1);
+		check_field_int(u31, 1);
+		check_field_int(u32, 0);
+		check_field_int(field2, 20000);
+		check_field_int(field3, 30000);
+		check_field_int(field4, 40000);
+		check_field_int(field5, 50000);
+		check_field_int(field6, 60000);
+		check_field_int(field7, 70000);
+		check_field_int(field8, 80000);
+	}
 	return 0;
 }

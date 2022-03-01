@@ -232,3 +232,52 @@ unsigned int cksum_s13(struct s13 s) {
     unsigned int x3 = (s.x >> 96) & 0xffffffff;
     return x0 + x1 + x2 + x3;
 }
+
+struct s14 get_s14(void) {
+	struct s14 s = {
+		0,
+		1,
+		0,
+		0,
+		1,
+		0,
+		0,
+		0,
+		1,
+		0,
+		0,
+		0,
+		0,
+		1,
+		0,
+		0,
+		0,
+		0,
+		0,
+		1,
+		0,
+		0,
+		0,
+		0,
+		0,
+		1,
+		0,
+		1,
+		1,
+		1,
+		1,
+		0,
+		.field2 = 20000,
+		.field3 = 30000,
+		.field4 = 40000,
+		.field5 = 50000,
+		.field6 = 60000,
+		.field7 = 70000,
+		.field8 = 80000,
+	};
+	return s;
+}
+
+unsigned int cksum_s14(struct s14 s) {
+	return s.u1 + s.u32 + s.field2 + s.field3 + s.field7;
+}

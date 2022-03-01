@@ -12,6 +12,7 @@ add_definitions(${CLANG_DEFINITIONS} ${LLVM_DEFINITIONS})
 include_directories(${CLANG_INCLUDE_DIRS} ${LLVM_INCLUDE_DIRS})
 
 add_executable(ia2-header-rewriter
+    CreateCodeGenerator.cpp
     HeaderRewriter.cpp
     DetermineAbi.cpp
     GenCallAsm.cpp

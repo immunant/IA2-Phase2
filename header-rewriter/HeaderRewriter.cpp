@@ -1,3 +1,4 @@
+#include "CreateCodeGenerator.h"
 #include "DetermineAbi.h"
 #include "GenCallAsm.h"
 #include "clang/AST/AST.h"
@@ -257,7 +258,8 @@ public:
           ret_stmt = "    return res;\n";
         }
 
-        auto cAbiSig = determineAbiForDecl(*fn_decl);
+        auto& cgm = getCodeGenerator(fn_decl->getASTContext())->CGM();
+        auto cAbiSig = determineAbiForDecl(*fn_decl, cgm);
         auto asm_wrapper = emit_asm_wrapper(cAbiSig, fn_name);
 
         // Generate wrapper symbol definition, invoking call gates around call
@@ -273,8 +275,14 @@ public:
       }
     }
   }
+  void onEndOfTranslationUnit() {
+    delete codeGenerator;
+    codeGenerator = nullptr;
+  }
 
 private:
+  // Code generator used to query ABI for function declarations
+  clang::CodeGenerator *codeGenerator = nullptr;
   llvm::raw_ostream &WrapperOut;
   llvm::raw_ostream &SymsOut;
   std::map<std::string, Replacements> &FileReplacements;
@@ -308,6 +316,13 @@ private:
       return true;
     }
     return false;
+  }
+
+  clang::CodeGenerator *getCodeGenerator(clang::ASTContext &astContext) {
+    if (codeGenerator == nullptr) {
+      codeGenerator = createCodeGenerator(astContext);
+    }
+    return codeGenerator;
   }
 };
 

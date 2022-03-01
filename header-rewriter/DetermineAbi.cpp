@@ -5,8 +5,6 @@
 #include "clang/CodeGen/CGFunctionInfo.h"
 #include "clang/CodeGen/CodeGenABITypes.h"
 #include "clang/CodeGen/ModuleBuilder.h"
-#include "clang/Lex/HeaderSearchOptions.h"
-#include "clang/Lex/PreprocessorOptions.h"
 #include "llvm/IR/LLVMContext.h"
 
 static std::vector<CAbiArgKind> classifyType(const clang::Type &type) {
@@ -182,23 +180,12 @@ cgFunctionInfo(clang::CodeGen::CodeGenModule &cgm,
   }
 }
 
-CAbiSignature determineAbiForDecl(const clang::FunctionDecl &fnDecl) {
+// Determine the ABI-level signature for a function, given its declaration.
+// Note that the `.getAstContext()` of the passed fnDecl must match the
+// astContext of the clang::CodeGenerator used by the passed CodeGenModule.
+CAbiSignature determineAbiForDecl(const clang::FunctionDecl &fnDecl,
+  clang::CodeGen::CodeGenModule &cgm) {
   clang::ASTContext &astContext = fnDecl.getASTContext();
-
-  // set up context for codegen so we can ask about function ABI
-  // XXX: these should probably be constructed at the top-level and
-  // just `clang::CodeGen::CodeGenModule& cgm` could be passed in.
-  // doing so would add the precondition that the clang::AstContext of
-  // the passed fnDecl matches that of the passed CGM's CodeGenerator.
-  clang::HeaderSearchOptions hso;
-  clang::PreprocessorOptions ppo;
-  clang::CodeGenOptions cgo;
-  llvm::LLVMContext llvmCtx;
-  clang::CodeGenerator *codeGenerator = CreateLLVMCodeGen(
-      astContext.getDiagnostics(), llvm::StringRef(), hso, ppo, cgo, llvmCtx);
-
-  codeGenerator->Initialize(astContext);
-  clang::CodeGen::CodeGenModule &cgm = codeGenerator->CGM();
 
   auto name = fnDecl.getNameInfo().getAsString();
   const auto &info = cgFunctionInfo(cgm, fnDecl);

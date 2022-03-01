@@ -83,9 +83,9 @@ int main() {
 	{
 		struct s5 s = {
 			.i1 = 6976,
-			.p1 = 0xb17ebee7,
+			.p1 = (void*)0xb17ebee7,
 			.ac1 = {78, 45, 32},
-			.p2 = 0xba5edba5edba5ed,
+			.p2 = (void*)0xba5edba5edba5ed,
 			.f1 = 390.56,
 		};
 		print_s5(s);

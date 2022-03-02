@@ -335,9 +335,7 @@ struct FunctionInfo {
   // ["int", "float"]
   std::vector<std::string> parameter_types;
 
-  // The list of parameters with names, e.g. "void f(int a, float b)" would be
-  // ["int __ia2_arg_0", "float __ia2_arg_1"]
-  std::vector<std::string> parameters;
+  CAbiSignature sig;
 };
 
 class FnPtrPrinter : public RefactoringCallback {
@@ -434,13 +432,9 @@ public:
         }
 
         for (auto param_type : fpt->param_types()) {
-          auto s = type_string_with_placeholder(param_type);
-          auto i = fi.parameters.size();
-          auto arg_name = llvm::formatv("__ia2_arg_{0}", i).str();
-          fi.parameters.push_back(
-              replace_type_placeholder(std::move(s), arg_name));
           fi.parameter_types.push_back(type_string(param_type));
         }
+        fi.sig = determineAbiForDecl(fpt);
 
         m_function_info.insert({mangled_type, fi});
       }

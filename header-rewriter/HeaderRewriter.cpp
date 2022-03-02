@@ -476,37 +476,6 @@ static int emit_output_header(const FnPtrPrinter &printer) {
 
     os << fi.new_type << " { char *ptr; };\n";
 
-    if (!fi.return_type.empty()) {
-      std::string variable_type =
-          replace_type_placeholder(fi.return_type, "__ia2_variable");
-      os << "#define IA2_FNPTR_RETURN_" << mangled_type << "(__ia2_variable) "
-         << variable_type << '\n';
-    }
-
-    std::string fn_sig;
-    if (fi.return_type.empty()) {
-      fn_sig = "void __ia2_target(" + llvm::join(fi.parameters, ", ") + ')';
-    } else {
-      // The arguments go right after the name inside the placeholder,
-      // not at the end of the return type, e.g., for this declaration
-      // int (*f(float))(char) {} float is the type of f's argument
-      // and char is the type of the argument of the returned function
-      auto fn_with_args =
-          "__ia2_target(" + llvm::join(fi.parameters, ", ") + ')';
-      fn_sig =
-          replace_type_placeholder(fi.return_type, std::move(fn_with_args));
-    }
-    os << "#define IA2_FNPTR_WRAPPER_" << mangled_type << "(__ia2_target) "
-       << fn_sig << '\n';
-
-    os << "#define IA2_FNPTR_ARG_NAMES_" << mangled_type;
-    for (size_t i = 0; i < fi.parameters.size(); i++) {
-      if (i > 0) {
-        os << ',';
-      }
-      os << " __ia2_arg_" << i;
-    }
-    os << '\n';
     os << "#define IA2_FNPTR_TYPE_" << mangled_type << " ";
     if (!fi.return_type.empty()) {
       os << replace_type_placeholder(fi.return_type, "(*)");

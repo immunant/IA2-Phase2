@@ -48,18 +48,19 @@ To assign a protection key to a trusted compartment insert `INIT_COMPARTMENT(n)`
 
 ### Wrapping calls
 
-Calls between compartments must have call gates to toggle the PKRU permissions at each transition. For direct calls, this is done by rewriting headers to create the source for a wrapper that provides versions of every function with call gates. This wrapper must then be linked against every shared object that links against the wrapped library.
+Calls between compartments must have call gates to toggle the PKRU permissions at each transition. For direct calls, this is done by rewriting headers to generate the source for a wrapper that provides versions of every function with call gates. These wrappers are specific to both the wrapped library and caller. This means that the generated source must be compiled once per compartment that links against the wrapped library. Each caller's wrapper must define the `CALLER_PKEY` macro with the appropriate value for the caller.
 
 #### From CMake
 
 We provide a CMake rule to wrap a library or the main executable. This rule builds a wrapper and provides its dependency information to consumers of its outputs. Specifically, wrapper libs also depend on libia2 and have additional required compilation flags (-fno-omit-frame-pointer) for application code.
 
-Usage from CMake looks like this (wrapping `myunsafelib` which is used by your existing `my_prog` target):
+[Usage from CMake](https://github.com/immunant/IA2-Phase2/blob/main/cmake/define-ia2-wrapper.cmake#L10-L32) looks like this (wrapping `myunsafelib` which is used by your existing `my_prog` target):
 ```diff
 +define_ia2_wrapper(
 +    WRAPPER my_wrapper_target
 +    WRAPPED_LIB myunsafelib-1.0
 +    HEADERS myunsafelib.h myunsafelib_config.h
++    CALLER_PKEY 0
 +)
 +
  add_executable(my_prog main.c)
@@ -67,7 +68,7 @@ Usage from CMake looks like this (wrapping `myunsafelib` which is used by your e
 +target_link_libraries(my_prog PRIVATE my_wrapper_target)
 ```
 
-Wrapped libraries are treated as untrusted by default. If the library being wrapped defined a trusted compartment, `COMPARTMENT_PKEY n` must be specified in define_ia2_wrapper. Here `n` is the argument used in `INIT_COMPARTMENT` to define the compartment. To create a wrapper for the main binary (i.e. if shared libraries call it directly) the `WRAP_MAIN` option must be specified.
+Wrapped libraries are treated as untrusted by default. If the library being wrapped defined a trusted compartment, `COMPARTMENT_PKEY n` must be specified in define_ia2_wrapper. Here `n` is the argument used in `INIT_COMPARTMENT` to define the compartment. If the caller is an untrusted compartment, set `CALLER_PKEY NO_PKEY`. To create a wrapper for the main binary (i.e. if shared libraries call it directly) the `WRAP_MAIN` option must be specified.
 
 #### Manual usage
 
@@ -82,8 +83,10 @@ If the library being wrapped defined a trusted compartment pass in the `--compar
 
 The wrapper library can then be compiled with (assuming the original library is liboriginal.so):
 ```
-$ gcc /path/to/wrapper_output_file.c -shared -Wl,--version-script,/path/to/wrapper_output_file.c.syms -loriginal -o libwrapper.so
+$ gcc /path/to/wrapper_output_file.c -shared -Wl,--version-script,/path/to/wrapper_output_file.c.syms -loriginal -DCALLER_PKEY=0 -o libwrapper.so
 ```
+
+Again `CALLER_PKEY` should be set to a value between 0-14 depending on the caller's protection key or `NO_PKEY` if the caller is untrusted.
 
 The user application can then link against libwrapper.so using the rewritten
 header. For testing you will likely need to add `-Wl,-rpath=path/to/libs` so

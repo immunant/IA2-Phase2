@@ -9,7 +9,9 @@
 #include "clang/Lex/PreprocessorOptions.h"
 #include "llvm/IR/LLVMContext.h"
 
-static std::vector<CAbiArgKind> classifyType(const clang::Type &type) {
+// Compute sequence of eightbyte classifications for a type that Clang has
+// chosen to pass directly in registers
+static std::vector<CAbiArgKind> classifyDirectType(const clang::Type &type) {
   if (type.isVoidType())
     return {};
   if (type.isScalarType()) {
@@ -40,21 +42,18 @@ static std::vector<CAbiArgKind> classifyType(const clang::Type &type) {
     std::vector<CAbiArgKind> out;
     if (decl->canPassInRegisters()) {
       for (const auto &x : decl->fields()) {
-        auto recur = classifyType(*x->getType());
+        auto recur = classifyDirectType(*x->getType());
         if (recur.size() != 1) {
-          llvm::report_fatal_error("size of register-passable field not 1!");
+          llvm::report_fatal_error(
+              "unexpectedly classified register-passable field as multiple eightbytes");
         }
         out.push_back(recur[0]);
       }
       return out;
     }
-
-    for (const auto &x : decl->fields()) {
-      out.push_back(CAbiArgKind::Memory);
-    }
-    return out;
   }
-  llvm::report_fatal_error("could not classify type!\n");
+  llvm::report_fatal_error(
+      "classifyDirectType called on non-scalar, non-canPassInRegisters type");
 }
 
 static CAbiArgKind classifyLlvmType(const llvm::Type &type) {
@@ -119,7 +118,7 @@ abiSlotsForArg(const clang::QualType &qt,
       }
     }
     // if not flattenable, classify the single-register value
-    return classifyType(*qt.getCanonicalType());
+    return classifyDirectType(*qt.getCanonicalType());
   }
   case Kind::Ignore:   // no ABI presence
                        // fall through

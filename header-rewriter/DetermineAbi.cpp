@@ -197,3 +197,6 @@ CAbiSignature determineAbiForDecl(const clang::FunctionDecl &fnDecl) {
   }
   return sig;
 }
+
+CAbiSignature determineAbiForProtoType(const clang::FunctionProtoType &fpt) {
+}

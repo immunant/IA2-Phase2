@@ -434,7 +434,7 @@ public:
         for (auto param_type : fpt->param_types()) {
           fi.parameter_types.push_back(type_string(param_type));
         }
-        fi.sig = determineAbiForDecl(fpt);
+        fi.sig = determineAbiForProtoType(*fpt);
 
         m_function_info.insert({mangled_type, fi});
       }

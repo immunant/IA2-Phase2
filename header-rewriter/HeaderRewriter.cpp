@@ -434,7 +434,7 @@ public:
         for (auto param_type : fpt->param_types()) {
           fi.parameter_types.push_back(type_string(param_type));
         }
-        fi.sig = determineAbiForProtoType(*fpt);
+        fi.sig = determineAbiForProtoType(*fpt, old_decl->getASTContext());
 
         m_function_info.insert({mangled_type, fi});
       }
@@ -477,6 +477,7 @@ static int emit_output_header(const FnPtrPrinter &printer) {
       os << "void(*)";
     }
     os << "(" << llvm::join(fi.parameter_types, ", ") << ")\n";
+    // TODO: call emit_asm_wrapper here
   }
 
   return EXIT_SUCCESS;

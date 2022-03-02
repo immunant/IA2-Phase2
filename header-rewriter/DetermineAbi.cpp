@@ -153,6 +153,21 @@ cgFunctionInfo(clang::CodeGen::CodeGenModule &cgm,
   }
 }
 
+CAbiSignature determineAbi(const clang::CodeGen::CGFunctionInfo &info,
+                           const clang::ASTContext &astContext) {
+  // get ABI for return type and each parameter
+  CAbiSignature sig;
+  sig.variadic = info.isVariadic();
+  auto &returnInfo = info.getReturnInfo();
+  sig.ret = abiSlotsForArg(info.getReturnType(), returnInfo, astContext);
+  for (auto &argInfo : info.arguments()) {
+    clang::QualType paramType = argInfo.type;
+    auto slots = abiSlotsForArg(paramType, argInfo.info, astContext);
+    sig.args.insert(sig.args.end(), slots.begin(), slots.end());
+  }
+  return sig;
+}
+
 CAbiSignature determineAbiForDecl(const clang::FunctionDecl &fnDecl) {
   clang::ASTContext &astContext = fnDecl.getASTContext();
 
@@ -184,19 +199,27 @@ CAbiSignature determineAbiForDecl(const clang::FunctionDecl &fnDecl) {
            info.getASTCallingConvention());
     abort();
   }
-
-  // get ABI for return type and each parameter
-  CAbiSignature sig;
-  sig.variadic = fnDecl.isVariadic();
-  auto &returnInfo = info.getReturnInfo();
-  sig.ret = abiSlotsForArg(fnDecl.getReturnType(), returnInfo, astContext);
-  for (auto &argInfo : info.arguments()) {
-    clang::QualType paramType = argInfo.type;
-    auto slots = abiSlotsForArg(paramType, argInfo.info, astContext);
-    sig.args.insert(sig.args.end(), slots.begin(), slots.end());
-  }
-  return sig;
+  return determineAbi(info, astContext);
 }
 
-CAbiSignature determineAbiForProtoType(const clang::FunctionProtoType &fpt) {
+CAbiSignature determineAbiForProtoType(const clang::FunctionProtoType &fpt,
+                                       clang::ASTContext &astContext) {
+  // FIXME: This is copied verbatim from determineAbiForDecl and could be
+  // factored out. This depends on what we do with PR #78 so I'm leaving it as
+  // is for now.
+  clang::HeaderSearchOptions hso;
+  clang::PreprocessorOptions ppo;
+  clang::CodeGenOptions cgo;
+  llvm::LLVMContext llvmCtx;
+  clang::CodeGenerator *codeGenerator = CreateLLVMCodeGen(
+      astContext.getDiagnostics(), llvm::StringRef(), hso, ppo, cgo, llvmCtx);
+
+  codeGenerator->Initialize(astContext);
+  clang::CodeGen::CodeGenModule &cgm = codeGenerator->CGM();
+
+  const auto &info = clang::CodeGen::arrangeFreeFunctionType(
+      cgm,
+      fpt.getCanonicalTypeUnqualified().castAs<clang::FunctionProtoType>());
+
+  return determineAbi(info, astContext);
 }

@@ -128,6 +128,7 @@ std::vector<ParamLocation> return_locations(const CAbiSignature &func) {
 
 struct AsmWriter {
   std::stringstream ss;
+  // An optional string to terminate every line with.
   std::string terminator;
 };
 
@@ -209,6 +210,8 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   using namespace std::string_literals;
 
   std::string terminator = {};
+  // Code for indirect wrappers is generated as a macro so we need to terminate
+  // each line with '\'
   if (indirect_wrapper) {
     terminator = "\\"s;
   }
@@ -371,8 +374,12 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   add_comment_line(aw, "Zero all registers except rsp");
   // FIXME: If this will use the System V ABI make sure that the %rsp is aligned
   // before this call
-  // FIXME: This call causes a fault in the PLT for some indirect calls
-  //add_asm_line(aw, "call __libia2_scrub_registers");
+  if (indirect_wrapper) {
+    // FIXME: A call causes a fault in the PLT for some indirect calls. So
+    // inline scrub_registers here
+  } else {
+    add_asm_line(aw, "call __libia2_scrub_registers");
+  }
 
   // Restore used arg regs after zeroing registers
   if (reg_arg_count > 0) {
@@ -465,8 +472,12 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   add_comment_line(aw, "Scrub registers after call");
   // FIXME: If this will use the System V ABI make sure that the %rsp is aligned
   // before this call
-  // FIXME: This call causes a fault in the PLT for some indirect calls
-  //add_asm_line(aw, "call __libia2_scrub_registers");
+  if (indirect_wrapper) {
+    // FIXME: A call causes a fault in the PLT for some indirect calls. So
+    // inline scrub_registers here
+  } else {
+    add_asm_line(aw, "call __libia2_scrub_registers");
+  }
 
   // pop return regs
   add_comment_line(aw, "Pop return regs");

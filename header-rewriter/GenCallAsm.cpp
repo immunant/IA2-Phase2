@@ -44,6 +44,11 @@ const std::array<const char *, 2> int_ret_reg_order = {"rax", "rdx"};
 
 const std::array<const char *, 3> cabi_arg_kind_names = {"int", "float", "mem"};
 
+// rsp is also a preserved register, but we handle it separately from these
+// since it's the stack
+const std::array<const char *, 6> preserved_registers = {"rbx", "rbp", "r12",
+                                                         "r13", "r14", "r15" };
+
 /// Compute abi locations for parameters of a C-abi function, given its sequence
 /// of argument kinds.
 std::vector<ParamLocation> param_locations(const CAbiSignature &func) {
@@ -301,6 +306,13 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     add_asm_line(aw, "__ia2_"s + name + ":");
   }
 
+  // Save registers that are preserved across function calls before switching to
+  // the other compartment's stack. This is on the caller's stack so it's not in
+  // the diagram above.
+  for (auto &r : preserved_registers) {
+      add_asm_line(aw, "pushq %"s + r);
+  }
+
   // Save trusted stack pointer
   add_comment_line(aw, "Save trusted stack pointer");
   add_asm_line(aw, "movq ia2_trusted_stackptr@GOTPCREL(%rip), %rax");
@@ -500,6 +512,13 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     if (!loc->is_stack()) {
       emit_reg_pop(aw, *loc);
     }
+  }
+
+  // Load registers that are preserved across function calls after switching
+  // back to the caller's compartment's stack. This is on the caller's stack so
+  // it's not in the diagram above.
+  for (auto r = preserved_registers.rbegin(); r != preserved_registers.rend(); r++) {
+      add_asm_line(aw, "popq %"s + *r);
   }
 
   // Return to the caller

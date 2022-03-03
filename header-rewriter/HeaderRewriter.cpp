@@ -194,7 +194,8 @@ public:
           return;
         }
         if (!OutputHeader.empty()) {
-          WrapperOut << llvm::formatv("#include \"{0}\"\n", OutputHeader);
+          // FIXME: Remove this
+          //WrapperOut << llvm::formatv("#include \"{0}\"\n", OutputHeader);
         }
         WrapperOut << llvm::formatv("#include \"{0}\"\n", header_name);
         InitializedHeaders.push_back(header_ref);
@@ -464,6 +465,21 @@ static int emit_output_header(const FnPtrPrinter &printer) {
   }
 
   os << "#pragma once\n";
+  // The rewritten headers include the output header to avoid having to make
+  // changes to the user's source code. However, the wrapper source (which
+  // defines a stack for direct calls) also has to include the rewritten
+  // header since it may define types used in the wrapper function
+  // declarations. Since we currently don't allocate stacks at init (see #67),
+  // we need to define a separate stack for indirect calls in the output
+  // header and the ifndef is necessary since the wrapper source also
+  // indirectly includes the output header.
+  // TODO: Remove this when #67 gets fixed.
+  os << "#ifndef IA2_WRAPPER\n"
+    << "static char untrusted_stack[8 * 1024 * 1024] __attribute__((aligned(16))) __attribute__((used));\n"
+    << "static void* ia2_untrusted_stackptr __attribute__((used)) = &untrusted_stack[4 * 1024 * 1024];\n"
+    << "static void* ia2_trusted_stackptr __attribute__((used));\n"
+    << "#endif\n";
+
   for (auto &p : printer.function_info()) {
     auto &mangled_type = p.first;
     auto &fi = p.second;

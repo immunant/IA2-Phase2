@@ -3,6 +3,7 @@
 #include <sys/mman.h>
 #include <stdio.h>
 #include "pkey_init.h"
+#include "scrub_registers.h"
 
 // Attribute for variables that can be accessed from any untrusted compartments.
 #define IA2_SHARED_DATA __attribute__((section("ia2_shared_data")))

@@ -1,6 +1,12 @@
 #pragma once
-#include "pkey_init.h"
+#include <link.h>
+#include <sys/mman.h>
 #include <stdio.h>
+
+// This typedef is required for cbindgen
+typedef struct dl_phdr_info dl_phdr_info;
+
+#include "pkey_init.h"
 
 // Attribute for variables that can be accessed from any untrusted compartments.
 #define IA2_SHARED_DATA __attribute__((section("ia2_shared_data")))
@@ -25,41 +31,14 @@
 #define NO_PKEY UNTRUSTED
 
 // Set PKRU to untrusted using rax, r10 and r11 as scratch registers.
-#define GATE_UNTRUSTED                      \
+#define WRPKRU(pkey)                        \
     "movq %rcx, %r10\n"                     \
     "movq %rdx, %r11\n"                     \
-    "movl $" XSTR(PKRU_UNTRUSTED) ", %eax\n" \
+    "movl $" XSTR(pkey) ", %eax\n"           \
     "xorl %ecx, %ecx\n"                     \
     "xorl %edx, %edx\n"                     \
     "wrpkru\n"                              \
     "movq %r10, %rcx\n"                     \
-    "movq %r11, %rdx\n"
-
-// TODO: Add static assert on pkey index if possible
-// Set PKRU based on pkey_idx using rax, r10 and r11 as scratch registers.
-#define GATE_TRUSTED(pkey)                              \
-    "movq %rcx, %r10\n"                                 \
-    "movq %rdx, %r11\n"                                 \
-    "movq IA2_INIT_DATA@GOTPCREL(%rip), %rax\n"         \
-    "movl $" #pkey ", %ecx\n"                            \
-    "movl (%rax,%rcx,4), %eax\n"                        \
-    "cmpl $" XSTR(PKEY_UNINITIALIZED) ", %eax\n"         \
-    "jne 0f\n"                                          \
-    "call exit@plt\n"                                   \
-    "0:\n"                                              \
-    /* Calculate the new PKRU from the key index */     \
-    /* new_pkru = ~((3 << (2 * pkey_idx)) | 3); */      \
-    "addl %eax, %eax\n"                                 \
-    "movl %eax, %ecx\n"                                 \
-    "movl $3, %edx\n"                                    \
-    "shll %cl, %edx\n"                                  \
-    "movl %edx, %eax\n"                                 \
-    "addl $3, %eax\n"                                    \
-    "notl %eax\n"                                       \
-    "xorl %ecx, %ecx\n"                                 \
-    "xorl %edx, %edx\n"                                 \
-    "wrpkru\n"                                          \
-    "movq %r10, %rcx\n"                                 \
     "movq %r11, %rdx\n"
 
 #ifdef LIBIA2_INSECURE
@@ -67,35 +46,28 @@
 #define DISABLE_PKRU
 #else
 #define GATE(pkey) _GATE(pkey)
-// FIXME: Remove this after removing INIT_DATA (see issue #66).
-#define DISABLE_PKRU    \
-    "movq %rcx, %r10\n"                                 \
-    "movq %rdx, %r11\n"                                 \
-    "xorl %eax, %eax\n"                                 \
-    "xorl %ecx, %ecx\n"                                 \
-    "xorl %edx, %edx\n"                                 \
-    "wrpkru\n"                                          \
-    "movq %r10, %rcx\n"                                 \
-    "movq %r11, %rdx\n"
+#define DISABLE_PKRU     WRPKRU(0)
 
 #endif
 
 #define _GATE(pkey) GATE_##pkey
-#define GATE_0 GATE_TRUSTED(0)
-#define GATE_1 GATE_TRUSTED(1)
-#define GATE_2 GATE_TRUSTED(2)
-#define GATE_3 GATE_TRUSTED(3)
-#define GATE_4 GATE_TRUSTED(4)
-#define GATE_5 GATE_TRUSTED(5)
-#define GATE_6 GATE_TRUSTED(6)
-#define GATE_7 GATE_TRUSTED(7)
-#define GATE_8 GATE_TRUSTED(8)
-#define GATE_9 GATE_TRUSTED(9)
-#define GATE_10 GATE_TRUSTED(10)
-#define GATE_11 GATE_TRUSTED(11)
-#define GATE_12 GATE_TRUSTED(12)
-#define GATE_13 GATE_TRUSTED(13)
-#define GATE_14 GATE_TRUSTED(14)
+
+#define GATE_UNTRUSTED   WRPKRU(0xFFFFFFFC)
+#define GATE_0           WRPKRU(0xFFFFFFF0)
+#define GATE_1           WRPKRU(0xFFFFFFCC)
+#define GATE_2           WRPKRU(0xFFFFFF3C)
+#define GATE_3           WRPKRU(0xFFFFFCFC)
+#define GATE_4           WRPKRU(0xFFFFF3FC)
+#define GATE_5           WRPKRU(0xFFFFCFFC)
+#define GATE_6           WRPKRU(0xFFFF3FFC)
+#define GATE_7           WRPKRU(0xFFFCFFFC)
+#define GATE_8           WRPKRU(0xFFF3FFFC)
+#define GATE_9           WRPKRU(0xFFCFFFFC)
+#define GATE_10          WRPKRU(0xFF3FFFFC)
+#define GATE_11          WRPKRU(0xFCFFFFFC)
+#define GATE_12          WRPKRU(0xF3FFFFFC)
+#define GATE_13          WRPKRU(0xCFFFFFFC)
+#define GATE_14          WRPKRU(0x3FFFFFFC)
 
 // FIXME: This doesn't support arguments on the stack or in r9 (the last
 // register). Also doesn't support returning 128-bit values (rdx).
@@ -114,7 +86,6 @@
     "callq *%r9\n"                                                                \
     /* Save return value before toggling PKRU */                               \
     "movq %rax, %r9\n"                                                            \
-    DISABLE_PKRU                                                               \
     GATE(caller_pkey)                                                          \
     /* Put return value back in the right register */                          \
     "movq %r9, %rax\n"                                                            \
@@ -157,11 +128,30 @@
 // invoking this is loaded. This must only be called once for each key. The
 // compartment includes all segments in the ELF except the `ia2_shared_data`
 // section, if one exists.
-#define INIT_COMPARTMENT(n)                                     \
-    NEW_SECTION(".fini_padding");                               \
-    NEW_SECTION(".rela.plt_padding");                           \
-    NEW_SECTION(".eh_frame_padding");                           \
-    NEW_SECTION(".bss_padding");                                \
-    __attribute__((constructor)) static void init_pkey_ctor() { \
-        initialize_compartment(n, &init_pkey_ctor);             \
+#define INIT_COMPARTMENT(n)                                          \
+    NEW_SECTION(".fini_padding");                                    \
+    NEW_SECTION(".rela.plt_padding");                                \
+    NEW_SECTION(".eh_frame_padding");                                \
+    NEW_SECTION(".bss_padding");                                     \
+    struct IA2PhdrSearchArgs {                                       \
+        int32_t pkey;                                                \
+        void *address;                                               \
+    };                                                               \
+    __attribute__((constructor(102))) static void init_pkey_ctor() { \
+        struct IA2PhdrSearchArgs args = {                            \
+            .pkey = ~((3 << (2 * n)) | 3),                           \
+            .address = &init_pkey_ctor,                              \
+        };                                                           \
+        dl_iterate_phdr(protect_pages, &args);                       \
+    }
+
+#define INIT_RUNTIME(n_pkeys)                                                         \
+    __attribute__((constructor(101))) static void init_runtime() {                    \
+        for (int pkey = 0; pkey < n_pkeys; pkey++) {                                  \
+            int allocated = pkey_alloc(0, 0);                                         \
+            if (allocated != pkey + 1) {                                              \
+                printf("Failed to allocate protection keys in the expected order\n"); \
+                exit(0);                                                              \
+            }                                                                         \
+        }                                                                             \
     }

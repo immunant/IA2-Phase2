@@ -131,30 +131,32 @@ typedef struct dl_phdr_info dl_phdr_info;
 // invoking this is loaded. This must only be called once for each key. The
 // compartment includes all segments in the ELF except the `ia2_shared_data`
 // section, if one exists.
-#define _INIT_COMPARTMENT(n)                                          \
-    NEW_SECTION(".fini_padding");                                    \
-    NEW_SECTION(".rela.plt_padding");                                \
-    NEW_SECTION(".eh_frame_padding");                                \
-    NEW_SECTION(".bss_padding");                                     \
-    struct IA2PhdrSearchArgs {                                       \
-        int32_t pkey;                                                \
-        void *address;                                               \
-    };                                                               \
-    __attribute__((constructor(102))) static void init_pkey_ctor() { \
-        struct IA2PhdrSearchArgs args = {                            \
-            .pkey = n + 1,                                           \
-            .address = &init_pkey_ctor,                              \
-        };                                                           \
-        dl_iterate_phdr(protect_pages, &args);                       \
+#define _INIT_COMPARTMENT(n)                                                              \
+    NEW_SECTION(".fini_padding");                                                         \
+    NEW_SECTION(".rela.plt_padding");                                                     \
+    NEW_SECTION(".eh_frame_padding");                                                     \
+    NEW_SECTION(".bss_padding");                                                          \
+    struct IA2PhdrSearchArgs {                                                            \
+        int32_t pkey;                                                                     \
+        void *address;                                                                    \
+    };                                                                                    \
+    extern int ia2_n_pkeys;                                                               \
+    __attribute__((constructor)) static void init_pkey_ctor() {                           \
+        if (ia2_n_pkeys != 0) {                                                           \
+            for (int pkey = 0; pkey < ia2_n_pkeys; pkey++) {                              \
+                int allocated = pkey_alloc(0, 0);                                         \
+                if (allocated != pkey + 1) {                                              \
+                    printf("Failed to allocate protection keys in the expected order\n"); \
+                    exit(0);                                                              \
+                }                                                                         \
+            }                                                                             \
+            ia2_n_pkeys = 0;                                                              \
+        }                                                                                 \
+        struct IA2PhdrSearchArgs args = {                                                 \
+            .pkey = n + 1,                                                                \
+            .address = &init_pkey_ctor,                                                   \
+        };                                                                                \
+        dl_iterate_phdr(protect_pages, &args);                                            \
     }
 
-#define _INIT_RUNTIME(n_pkeys)                                                         \
-    __attribute__((constructor(101))) static void init_runtime() {                    \
-        for (int pkey = 0; pkey < n_pkeys; pkey++) {                                  \
-            int allocated = pkey_alloc(0, 0);                                         \
-            if (allocated != pkey + 1) {                                              \
-                printf("Failed to allocate protection keys in the expected order\n"); \
-                exit(0);                                                              \
-            }                                                                         \
-        }                                                                             \
-    }
+#define _INIT_RUNTIME(n) int ia2_n_pkeys = n;

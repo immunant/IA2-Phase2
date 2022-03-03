@@ -36,12 +36,10 @@
 
 #ifdef LIBIA2_INSECURE
 #define GATE(x)
-#define DISABLE_PKRU
 #define INIT_COMPARTMENT(n)
 #define INIT_RUNTIME(n)
 #else
 #define GATE(pkey) _GATE(pkey)
-#define DISABLE_PKRU     WRPKRU(0)
 #define INIT_COMPARTMENT(n) _INIT_COMPARTMENT(n)
 #define INIT_RUNTIME(n) _INIT_RUNTIME(n)
 #endif

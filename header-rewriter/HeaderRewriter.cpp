@@ -263,7 +263,7 @@ public:
       }
 
       auto cAbiSig = determineAbiForDecl(*fn_decl);
-      auto asm_wrapper = emit_asm_wrapper(cAbiSig, fn_name);
+      auto asm_wrapper = emit_asm_wrapper(cAbiSig, fn_name, false);
 
       // Generate wrapper symbol definition, invoking call gates around call
       WrapperOut << llvm::formatv(
@@ -477,7 +477,10 @@ static int emit_output_header(const FnPtrPrinter &printer) {
       os << "void(*)";
     }
     os << "(" << llvm::join(fi.parameter_types, ", ") << ")\n";
-    // TODO: call emit_asm_wrapper here
+
+    os << "#define IA2_FNPTR_WRAPPER_" << mangled_type << "(caller_pkey, target_pkey) \\\n";
+    auto asm_wrapper = emit_asm_wrapper(fi.sig, fi.new_type, true);
+    os << asm_wrapper <<  "\n";
   }
 
   return EXIT_SUCCESS;

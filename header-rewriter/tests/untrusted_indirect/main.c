@@ -3,6 +3,7 @@
 #include "foo.h"
 #include "untrusted_indirect-original_fn_ptr_ia2.h"
 
+INIT_RUNTIME(1);
 INIT_COMPARTMENT(0);
 
 /*

@@ -4,6 +4,8 @@
 #include "plugin.h"
 #include "test_fault_handler.h"
 
+// This test uses two protection keys
+INIT_RUNTIME(2);
 INIT_COMPARTMENT(0);
 
 uint32_t secret = 0x09431233;

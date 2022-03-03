@@ -12,6 +12,7 @@
 #include "hooks.h"
 #include "simple1.h"
 
+INIT_RUNTIME(1);
 INIT_COMPARTMENT(0);
 
 static HookFn exit_hook_fn = NULL;

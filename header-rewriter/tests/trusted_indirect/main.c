@@ -7,6 +7,7 @@
     untrusted shared library.
 */
 
+INIT_RUNTIME(1);
 INIT_COMPARTMENT(0);
 
 // Declare some functions to ensure that we can call a function pointer regardless of whether it

@@ -478,7 +478,7 @@ static int emit_output_header(const FnPtrPrinter &printer) {
     }
     os << "(" << llvm::join(fi.parameter_types, ", ") << ")\n";
 
-    os << "#define IA2_FNPTR_WRAPPER_" << mangled_type << "(caller_pkey, target_pkey) \\\n";
+    os << "#define IA2_FNPTR_WRAPPER_" << mangled_type << "(target, caller_pkey, target_pkey) \\\n";
     auto asm_wrapper = emit_asm_wrapper(fi.sig, fi.new_type, true);
     os << asm_wrapper <<  "\n";
   }

@@ -276,9 +276,22 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   size_t stack_alignment = compartment_stack_space % 16;
 
   add_comment_line(aw, "Wrapper for "s + sig_string(sig, name) + ":");
-  // Declare symbol
-  add_asm_line(aw, ".global __ia2_"s + name);
-  add_asm_line(aw, "__ia2_"s + name + ":");
+  // Define the wrapper symbol
+  if (indirect_wrapper) {
+    // Jump to a subsection of .text to avoid inlining this wrapper function in
+    // the function that invoked the macro for indirect wrappers
+    add_asm_line(aw, ".text 1");
+    add_raw_line(aw, "\"__ia2_\" UNIQUE_STR(#target) \"_wrapper:\\n\"");
+    add_raw_line(aw, "\".equ __ia2_\" UNIQUE_STR(#target) \", .\\n\"");
+    // FIXME: This is a stopgap until #66 gets fixed.
+    add_raw_line(aw, "DISABLE_PKRU");
+    // FIXME: r9 is not a scratch register.
+    add_raw_line(aw, "\"movq \" UNIQUE_STR(#target) \"@GOTPCREL(%rip), %r9\\n\"");
+    add_asm_line(aw, "movq (%r9), %r9");
+  } else {
+    add_asm_line(aw, ".global __ia2_"s + name);
+    add_asm_line(aw, "__ia2_"s + name + ":");
+  }
 
   // Save trusted stack pointer
   add_comment_line(aw, "Save trusted stack pointer");
@@ -374,7 +387,11 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
 
   // Call wrapped function
   add_comment_line(aw, "Call wrapped function");
-  add_asm_line(aw, "call "s + name);
+  if (indirect_wrapper) {
+    add_asm_line(aw, "call *%r9");
+  } else {
+    add_asm_line(aw, "call "s + name);
+  }
 
   add_comment_line(aw, "Set PKRU to the caller's value");
   // FIXME: The GATE macros use rax as a scratch register, but it may contain a
@@ -384,6 +401,8 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   // Change pkru to the caller's value using rax, r10 and r11 as scratch
   // registers
   if (indirect_wrapper) {
+    // FIXME: This is a stopgap until #66 gets fixed.
+    add_raw_line(aw, "DISABLE_PKRU");
     add_raw_line(aw, "GATE(target_pkey)");
   } else {
     add_raw_line(aw, "GATE_POP");
@@ -451,6 +470,12 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   // Return to the caller
   add_comment_line(aw, "Return to the caller");
   add_asm_line(aw, "ret");
+
+  if (indirect_wrapper) {
+    // Jump to the previous location counter to undo the effect of `.text 1`
+    // above
+    add_asm_line(aw, ".previous");
+  }
 
   return aw.ss.str();
 }

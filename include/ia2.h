@@ -44,10 +44,13 @@ typedef struct dl_phdr_info dl_phdr_info;
 #ifdef LIBIA2_INSECURE
 #define GATE(x)
 #define DISABLE_PKRU
+#define INIT_COMPARTMENT(n)
+#define INIT_RUNTIME(n)
 #else
 #define GATE(pkey) _GATE(pkey)
 #define DISABLE_PKRU     WRPKRU(0)
-
+#define INIT_COMPARTMENT(n) _INIT_COMPARTMENT(n)
+#define INIT_RUNTIME(n) _INIT_RUNTIME(n)
 #endif
 
 #define _GATE(pkey) GATE_##pkey
@@ -128,7 +131,7 @@ typedef struct dl_phdr_info dl_phdr_info;
 // invoking this is loaded. This must only be called once for each key. The
 // compartment includes all segments in the ELF except the `ia2_shared_data`
 // section, if one exists.
-#define INIT_COMPARTMENT(n)                                          \
+#define _INIT_COMPARTMENT(n)                                          \
     NEW_SECTION(".fini_padding");                                    \
     NEW_SECTION(".rela.plt_padding");                                \
     NEW_SECTION(".eh_frame_padding");                                \
@@ -145,7 +148,7 @@ typedef struct dl_phdr_info dl_phdr_info;
         dl_iterate_phdr(protect_pages, &args);                       \
     }
 
-#define INIT_RUNTIME(n_pkeys)                                                         \
+#define _INIT_RUNTIME(n_pkeys)                                                         \
     __attribute__((constructor(101))) static void init_runtime() {                    \
         for (int pkey = 0; pkey < n_pkeys; pkey++) {                                  \
             int allocated = pkey_alloc(0, 0);                                         \

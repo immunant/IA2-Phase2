@@ -475,9 +475,9 @@ static int emit_output_header(const FnPtrPrinter &printer) {
   // indirectly includes the output header.
   // TODO: Remove this when #67 gets fixed.
   os << "#ifndef IA2_WRAPPER\n"
-    << "static char untrusted_stack[8 * 1024 * 1024] __attribute__((aligned(16))) __attribute__((used));\n"
-    << "static void* ia2_untrusted_stackptr __attribute__((used)) = &untrusted_stack[4 * 1024 * 1024];\n"
-    << "static void* ia2_trusted_stackptr __attribute__((used));\n"
+    << "static char untrusted_stack[8 * 1024 * 1024] __attribute__((aligned(16))) __attribute__((used)) IA2_SHARED_DATA;\n"
+    << "static void* ia2_untrusted_stackptr __attribute__((used)) IA2_SHARED_DATA = &untrusted_stack[4 * 1024 * 1024];\n"
+    << "static void* ia2_trusted_stackptr __attribute__((used)) IA2_SHARED_DATA;\n"
     << "#endif\n";
 
   for (auto &p : printer.function_info()) {

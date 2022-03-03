@@ -1,8 +1,3 @@
-#if __has_include("simple1_ia2.h")
-#include "simple1_ia2.h"
-#define MAIN_USE_IA2 1
-#endif
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -50,13 +45,8 @@ static int main_map(int x) {
 
 int main() {
   struct SimpleCallbacks scb = {
-#if MAIN_USE_IA2
     .read_cb = IA2_FNPTR_WRAPPER(main_read, _ZTSPFiiE, 0, 0),
     .write_cb = IA2_FNPTR_WRAPPER(main_write, _ZTSPFviE, 0, 0),
-#else
-    .read_cb = main_read,
-    .write_cb = main_write,
-#endif
   };
 
   struct Simple *s = simple_new(scb);
@@ -66,15 +56,9 @@ int main() {
   }
 
   srand(time(NULL));
-#if MAIN_USE_IA2
   simple_foreach_v1(s, IA2_FNPTR_WRAPPER(main_map, _ZTSPFiiE, 0, 0));
   simple_reset(s);
   simple_foreach_v2(s, IA2_FNPTR_WRAPPER(main_map, _ZTSPFiiE, 0, 0));
-#else
-  simple_foreach_v1(s, main_map);
-  simple_reset(s);
-  simple_foreach_v2(s, main_map);
-#endif
   simple_destroy(s);
 
   if (exit_hook_fn != NULL) {

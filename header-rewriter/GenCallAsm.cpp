@@ -239,6 +239,8 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     +-----+
     | top |Top of the stack (stack grows down on x86-64)
     +-----+
+    |fnptr|If the call is indirect, place an 8-byte pointer to the callee here.
+    +-----+
     |     |Space for the compartment's return value if it has class MEMORY. This
     |ret  |space is only allocated if the pointer to the caller's return value
     |space|memory is also placed on the compartment's stack.
@@ -271,6 +273,10 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   // value doesn't use memory, this entire subexpression is zero.
   size_t compartment_stack_space =
       stack_arg_size + (stack_return_size > 0 ? 8 + stack_return_size : 0);
+  if (indirect_wrapper) {
+      // Count the space for the function pointer if the call is indirect
+      compartment_stack_space += 8;
+  }
   // Compute the stack alignment before calling the wrapped function without the
   // 8 bytes for alignment.
   size_t stack_alignment = compartment_stack_space % 16;
@@ -283,11 +289,6 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     add_asm_line(aw, ".text 1");
     add_raw_line(aw, "\"__ia2_\" UNIQUE_STR(#target) \"_wrapper:\\n\"");
     add_raw_line(aw, "\".equ __ia2_\" UNIQUE_STR(#target) \", .\\n\"");
-    // FIXME: This is a stopgap until #66 gets fixed.
-    add_raw_line(aw, "DISABLE_PKRU");
-    // FIXME: r9 is not a scratch register.
-    add_raw_line(aw, "\"movq \" UNIQUE_STR(#target) \"@GOTPCREL(%rip), %r9\\n\"");
-    add_asm_line(aw, "movq (%r9), %r9");
   } else {
     add_asm_line(aw, ".global __ia2_"s + name);
     add_asm_line(aw, "__ia2_"s + name + ":");
@@ -302,6 +303,12 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   add_comment_line(aw, "Switch to untrusted stack");
   add_asm_line(aw, "movq ia2_untrusted_stackptr@GOTPCREL(%rip), %rsp");
   add_asm_line(aw, "movq (%rsp), %rsp");
+
+  if (indirect_wrapper) {
+    add_raw_line(aw, "\"movq \" UNIQUE_STR(#target) \"@GOTPCREL(%rip), %r10\\n\"");
+    add_asm_line(aw, "movq (%r10), %r10");
+    add_asm_line(aw, "pushq %r10");
+  }
 
   // When returning via memory, the address of the return value is passed in
   // rdi. Since this memory belongs to the caller, we first allocate space for
@@ -359,20 +366,14 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
       }
     }
   }
-  // TODO: Use a real scratch register
-  if (indirect_wrapper) {
-      add_asm_line(aw, "pushq %r9");
-  }
 
   // Zero all registers except rsp
   add_comment_line(aw, "Zero all registers except rsp");
   // FIXME: If this will use the System V ABI make sure that the %rsp is aligned
   // before this call
-  add_asm_line(aw, "call __libia2_scrub_registers");
+  // FIXME: This call causes a fault in the PLT for some indirect calls
+  //add_asm_line(aw, "call __libia2_scrub_registers");
 
-  if (indirect_wrapper) {
-      add_asm_line(aw, "popq %r9");
-  }
   // Restore used arg regs after zeroing registers
   if (reg_arg_count > 0) {
     add_comment_line(aw, "Restore registers containing arguments");
@@ -387,6 +388,8 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   // registers
   add_comment_line(aw, "Set PKRU to the compartment's value");
   if (indirect_wrapper) {
+    // FIXME: This is a stopgap until #66 gets fixed.
+    add_raw_line(aw, "DISABLE_PKRU");
     add_raw_line(aw, "GATE(target_pkey)");
   } else {
     add_raw_line(aw, "GATE_PUSH");
@@ -395,7 +398,9 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   // Call wrapped function
   add_comment_line(aw, "Call wrapped function");
   if (indirect_wrapper) {
-    add_asm_line(aw, "call *%r9");
+    size_t fn_ptr_offset = compartment_stack_space + stack_alignment - 8;
+    add_asm_line(aw, "movq "s + std::to_string(fn_ptr_offset) + "(%rsp), %r10");
+    add_asm_line(aw, "call *%r10");
   } else {
     add_asm_line(aw, "call "s + name);
   }
@@ -464,7 +469,8 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   add_comment_line(aw, "Scrub registers after call");
   // FIXME: If this will use the System V ABI make sure that the %rsp is aligned
   // before this call
-  add_asm_line(aw, "call __libia2_scrub_registers");
+  // FIXME: This call causes a fault in the PLT for some indirect calls
+  //add_asm_line(aw, "call __libia2_scrub_registers");
 
   // pop return regs
   add_comment_line(aw, "Pop return regs");

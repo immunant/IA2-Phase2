@@ -193,10 +193,6 @@ public:
         if (addHeaderImport(header_name, OutputHeader)) {
           return;
         }
-        if (!OutputHeader.empty()) {
-          // FIXME: Remove this
-          //WrapperOut << llvm::formatv("#include \"{0}\"\n", OutputHeader);
-        }
         WrapperOut << llvm::formatv("#include \"{0}\"\n", header_name);
         InitializedHeaders.push_back(header_ref);
       }

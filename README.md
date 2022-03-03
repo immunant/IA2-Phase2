@@ -68,7 +68,7 @@ We provide a CMake rule to wrap a library or the main executable. This rule buil
 +target_link_libraries(my_prog PRIVATE my_wrapper_target)
 ```
 
-Wrapped libraries are treated as untrusted by default. If the library being wrapped defined a trusted compartment, `COMPARTMENT_PKEY n` must be specified in define_ia2_wrapper. Here `n` is the argument used in `INIT_COMPARTMENT` to define the compartment. If the caller is an untrusted compartment, set `CALLER_PKEY NO_PKEY`. To create a wrapper for the main binary (i.e. if shared libraries call it directly) the `WRAP_MAIN` option must be specified.
+Wrapped libraries are treated as untrusted by default. If the library being wrapped defined a trusted compartment, `COMPARTMENT_PKEY n` must be specified in define_ia2_wrapper. Here `n` is the argument used in `INIT_COMPARTMENT` to define the compartment. If the caller is an untrusted compartment, set `CALLER_PKEY UNTRUSTED`. To create a wrapper for the main binary (i.e. if shared libraries call it directly) the `WRAP_MAIN` option must be specified.
 
 #### Manual usage
 
@@ -86,7 +86,7 @@ The wrapper library can then be compiled with (assuming the original library is 
 $ gcc /path/to/wrapper_output_file.c -shared -Wl,--version-script,/path/to/wrapper_output_file.c.syms -loriginal -DCALLER_PKEY=0 -o libwrapper.so
 ```
 
-Again `CALLER_PKEY` should be set to a value between 0-14 depending on the caller's protection key or `NO_PKEY` if the caller is untrusted.
+Again `CALLER_PKEY` should be set to a value between 0-14 depending on the caller's protection key or `UNTRUSTED` if the caller is untrusted.
 
 The user application can then link against libwrapper.so using the rewritten
 header. For testing you will likely need to add `-Wl,-rpath=path/to/libs` so

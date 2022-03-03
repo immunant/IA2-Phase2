@@ -551,7 +551,7 @@ int main(int argc, const char **argv) {
               << "#endif\n"
               << "#define GATE_POP GATE(CALLER_PKEY)\n";
   if (CompartmentPkey.getNumOccurrences() == 0) {
-    wrapper_out << "#define GATE_PUSH GATE(NO_PKEY)\n";
+    wrapper_out << "#define GATE_PUSH GATE(UNTRUSTED)\n";
   } else {
     wrapper_out << "#define GATE_PUSH GATE(" << CompartmentPkey << ")\n";
   }

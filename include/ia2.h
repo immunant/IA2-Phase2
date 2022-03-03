@@ -23,9 +23,6 @@
 // pkey_mprotect so untrusted compartments have the lower 2 bits of PKRU cleared
 #define PKRU_UNTRUSTED 0xFFFFFFFC
 
-// Suffix for GATE_ macro for untrusted gate code
-#define NO_PKEY UNTRUSTED
-
 // Set PKRU to untrusted using rax, r10 and r11 as scratch registers.
 #define WRPKRU(pkey)                        \
     "movq %rcx, %r10\n"                     \

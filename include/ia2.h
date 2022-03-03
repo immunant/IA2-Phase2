@@ -2,10 +2,6 @@
 #include <link.h>
 #include <sys/mman.h>
 #include <stdio.h>
-
-// This typedef is required for cbindgen
-typedef struct dl_phdr_info dl_phdr_info;
-
 #include "pkey_init.h"
 
 // Attribute for variables that can be accessed from any untrusted compartments.
@@ -136,23 +132,19 @@ typedef struct dl_phdr_info dl_phdr_info;
     NEW_SECTION(".rela.plt_padding");                                                     \
     NEW_SECTION(".eh_frame_padding");                                                     \
     NEW_SECTION(".bss_padding");                                                          \
-    struct IA2PhdrSearchArgs {                                                            \
-        int32_t pkey;                                                                     \
-        void *address;                                                                    \
-    };                                                                                    \
     extern int ia2_n_pkeys;                                                               \
     __attribute__((constructor)) static void init_pkey_ctor() {                           \
         if (ia2_n_pkeys != 0) {                                                           \
-            for (int pkey = 0; pkey < ia2_n_pkeys; pkey++) {                              \
+            for (int pkey = 1; pkey <= ia2_n_pkeys; pkey++) {                             \
                 int allocated = pkey_alloc(0, 0);                                         \
-                if (allocated != pkey + 1) {                                              \
+                if (allocated != pkey) {                                                  \
                     printf("Failed to allocate protection keys in the expected order\n"); \
-                    exit(0);                                                              \
+                    exit(-1);                                                             \
                 }                                                                         \
             }                                                                             \
             ia2_n_pkeys = 0;                                                              \
         }                                                                                 \
-        struct IA2PhdrSearchArgs args = {                                                 \
+        struct PhdrSearchArgs args = {                                                    \
             .pkey = n + 1,                                                                \
             .address = &init_pkey_ctor,                                                   \
         };                                                                                \

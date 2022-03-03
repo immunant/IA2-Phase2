@@ -1,11 +1,10 @@
 #![feature(linkage)]
 
-//FIXME: Figure out why cbindgen isn't adding this to the header
 /// Arguments passed to dl_iterate_phdr while searching for the segments to
 /// initialize for a given compartment key.
 #[repr(C)]
 pub struct PhdrSearchArgs {
-    /// The index of the compartment key to use when the segments are found
+    /// The compartment key to use when the segments are found
     pkey: i32,
     /// The address to search for while iterating through segments
     address: *const libc::c_void,

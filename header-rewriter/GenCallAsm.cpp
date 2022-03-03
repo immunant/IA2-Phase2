@@ -359,6 +359,10 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
       }
     }
   }
+  // TODO: Use a real scratch register
+  if (indirect_wrapper) {
+      add_asm_line(aw, "pushq %r9");
+  }
 
   // Zero all registers except rsp
   add_comment_line(aw, "Zero all registers except rsp");
@@ -366,6 +370,9 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   // before this call
   add_asm_line(aw, "call __libia2_scrub_registers");
 
+  if (indirect_wrapper) {
+      add_asm_line(aw, "popq %r9");
+  }
   // Restore used arg regs after zeroing registers
   if (reg_arg_count > 0) {
     add_comment_line(aw, "Restore registers containing arguments");
@@ -380,7 +387,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   // registers
   add_comment_line(aw, "Set PKRU to the compartment's value");
   if (indirect_wrapper) {
-    add_raw_line(aw, "GATE(caller_pkey)");
+    add_raw_line(aw, "GATE(target_pkey)");
   } else {
     add_raw_line(aw, "GATE_PUSH");
   }
@@ -403,7 +410,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   if (indirect_wrapper) {
     // FIXME: This is a stopgap until #66 gets fixed.
     add_raw_line(aw, "DISABLE_PKRU");
-    add_raw_line(aw, "GATE(target_pkey)");
+    add_raw_line(aw, "GATE(caller_pkey)");
   } else {
     add_raw_line(aw, "GATE_POP");
   }

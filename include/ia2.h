@@ -19,10 +19,6 @@
 // flexible.
 #define UNIQUE_STR(s) s "_line_" XSTR(__LINE__)
 
-// On linux protection key 0 is the default for anything not covered by
-// pkey_mprotect so untrusted compartments have the lower 2 bits of PKRU cleared
-#define PKRU_UNTRUSTED 0xFFFFFFFC
-
 // Set PKRU to untrusted using rax, r10 and r11 as scratch registers.
 #define WRPKRU(pkey)                        \
     "movq %rcx, %r10\n"                     \
@@ -46,7 +42,13 @@
 
 #define _GATE(pkey) GATE_##pkey
 
+// On linux protection key 0 is the default for anything not covered by
+// pkey_mprotect so untrusted compartments have the lower 2 bits of PKRU cleared
 #define GATE_UNTRUSTED   WRPKRU(0xFFFFFFFC)
+// The PKRU value for protection key N has bits 2(N + 1) and 2(N + 1) + 1 clear
+// to allow read and write access to compartment N. The lowest two bits should
+// also be cleared since we should always have access to memory not covered by
+// pkey_mprotect.
 #define GATE_0           WRPKRU(0xFFFFFFF0)
 #define GATE_1           WRPKRU(0xFFFFFFCC)
 #define GATE_2           WRPKRU(0xFFFFFF3C)

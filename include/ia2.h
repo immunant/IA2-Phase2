@@ -123,10 +123,10 @@
     __asm__(".section " #name "\n" \
             ".previous");
 
-// Initializes a compartment with the nth key in IA2_INIT_DATA when the ELF
-// invoking this is loaded. This must only be called once for each key. The
-// compartment includes all segments in the ELF except the `ia2_shared_data`
-// section, if one exists.
+// Initializes a compartment with protection key `n` when the ELF invoking this
+// macro is loaded. This must only be called once for each key. The copmartment
+// includes all segments in the ELF except the `ia2_shared_data` section, if one
+// exists.
 #define _INIT_COMPARTMENT(n)                                                              \
     NEW_SECTION(".fini_padding");                                                         \
     NEW_SECTION(".rela.plt_padding");                                                     \
@@ -151,4 +151,5 @@
         dl_iterate_phdr(protect_pages, &args);                                            \
     }
 
+// Defines the number of protection keys that need to be allocated
 #define _INIT_RUNTIME(n) int ia2_n_pkeys = n;

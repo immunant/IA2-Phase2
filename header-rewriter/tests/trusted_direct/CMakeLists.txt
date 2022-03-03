@@ -20,7 +20,7 @@ define_ia2_wrapper(
     HEADERS exported_fn.h
     INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/main/
     # This wrapper's caller is the library which is untrusted
-    CALLER_PKEY NO_PKEY
+    CALLER_PKEY UNTRUSTED
 )
 
 # Build the plugin lib

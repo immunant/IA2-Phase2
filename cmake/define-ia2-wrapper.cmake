@@ -28,7 +28,7 @@ execute_process(COMMAND ${CMAKE_C_COMPILER} -print-file-name=include-fixed
 # INCLUDE_DIR - Added to search path in rewriter invocation. Defaults to
 #               SRC_DIR/include.
 # COMPARTMENT_PKEY - Optional protection key for wrapped library, if any.
-# CALLER_PKEY - Protection key for the wrapper's caller. Set to `NO_PKEY` if
+# CALLER_PKEY - Protection key for the wrapper's caller. Set to `UNTRUSTED` if
 #               caller is untrusted. This is required.
 function(define_ia2_wrapper)
     # Parse options
@@ -81,7 +81,7 @@ function(define_ia2_wrapper)
     else()
         message(FATAL_ERROR
             "CALLER_PKEY (0-14) must be defined to build a wrapper. \
-            Set to `NO_PKEY` if the caller compartment is untrusted")
+            Set to `UNTRUSTED` if the caller compartment is untrusted")
     endif()
 
     # Collect headers

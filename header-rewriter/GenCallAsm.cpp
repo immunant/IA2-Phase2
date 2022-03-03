@@ -296,6 +296,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     add_raw_line(aw, "\"__ia2_\" UNIQUE_STR(#target) \"_wrapper:\\n\"");
     add_raw_line(aw, "\".equ __ia2_\" UNIQUE_STR(#target) \", .\\n\"");
   } else {
+    add_asm_line(aw, ".text");
     add_asm_line(aw, ".global __ia2_"s + name);
     add_asm_line(aw, "__ia2_"s + name + ":");
   }

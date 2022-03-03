@@ -68,36 +68,12 @@
 #define GATE_13          WRPKRU(0xCFFFFFFC)
 #define GATE_14          WRPKRU(0x3FFFFFFC)
 
-// FIXME: This doesn't support arguments on the stack or in r9 (the last
-// register). Also doesn't support returning 128-bit values (rdx).
-#define INDIRECT_WRAPPER(target, caller_pkey, target_pkey)                     \
-    /* Jump to a subsection of .text to prevent inlining this function */      \
-    ".text 1\n"                                                                \
-    /* This is the symbol name that will appear in the executable */           \
-    "__ia2_" UNIQUE_STR(#target) "_wrapper:\n"                                 \
-    /* Set the value of the wrapper name used by asm to this location */       \
-    ".equ __ia2_" UNIQUE_STR(#target) ",.\n"                                   \
-    DISABLE_PKRU                                                               \
-    "movq " UNIQUE_STR(#target) "@GOTPCREL(%rip), %r9\n"                \
-    "movq (%r9), %r9\n"                                                 \
-    /* Switch PKRU to the target compartment */                                \
-    GATE(target_pkey)                                                          \
-    "callq *%r9\n"                                                                \
-    /* Save return value before toggling PKRU */                               \
-    "movq %rax, %r9\n"                                                            \
-    GATE(caller_pkey)                                                          \
-    /* Put return value back in the right register */                          \
-    "movq %r9, %rax\n"                                                            \
-    "ret\n"                                                                    \
-    /* Jump back to the previous location in .text */                          \
-    ".previous\n"                                                              \
-
 // Takes a function pointer `target` and returns an opaque pointer for its call gate wrapper.
 #define IA2_FNPTR_WRAPPER(target, ty, caller_pkey, target_pkey)    ({    \
     static char *target_ptr __asm__(UNIQUE_STR(#target));                \
     static void *wrapper __asm__("__ia2_" UNIQUE_STR(#target));          \
     target_ptr = (char *)target;                                         \
-    __asm__(INDIRECT_WRAPPER(target, caller_pkey, target_pkey));         \
+    __asm__(IA2_FNPTR_WRAPPER_##ty(target, caller_pkey, target_pkey));  \
     (struct IA2_fnptr_##ty) {                                            \
         (char *)&wrapper                                                 \
     };                                                                   \
@@ -108,7 +84,7 @@
     static char *target_ptr __asm__(UNIQUE_STR(#target));                \
     static void *wrapper __asm__("__ia2_" UNIQUE_STR(#target));          \
     target_ptr = target.ptr;                                             \
-    __asm__(INDIRECT_WRAPPER(target, caller_pkey, target_pkey));         \
+    __asm__(IA2_FNPTR_WRAPPER_##ty(target, caller_pkey, target_pkey));   \
     (IA2_FNPTR_TYPE_##ty)&wrapper;                                       \
 })
 

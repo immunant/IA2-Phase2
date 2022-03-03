@@ -388,8 +388,6 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   // registers
   add_comment_line(aw, "Set PKRU to the compartment's value");
   if (indirect_wrapper) {
-    // FIXME: This is a stopgap until #66 gets fixed.
-    add_raw_line(aw, "DISABLE_PKRU");
     add_raw_line(aw, "GATE(target_pkey)");
   } else {
     add_raw_line(aw, "GATE_PUSH");
@@ -413,8 +411,6 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   // Change pkru to the caller's value using rax, r10 and r11 as scratch
   // registers
   if (indirect_wrapper) {
-    // FIXME: This is a stopgap until #66 gets fixed.
-    add_raw_line(aw, "DISABLE_PKRU");
     add_raw_line(aw, "GATE(caller_pkey)");
   } else {
     add_raw_line(aw, "GATE_POP");

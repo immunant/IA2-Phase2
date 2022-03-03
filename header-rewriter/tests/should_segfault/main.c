@@ -4,6 +4,7 @@
 #include <print_secret.h>
 #include <ia2.h>
 
+INIT_RUNTIME(1);
 INIT_COMPARTMENT(0);
 
 uint32_t secret = 0xdeadbeef;

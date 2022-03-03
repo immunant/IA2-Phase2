@@ -139,7 +139,7 @@ typedef struct dl_phdr_info dl_phdr_info;
     };                                                               \
     __attribute__((constructor(102))) static void init_pkey_ctor() { \
         struct IA2PhdrSearchArgs args = {                            \
-            .pkey = ~((3 << (2 * n)) | 3),                           \
+            .pkey = n + 1,                                           \
             .address = &init_pkey_ctor,                              \
         };                                                           \
         dl_iterate_phdr(protect_pages, &args);                       \

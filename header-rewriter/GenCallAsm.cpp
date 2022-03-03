@@ -125,41 +125,57 @@ std::vector<ParamLocation> return_locations(const CAbiSignature &func) {
 }
 
 #define INDENT "    "
-#define COMMENT_PREFIX "// "
 
-static void add_asm_line(std::stringstream &ss, const std::string &s) {
-  ss << INDENT << "\"" << s << "\\n\"" << std::endl;
+struct AsmWriter {
+  std::stringstream ss;
+  std::string terminator;
+};
+
+static void add_asm_line(AsmWriter &aw, const std::string &s) {
+  aw.ss << INDENT << "\"" << s << "\\n\"";
+  if (!aw.terminator.empty()) {
+    aw.ss << " " << aw.terminator;
+  }
+  aw.ss << std::endl;
 }
 
-static void add_raw_line(std::stringstream &ss, const std::string &s) {
-  ss << INDENT << s << std::endl;
+static void add_raw_line(AsmWriter &aw, const std::string &s) {
+  aw.ss << INDENT << s;
+  if (!aw.terminator.empty()) {
+    aw.ss << " " << aw.terminator;
+  }
+  aw.ss << std::endl;
 }
 
-static void add_comment_line(std::stringstream &ss, const std::string &s) {
-  ss << INDENT << COMMENT_PREFIX << s << std::endl;
+static void add_comment_line(AsmWriter &aw, const std::string &s) {
+  aw.ss << INDENT << "/* " << s << " */";
+  if (!aw.terminator.empty()) {
+    aw.ss << " " << aw.terminator;
+  }
+  aw.ss << std::endl;
 }
 
-static void emit_reg_push(std::stringstream &ss, const ParamLocation &loc) {
+static void emit_reg_push(AsmWriter &aw, const ParamLocation &loc) {
   using namespace std::string_literals;
 
   assert(!loc.is_stack());
   if (loc.is_xmm()) {
-    add_asm_line(ss, "subq $16, %rsp");
-    add_asm_line(ss, "movdqu %"s + loc.as_str() + ", (%rsp)");
+    add_asm_line(aw, "subq $16, %rsp");
+    add_asm_line(aw, "movdqu %"s + loc.as_str() + ", (%rsp)");
   } else {
-    add_asm_line(ss, "pushq %"s + loc.as_str());
+    add_asm_line(aw, "pushq %"s + loc.as_str());
   }
 }
 
-static void emit_reg_pop(std::stringstream &ss, const ParamLocation &loc) {
+static void emit_reg_pop(AsmWriter &aw, const ParamLocation &loc) {
   using namespace std::string_literals;
 
   assert(!loc.is_stack());
   if (loc.is_xmm()) {
-    add_asm_line(ss, "movdqu (%rsp), %"s + loc.as_str());
-    add_asm_line(ss, "addq $16, %rsp");
+    add_asm_line(aw, "movdqu (%rsp), %"s + loc.as_str());
+    add_asm_line(aw, "addq $16, %rsp");
   } else {
-    add_asm_line(ss, "popq %"s + loc.as_str());
+    add_asm_line(aw, "popq %"s + loc.as_str());
   }
 }
 
@@ -188,11 +204,15 @@ static std::string sig_string(const CAbiSignature &sig,
   return ss.str();
 }
 
-std::string emit_asm_wrapper(const CAbiSignature &sig,
-                             const std::string &name) {
+std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
+                             bool indirect_wrapper) {
   using namespace std::string_literals;
 
-  std::stringstream ss = {};
+  std::string terminator = {};
+  if (indirect_wrapper) {
+    terminator = "\\"s;
+  }
+  AsmWriter aw = {.ss = {}, .terminator = terminator};
 
   auto param_locs = param_locations(sig);
   size_t stack_arg_count = std::count_if(param_locs.begin(), param_locs.end(),
@@ -255,20 +275,20 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
   // 8 bytes for alignment.
   size_t stack_alignment = compartment_stack_space % 16;
 
-  add_comment_line(ss, "Wrapper for "s + sig_string(sig, name) + ":");
+  add_comment_line(aw, "Wrapper for "s + sig_string(sig, name) + ":");
   // Declare symbol
-  ss << INDENT << "\".global __ia2_" << name << "\\n\"" << std::endl;
-  ss << INDENT << "\"__ia2_" << name << ":\\n\"" << std::endl;
+  add_asm_line(aw, ".global __ia2_"s + name);
+  add_asm_line(aw, "__ia2_"s + name + ":");
 
   // Save trusted stack pointer
-  add_comment_line(ss, "Save trusted stack pointer");
-  add_asm_line(ss, "movq ia2_trusted_stackptr@GOTPCREL(%rip), %rax");
-  add_asm_line(ss, "movq %rsp, (%rax)");
+  add_comment_line(aw, "Save trusted stack pointer");
+  add_asm_line(aw, "movq ia2_trusted_stackptr@GOTPCREL(%rip), %rax");
+  add_asm_line(aw, "movq %rsp, (%rax)");
 
   // Switch to untrusted stack
-  add_comment_line(ss, "Switch to untrusted stack");
-  add_asm_line(ss, "movq ia2_untrusted_stackptr@GOTPCREL(%rip), %rsp");
-  add_asm_line(ss, "movq (%rsp), %rsp");
+  add_comment_line(aw, "Switch to untrusted stack");
+  add_asm_line(aw, "movq ia2_untrusted_stackptr@GOTPCREL(%rip), %rsp");
+  add_asm_line(aw, "movq (%rsp), %rsp");
 
   // When returning via memory, the address of the return value is passed in
   // rdi. Since this memory belongs to the caller, we first allocate space for
@@ -280,21 +300,21 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
   // items doesn't matter.
   if (stack_return_size > 0) {
     add_comment_line(
-        ss, "Allocate space on the compartment's stack for the return value");
-    add_asm_line(ss, "subq $"s + std::to_string(stack_return_size) + ", %rsp");
-    add_comment_line(ss, "Save address of the caller's return value");
-    add_asm_line(ss, "pushq %rdi");
-    add_comment_line(ss, "Set rdi to the compartment's return value memory");
-    add_asm_line(ss, "movq %rsp, %rdi");
+        aw, "Allocate space on the compartment's stack for the return value");
+    add_asm_line(aw, "subq $"s + std::to_string(stack_return_size) + ", %rsp");
+    add_comment_line(aw, "Save address of the caller's return value");
+    add_asm_line(aw, "pushq %rdi");
+    add_comment_line(aw, "Set rdi to the compartment's return value memory");
+    add_asm_line(aw, "movq %rsp, %rdi");
     // The new return value is 8 bytes above the bottom of the stack so we need
     // to add 8 to rdi
-    add_asm_line(ss, "addq $8, %rdi");
+    add_asm_line(aw, "addq $8, %rdi");
   }
 
   // Insert 8 bytes to align the stack to 16 bytes if necessary.
   if (stack_alignment != 0) {
     assert(stack_alignment == 8);
-    add_asm_line(ss, "subq $8, %rsp");
+    add_asm_line(aw, "subq $8, %rsp");
   }
 
   // Copy stack args to untrusted stack
@@ -302,15 +322,15 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
     // Set rax to the caller's stack so we can copy the stack args to the
     // compartment's stack.
     add_comment_line(
-        ss, "Copy stack arguments from the caller's stack to the compartment");
-    add_asm_line(ss, "movq ia2_trusted_stackptr@GOTPCREL(%rip), %rax");
-    add_asm_line(ss, "movq (%rax), %rax");
+        aw, "Copy stack arguments from the caller's stack to the compartment");
+    add_asm_line(aw, "movq ia2_trusted_stackptr@GOTPCREL(%rip), %rax");
+    add_asm_line(aw, "movq (%rax), %rax");
     // This is effectively a memcpy of size `stack_arg_size` from the caller's
     // stack to the compartment's
     for (int i = 0; i < stack_arg_size; i += 8) {
       // The index into the caller's stack is backwards since pushq will copy to
       // the compartment's stack from the highest addresses to the lowest.
-      add_asm_line(ss,
+      add_asm_line(aw,
                    "pushq " + std::to_string(stack_arg_size - i) + "(%rax)");
     }
   }
@@ -319,60 +339,68 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
   // These pushes have matching pops before calling the wrapped function so this
   // stack space is not shown in the diagram above.
   if (reg_arg_count > 0) {
-    add_comment_line(ss, "Save registers containing arguments");
+    add_comment_line(aw, "Save registers containing arguments");
     for (const auto &loc : param_locs) {
       if (!loc.is_stack()) {
-        emit_reg_push(ss, loc);
+        emit_reg_push(aw, loc);
       }
     }
   }
 
   // Zero all registers except rsp
-  add_comment_line(ss, "Zero all registers except rsp");
+  add_comment_line(aw, "Zero all registers except rsp");
   // FIXME: If this will use the System V ABI make sure that the %rsp is aligned
   // before this call
-  add_asm_line(ss, "call __libia2_scrub_registers");
+  add_asm_line(aw, "call __libia2_scrub_registers");
 
   // Restore used arg regs after zeroing registers
   if (reg_arg_count > 0) {
-    add_comment_line(ss, "Restore registers containing arguments");
+    add_comment_line(aw, "Restore registers containing arguments");
     for (auto loc = param_locs.rbegin(); loc != param_locs.rend(); loc++) {
       if (!loc->is_stack()) {
-        emit_reg_pop(ss, *loc);
+        emit_reg_pop(aw, *loc);
       }
     }
   }
 
   // Change pkru to the compartment's value using rax, r10 and r11 as scratch
   // registers
-  add_comment_line(ss, "Set PKRU to the compartment's value");
-  add_raw_line(ss, "GATE_PUSH");
+  add_comment_line(aw, "Set PKRU to the compartment's value");
+  if (indirect_wrapper) {
+    add_raw_line(aw, "GATE(caller_pkey)");
+  } else {
+    add_raw_line(aw, "GATE_PUSH");
+  }
 
   // Call wrapped function
-  add_comment_line(ss, "Call wrapped function");
-  add_asm_line(ss, "call "s + name);
+  add_comment_line(aw, "Call wrapped function");
+  add_asm_line(aw, "call "s + name);
 
-  add_comment_line(ss, "Set PKRU to the caller's value");
+  add_comment_line(aw, "Set PKRU to the caller's value");
   // FIXME: The GATE macros use rax as a scratch register, but it may contain a
   // return value after the call so we save it in r9. We should fix this when we
   // combine PKRU and stack switching for indirect calls.
-  add_asm_line(ss, "movq %rax, %r9");
+  add_asm_line(aw, "movq %rax, %r9");
   // Change pkru to the caller's value using rax, r10 and r11 as scratch
   // registers
-  add_raw_line(ss, "GATE_POP");
-  add_asm_line(ss, "movq %r9, %rax");
+  if (indirect_wrapper) {
+    add_raw_line(aw, "GATE(target_pkey)");
+  } else {
+    add_raw_line(aw, "GATE_POP");
+  }
+  add_asm_line(aw, "movq %r9, %rax");
 
   // Free stack space used for stack args on the untrusted stack
   if (stack_arg_size > 0) {
-    add_comment_line(ss, "Free stack space used for stack args");
-    add_asm_line(ss, "addq $"s + std::to_string(stack_arg_size) + ", %rsp");
+    add_comment_line(aw, "Free stack space used for stack args");
+    add_asm_line(aw, "addq $"s + std::to_string(stack_arg_size) + ", %rsp");
   }
 
   // If we inserted 8 bytes to align the stack before calling the wrapped
   // function, free this space.
   if (stack_alignment != 0) {
     assert(stack_alignment == 8);
-    add_asm_line(ss, "addq $8, %rsp");
+    add_asm_line(aw, "addq $8, %rsp");
   }
 
   // Copy any stack returns to caller's stack
@@ -381,48 +409,48 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
     // pointed to the caller's return value memory) onto the compartment's
     // stack. Now we pop it into rax which is where the address of the return
     // value must be on return.
-    add_asm_line(ss, "popq %rax");
+    add_asm_line(aw, "popq %rax");
 
     // After the pop rsp points to the memory for the return value on the
     // compartment's stack.
-    add_comment_line(ss,
+    add_comment_line(aw,
                      "Copy "s + std::to_string(stack_return_size) +
                          " bytes for the return value to the caller's stack");
     for (int i = 0; i < stack_return_size; i += 8) {
-      add_asm_line(ss, "popq "s + std::to_string(i) + "(%rax)");
+      add_asm_line(aw, "popq "s + std::to_string(i) + "(%rax)");
     }
   }
 
-  add_asm_line(ss, "movq ia2_trusted_stackptr@GOTPCREL(%rip), %rsp");
-  add_asm_line(ss, "movq (%rsp), %rsp");
+  add_asm_line(aw, "movq ia2_trusted_stackptr@GOTPCREL(%rip), %rsp");
+  add_asm_line(aw, "movq (%rsp), %rsp");
 
   add_comment_line(
-      ss, "Push return regs to caller's stack before scrubbing registers");
+      aw, "Push return regs to caller's stack before scrubbing registers");
   // Push return regs to the caller's stack. These pushes have matching pops
   // before the return so it has no net effect on the caller's stack pointer.
   for (auto loc : return_locs) {
     if (!loc.is_stack()) {
-      emit_reg_push(ss, loc);
+      emit_reg_push(aw, loc);
     }
   }
 
   // Zero all registers except rsp
-  add_comment_line(ss, "Scrub registers after call");
+  add_comment_line(aw, "Scrub registers after call");
   // FIXME: If this will use the System V ABI make sure that the %rsp is aligned
   // before this call
-  add_asm_line(ss, "call __libia2_scrub_registers");
+  add_asm_line(aw, "call __libia2_scrub_registers");
 
   // pop return regs
-  add_comment_line(ss, "Pop return regs");
+  add_comment_line(aw, "Pop return regs");
   for (auto loc = return_locs.rbegin(); loc != return_locs.rend(); loc++) {
     if (!loc->is_stack()) {
-      emit_reg_pop(ss, *loc);
+      emit_reg_pop(aw, *loc);
     }
   }
 
   // Return to the caller
-  add_comment_line(ss, "Return to the caller");
-  add_asm_line(ss, "ret");
+  add_comment_line(aw, "Return to the caller");
+  add_asm_line(aw, "ret");
 
-  return ss.str();
+  return aw.ss.str();
 }

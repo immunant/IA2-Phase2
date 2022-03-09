@@ -81,7 +81,7 @@
     static char *target_ptr __asm__(UNIQUE_STR(#target));                \
     static void *wrapper __asm__("__ia2_" UNIQUE_STR(#target));          \
     target_ptr = target.ptr;                                             \
-    __asm__(IA2_FNPTR_WRAPPER_##ty(target, caller_pkey, target_pkey));   \
+    __asm__(IA2_FNPTR_UNWRAPPER_##ty(target, caller_pkey, target_pkey)); \
     (IA2_FNPTR_TYPE_##ty)&wrapper;                                       \
 })
 

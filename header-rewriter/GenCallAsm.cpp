@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "CAbi.h"
+#include "GenCallAsm.h"
 
 struct ParamLocation {
 private:
@@ -206,9 +207,10 @@ static std::string sig_string(const CAbiSignature &sig,
 }
 
 std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
-                             bool indirect_wrapper) {
+                             WrapperKind kind) {
   using namespace std::string_literals;
 
+  bool indirect_wrapper = kind != WrapperKind::Direct;
   std::string terminator = {};
   // Code for indirect wrappers is generated as a macro so we need to terminate
   // each line with '\'

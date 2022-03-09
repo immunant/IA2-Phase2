@@ -260,7 +260,7 @@ public:
       }
 
       auto cAbiSig = determineAbiForDecl(*fn_decl);
-      auto asm_wrapper = emit_asm_wrapper(cAbiSig, fn_name, false);
+      auto asm_wrapper = emit_asm_wrapper(cAbiSig, fn_name, WrapperKind::Direct);
 
       // Generate wrapper symbol definition, invoking call gates around call
       WrapperOut << llvm::formatv(
@@ -469,7 +469,8 @@ static int emit_output_header(const FnPtrPrinter &printer) {
   // we need to define a separate stack for indirect calls in the output
   // header and the ifndef is necessary since the wrapper source also
   // indirectly includes the output header.
-  // TODO: Remove this when #67 gets fixed.
+  // TODO: Remove this ifndef when #67 gets fixed to make the code easier to follow.
+  // TODO: Remove the IA2_SHARED_DATA attribute on the stack (#68).
   os << "#ifndef IA2_WRAPPER\n"
     << "static char untrusted_stack[8 * 1024 * 1024] __attribute__((aligned(16))) __attribute__((used)) IA2_SHARED_DATA;\n"
     << "static void* ia2_untrusted_stackptr __attribute__((used)) IA2_SHARED_DATA = &untrusted_stack[4 * 1024 * 1024];\n"
@@ -490,9 +491,18 @@ static int emit_output_header(const FnPtrPrinter &printer) {
     }
     os << "(" << llvm::join(fi.parameter_types, ", ") << ")\n";
 
+    // IA2_FNPTR_WRAPPER_* takes a function pointer and returns an opaque type
+    // which we can pass to other compartments. This means that the wrapper will
+    // be called from an untrusted compartment.
     os << "#define IA2_FNPTR_WRAPPER_" << mangled_type << "(target, caller_pkey, target_pkey) \\\n";
-    auto asm_wrapper = emit_asm_wrapper(fi.sig, fi.new_type, true);
-    os << asm_wrapper <<  "\n";
+    auto wrapper_from_trusted = emit_asm_wrapper(fi.sig, fi.new_type, WrapperKind::IndirectFromUntrusted);
+    os << wrapper_from_trusted <<  "\n";
+
+    // IA2_FNPTR_UNWRAPPER_* takes an opaque pointer and returns a function
+    // pointer so the wrapper will be called from the trusted compartment.
+    os << "#define IA2_FNPTR_UNWRAPPER_" << mangled_type << "(target, caller_pkey, target_pkey) \\\n";
+    auto wrapper_from_untrusted = emit_asm_wrapper(fi.sig, fi.new_type, WrapperKind::IndirectFromTrusted);
+    os << wrapper_from_untrusted <<  "\n";
   }
 
   return EXIT_SUCCESS;

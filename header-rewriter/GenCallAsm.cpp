@@ -244,7 +244,9 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     +-----+
     | top |Top of the stack (stack grows down on x86-64)
     +-----+
-    |fnptr|If the call is indirect, place an 8-byte pointer to the callee here.
+    |fnptr|If the call is indirect from the trusted compartment the first wrpkru
+    |     |removes access to the caller's binary. Since the target pointer is in
+    |     |the caller we copy it to the untrusted stack before changing pkru.
     +-----+
     |     |Space for the compartment's return value if it has class MEMORY. This
     |ret  |space is only allocated if the pointer to the caller's return value
@@ -309,10 +311,15 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   add_asm_line(aw, "movq ia2_untrusted_stackptr@GOTPCREL(%rip), %rsp");
   add_asm_line(aw, "movq (%rsp), %rsp");
 
-  if (indirect_wrapper) {
+  if (kind == WrapperKind::IndirectFromTrusted) {
+    add_comment_line(aw, "Load call target pointer and put it on the stack");
     add_raw_line(aw, "\"movq \" UNIQUE_STR(#target) \"@GOTPCREL(%rip), %r10\\n\"");
     add_asm_line(aw, "movq (%r10), %r10");
     add_asm_line(aw, "pushq %r10");
+  } else if (kind == WrapperKind::IndirectFromUntrusted) {
+    // Allocate an unused eightbyte on the stack to simplify stack alignment.
+    // This could be removed.
+    add_asm_line(aw, "subq $8, %rsp");
   }
 
   // When returning via memory, the address of the return value is passed in
@@ -376,8 +383,8 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   add_comment_line(aw, "Zero all registers except rsp");
   // FIXME: If this will use the System V ABI make sure that the %rsp is aligned
   // before this call
-  if (indirect_wrapper) {
-    // FIXME: A call causes a fault in the PLT for some indirect calls. So
+  if (kind == WrapperKind::IndirectFromUntrusted) {
+    // FIXME: A call causes a fault in the PLT for this type of indirect call. So
     // inline scrub_registers here
   } else {
     add_asm_line(aw, "call __libia2_scrub_registers");
@@ -404,9 +411,14 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
 
   // Call wrapped function
   add_comment_line(aw, "Call wrapped function");
-  if (indirect_wrapper) {
+  if (kind == WrapperKind::IndirectFromTrusted) {
     size_t fn_ptr_offset = compartment_stack_space + stack_alignment - 8;
     add_asm_line(aw, "movq "s + std::to_string(fn_ptr_offset) + "(%rsp), %r10");
+    add_asm_line(aw, "call *%r10");
+  } else if (kind == WrapperKind::IndirectFromUntrusted) {
+    // If the caller is untrusted, we have access to the target compartment after the first wrpkru
+    add_raw_line(aw, "\"movq \" UNIQUE_STR(#target) \"@GOTPCREL(%rip), %r10\\n\"");
+    add_asm_line(aw, "movq (%r10), %r10");
     add_asm_line(aw, "call *%r10");
   } else {
     add_asm_line(aw, "call "s + name);
@@ -474,8 +486,8 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   add_comment_line(aw, "Scrub registers after call");
   // FIXME: If this will use the System V ABI make sure that the %rsp is aligned
   // before this call
-  if (indirect_wrapper) {
-    // FIXME: A call causes a fault in the PLT for some indirect calls. So
+  if (kind == WrapperKind::IndirectFromUntrusted) {
+    // FIXME: A call causes a fault in the PLT for this type of indirect call. So
     // inline scrub_registers here
   } else {
     add_asm_line(aw, "call __libia2_scrub_registers");

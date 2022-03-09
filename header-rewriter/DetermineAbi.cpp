@@ -8,10 +8,12 @@
 #include "clang/Lex/HeaderSearchOptions.h"
 #include "clang/Lex/PreprocessorOptions.h"
 #include "llvm/IR/LLVMContext.h"
+#include <optional>
 
 // Compute sequence of eightbyte classifications for a type that Clang has
 // chosen to pass directly in registers
-static std::vector<CAbiArgKind> classifyDirectType(const clang::Type &type) {
+static std::vector<CAbiArgKind> classifyDirectType(const clang::Type &type,
+    const clang::ASTContext &astContext) {
   if (type.isVoidType())
     return {};
   if (type.isScalarType()) {
@@ -39,15 +41,60 @@ static std::vector<CAbiArgKind> classifyDirectType(const clang::Type &type) {
     const clang::RecordType *rec = type.getAsStructureType();
     const clang::RecordDecl *decl = rec->getDecl();
 
-    std::vector<CAbiArgKind> out;
     if (decl->canPassInRegisters()) {
-      for (const auto &x : decl->fields()) {
-        auto recur = classifyDirectType(*x->getType());
+      std::vector<CAbiArgKind> out; // Classifications for the entire record
+      std::optional<CAbiArgKind> pending_kind;
+      int64_t prev_end_offset = 0; // Initially, first eightbyte
+
+      const clang::ASTRecordLayout &layout =
+          astContext.getASTRecordLayout(decl);
+
+      // Consider the classification of each field, but only push the current
+      // classification each time we leave an eightbyte
+      for (auto field : decl->fields()) {
+        int64_t offset = layout.getFieldOffset(field->getFieldIndex());
+
+        // Save the classification of the last eightbyte if we've left it
+        bool same_eightbyte = offset / 64 == prev_end_offset / 64;
+        if (!same_eightbyte) {
+          assert (pending_kind.has_value());
+          out.push_back(*pending_kind);
+          pending_kind.reset();
+        }
+
+        // Update pending_kind based on ABI rules
+        auto recur = classifyDirectType(*field->getType(), astContext);
         if (recur.size() != 1) {
           llvm::report_fatal_error(
               "unexpectedly classified register-passable field as multiple eightbytes");
         }
-        out.push_back(recur[0]);
+        auto new_kind = recur[0];
+        if (pending_kind) {
+          if (*pending_kind != new_kind) {
+            if (new_kind == CAbiArgKind::Memory) {
+              pending_kind = CAbiArgKind::Memory;
+            } else if (new_kind == CAbiArgKind::Integral) {
+              pending_kind = CAbiArgKind::Integral;
+            // TODO: handle X87/X87UP/COMPLEX_X87
+            } else {
+              pending_kind = new_kind;
+            }
+          }
+        } else {
+          pending_kind = new_kind;
+        }
+
+        // Update prev_end_offset for next iteration
+        if (field->isBitField()) {
+          prev_end_offset = offset + field->getBitWidthValue(astContext);
+        } else {
+          prev_end_offset = offset + astContext.getTypeSize(field->getType());
+        }
+      }
+      // Store any pending kind if the last field did not an eightbyte
+      if (pending_kind) {
+        out.push_back(*pending_kind);
+        pending_kind.reset();
       }
       return out;
     }
@@ -118,7 +165,7 @@ abiSlotsForArg(const clang::QualType &qt,
       }
     }
     // if not flattenable, classify the single-register value
-    return classifyDirectType(*qt.getCanonicalType());
+    return classifyDirectType(*qt.getCanonicalType(), astContext);
   }
   case Kind::Ignore:   // no ABI presence
                        // fall through

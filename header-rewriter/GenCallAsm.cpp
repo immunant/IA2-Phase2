@@ -1,3 +1,4 @@
+#include "llvm/Support/FormatVariadic.h"
 #include <algorithm>
 #include <array>
 #include <cassert>
@@ -183,12 +184,12 @@ static void emit_reg_pop(AsmWriter &aw, const ParamLocation &loc) {
 }
 
 // Emit code to set the PKRU. Clobbers eax, ecx and edx.
-static void
-emit_wrpkru(AsmWriter &aw, const std::string &target_pkey) {
+static void emit_wrpkru(AsmWriter &aw, const std::string &target_pkey) {
   // wrpkru requires zeroing ecx and edx
   add_asm_line(aw, "xorl %ecx, %ecx");
   add_asm_line(aw, "xorl %edx, %edx");
-  add_raw_line(aw, "\"movl $\" PKRU("s + target_pkey + ") \", %eax\\n\"");
+  add_raw_line(
+      aw, llvm::formatv("\"movl $\" PKRU({0}) \", %eax\\n\"", target_pkey));
   add_asm_line(aw, "wrpkru");
 }
 
@@ -217,9 +218,9 @@ static std::string sig_string(const CAbiSignature &sig,
   return ss.str();
 }
 
-std::string
-emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
-                 WrapperKind kind, const std::string &compartment_pkey) {
+std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
+                             WrapperKind kind,
+                             const std::string &compartment_pkey) {
   bool indirect_wrapper = kind != WrapperKind::Direct;
   std::string terminator = {};
   // Code for indirect wrappers is generated as a macro so we need to terminate

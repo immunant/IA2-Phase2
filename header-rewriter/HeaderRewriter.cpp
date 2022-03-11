@@ -485,21 +485,6 @@ static int emit_output_header(const FnPtrPrinter &printer) {
   }
 
   os << "#pragma once\n";
-  // The rewritten headers include the output header to avoid having to make
-  // changes to the user's source code. However, the wrapper source (which
-  // defines a stack for direct calls) also has to include the rewritten
-  // header since it may define types used in the wrapper function
-  // declarations. Since we currently don't allocate stacks at init (see #67),
-  // we need to define a separate stack for indirect calls in the output
-  // header and the ifndef is necessary since the wrapper source also
-  // indirectly includes the output header.
-  // TODO: Remove this ifndef when #67 gets fixed to make the code easier to follow.
-  // TODO: Remove the IA2_SHARED_DATA attribute on the stack (#68).
-  os << "#ifndef IA2_WRAPPER\n"
-    << "static char untrusted_stack[8 * 1024 * 1024] __attribute__((aligned(16))) __attribute__((used)) IA2_SHARED_DATA;\n"
-    << "static void* ia2_untrusted_stackptr __attribute__((used)) IA2_SHARED_DATA = &untrusted_stack[4 * 1024 * 1024];\n"
-    << "static void* ia2_trusted_stackptr __attribute__((used)) IA2_SHARED_DATA;\n"
-    << "#endif\n";
 
   for (auto &p : printer.function_info()) {
     auto &mangled_type = p.first;
@@ -581,12 +566,6 @@ int main(int argc, const char **argv) {
               << "#error CALLER_PKEY must be defined to compile this file\n"
               << "#endif\n";
 
-  // Add dummy definitions of the untrusted stack, trusted TLS storage
-  // for stack pointers, and the __libia2_scrub_registers function
-  wrapper_out
-      << "static char untrusted_stack[8 * 1024 * 1024] __attribute__((aligned(16))) __attribute__((used));\n"
-      << "static void* ia2_untrusted_stackptr __attribute__((used)) = &untrusted_stack[4 * 1024 * 1024];\n"
-      << "static void* ia2_trusted_stackptr __attribute__((used));\n";
   syms_out << "IA2 {\n"
            << "  global:\n";
 

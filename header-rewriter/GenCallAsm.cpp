@@ -190,7 +190,7 @@ static void emit_wrpkru(AsmWriter &aw, const std::string &target_pkey) {
   add_asm_line(aw, "xorl %edx, %edx");
   add_raw_line(
       aw, llvm::formatv("\"movl $\" PKRU({0}) \", %eax\\n\"", target_pkey));
-  add_asm_line(aw, "wrpkru");
+  add_raw_line(aw, "IA2_WRPKRU \"\\n\"");
 }
 
 static void append_arg_kinds(std::stringstream &ss,

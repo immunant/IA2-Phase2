@@ -23,9 +23,11 @@
 #ifdef LIBIA2_INSECURE
 #define INIT_COMPARTMENT(n)
 #define INIT_RUNTIME(n)
+#define IA2_WRPKRU
 #else
 #define INIT_COMPARTMENT(n) _INIT_COMPARTMENT(n)
 #define INIT_RUNTIME(n) _INIT_RUNTIME(n)
+#define IA2_WRPKRU "wrpkru"
 #endif
 
 #define PKRU(n) _PKRU(n)

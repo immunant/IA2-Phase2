@@ -329,7 +329,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   // Switch to untrusted stack
   add_comment_line(aw, "Switch to untrusted stack");
   add_asm_line(aw, "movq ia2_untrusted_stackptr@GOTPCREL(%rip), %rsp");
-  add_asm_line(aw, "movq (%rsp), %rsp");
+  add_raw_line(aw, "\"movq \" STACK("s + compartment_pkey + ") \"(%rsp), %rsp\\n\"");
 
   if (kind == WrapperKind::IndirectFromTrusted) {
     add_comment_line(aw, "Load indirect call target and put it on the stack");

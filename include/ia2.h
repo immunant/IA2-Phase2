@@ -119,5 +119,33 @@
         dl_iterate_phdr(protect_pages, &args);                                            \
     }
 
+#define STACK(n) _STACK(n)
+#define _STACK(n) STACK_##n
+#define STACK_UNTRUSTED "0"
+#define STACK_0 "8"
+#define STACK_1 "16"
+#define STACK_2 "24"
+#define STACK_3 "32"
+#define STACK_4 "40"
+#define STACK_5 "48"
+#define STACK_6 "56"
+#define STACK_7 "64"
+#define STACK_8 "72"
+#define STACK_9 "80"
+#define STACK_10 "88"
+#define STACK_11 "96"
+#define STACK_12 "104"
+#define STACK_13 "112"
+#define STACK_14 "120"
+
 // Defines the number of protection keys that need to be allocated
-#define _INIT_RUNTIME(n) int ia2_n_pkeys = n;
+#define _INIT_RUNTIME(n)                                                                                         \
+    int ia2_n_pkeys = n;                                                                                         \
+    char untrusted_stack[4 * 1024 * 1024][n] __attribute__((used)) IA2_SHARED_DATA; \
+    void *ia2_untrusted_stackptr[n] __attribute__((used)) IA2_SHARED_DATA;                                       \
+    void *ia2_trusted_stackptr __attribute__((used)) IA2_SHARED_DATA;                                            \
+    __attribute__((constructor)) static void init_stacks() {                                                     \
+        for (int i = 0; i < n; i++) {                                                                            \
+            ia2_untrusted_stackptr[i] = &untrusted_stack[2 * 1024 * 1024][i];                                          \
+        }                                                                                                        \
+    }

@@ -47,7 +47,7 @@ const std::array<const char *, 3> cabi_arg_kind_names = {"int", "float", "mem"};
 // rsp is also a preserved register, but we handle it separately from these
 // since it's the stack
 const std::array<const char *, 6> preserved_registers = {"rbx", "rbp", "r12",
-                                                         "r13", "r14", "r15" };
+                                                         "r13", "r14", "r15"};
 
 /// Compute abi locations for parameters of a C-abi function, given its sequence
 /// of argument kinds.
@@ -310,7 +310,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   // the other compartment's stack. This is on the caller's stack so it's not in
   // the diagram above.
   for (auto &r : preserved_registers) {
-      add_asm_line(aw, "pushq %"s + r);
+    add_asm_line(aw, "pushq %"s + r);
   }
 
   // Save trusted stack pointer
@@ -369,10 +369,14 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     // This is effectively a memcpy of size `stack_arg_size` from the caller's
     // stack to the compartment's
     for (int i = 0; i < stack_arg_size; i += 8) {
+      // We must take the preserved registers we pushed on the caller's stack
+      // into account when determining the location of the stack args
+      size_t caller_stack_size =
+          stack_arg_size + (preserved_registers.size() * 8);
       // The index into the caller's stack is backwards since pushq will copy to
       // the compartment's stack from the highest addresses to the lowest.
       add_asm_line(aw,
-                   "pushq " + std::to_string(stack_arg_size - i) + "(%rax)");
+                   "pushq " + std::to_string(caller_stack_size - i) + "(%rax)");
     }
   }
 
@@ -517,19 +521,18 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   // Load registers that are preserved across function calls after switching
   // back to the caller's compartment's stack. This is on the caller's stack so
   // it's not in the diagram above.
-  for (auto r = preserved_registers.rbegin(); r != preserved_registers.rend(); r++) {
-      add_asm_line(aw, "popq %"s + *r);
+  for (auto r = preserved_registers.rbegin(); r != preserved_registers.rend();
+       r++) {
+    add_asm_line(aw, "popq %"s + *r);
   }
 
   // Return to the caller
   add_comment_line(aw, "Return to the caller");
   add_asm_line(aw, "ret");
 
-  if (indirect_wrapper) {
-    // Jump to the previous location counter to undo the effect of `.text 1`
-    // above
-    add_asm_line(aw, ".previous");
-  }
+  // Jump to the previous location counter to undo the effect of `.text 1`
+  // for indirect wrappers or `.text` for the direct case
+  add_asm_line(aw, ".previous");
 
   return aw.ss.str();
 }

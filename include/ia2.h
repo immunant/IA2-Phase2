@@ -119,6 +119,9 @@
         dl_iterate_phdr(protect_pages, &args);                                            \
     }
 
+// TODO: Find a better way to compute these offsets for ia2_untrusted_stackptr.
+// It may be easier to make our pkey numbers match linux's where the untrusted
+// pkey is 0 and everything else increases by 1.
 #define STACK(n) _STACK(n)
 #define _STACK(n) STACK_##n
 #define STACK_UNTRUSTED "0"
@@ -139,13 +142,14 @@
 #define STACK_14 "120"
 
 // Defines the number of protection keys that need to be allocated
-#define _INIT_RUNTIME(n)                                                                                         \
-    int ia2_n_pkeys = n;                                                                                         \
-    char untrusted_stack[4 * 1024 * 1024][n] __attribute__((used)) IA2_SHARED_DATA; \
-    void *ia2_untrusted_stackptr[n] __attribute__((used)) IA2_SHARED_DATA;                                       \
-    void *ia2_trusted_stackptr __attribute__((used)) IA2_SHARED_DATA;                                            \
-    __attribute__((constructor)) static void init_stacks() {                                                     \
-        for (int i = 0; i < n; i++) {                                                                            \
-            ia2_untrusted_stackptr[i] = &untrusted_stack[2 * 1024 * 1024][i];                                          \
-        }                                                                                                        \
+#define _INIT_RUNTIME(n)                                                                       \
+    int ia2_n_pkeys = n;                                                                       \
+    char untrusted_stack[4 * 1024 * 1024][n] __attribute__((used)) IA2_SHARED_DATA;            \
+    void *ia2_untrusted_stackptr[n] __attribute__((used)) IA2_SHARED_DATA;                     \
+    void *ia2_trusted_stackptr __attribute__((used)) IA2_SHARED_DATA;                          \
+    __attribute__((constructor)) static void init_stacks() {                                   \
+        for (int i = 0; i < n; i++) {                                                          \
+            ia2_untrusted_stackptr[i] = &untrusted_stack[2 * 1024 * 1024][i];                  \
+            pkey_mprotect(&untrusted_stack[0][i], 4 * 1024 * 1024, PROT_READ | PROT_WRITE, i); \
+        }                                                                                      \
     }

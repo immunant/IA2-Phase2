@@ -20,51 +20,38 @@
 // flexible.
 #define UNIQUE_STR(s) s "_line_" XSTR(__LINE__)
 
-// Set PKRU to untrusted using rax, r10 and r11 as scratch registers.
-#define WRPKRU(pkey)                        \
-    "movq %rcx, %r10\n"                     \
-    "movq %rdx, %r11\n"                     \
-    "movl $" XSTR(pkey) ", %eax\n"           \
-    "xorl %ecx, %ecx\n"                     \
-    "xorl %edx, %edx\n"                     \
-    "wrpkru\n"                              \
-    "movq %r10, %rcx\n"                     \
-    "movq %r11, %rdx\n"
-
 #ifdef LIBIA2_INSECURE
-#define GATE(x)
 #define INIT_COMPARTMENT(n)
 #define INIT_RUNTIME(n)
 #else
-#define GATE(pkey) _GATE(pkey)
 #define INIT_COMPARTMENT(n) _INIT_COMPARTMENT(n)
 #define INIT_RUNTIME(n) _INIT_RUNTIME(n)
 #endif
 
-#define _GATE(pkey) GATE_##pkey
-
+#define PKRU(n) _PKRU(n)
+#define _PKRU(n) PKRU_##n
 // On linux protection key 0 is the default for anything not covered by
 // pkey_mprotect so untrusted compartments have the lower 2 bits of PKRU cleared
-#define GATE_UNTRUSTED   WRPKRU(0xFFFFFFFC)
+#define PKRU_UNTRUSTED "0xFFFFFFFC"
 // The PKRU value for protection key N has bits 2(N + 1) and 2(N + 1) + 1 clear
 // to allow read and write access to compartment N. The lowest two bits should
 // also be cleared since we should always have access to memory not covered by
 // pkey_mprotect.
-#define GATE_0           WRPKRU(0xFFFFFFF0)
-#define GATE_1           WRPKRU(0xFFFFFFCC)
-#define GATE_2           WRPKRU(0xFFFFFF3C)
-#define GATE_3           WRPKRU(0xFFFFFCFC)
-#define GATE_4           WRPKRU(0xFFFFF3FC)
-#define GATE_5           WRPKRU(0xFFFFCFFC)
-#define GATE_6           WRPKRU(0xFFFF3FFC)
-#define GATE_7           WRPKRU(0xFFFCFFFC)
-#define GATE_8           WRPKRU(0xFFF3FFFC)
-#define GATE_9           WRPKRU(0xFFCFFFFC)
-#define GATE_10          WRPKRU(0xFF3FFFFC)
-#define GATE_11          WRPKRU(0xFCFFFFFC)
-#define GATE_12          WRPKRU(0xF3FFFFFC)
-#define GATE_13          WRPKRU(0xCFFFFFFC)
-#define GATE_14          WRPKRU(0x3FFFFFFC)
+#define PKRU_0           "0xFFFFFFF0"
+#define PKRU_1           "0xFFFFFFCC"
+#define PKRU_2           "0xFFFFFF3C"
+#define PKRU_3           "0xFFFFFCFC"
+#define PKRU_4           "0xFFFFF3FC"
+#define PKRU_5           "0xFFFFCFFC"
+#define PKRU_6           "0xFFFF3FFC"
+#define PKRU_7           "0xFFFCFFFC"
+#define PKRU_8           "0xFFF3FFFC"
+#define PKRU_9           "0xFFCFFFFC"
+#define PKRU_10          "0xFF3FFFFC"
+#define PKRU_11          "0xFCFFFFFC"
+#define PKRU_12          "0xF3FFFFFC"
+#define PKRU_13          "0xCFFFFFFC"
+#define PKRU_14          "0x3FFFFFFC"
 
 // Takes a function pointer `target` and returns an opaque pointer for its call gate wrapper.
 #define IA2_FNPTR_WRAPPER(target, ty, caller_pkey, target_pkey)    ({    \

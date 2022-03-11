@@ -20,6 +20,7 @@
 
 using namespace clang::ast_matchers;
 using namespace clang::tooling;
+using namespace std::string_literals;
 
 // Apply a custom category to all command-line options so that they are the
 // only ones displayed.
@@ -44,7 +45,7 @@ static llvm::cl::opt<std::string>
                           llvm::cl::desc("<wrapper output filename>"));
 
 // Specifies the compartment's protection key index, if any.
-static llvm::cl::opt<int32_t>
+static llvm::cl::opt<uint32_t>
     CompartmentPkey("compartment-pkey",
                    llvm::cl::desc("The compartment's protection key index"),
                    llvm::cl::cat(HeaderRewriterCategory), llvm::cl::Optional);
@@ -260,7 +261,12 @@ public:
       }
 
       auto cAbiSig = determineAbiForDecl(*fn_decl);
-      auto asm_wrapper = emit_asm_wrapper(cAbiSig, fn_name, WrapperKind::Direct);
+      std::string asm_wrapper;
+      if (CompartmentPkey.getNumOccurrences() == 0) {
+        asm_wrapper = emit_asm_wrapper(cAbiSig, fn_name, WrapperKind::Direct, "UNTRUSTED"s);
+      } else {
+        asm_wrapper = emit_asm_wrapper(cAbiSig, fn_name, WrapperKind::Direct, std::to_string(CompartmentPkey));
+      }
 
       // Generate wrapper symbol definition, invoking call gates around call
       WrapperOut << llvm::formatv(
@@ -495,13 +501,15 @@ static int emit_output_header(const FnPtrPrinter &printer) {
     // which we can pass to other compartments. This means that the wrapper will
     // be called from an untrusted compartment.
     os << "#define IA2_FNPTR_WRAPPER_" << mangled_type << "(target, caller_pkey, target_pkey) \\\n";
-    auto wrapper_from_trusted = emit_asm_wrapper(fi.sig, fi.new_type, WrapperKind::IndirectFromUntrusted);
+    // target_pkey is the macro param defining the callee's pkey
+    auto wrapper_from_trusted = emit_asm_wrapper(fi.sig, fi.new_type, WrapperKind::IndirectFromUntrusted, "target_pkey"s);
     os << wrapper_from_trusted <<  "\n";
 
     // IA2_FNPTR_UNWRAPPER_* takes an opaque pointer and returns a function
     // pointer so the wrapper will be called from the trusted compartment.
     os << "#define IA2_FNPTR_UNWRAPPER_" << mangled_type << "(target, caller_pkey, target_pkey) \\\n";
-    auto wrapper_from_untrusted = emit_asm_wrapper(fi.sig, fi.new_type, WrapperKind::IndirectFromTrusted);
+    // target_pkey is the macro param defining the callee's pkey
+    auto wrapper_from_untrusted = emit_asm_wrapper(fi.sig, fi.new_type, WrapperKind::IndirectFromTrusted, "target_pkey"s);
     os << wrapper_from_untrusted <<  "\n";
   }
 
@@ -554,13 +562,8 @@ int main(int argc, const char **argv) {
               << "#include <ia2.h>\n"
               << "#ifndef CALLER_PKEY\n"
               << "#error CALLER_PKEY must be defined to compile this file\n"
-              << "#endif\n"
-              << "#define GATE_POP GATE(CALLER_PKEY)\n";
-  if (CompartmentPkey.getNumOccurrences() == 0) {
-    wrapper_out << "#define GATE_PUSH GATE(UNTRUSTED)\n";
-  } else {
-    wrapper_out << "#define GATE_PUSH GATE(" << CompartmentPkey << ")\n";
-  }
+              << "#endif\n";
+
   // Add dummy definitions of the untrusted stack, trusted TLS storage
   // for stack pointers, and the __libia2_scrub_registers function
   wrapper_out

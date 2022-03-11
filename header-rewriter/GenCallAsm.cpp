@@ -8,6 +8,8 @@
 #include "CAbi.h"
 #include "GenCallAsm.h"
 
+using namespace std::string_literals;
+
 struct ParamLocation {
 private:
   ParamLocation(const char *reg) : reg(reg) {}
@@ -161,8 +163,6 @@ static void add_comment_line(AsmWriter &aw, const std::string &s) {
 }
 
 static void emit_reg_push(AsmWriter &aw, const ParamLocation &loc) {
-  using namespace std::string_literals;
-
   assert(!loc.is_stack());
   if (loc.is_xmm()) {
     add_asm_line(aw, "subq $16, %rsp");
@@ -173,8 +173,6 @@ static void emit_reg_push(AsmWriter &aw, const ParamLocation &loc) {
 }
 
 static void emit_reg_pop(AsmWriter &aw, const ParamLocation &loc) {
-  using namespace std::string_literals;
-
   assert(!loc.is_stack());
   if (loc.is_xmm()) {
     add_asm_line(aw, "movdqu (%rsp), %"s + loc.as_str());
@@ -182,6 +180,16 @@ static void emit_reg_pop(AsmWriter &aw, const ParamLocation &loc) {
   } else {
     add_asm_line(aw, "popq %"s + loc.as_str());
   }
+}
+
+// Emit code to set the PKRU. Clobbers eax, ecx and edx.
+static void
+emit_wrpkru(AsmWriter &aw, const std::string &target_pkey) {
+  // wrpkru requires zeroing ecx and edx
+  add_asm_line(aw, "xorl %ecx, %ecx");
+  add_asm_line(aw, "xorl %edx, %edx");
+  add_raw_line(aw, "\"movl $\" PKRU("s + target_pkey + ") \", %eax\\n\"");
+  add_asm_line(aw, "wrpkru");
 }
 
 static void append_arg_kinds(std::stringstream &ss,
@@ -209,10 +217,9 @@ static std::string sig_string(const CAbiSignature &sig,
   return ss.str();
 }
 
-std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
-                             WrapperKind kind) {
-  using namespace std::string_literals;
-
+std::string
+emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
+                 WrapperKind kind, const std::string &compartment_pkey) {
   bool indirect_wrapper = kind != WrapperKind::Direct;
   std::string terminator = {};
   // Code for indirect wrappers is generated as a macro so we need to terminate
@@ -413,14 +420,15 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     }
   }
 
-  // Change pkru to the compartment's value using rax, r10 and r11 as scratch
-  // registers
+  // Change pkru to the compartment's value
   add_comment_line(aw, "Set PKRU to the compartment's value");
-  if (indirect_wrapper) {
-    add_raw_line(aw, "GATE(target_pkey)");
-  } else {
-    add_raw_line(aw, "GATE_PUSH");
-  }
+  // wrpkru requires zeroing rcx and rdx, but they may have arguments so use r10
+  // and r11 as scratch registers
+  add_asm_line(aw, "movq %rcx, %r10");
+  add_asm_line(aw, "movq %rdx, %r11");
+  emit_wrpkru(aw, compartment_pkey);
+  add_asm_line(aw, "movq %r10, %rcx");
+  add_asm_line(aw, "movq %r11, %rdx");
 
   // Call wrapped function
   add_comment_line(aw, "Call wrapped function");
@@ -441,19 +449,24 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     add_asm_line(aw, "call "s + name);
   }
 
+  // After calling the wrapped function, rax and rdx may contain a return value
+  // so use r10 and r11 as scratch registers
   add_comment_line(aw, "Set PKRU to the caller's value");
-  // FIXME: The GATE macros use rax as a scratch register, but it may contain a
-  // return value after the call so we save it in r9. We should fix this when we
-  // combine PKRU and stack switching for indirect calls.
-  add_asm_line(aw, "movq %rax, %r9");
+  add_asm_line(aw, "movq %rax, %r10");
+  add_asm_line(aw, "movq %rdx, %r11");
   // Change pkru to the caller's value using rax, r10 and r11 as scratch
   // registers
   if (indirect_wrapper) {
-    add_raw_line(aw, "GATE(caller_pkey)");
+    // caller_pkey is the macro param defining the caller's pkey in the
+    // IA2_FNPTR_* macros
+    emit_wrpkru(aw, "caller_pkey"s);
   } else {
-    add_raw_line(aw, "GATE_POP");
+    // The CALLER_PKEY macro must be defined to compile the wrapper source files
+    // that this is written to. Failure to define it gives a preprocessor error.
+    emit_wrpkru(aw, "CALLER_PKEY"s);
   }
-  add_asm_line(aw, "movq %r9, %rax");
+  add_asm_line(aw, "movq %r10, %rax");
+  add_asm_line(aw, "movq %r11, %rdx");
 
   // Free stack space used for stack args on the untrusted stack
   if (stack_arg_size > 0) {

@@ -324,12 +324,14 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   // Save trusted stack pointer
   add_comment_line(aw, "Save trusted stack pointer");
   add_asm_line(aw, "movq ia2_caller_stackptr@GOTPCREL(%rip), %rax");
-  add_asm_line(aw, "movq %rsp, (%rax)");
+  add_raw_line(aw, llvm::formatv("\"movq %rsp, \" STACK({0}) \"(%rax)\\n\"",
+                                 compartment_pkey));
 
   // Switch to untrusted stack
   add_comment_line(aw, "Switch to untrusted stack");
   add_asm_line(aw, "movq ia2_stackptrs@GOTPCREL(%rip), %rsp");
-  add_raw_line(aw, "\"movq \" STACK("s + compartment_pkey + ") \"(%rsp), %rsp\\n\"");
+  add_raw_line(aw, llvm::formatv("\"movq \" STACK({0}) \"(%rsp), %rsp\\n\"",
+                                 compartment_pkey));
 
   if (kind == WrapperKind::IndirectFromTrusted) {
     add_comment_line(aw, "Load indirect call target and put it on the stack");
@@ -373,7 +375,8 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     add_comment_line(
         aw, "Copy stack arguments from the caller's stack to the compartment");
     add_asm_line(aw, "movq ia2_caller_stackptr@GOTPCREL(%rip), %rax");
-    add_asm_line(aw, "movq (%rax), %rax");
+    add_asm_line(aw, llvm::formatv("movq \" STACK({0}) \"(%rax), %rax",
+                                   compartment_pkey));
     // This is effectively a memcpy of size `stack_arg_size` from the caller's
     // stack to the compartment's
     for (int i = 0; i < stack_arg_size; i += 8) {
@@ -501,7 +504,8 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   }
 
   add_asm_line(aw, "movq ia2_caller_stackptr@GOTPCREL(%rip), %rsp");
-  add_asm_line(aw, "movq (%rsp), %rsp");
+  add_asm_line(
+      aw, llvm::formatv("movq \" STACK({0}) \"(%rsp), %rsp", compartment_pkey));
 
   add_comment_line(
       aw, "Push return regs to caller's stack before scrubbing registers");

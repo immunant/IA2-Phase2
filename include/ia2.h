@@ -152,11 +152,10 @@
   int ia2_n_pkeys = n;                                                         \
   char ia2_stacks[STACK_SIZE][n] __attribute__((used)) IA2_SHARED_DATA;        \
   void *ia2_stackptrs[n] __attribute__((used)) IA2_SHARED_DATA;                \
-  void *ia2_caller_stackptr __attribute__((used)) IA2_SHARED_DATA;             \
+  void *ia2_caller_stackptr[n] __attribute__((used)) IA2_SHARED_DATA;          \
   __attribute__((constructor)) static void init_stacks() {                     \
     for (int i = 0; i < n; i++) {                                              \
       ia2_stackptrs[i] = &ia2_stacks[STACK_SIZE][i];                           \
-      pkey_mprotect(&ia2_stacks[0][i], STACK_SIZE,                        \
-                    PROT_READ | PROT_WRITE, i);                                \
+      pkey_mprotect(&ia2_stacks[0][i], STACK_SIZE, PROT_READ | PROT_WRITE, i); \
     }                                                                          \
   }

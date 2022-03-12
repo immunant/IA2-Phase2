@@ -146,17 +146,17 @@
 #define STACK_13 "112"
 #define STACK_14 "120"
 
+#define STACK_SIZE (4 * 1024 * 1024)
 // Defines the number of protection keys that need to be allocated
 #define _INIT_RUNTIME(n)                                                       \
   int ia2_n_pkeys = n;                                                         \
-  char untrusted_stack[4 * 1024 * 1024][n] __attribute__((used))               \
-  IA2_SHARED_DATA;                                                             \
-  void *ia2_untrusted_stackptr[n] __attribute__((used)) IA2_SHARED_DATA;       \
-  void *ia2_trusted_stackptr __attribute__((used)) IA2_SHARED_DATA;            \
+  char ia2_stacks[STACK_SIZE][n] __attribute__((used)) IA2_SHARED_DATA;        \
+  void *ia2_stackptrs[n] __attribute__((used)) IA2_SHARED_DATA;                \
+  void *ia2_caller_stackptr __attribute__((used)) IA2_SHARED_DATA;             \
   __attribute__((constructor)) static void init_stacks() {                     \
     for (int i = 0; i < n; i++) {                                              \
-      ia2_untrusted_stackptr[i] = &untrusted_stack[2 * 1024 * 1024][i];        \
-      pkey_mprotect(&untrusted_stack[0][i], 4 * 1024 * 1024,                   \
+      ia2_stackptrs[i] = &ia2_stacks[STACK_SIZE][i];                           \
+      pkey_mprotect(&ia2_stacks[0][i], STACK_SIZE,                        \
                     PROT_READ | PROT_WRITE, i);                                \
     }                                                                          \
   }

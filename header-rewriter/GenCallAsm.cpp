@@ -323,12 +323,12 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
 
   // Save trusted stack pointer
   add_comment_line(aw, "Save trusted stack pointer");
-  add_asm_line(aw, "movq ia2_trusted_stackptr@GOTPCREL(%rip), %rax");
+  add_asm_line(aw, "movq ia2_caller_stackptr@GOTPCREL(%rip), %rax");
   add_asm_line(aw, "movq %rsp, (%rax)");
 
   // Switch to untrusted stack
   add_comment_line(aw, "Switch to untrusted stack");
-  add_asm_line(aw, "movq ia2_untrusted_stackptr@GOTPCREL(%rip), %rsp");
+  add_asm_line(aw, "movq ia2_stackptrs@GOTPCREL(%rip), %rsp");
   add_raw_line(aw, "\"movq \" STACK("s + compartment_pkey + ") \"(%rsp), %rsp\\n\"");
 
   if (kind == WrapperKind::IndirectFromTrusted) {
@@ -372,7 +372,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     // compartment's stack.
     add_comment_line(
         aw, "Copy stack arguments from the caller's stack to the compartment");
-    add_asm_line(aw, "movq ia2_trusted_stackptr@GOTPCREL(%rip), %rax");
+    add_asm_line(aw, "movq ia2_caller_stackptr@GOTPCREL(%rip), %rax");
     add_asm_line(aw, "movq (%rax), %rax");
     // This is effectively a memcpy of size `stack_arg_size` from the caller's
     // stack to the compartment's
@@ -500,7 +500,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     }
   }
 
-  add_asm_line(aw, "movq ia2_trusted_stackptr@GOTPCREL(%rip), %rsp");
+  add_asm_line(aw, "movq ia2_caller_stackptr@GOTPCREL(%rip), %rsp");
   add_asm_line(aw, "movq (%rsp), %rsp");
 
   add_comment_line(

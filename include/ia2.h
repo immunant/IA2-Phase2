@@ -1,7 +1,8 @@
 #pragma once
 #include <link.h>
-#include <sys/mman.h>
 #include <stdio.h>
+#include <sys/mman.h>
+
 #include "pkey_init.h"
 #include "scrub_registers.h"
 
@@ -35,43 +36,45 @@
 // to allow read and write access to compartment N. The lowest two bits should
 // also be cleared since we should always have access to memory not covered by
 // pkey_mprotect.
-#define PKRU_0           "0xFFFFFFF0"
-#define PKRU_1           "0xFFFFFFCC"
-#define PKRU_2           "0xFFFFFF3C"
-#define PKRU_3           "0xFFFFFCFC"
-#define PKRU_4           "0xFFFFF3FC"
-#define PKRU_5           "0xFFFFCFFC"
-#define PKRU_6           "0xFFFF3FFC"
-#define PKRU_7           "0xFFFCFFFC"
-#define PKRU_8           "0xFFF3FFFC"
-#define PKRU_9           "0xFFCFFFFC"
-#define PKRU_10          "0xFF3FFFFC"
-#define PKRU_11          "0xFCFFFFFC"
-#define PKRU_12          "0xF3FFFFFC"
-#define PKRU_13          "0xCFFFFFFC"
-#define PKRU_14          "0x3FFFFFFC"
+#define PKRU_0 "0xFFFFFFF0"
+#define PKRU_1 "0xFFFFFFCC"
+#define PKRU_2 "0xFFFFFF3C"
+#define PKRU_3 "0xFFFFFCFC"
+#define PKRU_4 "0xFFFFF3FC"
+#define PKRU_5 "0xFFFFCFFC"
+#define PKRU_6 "0xFFFF3FFC"
+#define PKRU_7 "0xFFFCFFFC"
+#define PKRU_8 "0xFFF3FFFC"
+#define PKRU_9 "0xFFCFFFFC"
+#define PKRU_10 "0xFF3FFFFC"
+#define PKRU_11 "0xFCFFFFFC"
+#define PKRU_12 "0xF3FFFFFC"
+#define PKRU_13 "0xCFFFFFFC"
+#define PKRU_14 "0x3FFFFFFC"
 
-// Takes a function pointer `target` and returns an opaque pointer for its call gate wrapper.
-#define IA2_FNPTR_WRAPPER(target, ty, caller_pkey, target_pkey)    ({    \
-    static char *target_ptr __asm__(UNIQUE_STR(#target))                 \
-                            __attribute__((used));                       \
-    static void *wrapper __asm__("__ia2_" UNIQUE_STR(#target));          \
-    target_ptr = (char *)target;                                         \
-    __asm__(IA2_FNPTR_WRAPPER_##ty(target, caller_pkey, target_pkey));   \
-    (struct IA2_fnptr_##ty) {                                            \
-        (char *)&wrapper                                                 \
-    };                                                                   \
-})
+// Takes a function pointer `target` and returns an opaque pointer for its call
+// gate wrapper.
+#define IA2_FNPTR_WRAPPER(target, ty, caller_pkey, target_pkey)                \
+  ({                                                                           \
+    static char *target_ptr __asm__(UNIQUE_STR(#target))                       \
+                            __attribute__((used));                             \
+    static void *wrapper __asm__("__ia2_" UNIQUE_STR(#target));                \
+    target_ptr = (char *)target;                                               \
+    __asm__(IA2_FNPTR_WRAPPER_##ty(target, caller_pkey, target_pkey));         \
+    (struct IA2_fnptr_##ty){(char *)&wrapper};                                 \
+  })
 
-// Takes an opaque pointer `target` and returns a function pointer for its call gate wrapper.
-#define IA2_FNPTR_UNWRAPPER(target, ty, caller_pkey, target_pkey)  ({    \
-    static char *target_ptr __asm__(UNIQUE_STR(#target))                 \
-                            __attribute__((used));                       \
-    static void *wrapper __asm__("__ia2_" UNIQUE_STR(#target));          \
-    target_ptr = target.ptr;                                             \
-    __asm__(IA2_FNPTR_UNWRAPPER_##ty(target, caller_pkey, target_pkey)); \
-    (IA2_FNPTR_TYPE_##ty)&wrapper;                                       \
-})
+// Takes an opaque pointer `target` and returns a function pointer for its call
+// gate wrapper.
+#define IA2_FNPTR_UNWRAPPER(target, ty, caller_pkey, target_pkey)              \
+  ({                                                                           \
+    static char *target_ptr __asm__(UNIQUE_STR(#target))                       \
+                            __attribute__((used));                             \
+    static void *wrapper __asm__("__ia2_" UNIQUE_STR(#target));                \
+    target_ptr = target.ptr;                                                   \
+    __asm__(IA2_FNPTR_UNWRAPPER_##ty(target, caller_pkey, target_pkey));       \
+    (IA2_FNPTR_TYPE_##ty) & wrapper;                                           \
+  })
 
 // Takes a mangled type name and returns a NULL opaque pointer
 #define IA2_NULL_FNPTR(ty) \
@@ -87,37 +90,39 @@
 // to rwx. We avoid using .balign to align the sections at the start of each
 // segment because it inserts a fill value (defaults to 0) which may break some
 // sections (e.g.  insert null pointers into .init_array).
-#define NEW_SECTION(name)          \
-    __asm__(".section " #name "\n" \
-            ".previous");
+#define NEW_SECTION(name)                                                      \
+  __asm__(".section " #name                                                    \
+          "\n"                                                                 \
+          ".previous");
 
 // Initializes a compartment with protection key `n` when the ELF invoking this
 // macro is loaded. This must only be called once for each key. The copmartment
 // includes all segments in the ELF except the `ia2_shared_data` section, if one
 // exists.
-#define _INIT_COMPARTMENT(n)                                                              \
-    NEW_SECTION(".fini_padding");                                                         \
-    NEW_SECTION(".rela.plt_padding");                                                     \
-    NEW_SECTION(".eh_frame_padding");                                                     \
-    NEW_SECTION(".bss_padding");                                                          \
-    extern int ia2_n_pkeys;                                                               \
-    __attribute__((constructor)) static void init_pkey_ctor() {                           \
-        if (ia2_n_pkeys != 0) {                                                           \
-            for (int pkey = 1; pkey <= ia2_n_pkeys; pkey++) {                             \
-                int allocated = pkey_alloc(0, 0);                                         \
-                if (allocated != pkey) {                                                  \
-                    printf("Failed to allocate protection keys in the expected order\n"); \
-                    exit(-1);                                                             \
-                }                                                                         \
-            }                                                                             \
-            ia2_n_pkeys = 0;                                                              \
-        }                                                                                 \
-        struct PhdrSearchArgs args = {                                                    \
-            .pkey = n + 1,                                                                \
-            .address = &init_pkey_ctor,                                                   \
-        };                                                                                \
-        dl_iterate_phdr(protect_pages, &args);                                            \
-    }
+#define _INIT_COMPARTMENT(n)                                                   \
+  NEW_SECTION(".fini_padding");                                                \
+  NEW_SECTION(".rela.plt_padding");                                            \
+  NEW_SECTION(".eh_frame_padding");                                            \
+  NEW_SECTION(".bss_padding");                                                 \
+  extern int ia2_n_pkeys;                                                      \
+  __attribute__((constructor)) static void init_pkey_ctor() {                  \
+    if (ia2_n_pkeys != 0) {                                                    \
+      for (int pkey = 1; pkey <= ia2_n_pkeys; pkey++) {                        \
+        int allocated = pkey_alloc(0, 0);                                      \
+        if (allocated != pkey) {                                               \
+          printf(                                                              \
+              "Failed to allocate protection keys in the expected order\n");   \
+          exit(-1);                                                            \
+        }                                                                      \
+      }                                                                        \
+      ia2_n_pkeys = 0;                                                         \
+    }                                                                          \
+    struct PhdrSearchArgs args = {                                             \
+        .pkey = n + 1,                                                         \
+        .address = &init_pkey_ctor,                                            \
+    };                                                                         \
+    dl_iterate_phdr(protect_pages, &args);                                     \
+  }
 
 // TODO: Find a better way to compute these offsets for ia2_untrusted_stackptr.
 // It may be easier to make our pkey numbers match linux's where the untrusted
@@ -142,14 +147,16 @@
 #define STACK_14 "120"
 
 // Defines the number of protection keys that need to be allocated
-#define _INIT_RUNTIME(n)                                                                       \
-    int ia2_n_pkeys = n;                                                                       \
-    char untrusted_stack[4 * 1024 * 1024][n] __attribute__((used)) IA2_SHARED_DATA;            \
-    void *ia2_untrusted_stackptr[n] __attribute__((used)) IA2_SHARED_DATA;                     \
-    void *ia2_trusted_stackptr __attribute__((used)) IA2_SHARED_DATA;                          \
-    __attribute__((constructor)) static void init_stacks() {                                   \
-        for (int i = 0; i < n; i++) {                                                          \
-            ia2_untrusted_stackptr[i] = &untrusted_stack[2 * 1024 * 1024][i];                  \
-            pkey_mprotect(&untrusted_stack[0][i], 4 * 1024 * 1024, PROT_READ | PROT_WRITE, i); \
-        }                                                                                      \
-    }
+#define _INIT_RUNTIME(n)                                                       \
+  int ia2_n_pkeys = n;                                                         \
+  char untrusted_stack[4 * 1024 * 1024][n] __attribute__((used))               \
+  IA2_SHARED_DATA;                                                             \
+  void *ia2_untrusted_stackptr[n] __attribute__((used)) IA2_SHARED_DATA;       \
+  void *ia2_trusted_stackptr __attribute__((used)) IA2_SHARED_DATA;            \
+  __attribute__((constructor)) static void init_stacks() {                     \
+    for (int i = 0; i < n; i++) {                                              \
+      ia2_untrusted_stackptr[i] = &untrusted_stack[2 * 1024 * 1024][i];        \
+      pkey_mprotect(&untrusted_stack[0][i], 4 * 1024 * 1024,                   \
+                    PROT_READ | PROT_WRITE, i);                                \
+    }                                                                          \
+  }

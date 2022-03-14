@@ -146,16 +146,23 @@
 #define STACK_13 "112"
 #define STACK_14 "120"
 
-#define STACK_SIZE (4 * 1024 * 1024)
+// The stack needs to be aligned to 16 bytes so we currently define it as an
+// array of uint128_t.
+#define STACK_SIZE ((4 * 1024 * 1024) / sizeof(__uint128_t))
+
 // Defines the number of protection keys that need to be allocated
 #define _INIT_RUNTIME(n)                                                       \
   int ia2_n_pkeys = n;                                                         \
-  char ia2_stacks[STACK_SIZE][n] __attribute__((used)) IA2_SHARED_DATA;        \
+  __uint128_t ia2_temp_stack[STACK_SIZE] __attribute__((used))                 \
+  IA2_SHARED_DATA;                                                             \
+  void *ia2_temp_stackptr = &ia2_temp_stack[STACK_SIZE - 1];                   \
+  __uint128_t ia2_stacks[STACK_SIZE][n] __attribute__((used)) IA2_SHARED_DATA; \
   void *ia2_stackptrs[n] __attribute__((used)) IA2_SHARED_DATA;                \
   void *ia2_caller_stackptr[n] __attribute__((used)) IA2_SHARED_DATA;          \
   __attribute__((constructor)) static void init_stacks() {                     \
     for (int i = 0; i < n; i++) {                                              \
-      ia2_stackptrs[i] = &ia2_stacks[STACK_SIZE][i];                           \
-      pkey_mprotect(&ia2_stacks[0][i], STACK_SIZE, PROT_READ | PROT_WRITE, i); \
+      ia2_stackptrs[i] = &ia2_stacks[STACK_SIZE - 1][i];                       \
+      pkey_mprotect(&ia2_stacks[0][i], STACK_SIZE * sizeof(__uint128_t),       \
+                    PROT_READ | PROT_WRITE, i);                                \
     }                                                                          \
   }

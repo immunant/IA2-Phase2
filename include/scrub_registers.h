@@ -5,10 +5,9 @@
 // Note that while this follows general best practices for zero-idioms in
 // the generic case, it hasn't been performance tuned at all.  The avx512
 // version in particular could be optimized.
-asm(
-    ".text\n"
+asm(".text\n"
     ".p2align 5\n"
-"__libia2_scrub_registers_avx512:\n"
+    "__libia2_scrub_registers_avx512:\n"
     "vpxorq %zmm16, %zmm16, %zmm16\n"
     "vpxorq %zmm17, %zmm17, %zmm17\n"
     "vpxorq %zmm18, %zmm18, %zmm18\n"
@@ -34,12 +33,12 @@ asm(
     "kxorb %k6, %k6, %k6\n"
     "kxorb %k7, %k7, %k7\n"
     ".p2align 5\n"
-"__libia2_scrub_registers_sse:\n"
+    "__libia2_scrub_registers_sse:\n"
     /* Warning: Despite name, does NOT zero all ZMMs when AVX-512 enabled
        must still handle YMM16-31 manually (e.g. use entry above) */
     "vzeroall\n"
     ".p2align 5\n"
-"__libia2_scrub_registers_generic:\n"
+    "__libia2_scrub_registers_generic:\n"
     "xorq %rax, %rax\n"
     "xorq %rbx, %rbx\n"
     "xorq %rcx, %rcx\n"
@@ -64,9 +63,10 @@ asm(
     /* We intentionally omit emitting a symbol for this label since we treat it
        like a static function (avoid calling it through the PLT) in the wrapper
        sources and binaries that invoke the FNPTR macros */
-"__libia2_scrub_registers:\n"
+    "__libia2_scrub_registers:\n"
     /* For the moment, we unconditionally assume you're running on a
        target which has sse/avx/av2, but not avx512.  Someday, we should
        support avx512 */
     "jmp __libia2_scrub_registers_sse\n"
-    "int3\n");
+    "int3\n"
+    ".previous\n");

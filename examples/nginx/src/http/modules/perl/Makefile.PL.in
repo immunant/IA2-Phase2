@@ -19,12 +19,12 @@ WriteMakefile(
     LDDLFLAGS         => "$ENV{NGX_PM_LDFLAGS}",
 
     INC               => join(" ", map {
-                             m#^/# ? "-I $_" : "-I /home/ayrton/ia2/IA2-Phase2/examples/nginx/$_"
+                             m#^/# ? "-I $_" : "-I @CMAKE_CURRENT_SOURCE_DIR@/$_"
                          } (split /\s+/, $ENV{NGX_INCS})),
 
     depend => {
         'nginx.c'     => join(" ", map {
-                             m#^/# ? $_ : "/home/ayrton/ia2/IA2-Phase2/examples/nginx/$_"
+                             m#^/# ? $_ : "@CMAKE_CURRENT_SOURCE_DIR@/$_"
                          } (split(/\s+/, $ENV{NGX_DEPS}),
                             "src/http/modules/perl/ngx_http_perl_module.h"))
     },

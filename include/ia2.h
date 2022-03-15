@@ -1,4 +1,5 @@
 #pragma once
+#include <errno.h>
 #include <link.h>
 #include <stdio.h>
 #include <sys/mman.h>
@@ -146,23 +147,34 @@
 #define STACK_13 "112"
 #define STACK_14 "120"
 
-// The stack needs to be aligned to 16 bytes so we currently define it as an
-// array of uint128_t.
-#define STACK_SIZE ((4 * 1024 * 1024) / sizeof(__uint128_t))
+#define STACK_SIZE (4 * 1024 * 1024)
 
 // Defines the number of protection keys that need to be allocated
 #define _INIT_RUNTIME(n)                                                       \
   int ia2_n_pkeys = n;                                                         \
-  __uint128_t ia2_temp_stack[STACK_SIZE] __attribute__((used))                 \
-  IA2_SHARED_DATA;                                                             \
-  void *ia2_temp_stackptr = &ia2_temp_stack[STACK_SIZE - 1];                   \
-  __uint128_t ia2_stacks[STACK_SIZE][n] __attribute__((used)) IA2_SHARED_DATA; \
-  void *ia2_stackptrs[n] __attribute__((used)) IA2_SHARED_DATA;                \
-  void *ia2_caller_stackptr[n] __attribute__((used)) IA2_SHARED_DATA;          \
+  char *ia2_temp_stackptr IA2_SHARED_DATA;                                     \
+  char *ia2_stackptrs[n] IA2_SHARED_DATA;                                      \
+  char *ia2_caller_stackptr[n] IA2_SHARED_DATA;                                \
   __attribute__((constructor)) static void init_stacks() {                     \
+    ia2_temp_stackptr = mmap(NULL, STACK_SIZE, PROT_READ | PROT_WRITE,         \
+                             MAP_PRIVATE | MAP_ANON, -1, 0);                   \
+    if (ia2_temp_stackptr == MAP_FAILED) {                                     \
+      printf("Failed to allocate temp stack (%d)\n", errno);                   \
+      exit(-1);                                                                \
+    }                                                                          \
+    ia2_temp_stackptr += STACK_SIZE - 16;                                      \
     for (int i = 0; i < n; i++) {                                              \
-      ia2_stackptrs[i] = &ia2_stacks[STACK_SIZE - 1][i];                       \
-      pkey_mprotect(&ia2_stacks[0][i], STACK_SIZE * sizeof(__uint128_t),       \
-                    PROT_READ | PROT_WRITE, i);                                \
+      ia2_stackptrs[i] = mmap(NULL, STACK_SIZE, PROT_READ | PROT_WRITE,        \
+                              MAP_PRIVATE | MAP_ANON, -1, 0);                  \
+      if (ia2_stackptrs[i] == MAP_FAILED) {                                    \
+        printf("Failed to allocate stack %d (%d)\n", i, errno);                \
+        exit(-1);                                                              \
+      }                                                                        \
+      int res = pkey_mprotect(ia2_stackptrs[i], STACK_SIZE,                    \
+                              PROT_READ | PROT_WRITE, i);                      \
+      if (res == -1) {                                                         \
+        printf("Failed to mprotect stack %d (%d)\n", i, errno);                \
+      }                                                                        \
+      ia2_stackptrs[i] += STACK_SIZE - 16;                                     \
     }                                                                          \
   }

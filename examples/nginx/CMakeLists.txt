@@ -16,10 +16,17 @@ add_custom_target(nginx-config
         --http-uwsgi-temp-path=${CMAKE_CURRENT_BINARY_DIR}/uwsgi_temp
         --http-scgi-temp-path=${CMAKE_CURRENT_BINARY_DIR}/scgi_temp)
 
-set(NGINX_PERL_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/http/modules/perl)
-configure_file(${NGINX_PERL_SRC_DIR}/Makefile.PL.in ${NGINX_PERL_SRC_DIR}/Makefile.PL @ONLY)
+set(NGINX_PERL_DIR src/http/modules/perl)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/${NGINX_PERL_DIR}/Makefile.PL.in
+    ${CMAKE_CURRENT_BINARY_DIR}/${NGINX_PERL_DIR}/Makefile.PL @ONLY)
+
 add_custom_target(nginx-build
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    COMMAND make -j8 -f ${CMAKE_CURRENT_BINARY_DIR}/Makefile)
+    COMMAND make -j8 -f ${CMAKE_CURRENT_BINARY_DIR}/Makefile
+    BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/nginx)
 
 add_dependencies(nginx-build nginx-config)
+
+add_custom_target(nginx-run
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/nginx
+    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/nginx)

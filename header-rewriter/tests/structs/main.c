@@ -24,13 +24,13 @@ INIT_COMPARTMENT(0);
 #define check_field_ptr(name, val) { printf("s.%s = %p (expected %p)\n", #name, s.name, val); }
 
 #define check_eq_i128(name, upper, lower) { __int128 out = name(s); \
-	printf("%s(s) = %016x%016x (expected %016x%016x)\n", #name, \
+	printf("%s(s) = %016llx%016llx (expected %016llx%016llx)\n", #name, \
 	(int64_t)(out >> 64), (int64_t)(out & 0xffffffffffffffff), \
-	(int64_t)(((__int128)upper) >> 64), (uint64_t)(((__int128)lower) & 0xffffffffffffffff)); }
+	(int64_t)(upper), (uint64_t)(lower)); }
 #define check_field_i128(name, upper, lower) { __int128 out = s.name; \
-	printf("s.%s = %016x%016x (expected %016x%016x)\n", #name, \
+	printf("s.%s = %016llx%016llx (expected %016llx%016llx)\n", #name, \
 	(int64_t)(out >> 64), (int64_t)(out & 0xffffffffffffffff), \
-	(int64_t)(((__int128)upper) >> 64), (uint64_t)(((__int128)lower) & 0xffffffffffffffff)); }
+	(int64_t)(upper), (uint64_t)(lower)); }
 
 int main() {
 	/* For each struct, test passing it to functions, returning it from functions

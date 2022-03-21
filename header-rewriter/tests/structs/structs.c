@@ -223,6 +223,7 @@ struct s13 get_s13(void) {
     };
     s.x <<= 64;
     s.x |= 0xbbbbaaaa99998888;
+    return s;
 }
 
 unsigned int cksum_s13(struct s13 s) {

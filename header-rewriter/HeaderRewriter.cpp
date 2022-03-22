@@ -194,7 +194,6 @@ public:
         if (addHeaderImport(header_name, OutputHeader)) {
           return;
         }
-        WrapperOut << llvm::formatv("#include \"{0}\"\n", header_name);
         InitializedHeaders.push_back(header_ref);
       }
 
@@ -270,7 +269,7 @@ public:
 
       // Generate wrapper symbol definition, invoking call gates around call
       WrapperOut << llvm::formatv(
-          "{0}({1});\n"
+          "// {0}({1});\n"
           "asm(\n"
           "{2}\n"
           ");\n\n",
@@ -558,8 +557,7 @@ int main(int argc, const char **argv) {
     return EC.value();
   }
 
-  wrapper_out << "#define IA2_WRAPPER\n"
-              << "#include <ia2.h>\n"
+  wrapper_out << "#include <ia2.h>\n"
               << "#ifndef CALLER_PKEY\n"
               << "#error CALLER_PKEY must be defined to compile this file\n"
               << "#endif\n";

@@ -8,11 +8,7 @@
 // Attribute for variables that can be accessed from any untrusted compartments.
 #define IA2_SHARED_DATA __attribute__((section("ia2_shared_data")))
 
-#ifdef IA2_WRAPPER
-#define IA2_WRAP_FUNCTION(name)
-#else
 #define IA2_WRAP_FUNCTION(name) __asm__(".symver " #name ",__ia2_" #name "@IA2")
-#endif
 
 #define XSTR(s) STR(s)
 #define STR(s) #s

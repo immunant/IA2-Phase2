@@ -7,9 +7,7 @@
 
 static bool did_set_exit_hook = false;
 
-static void simple_exit_hook(void) {
-  printf("libsimple exiting...\n");
-}
+static void simple_exit_hook(void) { printf("libsimple exiting...\n"); }
 
 struct Simple {
   struct SimpleCallbacks scb;
@@ -34,15 +32,11 @@ struct Simple *simple_new(struct SimpleCallbacks scb) {
   return s;
 }
 
-void simple_reset(struct Simple* s) {
-  s->state = 0;
-}
+void simple_reset(struct Simple *s) { s->state = 0; }
 
-void simple_destroy(struct Simple* s) {
-  free(s);
-}
+void simple_destroy(struct Simple *s) { free(s); }
 
-void simple_foreach_v1(struct Simple* s, int (*map_fn)(int)) {
+void simple_foreach_v1(struct Simple *s, int (*map_fn)(int)) {
   for (;;) {
     int value = (*s->scb.read_cb)(s->state);
     if (value == 0) {
@@ -56,6 +50,6 @@ void simple_foreach_v1(struct Simple* s, int (*map_fn)(int)) {
   }
 }
 
-void simple_foreach_v2(struct Simple* s, SimpleMapFn map_fn) {
+void simple_foreach_v2(struct Simple *s, SimpleMapFn map_fn) {
   simple_foreach_v1(s, map_fn);
 }

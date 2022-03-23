@@ -73,6 +73,13 @@
     (IA2_FNPTR_TYPE_##ty)&wrapper;                                       \
 })
 
+// Takes a mangled type name and returns a NULL opaque pointer
+#define IA2_NULL_FNPTR(ty) \
+  (struct IA2_fnptr_##ty) { (char *)NULL }
+
+// Checks if an opaque pointer is null
+#define IA2_FNPTR_IS_NULL(target) (target.ptr == NULL)
+
 // We must declare the sections used to pad the end of each program header
 // segment to make sure their rwx permissions match the segment they're placed
 // in. Otherwise if the padding sections are declared in the linker script

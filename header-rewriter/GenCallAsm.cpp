@@ -257,7 +257,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     +-----+
     |fnptr|If the call is indirect from the trusted compartment the first wrpkru
     |     |removes access to the caller's binary. Since the target pointer is in
-    |     |the caller we copy it to the untrusted stack before changing pkru.
+    |     |the caller we copy it to the callee stack before changing pkru.
     +-----+
     |     |Space for the compartment's return value if it has class MEMORY. This
     |ret  |space is only allocated if the pointer to the caller's return value
@@ -321,14 +321,14 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     add_asm_line(aw, "pushq %"s + r);
   }
 
-  // Save trusted stack pointer
-  add_comment_line(aw, "Save trusted stack pointer");
+  // Save caller stack pointer
+  add_comment_line(aw, "Save caller stack pointer");
   add_asm_line(aw, "movq ia2_caller_stackptr@GOTPCREL(%rip), %rax");
   add_raw_line(aw, llvm::formatv("\"movq %rsp, \" STACK({0}) \"(%rax)\\n\"",
                                  compartment_pkey));
 
-  // Switch to untrusted stack
-  add_comment_line(aw, "Switch to untrusted stack");
+  // Switch to callee stack
+  add_comment_line(aw, "Switch to callee stack");
   add_asm_line(aw, "movq ia2_stackptrs@GOTPCREL(%rip), %rsp");
   add_raw_line(aw, llvm::formatv("\"movq \" STACK({0}) \"(%rsp), %rsp\\n\"",
                                  compartment_pkey));
@@ -368,7 +368,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     add_asm_line(aw, "subq $8, %rsp");
   }
 
-  // Copy stack args to untrusted stack
+  // Copy stack args to callee stack
   if (stack_arg_count > 0) {
     // Set rax to the caller's stack so we can copy the stack args to the
     // compartment's stack.
@@ -472,7 +472,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   add_asm_line(aw, "movq %r10, %rax");
   add_asm_line(aw, "movq %r11, %rdx");
 
-  // Free stack space used for stack args on the untrusted stack
+  // Free stack space used for stack args on the callee stack
   if (stack_arg_size > 0) {
     add_comment_line(aw, "Free stack space used for stack args");
     add_asm_line(aw, "addq $"s + std::to_string(stack_arg_size) + ", %rsp");

@@ -15,7 +15,9 @@ execute_process(COMMAND ${CMAKE_C_COMPILER} -print-file-name=include-fixed
 # context to be parsed. see issue #4).
 #
 # HEADERS - Public headers to rewrite
-# PRIVATE_HEADERS - Private headers to rewrite
+# PRIVATE_HEADERS - Private headers to rewrite. These are not passed directly to
+#                   the rewriter (see issue #4) and are only used to get the
+#                   rewritten headers dependencies correct.
 # USE_SYSTEM_HEADERS - Use headers for library installed on the system
 # WRAP_MAIN - Creates a shim for the main binary and changes the default target
 #             name.

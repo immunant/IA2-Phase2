@@ -34,12 +34,13 @@ execute_process(COMMAND ${CMAKE_C_COMPILER} -print-file-name=include-fixed
 # COMPARTMENT_PKEY - Optional protection key for wrapped library, if any.
 # CALLER_PKEY - Protection key for the wrapper's caller. Set to `UNTRUSTED` if
 #               caller is untrusted. This is required.
+# HEADER_BLACKLIST - Headers which are only needed for types.
 function(define_ia2_wrapper)
     # Parse options
     set(options USE_SYSTEM_HEADERS WRAP_MAIN)
     set(oneValueArgs WRAPPER WRAPPED_LIB OUTPUT_HEADER INCLUDE_DIR OUTPUT_DIR
         COMPARTMENT_PKEY CALLER_PKEY)
-    set(multiValueArgs HEADERS PRIVATE_HEADERS)
+    set(multiValueArgs HEADERS PRIVATE_HEADERS HEADER_BLACKLIST)
     cmake_parse_arguments(DEFINE_IA2_WRAPPER "${options}" "${oneValueArgs}"
                           "${multiValueArgs}" ${ARGN} )
 
@@ -88,10 +89,13 @@ function(define_ia2_wrapper)
             "CALLER_PKEY (0-14) must be defined to build a wrapper. \
             Set to `UNTRUSTED` if the caller compartment is untrusted")
     endif()
-    if (DEFINED DEFINE_IA2_WRAPPER_OUTPUT_DIR)
+    if(DEFINED DEFINE_IA2_WRAPPER_OUTPUT_DIR)
         set(OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/${DEFINE_IA2_WRAPPER_OUTPUT_DIR})
     else()
         set(OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR})
+    endif()
+    if(DEFINED DEFINE_IA2_WRAPPER_HEADER_BLACKLIST)
+        set(HEADER_BLACKLIST "--header-blacklist=${DEFINE_IA2_WRAPPER_HEADER_BLACKLIST}")
     endif()
 
     # Collect headers
@@ -151,6 +155,7 @@ function(define_ia2_wrapper)
         # Run the rewriter itself, mutating the headers
         COMMAND ia2-header-rewriter
           --output-header ${REWRITTEN_HEADER_DIR}/${OUTPUT_HEADER}
+          ${HEADER_BLACKLIST}
           ${COMPARTMENT_PKEY_OPTION}
           ${CMAKE_CURRENT_BINARY_DIR}/${WRAPPER_SRC}
           ${REWRITTEN_HEADERS}

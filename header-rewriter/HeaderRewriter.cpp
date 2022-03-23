@@ -50,6 +50,15 @@ static llvm::cl::opt<uint32_t>
                    llvm::cl::desc("The compartment's protection key index"),
                    llvm::cl::cat(HeaderRewriterCategory), llvm::cl::Optional);
 
+// Headers with both functions and type definitions may be shared between
+// compartments. If a shared header declares functions that do not belong to the
+// compartment we are generating a wrapper for, it must be blacklisted to avoid
+// adding incorrect .symver statements.
+static llvm::cl::list<std::string>
+    HeaderBlacklist("header-blacklist",
+                    llvm::cl::desc("Headers which are only needed for types"),
+                    llvm::cl::cat(HeaderRewriterCategory), llvm::cl::Optional);
+
 // For types that have both a left and right side, this is what
 // we emit for the name between the two sides, e.g.,
 // int (*$$$IA2_PLACEHOLDER$$$)(int).
@@ -122,6 +131,16 @@ static std::string get_expansion_filename(const clang::Decl *decl,
   return sm->getFilename(sm->getExpansionLoc(decl->getLocation())).str();
 }
 
+static bool is_blacklisted(llvm::StringRef header_name) {
+  if (header_name.empty()) {
+    return false;
+  }
+  return std::find_if(HeaderBlacklist.begin(), HeaderBlacklist.end(),
+                      [&](std::string &s) {
+                        return header_name.endswith(s);
+                      }) != HeaderBlacklist.end();
+}
+
 class FnDecl : public RefactoringCallback {
 public:
   FnDecl(llvm::raw_ostream &WrapperOut, llvm::raw_ostream &SymsOut,
@@ -141,8 +160,10 @@ public:
     std::string header_name =
         get_expansion_filename(fn_decl, Result.SourceManager);
 
-    // Avoid wrapping functions declared in system headers
-    if (llvm::StringRef(header_name).startswith("/usr/")) {
+    // Avoid wrapping functions declared in system headers or blacklisted
+    // headers
+    if (llvm::StringRef(header_name).startswith("/usr/") ||
+        is_blacklisted(header_name)) {
       return;
     }
     auto header_ref_result =

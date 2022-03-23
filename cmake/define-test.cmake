@@ -19,9 +19,9 @@ function(define_shared_lib)
         set(LIBNAME ${TEST_NAME}-original)
     endif()
     if(DEFINED SHARED_LIB_INCLUDE_DIR)
-        set(ORIGINAL_HEADER_DIR ${SHARED_LIB_INCLUDE_DIR})
+        set(INCLUDE_DIR ${SHARED_LIB_INCLUDE_DIR})
     else()
-        set(ORIGINAL_HEADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/)
+        set(INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/)
     endif()
 
     add_library(${LIBNAME} SHARED ${SHARED_LIB_SRCS})
@@ -30,7 +30,7 @@ function(define_shared_lib)
     endif()
     target_compile_options(${LIBNAME} PRIVATE "-fPIC")
     target_include_directories(${LIBNAME} BEFORE PRIVATE
-        ${ORIGINAL_HEADER_DIR}
+        ${INCLUDE_DIR}
         # Add top-level include directory for segfault handler
         ${IA2_INCLUDE_DIR})
     target_link_options(${LIBNAME} PRIVATE "-Wl,-z,now"
@@ -48,11 +48,12 @@ endfunction()
 # SRCS - source files for the executable
 # WRAPPERS - Additional libraries to link against.
 # COMPILE_OPTS - compile options for the executable
+# INCLUDE_DIR - directories added to the search path (defaults to BIN_DIR).
 function(define_test)
     # Parse options
     set(options)
     set(oneValueArgs "")
-    set(multiValueArgs SRCS WRAPPERS COMPILE_OPTS)
+    set(multiValueArgs SRCS WRAPPERS COMPILE_OPTS INCLUDE_DIR)
     cmake_parse_arguments(DEFINE_TEST "${options}" "${oneValueArgs}"
                           "${multiValueArgs}" ${ARGN})
 
@@ -63,6 +64,11 @@ function(define_test)
         set(WRAPPERS ${DEFINE_TEST_WRAPPERS})
     else()
         set(WRAPPERS ${TEST_NAME}-wrapper)
+    endif()
+    if(DEFINED DEFINE_TEST_INCLUDE_DIR)
+        set(INCLUDE_DIR ${DEFINE_TEST_INCLUDE_DIR})
+    else()
+        set(INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR})
     endif()
 
     set(LINKER_SCRIPT ${libia2_BINARY_DIR}/padding.ld)
@@ -76,7 +82,7 @@ function(define_test)
         ${DEFINE_TEST_COMPILE_OPTS})
     target_link_options(${MAIN} PRIVATE "-Wl,-z,now" "-Wl,-T${LINKER_SCRIPT}")
     target_include_directories(${MAIN} BEFORE PRIVATE
-        ${CMAKE_CURRENT_BINARY_DIR}
+        ${INCLUDE_DIR}
         # Add top-level include directory for segfault handler
         ${IA2_INCLUDE_DIR})
     target_link_libraries(${MAIN} PRIVATE

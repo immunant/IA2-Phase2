@@ -13,13 +13,9 @@ INIT_COMPARTMENT(0);
 // libsimple1 checks if the function pointer is NULL
 static HookFn exit_hook_fn = IA2_NULL_FNPTR(_ZTSPFvvE);
 
-HookFn get_exit_hook(void) {
-  return exit_hook_fn;
-}
+HookFn get_exit_hook(void) { return exit_hook_fn; }
 
-void set_exit_hook(HookFn new_exit_hook_fn) {
-  exit_hook_fn = new_exit_hook_fn;
-}
+void set_exit_hook(HookFn new_exit_hook_fn) { exit_hook_fn = new_exit_hook_fn; }
 
 // Secret values: a secret string and decryption value.
 // The untrusted compartment should not be able to read these.
@@ -36,19 +32,16 @@ static int main_read(int i) {
   return x ? (x ^ last_xor) : x;
 }
 
-static void main_write(int x) {
-  putchar(x);
-}
+static void main_write(int x) { putchar(x); }
 
-static int main_map(int x) {
-  return x ? (x ^ last_xor) : x;
-}
+static int main_map(int x) { return x ? (x ^ last_xor) : x; }
 
 int main() {
-  // These will be called from untrusted code but may access trusted compartment 0
+  // These will be called from untrusted code but may access trusted compartment
+  // 0
   struct SimpleCallbacks scb = {
-    .read_cb = IA2_FNPTR_WRAPPER(main_read, _ZTSPFiiE, UNTRUSTED, 0),
-    .write_cb = IA2_FNPTR_WRAPPER(main_write, _ZTSPFviE, UNTRUSTED, 0),
+      .read_cb = IA2_FNPTR_WRAPPER(main_read, _ZTSPFiiE, UNTRUSTED, 0),
+      .write_cb = IA2_FNPTR_WRAPPER(main_write, _ZTSPFviE, UNTRUSTED, 0),
   };
 
   struct Simple *s = simple_new(scb);
@@ -58,7 +51,8 @@ int main() {
   }
 
   srand(time(NULL));
-  // These will be called from untrusted code but may access trusted compartment 0
+  // These will be called from untrusted code but may access trusted compartment
+  // 0
   simple_foreach_v1(s, IA2_FNPTR_WRAPPER(main_map, _ZTSPFiiE, UNTRUSTED, 0));
   simple_reset(s);
   simple_foreach_v2(s, IA2_FNPTR_WRAPPER(main_map, _ZTSPFiiE, UNTRUSTED, 0));

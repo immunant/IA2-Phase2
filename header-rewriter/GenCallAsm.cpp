@@ -230,6 +230,17 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   }
   AsmWriter aw = {.ss = {}, .terminator = terminator};
 
+  std::string caller_pkey;
+  if (indirect_wrapper) {
+    // caller_pkey is the macro param defining the caller's pkey in the
+    // IA2_FNPTR_* macros
+    caller_pkey = "caller_pkey";
+  } else {
+    // The CALLER_PKEY macro must be defined to compile the wrapper source files
+    // that this is written to. Failure to define it gives a preprocessor error.
+    caller_pkey = "CALLER_PKEY";
+  }
+
   auto param_locs = param_locations(sig);
   size_t stack_arg_count = std::count_if(param_locs.begin(), param_locs.end(),
                                          [](auto &x) { return x.is_stack(); });
@@ -460,15 +471,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   add_asm_line(aw, "movq %rdx, %r11");
   // Change pkru to the caller's value using rax, r10 and r11 as scratch
   // registers
-  if (indirect_wrapper) {
-    // caller_pkey is the macro param defining the caller's pkey in the
-    // IA2_FNPTR_* macros
-    emit_wrpkru(aw, "caller_pkey"s);
-  } else {
-    // The CALLER_PKEY macro must be defined to compile the wrapper source files
-    // that this is written to. Failure to define it gives a preprocessor error.
-    emit_wrpkru(aw, "CALLER_PKEY"s);
-  }
+  emit_wrpkru(aw, caller_pkey);
   add_asm_line(aw, "movq %r10, %rax");
   add_asm_line(aw, "movq %r11, %rdx");
 

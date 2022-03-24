@@ -16,6 +16,8 @@ static bool steal_plugin_secret = false;
 // the expected output.
 bool debug_mode IA2_SHARED_DATA = false;
 
+bool clean_exit IA2_SHARED_DATA = false;
+
 void print_message(void) {
     LOG("this is defined in the main binary");
     if (debug_mode) {
@@ -29,14 +31,17 @@ void print_message(void) {
 
 int main(int argc, char **argv) {
     if (argc < 2) {
-        printf("Run with `plugin` or `main` as the first argument\n");
+        printf("Run with `plugin`, `main` or `clean_exit` as the first argument\n");
         return -1;
     }
     if (!strcmp(argv[1], "plugin")) {
         LOG("checking if the plugin secret is safe");
         steal_plugin_secret = true;
-    } else {
+    } else if (!strcmp(argv[1], "main")) {
         LOG("checking if the main secret is safe");
+    } else {
+        LOG("checking if the program can exit cleanly");
+        clean_exit = true;
     }
     if (argc == 3 && !strcmp(argv[2], "debug")) {
         debug_mode = true;

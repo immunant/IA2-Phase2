@@ -7,6 +7,8 @@ INIT_COMPARTMENT(1);
 
 uint32_t plugin_secret = 0x78341244;
 
+extern bool clean_exit;
+
 void start_plugin(void) {
     LOG("this is defined in the plugin");
     if (debug_mode) {
@@ -14,5 +16,7 @@ void start_plugin(void) {
     }
     LOG("the plugin secret is %x", plugin_secret);
     print_message();
-    LOG("the main secret is %x", CHECK_VIOLATION(secret));
+    if (!clean_exit) {
+        LOG("the main secret is %x", CHECK_VIOLATION(secret));
+    }
 }

@@ -219,8 +219,7 @@ static std::string sig_string(const CAbiSignature &sig,
 }
 
 std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
-                             WrapperKind kind,
-                             const std::string &compartment_pkey) {
+                             WrapperKind kind, const std::string &callee_pkey) {
   bool indirect_wrapper = kind != WrapperKind::Direct;
   std::string terminator = {};
   // Code for indirect wrappers is generated as a macro so we need to terminate
@@ -336,13 +335,13 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   add_comment_line(aw, "Save caller stack pointer");
   add_asm_line(aw, "movq ia2_caller_stackptr@GOTPCREL(%rip), %rax");
   add_raw_line(aw, llvm::formatv("\"movq %rsp, \" STACK({0}) \"(%rax)\\n\"",
-                                 compartment_pkey));
+                                 callee_pkey));
 
   // Switch to callee stack
   add_comment_line(aw, "Switch to callee stack");
   add_asm_line(aw, "movq ia2_stackptrs@GOTPCREL(%rip), %rsp");
   add_raw_line(aw, llvm::formatv("\"movq \" STACK({0}) \"(%rsp), %rsp\\n\"",
-                                 compartment_pkey));
+                                 callee_pkey));
 
   if (kind == WrapperKind::IndirectFromTrusted) {
     add_comment_line(aw, "Load indirect call target and put it on the stack");
@@ -387,7 +386,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
         aw, "Copy stack arguments from the caller's stack to the compartment");
     add_asm_line(aw, "movq ia2_caller_stackptr@GOTPCREL(%rip), %rax");
     add_asm_line(aw, llvm::formatv("movq \" STACK({0}) \"(%rax), %rax",
-                                   compartment_pkey));
+                                   callee_pkey));
     // This is effectively a memcpy of size `stack_arg_size` from the caller's
     // stack to the compartment's
     for (int i = 0; i < stack_arg_size; i += 8) {
@@ -441,7 +440,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   // and r11 as scratch registers
   add_asm_line(aw, "movq %rcx, %r10");
   add_asm_line(aw, "movq %rdx, %r11");
-  emit_wrpkru(aw, compartment_pkey);
+  emit_wrpkru_idx(aw, callee_pkey);
   add_asm_line(aw, "movq %r10, %rcx");
   add_asm_line(aw, "movq %r11, %rdx");
 
@@ -508,7 +507,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
 
   add_asm_line(aw, "movq ia2_caller_stackptr@GOTPCREL(%rip), %rsp");
   add_asm_line(
-      aw, llvm::formatv("movq \" STACK({0}) \"(%rsp), %rsp", compartment_pkey));
+      aw, llvm::formatv("movq \" STACK({0}) \"(%rsp), %rsp", callee_pkey));
 
   add_comment_line(
       aw, "Push return regs to caller's stack before scrubbing registers");

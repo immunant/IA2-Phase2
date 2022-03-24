@@ -10,6 +10,8 @@
 INIT_RUNTIME(1);
 INIT_COMPARTMENT(0);
 
+bool clean_exit IA2_SHARED_DATA = false;
+
 // Declare some functions to ensure that we can call a function pointer regardless of whether it
 // points to an untrusted shared library or this binary.
 uint32_t multiply(uint32_t x, uint32_t y) {
@@ -38,7 +40,10 @@ void call_fn_ptr() {
     printf("div(%d, %d) = %d\n", x, y, op(x, y));
 }
 
-int main() {
+int main(int argc, char **argv) {
+    if (argc > 1) {
+        clean_exit = true;
+    }
     // Test calling a function pointer with one of the shared library's functions
     call_fn_ptr();
 

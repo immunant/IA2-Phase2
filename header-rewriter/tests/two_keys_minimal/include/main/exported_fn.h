@@ -4,6 +4,7 @@ RUN: ia2-header-rewriter %T/wrapper.c %t.h -- -I%resource_dir
 RUN: cat %t.h | sed 's/^.*CHECK.*$//' | FileCheck %s
 RUN: %binary_dir/tests/two_keys_minimal/two_keys_minimal-main plugin | diff %binary_dir/tests/two_keys_minimal/plugin.out -
 RUN: %binary_dir/tests/two_keys_minimal/two_keys_minimal-main main | diff %binary_dir/tests/two_keys_minimal/main.out -
+TODO: %binary_dir/tests/two_keys_minimal/two_keys_minimal-main clean_exit | diff %source_dir/tests/two_keys_minimal/Output/clean_exit.out -
 */
 #pragma once
 #include <stdint.h>

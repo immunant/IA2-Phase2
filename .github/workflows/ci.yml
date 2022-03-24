@@ -12,6 +12,9 @@ on:
 jobs:
   test-on-pkru-enabled-host:
     runs-on: self-hosted
+    strategy:
+      matrix:
+        build-type: [Release, Debug]
     steps:
       - name: Check out code
         uses: actions/checkout@v2
@@ -20,6 +23,7 @@ jobs:
           mkdir build
           pushd build
           cmake ..                                                       \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build-type }}                  \
             -DClang_DIR=/usr/lib/cmake/clang-13                          \
             -DLLVM_DIR=/usr/lib/llvm-13/cmake                            \
             -DLLVM_EXTERNAL_LIT=$HOME/.local/bin/lit                     \

@@ -13,7 +13,8 @@
 #define CHECK_VIOLATION(expr)                                                  \
   ({                                                                           \
     expect_fault = true;                                                       \
-    typeof(expr) _tmp = expr;                                                  \
+    asm volatile("": : :"memory");                                             \
+    volatile typeof(expr) _tmp = expr;                                         \
     printf("CHECK_VIOLATION: did not seg fault as expected\n");                \
     exit(0);                                                                   \
     _tmp;                                                                      \

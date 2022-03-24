@@ -31,7 +31,8 @@ llvm_config.use_clang()
 config.substitutions.extend([
     ('%ia2_generate_checks', '%s/tests/generate-checks.sh' % config.ia2_src_root),
     ('%ia2_include', '%s/../include' % config.ia2_src_root),
-    ('%binary_dir', config.ia2_obj_root)
+    ('%binary_dir', config.ia2_obj_root),
+    ('%source_dir', config.ia2_src_root)
 ])
 
 config.environment['LD_BIND_NOW'] = '1'

@@ -11,11 +11,15 @@ enum class WrapperKind {
   IndirectFromUntrusted,
 };
 
-// Generates a wrapper for a function with the given signature and name.
-// WrapperKind determines the type of call which may affect the order of
-// operations and the layout of the wrapper stack frame. compartment_pkey is
-// the callee's protection key. The caller's protection key is always a macro
-// definition or parameter which is determined by the type of call.
+// Generates a wrapper for a function named \p name with the signature \p sig.
+// The WrapperKind parameter \p kind determines the type of call which may
+// affect the order of operations and the layout of the wrapper stack frame.
+//
+// The caller's protection key index is fixed at compile-time (not generation-
+// time) and available via a preprocessor macro or preprocessor macro parameter,
+// depending on the wrapper kind.
+// \p callee_pkey is a string giving the index of the callee's protection key,
+// which must be valid to pass to the `PKRU` macro in ia2.h.
 std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
                              WrapperKind kind,
                              const std::string &callee_pkey);

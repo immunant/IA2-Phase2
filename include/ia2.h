@@ -24,7 +24,7 @@
 #define IA2_WRPKRU
 #else
 #define INIT_COMPARTMENT(n) _INIT_COMPARTMENT(n)
-#define INIT_RUNTIME(n) _INIT_RUNTIME(n)
+#define INIT_RUNTIME(n) _INIT_RUNTIME(n + 1)
 #define IA2_WRPKRU "wrpkru"
 #endif
 

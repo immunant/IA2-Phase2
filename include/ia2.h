@@ -153,7 +153,6 @@
 #define _INIT_RUNTIME(n)                                                       \
   int ia2_n_pkeys = n;                                                         \
   char *ia2_stackptrs[n] IA2_SHARED_DATA;                                      \
-  char *ia2_caller_stackptr[n] IA2_SHARED_DATA;                                \
   __attribute__((constructor)) static void init_stacks() {                     \
     for (int i = 0; i < n; i++) {                                              \
       ia2_stackptrs[i] = mmap(NULL, STACK_SIZE, PROT_READ | PROT_WRITE,        \

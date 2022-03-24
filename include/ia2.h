@@ -53,10 +53,11 @@
 
 // Takes a function pointer `target` and returns an opaque pointer for its call gate wrapper.
 #define IA2_FNPTR_WRAPPER(target, ty, caller_pkey, target_pkey)    ({    \
-    static char *target_ptr __asm__(UNIQUE_STR(#target));                \
+    static char *target_ptr __asm__(UNIQUE_STR(#target))                 \
+                            __attribute__((used));                       \
     static void *wrapper __asm__("__ia2_" UNIQUE_STR(#target));          \
     target_ptr = (char *)target;                                         \
-    __asm__(IA2_FNPTR_WRAPPER_##ty(target, caller_pkey, target_pkey));  \
+    __asm__(IA2_FNPTR_WRAPPER_##ty(target, caller_pkey, target_pkey));   \
     (struct IA2_fnptr_##ty) {                                            \
         (char *)&wrapper                                                 \
     };                                                                   \
@@ -64,7 +65,8 @@
 
 // Takes an opaque pointer `target` and returns a function pointer for its call gate wrapper.
 #define IA2_FNPTR_UNWRAPPER(target, ty, caller_pkey, target_pkey)  ({    \
-    static char *target_ptr __asm__(UNIQUE_STR(#target));                \
+    static char *target_ptr __asm__(UNIQUE_STR(#target))                 \
+                            __attribute__((used));                       \
     static void *wrapper __asm__("__ia2_" UNIQUE_STR(#target));          \
     target_ptr = target.ptr;                                             \
     __asm__(IA2_FNPTR_UNWRAPPER_##ty(target, caller_pkey, target_pkey)); \

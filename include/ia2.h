@@ -98,16 +98,16 @@
 
 // Ensure that all required pkeys are allocated.
 void ensure_pkeys_allocated() {
-  extern int ia2_n_pkeys;
-  if (ia2_n_pkeys != 0) {
-    for (int pkey = 1; pkey <= ia2_n_pkeys; pkey++) {
+  extern int ia2_n_pkeys_to_alloc;
+  if (ia2_n_pkeys_to_alloc != 0) {
+    for (int pkey = 1; pkey <= ia2_n_pkeys_to_alloc; pkey++) {
       int allocated = pkey_alloc(0, 0);
       if (allocated != pkey) {
         printf("Failed to allocate protection keys in the expected order\n");
         exit(-1);
       }
     }
-    ia2_n_pkeys = 0;
+    ia2_n_pkeys_to_alloc = 0;
   }
 }
 
@@ -120,7 +120,7 @@ void ensure_pkeys_allocated() {
   NEW_SECTION(".rela.plt_padding");                                            \
   NEW_SECTION(".eh_frame_padding");                                            \
   NEW_SECTION(".bss_padding");                                                 \
-  extern int ia2_n_pkeys;                                                      \
+  extern int ia2_n_pkeys_to_alloc;                                             \
   __attribute__((constructor)) static void init_pkey_ctor() {                  \
     ensure_pkeys_allocated();                                                  \
     struct PhdrSearchArgs args = {                                             \
@@ -156,7 +156,7 @@ void ensure_pkeys_allocated() {
 
 // Defines the number of protection keys that need to be allocated
 #define _INIT_RUNTIME(n)                                                       \
-  int ia2_n_pkeys = n;                                                         \
+  int ia2_n_pkeys_to_alloc = n;                                                \
   char *ia2_stackptrs[n] IA2_SHARED_DATA;                                      \
   __attribute__((constructor)) static void init_stacks() {                     \
     ensure_pkeys_allocated();                                                  \

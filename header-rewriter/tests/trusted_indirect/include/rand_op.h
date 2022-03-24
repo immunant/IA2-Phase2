@@ -3,6 +3,7 @@ RUN: cp %s %t.h
 RUN: ia2-header-rewriter %T/wrapper.c %t.h -- -I%resource_dir
 RUN: cat %t.h | sed 's/^.*CHECK.*$//' | FileCheck %s
 RUN: %binary_dir/tests/trusted_indirect/trusted_indirect-main | diff %binary_dir/tests/trusted_indirect/trusted_indirect.out -
+RUN: %binary_dir/tests/trusted_indirect/trusted_indirect-main clean_exit | diff %source_dir/tests/trusted_indirect/Output/trusted_indirect.clean_exit.out -
 */
 #pragma once
 #include <stdint.h>

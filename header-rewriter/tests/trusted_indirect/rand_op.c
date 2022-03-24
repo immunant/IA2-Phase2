@@ -39,9 +39,13 @@ void leak_secret_address(uint32_t *addr) {
     secret_address = addr;
 }
 
+extern bool clean_exit;
+
 static uint32_t steal_secret(uint32_t x, uint32_t y) {
-    if (secret_address) {
-        printf("the secret is %x\n", CHECK_VIOLATION(*secret_address));
+    if (!clean_exit) {
+        if (secret_address) {
+            printf("the secret is %x\n", CHECK_VIOLATION(*secret_address));
+        }
     }
     return 0;
 }

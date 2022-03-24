@@ -96,6 +96,21 @@
           "\n"                                                                 \
           ".previous");
 
+// Ensure that all required pkeys are allocated.
+void ensure_pkeys_allocated() {
+  extern int ia2_n_pkeys;
+  if (ia2_n_pkeys != 0) {
+    for (int pkey = 1; pkey <= ia2_n_pkeys; pkey++) {
+      int allocated = pkey_alloc(0, 0);
+      if (allocated != pkey) {
+        printf("Failed to allocate protection keys in the expected order\n");
+        exit(-1);
+      }
+    }
+    ia2_n_pkeys = 0;
+  }
+}
+
 // Initializes a compartment with protection key `n` when the ELF invoking this
 // macro is loaded. This must only be called once for each key. The copmartment
 // includes all segments in the ELF except the `ia2_shared_data` section, if one
@@ -107,17 +122,7 @@
   NEW_SECTION(".bss_padding");                                                 \
   extern int ia2_n_pkeys;                                                      \
   __attribute__((constructor)) static void init_pkey_ctor() {                  \
-    if (ia2_n_pkeys != 0) {                                                    \
-      for (int pkey = 1; pkey <= ia2_n_pkeys; pkey++) {                        \
-        int allocated = pkey_alloc(0, 0);                                      \
-        if (allocated != pkey) {                                               \
-          printf(                                                              \
-              "Failed to allocate protection keys in the expected order\n");   \
-          exit(-1);                                                            \
-        }                                                                      \
-      }                                                                        \
-      ia2_n_pkeys = 0;                                                         \
-    }                                                                          \
+    ensure_pkeys_allocated();                                                  \
     struct PhdrSearchArgs args = {                                             \
         .pkey = n + 1,                                                         \
         .address = &init_pkey_ctor,                                            \
@@ -154,6 +159,7 @@
   int ia2_n_pkeys = n;                                                         \
   char *ia2_stackptrs[n] IA2_SHARED_DATA;                                      \
   __attribute__((constructor)) static void init_stacks() {                     \
+    ensure_pkeys_allocated();                                                  \
     for (int i = 0; i < n; i++) {                                              \
       ia2_stackptrs[i] = mmap(NULL, STACK_SIZE, PROT_READ | PROT_WRITE,        \
                               MAP_PRIVATE | MAP_ANON, -1, 0);                  \

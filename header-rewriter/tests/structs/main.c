@@ -16,19 +16,19 @@ INIT_COMPARTMENT(0);
 #define check_field_float(name, val) { printf("s.%s = %.4f (expected %.4f)\n", #name, s.name, val); }
 
 #define check_eq_int(name, val) { printf("%s(s) = %d (expected %d)\n", #name, name(s), val); }
-#define check_field_int(name, val) { printf("s.%s = %d (expected %d)\n", #name, s.name, val); }
+#define check_field_int(name, val) { printf("s.%s = %d (expected %d)\n", #name, (int)s.name, val); }
 
-#define check_eq_size(name, val) { printf("%s(s) = %zd (expected %zd)\n", #name, name(s), val); }
-#define check_field_size(name, val) { printf("s.%s = %zd (expected %zd)\n", #name, s.name, val); }
+#define check_eq_size(name, val) { printf("%s(s) = %zd (expected %zd)\n", #name, name(s), (size_t)(val)); }
+#define check_field_size(name, val) { printf("s.%s = %zd (expected %zd)\n", #name, (size_t)s.name, (size_t)(val)); }
 
-#define check_field_ptr(name, val) { printf("s.%s = %p (expected %p)\n", #name, s.name, val); }
+#define check_field_ptr(name, val) { printf("s.%s = %p (expected %p)\n", #name, s.name, (void*)(val)); }
 
 #define check_eq_i128(name, upper, lower) { __int128 out = name(s); \
-	printf("%s(s) = %016llx%016llx (expected %016llx%016llx)\n", #name, \
+	printf("%s(s) = %016lx%016lx (expected %016lx%016lx)\n", #name, \
 	(int64_t)(out >> 64), (int64_t)(out & 0xffffffffffffffff), \
 	(int64_t)(upper), (uint64_t)(lower)); }
 #define check_field_i128(name, upper, lower) { __int128 out = s.name; \
-	printf("s.%s = %016llx%016llx (expected %016llx%016llx)\n", #name, \
+	printf("s.%s = %016lx%016lx (expected %016lx%016lx)\n", #name, \
 	(int64_t)(out >> 64), (int64_t)(out & 0xffffffffffffffff), \
 	(int64_t)(upper), (uint64_t)(lower)); }
 
@@ -124,14 +124,14 @@ int main() {
 		check_field_int(c1, 4);
 		check_field_int(i2, 695465);
 		check_field_int(c2, 100);
-		check_field_int(z1, 0x9400000);
+		check_field_size(z1, 0x9400000);
 
 		s = mix_s6(s_orig, s);
 		check_field_int(i1, 1 + 100 + 8043 / 2);
 		check_field_int(c1, 1 + 12 + 4 / 2);
 		check_field_int(i2, 1 + 256 + 695465 / 2);
 		check_field_int(c2, 1 + 7 + 100 / 2);
-		check_field_int(z1, 1 + 999999 + 0x9400000 / 2);
+		check_field_size(z1, 1 + 999999 + 0x9400000 / 2);
 	}
 
 	{
@@ -156,7 +156,7 @@ int main() {
 			.z2 = 14400,
 			.z3 = 999333111,
 		};
-		check_eq_int(cksum_s8, 1 + 10 + 9954 + 20 + 14400 + 999333111);
+		check_eq_size(cksum_s8, 1 + 10 + 9954 + 20 + 14400 + 999333111);
 		s = get_s8();
 		check_field_int(b1, true);
 		check_field_int(c1, 15);

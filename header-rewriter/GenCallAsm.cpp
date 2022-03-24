@@ -184,13 +184,26 @@ static void emit_reg_pop(AsmWriter &aw, const ParamLocation &loc) {
 }
 
 // Emit code to set the PKRU. Clobbers eax, ecx and edx.
-static void emit_wrpkru(AsmWriter &aw, const std::string &target_pkey) {
+// \p pkru_value is a std::string of an assembly literal without a $ prefix.
+static void emit_wrpkru(AsmWriter &aw, const std::string &pkru_value) {
   // wrpkru requires zeroing ecx and edx
   add_asm_line(aw, "xorl %ecx, %ecx");
   add_asm_line(aw, "xorl %edx, %edx");
-  add_raw_line(
-      aw, llvm::formatv("\"movl $\" PKRU({0}) \", %eax\\n\"", target_pkey));
+  add_raw_line(aw, llvm::formatv("\"movl ${0}, %eax\\n\"", pkru_value));
   add_raw_line(aw, "IA2_WRPKRU \"\\n\"");
+}
+
+// Convert a string holding a pkey index name to a pkru value (as an assembly
+// literal without $ prefix).
+static std::string pkru_value_for_idx(const std::string &pkey_idx) {
+  return llvm::formatv("\" PKRU({0}) \"", pkey_idx);
+}
+
+// Emit code to set the PKRU. Clobbers eax, ecx and edx.
+// \p pkru_value is a std::string of a pkru index name (i.e., a valid argument
+// to the `PKRU` macro from ia2.h.
+static void emit_wrpkru_idx(AsmWriter &aw, const std::string &pkey_idx) {
+  emit_wrpkru(aw, pkru_value_for_idx(pkey_idx));
 }
 
 static void append_arg_kinds(std::stringstream &ss,
@@ -324,6 +337,25 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     add_asm_line(aw, "__ia2_"s + name + ":");
   }
 
+  // Define the intermediate PKRU value. We need a PKRU that can access both
+  // caller and callee compartment to be able to move data between compartment
+  // stacks.
+  add_comment_line(aw, "define intermediate PKRU:");
+  // The PKRU macro accepts UNTRUSTED because PKEY_UNTRUSTED is defined; we have
+  // to support it too, so treat it as index -1.
+  add_asm_line(aw, ".set UNTRUSTED, -1");
+  // In order to interpolate a macro parameter (for indirect calls) or a macro
+  // into the string literals for asm(), we must close the string literal and
+  // stringify the macro. Do this for both pkeys so we can use them in the
+  // MIXED_PKRU macro expression.
+  std::string caller_pkey_asm_fragment = "\" XSTR("s + caller_pkey + ") \"";
+  std::string callee_pkey_asm_fragment = "\" XSTR("s + callee_pkey + ") \"";
+  // Define MIXED_PKRU as the integer PKRU value combining the caller and callee
+  // pkeys.
+  add_asm_line(aw, ".set MIXED_PKRU, ~((3 << (2 + 2*"s +
+                       caller_pkey_asm_fragment + ")) | (3 << (2 + 2*"s +
+                       callee_pkey_asm_fragment + ")) | 3)"s);
+
   // Save registers that are preserved across function calls before switching to
   // the other compartment's stack. This is on the caller's stack so it's not in
   // the diagram above.
@@ -334,8 +366,8 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   // Save caller stack pointer
   add_comment_line(aw, "Save caller stack pointer");
   add_asm_line(aw, "movq ia2_stackptrs@GOTPCREL(%rip), %rax");
-  add_asm_line(aw, llvm::formatv("leaq \" STACK({0}) \"(%rax), %rax",
-                                 caller_pkey));
+  add_asm_line(aw,
+               llvm::formatv("leaq \" STACK({0}) \"(%rax), %rax", caller_pkey));
   add_asm_line(aw, "movq %rsp, (%rax)");
 
   // Switch to callee stack
@@ -379,6 +411,16 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     add_asm_line(aw, "subq $8, %rsp");
   }
 
+  // Change pkru to the intermediate value before copying args
+  add_comment_line(aw, "Set PKRU to the intermediate value to move arguments");
+  // wrpkru requires zeroing rcx and rdx, but they may have arguments so use r10
+  // and r11 as scratch registers
+  add_asm_line(aw, "movq %rcx, %r10");
+  add_asm_line(aw, "movq %rdx, %r11");
+  emit_wrpkru(aw, "MIXED_PKRU");
+  add_asm_line(aw, "movq %r10, %rcx");
+  add_asm_line(aw, "movq %r11, %rdx");
+
   // Copy stack args to callee stack
   if (stack_arg_count > 0) {
     // Set rax to the caller's stack so we can copy the stack args to the
@@ -386,8 +428,8 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     add_comment_line(
         aw, "Copy stack arguments from the caller's stack to the compartment");
     add_asm_line(aw, "movq ia2_stackptrs@GOTPCREL(%rip), %rax");
-    add_asm_line(aw, llvm::formatv("movq \" STACK({0}) \"(%rax), %rax",
-                                   caller_pkey));
+    add_asm_line(
+        aw, llvm::formatv("movq \" STACK({0}) \"(%rax), %rax", caller_pkey));
     // This is effectively a memcpy of size `stack_arg_size` from the caller's
     // stack to the compartment's
     for (int i = 0; i < stack_arg_size; i += 8) {
@@ -466,14 +508,13 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
 
   // After calling the wrapped function, rax and rdx may contain a return value
   // so use r10 and r11 as scratch registers
-  add_comment_line(aw, "Set PKRU to the caller's value");
+  add_comment_line(aw,
+                   "Set PKRU to the intermediate value to move return value");
   add_asm_line(aw, "movq %rax, %r10");
   add_asm_line(aw, "movq %rdx, %r11");
-  // Change pkru to the caller's value using rax, r10 and r11 as scratch
-  // registers
-  emit_wrpkru(aw, caller_pkey);
-  add_asm_line(aw, "movq %r10, %rax");
-  add_asm_line(aw, "movq %r11, %rdx");
+  // Change pkru to the intermediate value. This uses rax, r10 and r11 as
+  // scratch registers.
+  emit_wrpkru(aw, "MIXED_PKRU");
 
   // Free stack space used for stack args on the callee stack
   if (stack_arg_size > 0) {
@@ -506,11 +547,17 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     }
   }
 
+  // Once again use r10 and r11 as scratch registers
+  add_comment_line(aw, "Set PKRU to the caller's value");
+  emit_wrpkru_idx(aw, caller_pkey);
+  add_asm_line(aw, "movq %r10, %rax");
+  add_asm_line(aw, "movq %r11, %rdx");
+
   // Switch back to the caller's stack
   add_comment_line(aw, "Switch back to the caller's stack");
   add_asm_line(aw, "movq ia2_stackptrs@GOTPCREL(%rip), %rsp");
-  add_asm_line(
-      aw, llvm::formatv("movq \" STACK({0}) \"(%rsp), %rsp", caller_pkey));
+  add_asm_line(aw,
+               llvm::formatv("movq \" STACK({0}) \"(%rsp), %rsp", caller_pkey));
 
   add_comment_line(
       aw, "Push return regs to caller's stack before scrubbing registers");

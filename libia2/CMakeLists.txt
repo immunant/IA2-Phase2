@@ -20,12 +20,15 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/shared_lib.ld ${CMAKE_CURRENT_BINARY_
 set(LIBIA2_SRC src/lib.rs)
 
 add_custom_target(libia2
+    DEPENDS ${IA2_LIB})
+
+add_custom_command(
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     COMMAND cargo +nightly build
         "--release"
         ${LIBIA2_FEATURES}
         "--target-dir" ${CARGO_OUTPUT_DIR}
     COMMAND mv pkey_init.h ${IA2_INCLUDE_DIR}/
-    BYPRODUCTS ${IA2_LIB}
+    OUTPUT ${IA2_LIB}
     DEPENDS ${LIBIA2_SRC}
 )

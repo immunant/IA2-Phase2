@@ -11,7 +11,8 @@ INIT_COMPARTMENT(0);
     library. Function pointers passed between compartments must be wrapped in call gates to ensure
     that code from each compartment is executed with the appropriate pkru state. Function pointers
     must be wrapped by manually rewriting them as IA2_FNPTR_WRAPPER(ptr). This produces an opaque
-    pointer which can then be passed across compartments.
+    pointer which can then be passed across compartments. An MPK violation is triggered by the
+    untrusted library if no arguments are passed in, otherwise the program exits cleanly.
 */
 
 // This test required aligning and padding the segments in the mpk-protected binary using the
@@ -22,6 +23,8 @@ INIT_COMPARTMENT(0);
 uint32_t initialized_var __attribute__((section("my_var_section"))) __attribute__((used)) = 0x11223344;
 const uint32_t immutable_var __attribute__((section("my_const_var_section"))) __attribute__((used)) = 0x55667788;
 uint32_t uninit_var __attribute__((section("my_uninit_var_section"))) __attribute__((used));
+
+bool clean_exit IA2_SHARED_DATA = false;
 
 // Declare some new sections with different flags.
 __asm__(".section my_alloc_section, \"a\"\n\
@@ -47,7 +50,10 @@ uint64_t leak_secret_address(uint64_t x, uint64_t y) {
     return (uint64_t)&secret;
 }
 
-int main() {
+int main(int argc, char **argv) {
+    if (argc > 1) {
+        clean_exit = true;
+    }
     printf("TRUSTED: the secret is 0x%lx\n", secret);
     printf("0x%lx\n", apply_callback(1, 2));
 
@@ -58,5 +64,5 @@ int main() {
     printf("TRUSTED: oops we leaked the address of the secret\n");
     apply_callback(5, 6);
 
-    unregister_callback();
+   unregister_callback();
 }

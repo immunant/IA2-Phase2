@@ -333,9 +333,10 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
 
   // Save caller stack pointer
   add_comment_line(aw, "Save caller stack pointer");
-  add_asm_line(aw, "movq ia2_caller_stackptr@GOTPCREL(%rip), %rax");
-  add_raw_line(aw, llvm::formatv("\"movq %rsp, \" STACK({0}) \"(%rax)\\n\"",
-                                 callee_pkey));
+  add_asm_line(aw, "movq ia2_stackptrs@GOTPCREL(%rip), %rax");
+  add_asm_line(aw, llvm::formatv("leaq \" STACK({0}) \"(%rax), %rax",
+                                 caller_pkey));
+  add_asm_line(aw, "movq %rsp, (%rax)");
 
   // Switch to callee stack
   add_comment_line(aw, "Switch to callee stack");
@@ -384,9 +385,9 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     // compartment's stack.
     add_comment_line(
         aw, "Copy stack arguments from the caller's stack to the compartment");
-    add_asm_line(aw, "movq ia2_caller_stackptr@GOTPCREL(%rip), %rax");
+    add_asm_line(aw, "movq ia2_stackptrs@GOTPCREL(%rip), %rax");
     add_asm_line(aw, llvm::formatv("movq \" STACK({0}) \"(%rax), %rax",
-                                   callee_pkey));
+                                   caller_pkey));
     // This is effectively a memcpy of size `stack_arg_size` from the caller's
     // stack to the compartment's
     for (int i = 0; i < stack_arg_size; i += 8) {
@@ -505,9 +506,11 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     }
   }
 
-  add_asm_line(aw, "movq ia2_caller_stackptr@GOTPCREL(%rip), %rsp");
+  // Switch back to the caller's stack
+  add_comment_line(aw, "Switch back to the caller's stack");
+  add_asm_line(aw, "movq ia2_stackptrs@GOTPCREL(%rip), %rsp");
   add_asm_line(
-      aw, llvm::formatv("movq \" STACK({0}) \"(%rsp), %rsp", callee_pkey));
+      aw, llvm::formatv("movq \" STACK({0}) \"(%rsp), %rsp", caller_pkey));
 
   add_comment_line(
       aw, "Push return regs to caller's stack before scrubbing registers");

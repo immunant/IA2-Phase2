@@ -18,4 +18,4 @@ enum class WrapperKind {
 // definition or parameter which is determined by the type of call.
 std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
                              WrapperKind kind,
-                             const std::string &compartment_pkey);
+                             const std::string &callee_pkey);

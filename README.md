@@ -72,43 +72,4 @@ Wrapped libraries are treated as untrusted by default. If the library being wrap
 
 #### Manual usage
 
-Alternatively, you can manually build a wrapper library using the header rewriter. The header rewriter is an out-of-tree clang tool based on LibTooling.
-
-To run it, use the following command after building it:
-```
-$ /path/to/header-rewriter /path/to/wrapper_output_file.c /path/to/source_1.h /path/to/source_2.h -- -I/usr/lib/clang/A.B.C/include
-```
-
-If the library being wrapped defined a trusted compartment pass in the `--compartment-pkey=n` option before the `--`.
-
-The wrapper library can then be compiled with (assuming the original library is liboriginal.so):
-```
-$ gcc /path/to/wrapper_output_file.c -shared -Wl,--version-script,/path/to/wrapper_output_file.c.syms -loriginal -DCALLER_PKEY=0 -o libwrapper.so
-```
-
-Again `CALLER_PKEY` should be set to a value between 0-14 depending on the caller's protection key or `UNTRUSTED` if the caller is untrusted.
-
-The user application can then link against libwrapper.so using the rewritten
-header. For testing you will likely need to add `-Wl,-rpath=path/to/libs` so
-that the linker and dynamic loader can find the original and wrapper libraries.
-
-```
-# build your library
-$ gcc -g -I../../include/ va_wrap.c -fPIC -shared -o libva_wrap.so
-# run the header-rewriter utility to generate output.syms and output.c
-$ ...
-# compile root.o
-$ gcc -g -I ../../include/ -c root.c
-# link the wrapper (liboutput.so)
-$ gcc -g -fPIC -shared -Wl,--version-script=output.syms output.o -o liboutput.so
-```
-And then replace references in your build system to the original library (and its headers) with the wrapper (and its headers).
-You must also (maybe???) ensure that your trusted code (and the untrusted library?) is built with -fno-omit-frame-pointer.
-
-```
-# link your application against both the wrapper and the original library
-$ gcc -g output.o -L. -lva_wrap -loutput -o binary
-# run your binary
-$ LD_LIBRARY_PATH=. ./binary
-Hello, World!
-```
+See [this doc](https://github.com/immunant/IA2-Phase2/blob/main/docs/usage.md) for notes on manual usage.

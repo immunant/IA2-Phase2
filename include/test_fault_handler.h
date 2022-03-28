@@ -28,7 +28,10 @@ bool expect_fault __attribute__((section("ia2_shared_data"))) = false;
 
 // The test output should be checked to see that the segfault occurred at the
 // expected place.
-void handle_segfault(int sig) {
+// This function must be declared naked because it's not necessarily safe for it
+// to write to the stack in its prelude (the stack isn't written to when the
+// function itself is called because it's only invoked as a signal handler).
+__attribute__((naked)) void handle_segfault(int sig) {
   if (sig == SIGSEGV) {
 #ifndef LIBIA2_INSECURE
     // The installed handler is in the main binary, but signal handlers

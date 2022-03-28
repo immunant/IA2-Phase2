@@ -96,17 +96,16 @@
           ".previous");
 
 // Ensure that all required pkeys are allocated.
-void ensure_pkeys_allocated() {
-  extern int ia2_n_pkeys_to_alloc;
-  if (ia2_n_pkeys_to_alloc != 0) {
-    for (int pkey = 1; pkey <= ia2_n_pkeys_to_alloc; pkey++) {
+void ensure_pkeys_allocated(int *n_to_alloc) {
+  if (*n_to_alloc != 0) {
+    for (int pkey = 1; pkey <= *n_to_alloc; pkey++) {
       int allocated = pkey_alloc(0, 0);
       if (allocated != pkey) {
         printf("Failed to allocate protection keys in the expected order\n");
         exit(-1);
       }
     }
-    ia2_n_pkeys_to_alloc = 0;
+    *n_to_alloc = 0;
   }
 }
 
@@ -121,7 +120,7 @@ void ensure_pkeys_allocated() {
   NEW_SECTION(".bss_padding");                                                 \
   extern int ia2_n_pkeys_to_alloc;                                             \
   __attribute__((constructor)) static void init_pkey_ctor() {                  \
-    ensure_pkeys_allocated();                                                  \
+    ensure_pkeys_allocated(&ia2_n_pkeys_to_alloc);                             \
     struct PhdrSearchArgs args = {                                             \
         .pkey = n + 1,                                                         \
         .address = &init_pkey_ctor,                                            \
@@ -177,7 +176,7 @@ void *allocate_stack(int i) {
   int ia2_n_pkeys_to_alloc = n;                                                \
   char *ia2_stackptrs[n] IA2_SHARED_DATA;                                      \
   __attribute__((constructor)) static void init_stacks() {                     \
-    ensure_pkeys_allocated();                                                  \
+    ensure_pkeys_allocated(&ia2_n_pkeys_to_alloc);                             \
     for (int i = 0; i < n; i++) {                                              \
       ia2_stackptrs[i] = allocate_stack(i);                                    \
     }                                                                          \

@@ -487,6 +487,10 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   add_asm_line(aw, "movq %r10, %rcx");
   add_asm_line(aw, "movq %r11, %rdx");
 
+  // Because the callee stack may be misaligned due to being in the middle of a
+  // call already (in A->B->A situations), we need to align it before calling.
+  add_comment_line(aw, "Align stack before making a call");
+  add_asm_line(aw, "and $-16, %rsp");
   // Call wrapped function
   add_comment_line(aw, "Call wrapped function");
   if (kind == WrapperKind::IndirectFromTrusted) {

@@ -95,7 +95,7 @@ function(define_ia2_wrapper)
         set(OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR})
     endif()
     if(DEFINED DEFINE_IA2_WRAPPER_HEADER_BLACKLIST)
-        set(HEADER_BLACKLIST "--header-blacklist=${DEFINE_IA2_WRAPPER_HEADER_BLACKLIST}")
+        set(HEADER_BLACKLIST "--shared-headers=${DEFINE_IA2_WRAPPER_HEADER_BLACKLIST}")
     endif()
 
     # Collect headers

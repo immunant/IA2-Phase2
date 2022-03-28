@@ -18,13 +18,12 @@
 // flexible.
 #define UNIQUE_STR(s) s "_line_" XSTR(__LINE__)
 
+#define INIT_RUNTIME(n) _INIT_RUNTIME(n + 1)
 #ifdef LIBIA2_INSECURE
 #define INIT_COMPARTMENT(n)
-#define INIT_RUNTIME(n)
 #define IA2_WRPKRU
 #else
 #define INIT_COMPARTMENT(n) _INIT_COMPARTMENT(n)
-#define INIT_RUNTIME(n) _INIT_RUNTIME(n + 1)
 #define IA2_WRPKRU "wrpkru"
 #endif
 
@@ -154,24 +153,41 @@ void ensure_pkeys_allocated() {
 
 #define STACK_SIZE (4 * 1024 * 1024)
 
-// Defines the number of protection keys that need to be allocated
+// Allocate the 'i'th stack with appropriate permissions and set its pkey.
+void *allocate_stack(int i) {
+  void *stack = mmap(NULL, STACK_SIZE, PROT_READ | PROT_WRITE,
+                     MAP_PRIVATE | MAP_ANON, -1, 0);
+  if (stack == MAP_FAILED) {
+    printf("Failed to allocate stack %d (%d)\n", i, errno);
+    exit(-1);
+  }
+#ifndef LIBIA2_INSECURE
+  int res = pkey_mprotect(stack, STACK_SIZE, PROT_READ | PROT_WRITE, i);
+  if (res == -1) {
+    printf("Failed to mprotect stack %d (%d)\n", i, errno);
+  }
+#endif
+  stack += STACK_SIZE - 16;
+  return stack;
+}
+
+// Sets up stacks and defines how many protection keys need to be allocated
+#ifndef LIBIA2_INSECURE
 #define _INIT_RUNTIME(n)                                                       \
   int ia2_n_pkeys_to_alloc = n;                                                \
   char *ia2_stackptrs[n] IA2_SHARED_DATA;                                      \
   __attribute__((constructor)) static void init_stacks() {                     \
     ensure_pkeys_allocated();                                                  \
     for (int i = 0; i < n; i++) {                                              \
-      ia2_stackptrs[i] = mmap(NULL, STACK_SIZE, PROT_READ | PROT_WRITE,        \
-                              MAP_PRIVATE | MAP_ANON, -1, 0);                  \
-      if (ia2_stackptrs[i] == MAP_FAILED) {                                    \
-        printf("Failed to allocate stack %d (%d)\n", i, errno);                \
-        exit(-1);                                                              \
-      }                                                                        \
-      int res = pkey_mprotect(ia2_stackptrs[i], STACK_SIZE,                    \
-                              PROT_READ | PROT_WRITE, i);                      \
-      if (res == -1) {                                                         \
-        printf("Failed to mprotect stack %d (%d)\n", i, errno);                \
-      }                                                                        \
-      ia2_stackptrs[i] += STACK_SIZE - 16;                                     \
+      ia2_stackptrs[i] = allocate_stack(i);                                    \
     }                                                                          \
   }
+#else
+#define _INIT_RUNTIME(n)                                                       \
+  char *ia2_stackptrs[n];                                                      \
+  __attribute__((constructor)) static void init_stacks() {                     \
+    for (int i = 0; i < n; i++) {                                              \
+      ia2_stackptrs[i] = allocate_stack(i);                                    \
+    }                                                                          \
+  }
+#endif

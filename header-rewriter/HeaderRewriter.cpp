@@ -52,10 +52,10 @@ static llvm::cl::opt<uint32_t>
 
 // Headers with both functions and type definitions may be shared between
 // compartments. If a shared header declares functions that do not belong to the
-// compartment we are generating a wrapper for, it must be blacklisted to avoid
-// adding incorrect .symver statements.
+// compartment we are generating a wrapper for, it must be marked as shared to
+// avoid adding incorrect .symver statements.
 static llvm::cl::list<std::string>
-    HeaderBlacklist("header-blacklist",
+    SharedHeaders("shared-headers",
                     llvm::cl::desc("Headers which are only needed for types"),
                     llvm::cl::cat(HeaderRewriterCategory), llvm::cl::Optional);
 
@@ -131,14 +131,14 @@ static std::string get_expansion_filename(const clang::Decl *decl,
   return sm->getFilename(sm->getExpansionLoc(decl->getLocation())).str();
 }
 
-static bool is_blacklisted(llvm::StringRef header_name) {
+static bool skip_fn_decls(llvm::StringRef header_name) {
   if (header_name.empty()) {
     return false;
   }
-  return std::find_if(HeaderBlacklist.begin(), HeaderBlacklist.end(),
+  return std::find_if(SharedHeaders.begin(), SharedHeaders.end(),
                       [&](std::string &s) {
                         return header_name.endswith(s);
-                      }) != HeaderBlacklist.end();
+                      }) != SharedHeaders.end();
 }
 
 class FnDecl : public RefactoringCallback {
@@ -160,10 +160,9 @@ public:
     std::string header_name =
         get_expansion_filename(fn_decl, Result.SourceManager);
 
-    // Avoid wrapping functions declared in system headers or blacklisted
-    // headers
+    // Avoid wrapping functions declared in system headers or shared headers
     if (llvm::StringRef(header_name).startswith("/usr/") ||
-        is_blacklisted(header_name)) {
+        skip_fn_decls(header_name)) {
       return;
     }
     auto header_ref_result =

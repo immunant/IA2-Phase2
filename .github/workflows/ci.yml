@@ -35,7 +35,7 @@ jobs:
           pushd build
           ninja -v check-ia2
           popd
-  test-on-ubuntu-focal:
+  test-insecure-on-ubuntu-focal:
     runs-on: ubuntu-20.04
     strategy:
       matrix:

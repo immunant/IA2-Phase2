@@ -34,13 +34,13 @@ execute_process(COMMAND ${CMAKE_C_COMPILER} -print-file-name=include-fixed
 # COMPARTMENT_PKEY - Optional protection key for wrapped library, if any.
 # CALLER_PKEY - Protection key for the wrapper's caller. Set to `UNTRUSTED` if
 #               caller is untrusted. This is required.
-# HEADER_BLACKLIST - Headers which are only needed for types.
+# SHARED_HEADERS - Headers which are only needed for types.
 function(define_ia2_wrapper)
     # Parse options
     set(options USE_SYSTEM_HEADERS WRAP_MAIN)
     set(oneValueArgs WRAPPER WRAPPED_LIB OUTPUT_HEADER INCLUDE_DIR OUTPUT_DIR
         COMPARTMENT_PKEY CALLER_PKEY)
-    set(multiValueArgs HEADERS PRIVATE_HEADERS HEADER_BLACKLIST)
+    set(multiValueArgs HEADERS PRIVATE_HEADERS SHARED_HEADERS)
     cmake_parse_arguments(DEFINE_IA2_WRAPPER "${options}" "${oneValueArgs}"
                           "${multiValueArgs}" ${ARGN} )
 
@@ -94,8 +94,8 @@ function(define_ia2_wrapper)
     else()
         set(OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR})
     endif()
-    if(DEFINED DEFINE_IA2_WRAPPER_HEADER_BLACKLIST)
-        set(HEADER_BLACKLIST "--shared-headers=${DEFINE_IA2_WRAPPER_HEADER_BLACKLIST}")
+    if(DEFINED DEFINE_IA2_WRAPPER_SHARED_HEADERS)
+        set(SHARED_HEADERS "--shared-headers=${DEFINE_IA2_WRAPPER_SHARED_HEADERS}")
     endif()
 
     # Collect headers
@@ -155,7 +155,7 @@ function(define_ia2_wrapper)
         # Run the rewriter itself, mutating the headers
         COMMAND ia2-header-rewriter
           --output-header ${REWRITTEN_HEADER_DIR}/${OUTPUT_HEADER}
-          ${HEADER_BLACKLIST}
+          ${SHARED_HEADERS}
           ${COMPARTMENT_PKEY_OPTION}
           ${CMAKE_CURRENT_BINARY_DIR}/${WRAPPER_SRC}
           ${REWRITTEN_HEADERS}

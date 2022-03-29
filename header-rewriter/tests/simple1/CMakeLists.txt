@@ -10,7 +10,7 @@ define_ia2_wrapper(
     CALLER_PKEY UNTRUSTED
     HEADERS hooks.h
     # Where to find the input headers
-    INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libsimple1
+    INPUT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libsimple1
     # Put the output headers in BIN_DIR/main_shim since hooks.h is also passed
     # to the rewriter for the other shim
     OUTPUT_DIR main_shim
@@ -36,7 +36,7 @@ define_ia2_wrapper(
     # macros for.
     HEADERS simple1.h hooks.h
     # Where to find the input headers
-    INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libsimple1
+    INPUT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libsimple1
     # Put the output haeders in BIN_DIR/lib_shim since hooks.h it's function
     # declarations are not rewritten for this shim.
     OUTPUT_DIR lib_shim

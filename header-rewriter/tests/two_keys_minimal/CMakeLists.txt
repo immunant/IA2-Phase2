@@ -12,7 +12,7 @@ configure_file(${MAIN_STDOUT_REF} ${CMAKE_CURRENT_BINARY_DIR}/main.out)
 define_ia2_wrapper(
     HEADERS plugin.h
     COMPARTMENT_PKEY 1
-    INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/plugin/
+    INPUT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/plugin/
     CALLER_PKEY 0
 )
 
@@ -21,7 +21,7 @@ define_ia2_wrapper(
     WRAP_MAIN
     COMPARTMENT_PKEY 0
     HEADERS exported_fn.h
-    INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/main/
+    INPUT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/main/
     CALLER_PKEY 1
 )
 

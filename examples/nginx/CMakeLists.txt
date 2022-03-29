@@ -32,3 +32,26 @@ add_dependencies(nginx-build nginx-config)
 add_custom_target(nginx-run
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/nginx
     DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/nginx)
+
+define_ia2_wrapper(
+    WRAP_MAIN
+    COMPARTMENT_PKEY 0
+    CALLER_PKEY UNTRUSTED
+    HEADERS
+        core/ngx_config.h
+        core/ngx_core.h
+        http/ngx_http.h
+    SHARED_HEADERS
+        http/modules/perl/ngx_http_perl_module.h
+    INPUT_DIR
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/
+    INCLUDE_DIRS
+        ${CMAKE_CURRENT_BINARY_DIR}/core/
+        ${CMAKE_CURRENT_BINARY_DIR}/event/
+        ${CMAKE_CURRENT_BINARY_DIR}/event/modules/
+        ${CMAKE_CURRENT_BINARY_DIR}/os/unix/
+        ${CMAKE_CURRENT_BINARY_DIR}/http/modules/perl/
+        ${CMAKE_CURRENT_BINARY_DIR}/
+        ${CMAKE_CURRENT_BINARY_DIR}/http/
+        ${CMAKE_CURRENT_BINARY_DIR}/http/modules/
+)

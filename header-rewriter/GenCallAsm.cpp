@@ -232,7 +232,7 @@ static std::string sig_string(const CAbiSignature &sig,
 }
 
 std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
-                             WrapperKind kind, const std::string &callee_pkey) {
+                             WrapperKind kind, const std::string &target_pkey) {
   bool indirect_wrapper = kind != WrapperKind::Direct;
   std::string terminator = {};
   // Code for indirect wrappers is generated as a macro so we need to terminate
@@ -280,7 +280,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     +-----+
     |fnptr|If the call is indirect from the trusted compartment the first wrpkru
     |     |removes access to the caller's binary. Since the target pointer is in
-    |     |the caller we copy it to the callee stack before changing pkru.
+    |     |the caller we copy it to the target stack before changing pkru.
     +-----+
     |     |Space for the compartment's return value if it has class MEMORY. This
     |ret  |space is only allocated if the pointer to the caller's return value
@@ -338,7 +338,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   }
 
   // Define the intermediate PKRU value. We need a PKRU that can access both
-  // caller and callee compartment to be able to move data between compartment
+  // caller and target compartment to be able to move data between compartment
   // stacks.
   add_comment_line(aw, "define intermediate PKRU:");
   // The PKRU macro accepts UNTRUSTED because PKEY_UNTRUSTED is defined; we have
@@ -349,12 +349,12 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   // stringify the macro. Do this for both pkeys so we can use them in the
   // MIXED_PKRU macro expression.
   std::string caller_pkey_asm_fragment = "\" XSTR("s + caller_pkey + ") \"";
-  std::string callee_pkey_asm_fragment = "\" XSTR("s + callee_pkey + ") \"";
-  // Define MIXED_PKRU as the integer PKRU value combining the caller and callee
+  std::string target_pkey_asm_fragment = "\" XSTR("s + target_pkey + ") \"";
+  // Define MIXED_PKRU as the integer PKRU value combining the caller and target
   // pkeys.
   add_asm_line(aw, ".set MIXED_PKRU, ~((3 << (2 + 2*"s +
                        caller_pkey_asm_fragment + ")) | (3 << (2 + 2*"s +
-                       callee_pkey_asm_fragment + ")) | 3)"s);
+                       target_pkey_asm_fragment + ")) | 3)"s);
 
   // Save registers that are preserved across function calls before switching to
   // the other compartment's stack. This is on the caller's stack so it's not in
@@ -370,11 +370,11 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
                llvm::formatv("leaq \" STACK({0}) \"(%rax), %rax", caller_pkey));
   add_asm_line(aw, "movq %rsp, (%rax)");
 
-  // Switch to callee stack
-  add_comment_line(aw, "Switch to callee stack");
+  // Switch to target stack
+  add_comment_line(aw, "Switch to target stack");
   add_asm_line(aw, "movq ia2_stackptrs@GOTPCREL(%rip), %rsp");
   add_raw_line(aw, llvm::formatv("\"movq \" STACK({0}) \"(%rsp), %rsp\\n\"",
-                                 callee_pkey));
+                                 target_pkey));
 
   if (kind == WrapperKind::IndirectFromTrusted) {
     add_comment_line(aw, "Load indirect call target and put it on the stack");
@@ -390,7 +390,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   // rdi to the newly allocated space. Allocating space before saving the old
   // pointer makes it easier to undo these operations after the call. The System
   // V ABI only specifies that the memory for the return value must not overlap
-  // any other memory available to the callee so the order of these two stack
+  // any other memory available to the target so the order of these two stack
   // items doesn't matter.
   if (stack_return_size > 0) {
     add_comment_line(
@@ -421,7 +421,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   add_asm_line(aw, "movq %r10, %rcx");
   add_asm_line(aw, "movq %r11, %rdx");
 
-  // Copy stack args to callee stack
+  // Copy stack args to target stack
   if (stack_arg_count > 0) {
     // Set rax to the caller's stack so we can copy the stack args to the
     // compartment's stack.
@@ -483,11 +483,11 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   // and r11 as scratch registers
   add_asm_line(aw, "movq %rcx, %r10");
   add_asm_line(aw, "movq %rdx, %r11");
-  emit_wrpkru_idx(aw, callee_pkey);
+  emit_wrpkru_idx(aw, target_pkey);
   add_asm_line(aw, "movq %r10, %rcx");
   add_asm_line(aw, "movq %r11, %rdx");
 
-  // Because the callee stack may be misaligned due to being in the middle of a
+  // Because the target stack may be misaligned due to being in the middle of a
   // call already (in A->B->A situations), we need to align it before calling.
   add_comment_line(aw, "Align stack before making a call");
   add_asm_line(aw, "and $-16, %rsp");
@@ -520,7 +520,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   // scratch registers.
   emit_wrpkru(aw, "MIXED_PKRU");
 
-  // Free stack space used for stack args on the callee stack
+  // Free stack space used for stack args on the target stack
   if (stack_arg_size > 0) {
     add_comment_line(aw, "Free stack space used for stack args");
     add_asm_line(aw, "addq $"s + std::to_string(stack_arg_size) + ", %rsp");

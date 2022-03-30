@@ -1,6 +1,6 @@
 #!/bin/bash
 NGINX_ROOT=${PWD}
-BUILD_DIR=${PWD}/build/
+BUILD_DIR=${PWD}/build
 TEMP_FILES=(
     nginx.pid
     err.log

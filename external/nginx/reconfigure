@@ -1,0 +1,32 @@
+#!/bin/bash
+NGINX_ROOT=${PWD}
+BUILD_DIR=${PWD}/build
+TEMP_FILES=(
+    nginx.pid
+    err.log
+    http.log
+    client_body_temp
+    proxy_temp
+    fastcgi_temp
+    uwsgi_temp
+    scgi_temp
+)
+
+mkdir -p $BUILD_DIR
+for tmp in ${TEMP_FILES[@]}; do
+    touch $BUILD_DIR/$tmp
+done
+
+./auto/configure --prefix=$BUILD_DIR \
+    --builddir=$BUILD_DIR \
+    --with-http_perl_module=dynamic \
+    --with-cc="clang" \
+    --conf-path=$NGINX_ROOT/conf/nginx.conf \
+    --pid-path=$BUILD_DIR/nginx.pid \
+    --error-log-path=$BUILD_DIR/err.log \
+    --http-log-path=$BUILD_DIR/http.log \
+    --http-client-body-temp-path=$BUILD_DIR/client_body_temp \
+    --http-proxy-temp-path=$BUILD_DIR/proxy_temp \
+    --http-fastcgi-temp-path=$BUILD_DIR/fastcgi_temp \
+    --http-uwsgi-temp-path=$BUILD_DIR/uwsgi_temp \
+    --http-scgi-temp-path=$BUILD_DIR/scgi_temp \

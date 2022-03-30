@@ -206,6 +206,14 @@ static void emit_wrpkru_idx(AsmWriter &aw, const std::string &pkey_idx) {
   emit_wrpkru(aw, pkru_value_for_idx(pkey_idx));
 }
 
+// Adapt a macro parameter (for indirect calls) or a macro into a context
+// suitable for interpolation into the string literals for asm(), expanding it
+// in the process. This involves closing/reopening the asm string and
+// stringifying the macro.
+static std::string asm_macro_expansion(const std::string &macro) {
+  return llvm::formatv("\" XSTR({0}) \"", macro);
+}
+
 static void append_arg_kinds(std::stringstream &ss,
                              std::vector<CAbiArgKind> args) {
   bool first = true;
@@ -344,17 +352,15 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   // The PKRU macro accepts UNTRUSTED because PKEY_UNTRUSTED is defined; we have
   // to support it too, so treat it as index -1.
   add_asm_line(aw, ".set UNTRUSTED, -1");
-  // In order to interpolate a macro parameter (for indirect calls) or a macro
-  // into the string literals for asm(), we must close the string literal and
-  // stringify the macro. Do this for both pkeys so we can use them in the
-  // MIXED_PKRU macro expression.
-  std::string caller_pkey_asm_fragment = "\" XSTR("s + caller_pkey + ") \"";
-  std::string target_pkey_asm_fragment = "\" XSTR("s + target_pkey + ") \"";
+
   // Define MIXED_PKRU as the integer PKRU value combining the caller and target
-  // pkeys.
-  add_asm_line(aw, ".set MIXED_PKRU, ~((3 << (2 + 2*"s +
-                       caller_pkey_asm_fragment + ")) | (3 << (2 + 2*"s +
-                       target_pkey_asm_fragment + ")) | 3)"s);
+  // pkeys. The pkeys are given as macros or macro parameters, so they must be
+  // expanded explicitly here as they are not simply passed to the STACK macro.
+  add_asm_line(
+      aw,
+      llvm::formatv(
+          ".set MIXED_PKRU, ~((3 << (2 + 2 * {0})) | (3 << (2 + 2 * {1})) | 3)",
+          asm_macro_expansion(caller_pkey), asm_macro_expansion(target_pkey)));
 
   // Save registers that are preserved across function calls before switching to
   // the other compartment's stack. This is on the caller's stack so it's not in

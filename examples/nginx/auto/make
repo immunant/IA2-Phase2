@@ -44,6 +44,8 @@ ngx_incs=`echo $CORE_INCS $NGX_OBJS $HTTP_INCS $MAIL_INCS $STREAM_INCS\
 cat << END                                                    >> $NGX_MAKEFILE
 
 ALL_INCS = $ngx_include_opt$ngx_incs
+ALL_INCS_REL_PATH = $CORE_INCS $HTTP_INCS $MAIL_INCS $STREAM_INCS
+ALL_INCS_ABS_PATH = $NGX_OBJS
 
 END
 
@@ -496,7 +498,7 @@ if test -n "$NGX_PCH"; then
 else
     ngx_cc="\$(CC) $ngx_compile_opt $ngx_pic_opt \$(CFLAGS) \$(ALL_INCS)"
     ngx_perl_cc="\$(CC) $ngx_compile_opt $ngx_pic_opt \$(NGX_PERL_CFLAGS)"
-    ngx_perl_cc="$ngx_perl_cc \$(ALL_INCS)"
+    ngx_perl_cc="$ngx_perl_cc -I\$(ALL_INCS_ABS_PATH)/../../../include/ -I \$(ALL_INCS_ABS_PATH) \$(patsubst src/%,-I\$(ALL_INCS_ABS_PATH)/main_shim_src/%,\$(ALL_INCS_REL_PATH))"
 fi
 
 for ngx_module in $DYNAMIC_MODULES

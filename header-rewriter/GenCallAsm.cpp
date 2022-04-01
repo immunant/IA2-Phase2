@@ -284,7 +284,9 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     contain any of the following.
 
     +-----+
-    | top |Top of the stack (stack grows down on x86-64)
+    | top |Top of the stack (stack grows down on x86-64). This address - 8 is
+    |     |aligned to 16 bytes assuming the wrapper's caller follows the SysV
+    |     |ABI.
     +-----+
     |fnptr|If the call is indirect from the trusted compartment the first wrpkru
     |     |removes access to the caller's binary. Since the target pointer is in
@@ -327,9 +329,11 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     // trusted
     compartment_stack_space += 8;
   }
-  // Compute the stack alignment before calling the wrapped function without the
-  // 8 bytes for alignment.
-  size_t stack_alignment = compartment_stack_space % 16;
+  // Compute what the stack alignment would be before calling the wrapped
+  // function to check if we need to insert 8 bytes for alignment. We add 8
+  // bytes to the compartment_stack_space since the frame is initially off by 8
+  // bytes.
+  size_t stack_alignment = (compartment_stack_space + 8) % 16;
 
   add_comment_line(aw, "Wrapper for "s + sig_string(sig, name) + ":");
   // Define the wrapper symbol
@@ -493,10 +497,6 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   add_asm_line(aw, "movq %r10, %rcx");
   add_asm_line(aw, "movq %r11, %rdx");
 
-  // Because the target stack may be misaligned due to being in the middle of a
-  // call already (in A->B->A situations), we need to align it before calling.
-  add_comment_line(aw, "Align stack before making a call");
-  add_asm_line(aw, "and $-16, %rsp");
   // Call wrapped function
   add_comment_line(aw, "Call wrapped function");
   if (kind == WrapperKind::IndirectFromTrusted) {

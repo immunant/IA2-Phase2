@@ -57,7 +57,7 @@
 #define IA2_FNPTR_WRAPPER(target, ty, caller_pkey, target_pkey)                \
   ({                                                                           \
     static char *target_ptr __asm__(UNIQUE_STR(#target))                       \
-                            __attribute__((used));                             \
+        __attribute__((used));                                                 \
     static void *wrapper __asm__("__ia2_" UNIQUE_STR(#target));                \
     target_ptr = (char *)target;                                               \
     __asm__(IA2_FNPTR_WRAPPER_##ty(target, caller_pkey, target_pkey));         \
@@ -69,7 +69,7 @@
 #define IA2_FNPTR_UNWRAPPER(target, ty, caller_pkey, target_pkey)              \
   ({                                                                           \
     static char *target_ptr __asm__(UNIQUE_STR(#target))                       \
-                            __attribute__((used));                             \
+        __attribute__((used));                                                 \
     static void *wrapper __asm__("__ia2_" UNIQUE_STR(#target));                \
     target_ptr = target.ptr;                                                   \
     __asm__(IA2_FNPTR_UNWRAPPER_##ty(target, caller_pkey, target_pkey));       \
@@ -77,7 +77,7 @@
   })
 
 // Takes a mangled type name and returns a NULL opaque pointer
-#define IA2_NULL_FNPTR(ty) \
+#define IA2_NULL_FNPTR(ty)                                                     \
   (struct IA2_fnptr_##ty) { (char *)NULL }
 
 // Checks if an opaque pointer is null
@@ -166,7 +166,8 @@ void *allocate_stack(int i) {
     printf("Failed to mprotect stack %d (%d)\n", i, errno);
   }
 #endif
-  stack += STACK_SIZE - 16;
+  // Each stack frame start + 8 is initially 16-byte aligned.
+  stack += STACK_SIZE - 8;
   return stack;
 }
 

@@ -153,9 +153,9 @@ void ensure_pkeys_allocated(int *n_to_alloc) {
 #define STACK_SIZE (4 * 1024 * 1024)
 
 // Allocate the 'i'th stack with appropriate permissions and set its pkey.
-void *allocate_stack(int i) {
-  void *stack = mmap(NULL, STACK_SIZE, PROT_READ | PROT_WRITE,
-                     MAP_PRIVATE | MAP_ANON, -1, 0);
+char *allocate_stack(int i) {
+  char *stack = (char *)mmap(NULL, STACK_SIZE, PROT_READ | PROT_WRITE,
+                             MAP_PRIVATE | MAP_ANON, -1, 0);
   if (stack == MAP_FAILED) {
     printf("Failed to allocate stack %d (%d)\n", i, errno);
     exit(-1);

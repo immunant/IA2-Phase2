@@ -15,6 +15,7 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FormatVariadic.h"
 #include "llvm/Support/raw_ostream.h"
+#include <algorithm>
 #include <fstream>
 #include <map>
 
@@ -47,8 +48,8 @@ static llvm::cl::opt<std::string>
 // Specifies the compartment's protection key index, if any.
 static llvm::cl::opt<uint32_t>
     CompartmentPkey("compartment-pkey",
-                   llvm::cl::desc("The compartment's protection key index"),
-                   llvm::cl::cat(HeaderRewriterCategory), llvm::cl::Optional);
+                    llvm::cl::desc("The compartment's protection key index"),
+                    llvm::cl::cat(HeaderRewriterCategory), llvm::cl::Optional);
 
 // Headers with both functions and type definitions may be shared between
 // compartments. If a shared header declares functions that do not belong to the
@@ -56,8 +57,8 @@ static llvm::cl::opt<uint32_t>
 // avoid adding incorrect .symver statements.
 static llvm::cl::list<std::string>
     SharedHeaders("shared-headers",
-                    llvm::cl::desc("Headers which are only needed for types"),
-                    llvm::cl::cat(HeaderRewriterCategory), llvm::cl::Optional);
+                  llvm::cl::desc("Headers which are only needed for types"),
+                  llvm::cl::cat(HeaderRewriterCategory), llvm::cl::Optional);
 
 // For types that have both a left and right side, this is what
 // we emit for the name between the two sides, e.g.,
@@ -168,8 +169,7 @@ public:
     auto header_ref_result =
         Result.SourceManager->getFileManager().getFileRef(header_name);
     if (auto err = header_ref_result.takeError()) {
-      llvm::errs() << "Error getting FileEntryRef for '" << header_name
-                   << "' ("
+      llvm::errs() << "Error getting FileEntryRef for '" << header_name << "' ("
                    << fn_decl->getLocation().printToString(
                           *Result.SourceManager)
                    << "): " << err << '\n';
@@ -191,8 +191,7 @@ public:
       // rewritten
       clang::CharSourceRange expansion_range =
           Result.SourceManager->getExpansionRange(fn_decl->getSourceRange());
-      Replacement decl_replacement{*Result.SourceManager, expansion_range,
-                                   ""};
+      Replacement decl_replacement{*Result.SourceManager, expansion_range, ""};
 
       auto err = FileReplacements[header_name].add(decl_replacement);
       if (err) {
@@ -256,15 +255,13 @@ public:
         if (param_type->isFunctionPointerType()) {
           // Parameter is a function pointer, so we need to rewrite it
           // into the internal mangled structure type
-          auto mangled_type =
-              mangle_type(fn_decl->getASTContext(), param_type);
-          auto param_decl = llvm::formatv("{0}{1} {2}", kFnPtrTypePrefix,
-                                          mangled_type, name);
+          auto mangled_type = mangle_type(fn_decl->getASTContext(), param_type);
+          auto param_decl =
+              llvm::formatv("{0}{1} {2}", kFnPtrTypePrefix, mangled_type, name);
           param_decls.append(param_decl);
         } else {
           auto param_type_string = type_string_with_placeholder(param_type);
-          param_decls.append(
-              replace_type_placeholder(param_type_string, name));
+          param_decls.append(replace_type_placeholder(param_type_string, name));
         }
         param_names.append(name);
       }
@@ -281,9 +278,11 @@ public:
       auto cAbiSig = determineAbiForDecl(*fn_decl);
       std::string asm_wrapper;
       if (CompartmentPkey.getNumOccurrences() == 0) {
-        asm_wrapper = emit_asm_wrapper(cAbiSig, fn_name, WrapperKind::Direct, "UNTRUSTED"s);
+        asm_wrapper = emit_asm_wrapper(cAbiSig, fn_name, WrapperKind::Direct,
+                                       "UNTRUSTED"s);
       } else {
-        asm_wrapper = emit_asm_wrapper(cAbiSig, fn_name, WrapperKind::Direct, std::to_string(CompartmentPkey));
+        asm_wrapper = emit_asm_wrapper(cAbiSig, fn_name, WrapperKind::Direct,
+                                       std::to_string(CompartmentPkey));
       }
 
       // Generate wrapper symbol definition, invoking call gates around call
@@ -292,8 +291,8 @@ public:
           "asm(\n"
           "{2}\n"
           ");\n\n",
-          replace_type_placeholder(ret_type_string, wrapper_name),
-          param_decls, asm_wrapper);
+          replace_type_placeholder(ret_type_string, wrapper_name), param_decls,
+          asm_wrapper);
 
       SymsOut << "    " << wrapper_name << ";\n";
     }
@@ -490,7 +489,8 @@ static int emit_output_header(const FnPtrPrinter &printer) {
     auto &mangled_type = p.first;
     auto &fi = p.second;
 
-    os << fi.new_type << " { char *ptr; };\n";
+    os << fi.new_type << "_inner_t;\n";
+    os << fi.new_type << " { " << fi.new_type << "_inner_t *ptr; };\n";
 
     os << "#define IA2_FNPTR_TYPE_" << mangled_type << " ";
     if (!fi.return_type.empty()) {
@@ -500,20 +500,35 @@ static int emit_output_header(const FnPtrPrinter &printer) {
     }
     os << "(" << llvm::join(fi.parameter_types, ", ") << ")\n";
 
+    // IA2_WRAPPER_* takes a function name and declares a wrapped function
+    // which we can be used to initialize a function pointer
+    os << "#define IA2_WRAPPER_" << mangled_type
+       << "(target, caller_pkey, target_pkey) \\\n";
+    // This argument must be a valid asm identifier for direct calls
+    auto direct_wrapper =
+        emit_asm_wrapper(fi.sig, "target"s, WrapperKind::Direct, "target_pkey"s,
+                         true /* as_macro */);
+    os << direct_wrapper << "\n";
+
     // IA2_FNPTR_WRAPPER_* takes a function pointer and returns an opaque type
     // which we can pass to other compartments. This means that the wrapper will
     // be called from an untrusted compartment.
-    os << "#define IA2_FNPTR_WRAPPER_" << mangled_type << "(target, caller_pkey, target_pkey) \\\n";
+    os << "#define IA2_FNPTR_WRAPPER_" << mangled_type
+       << "(target, caller_pkey, target_pkey) \\\n";
     // target_pkey is the macro param defining the callee's pkey
-    auto wrapper_from_trusted = emit_asm_wrapper(fi.sig, fi.new_type, WrapperKind::IndirectFromUntrusted, "target_pkey"s);
-    os << wrapper_from_trusted <<  "\n";
+    auto wrapper_from_trusted =
+        emit_asm_wrapper(fi.sig, fi.new_type,
+                         WrapperKind::IndirectFromUntrusted, "target_pkey"s);
+    os << wrapper_from_trusted << "\n";
 
     // IA2_FNPTR_UNWRAPPER_* takes an opaque pointer and returns a function
     // pointer so the wrapper will be called from the trusted compartment.
-    os << "#define IA2_FNPTR_UNWRAPPER_" << mangled_type << "(target, caller_pkey, target_pkey) \\\n";
+    os << "#define IA2_FNPTR_UNWRAPPER_" << mangled_type
+       << "(target, caller_pkey, target_pkey) \\\n";
     // target_pkey is the macro param defining the callee's pkey
-    auto wrapper_from_untrusted = emit_asm_wrapper(fi.sig, fi.new_type, WrapperKind::IndirectFromTrusted, "target_pkey"s);
-    os << wrapper_from_untrusted <<  "\n";
+    auto wrapper_from_untrusted = emit_asm_wrapper(
+        fi.sig, fi.new_type, WrapperKind::IndirectFromTrusted, "target_pkey"s);
+    os << wrapper_from_untrusted << "\n";
   }
 
   return EXIT_SUCCESS;

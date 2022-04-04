@@ -240,18 +240,20 @@ static std::string sig_string(const CAbiSignature &sig,
 }
 
 std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
-                             WrapperKind kind, const std::string &target_pkey) {
+                             WrapperKind kind, const std::string &target_pkey,
+                             bool as_macro) {
   bool indirect_wrapper = kind != WrapperKind::Direct;
+  as_macro = as_macro || indirect_wrapper;
   std::string terminator = {};
   // Code for indirect wrappers is generated as a macro so we need to terminate
   // each line with '\'
-  if (indirect_wrapper) {
+  if (as_macro) {
     terminator = "\\"s;
   }
   AsmWriter aw = {.ss = {}, .terminator = terminator};
 
   std::string caller_pkey;
-  if (indirect_wrapper) {
+  if (as_macro) {
     // caller_pkey is the macro param defining the caller's pkey in the
     // IA2_FNPTR_* macros
     caller_pkey = "caller_pkey";
@@ -343,6 +345,10 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     add_asm_line(aw, ".text 1");
     add_raw_line(aw, "\"__ia2_\" UNIQUE_STR(#target) \"_wrapper:\\n\"");
     add_raw_line(aw, "\".equ __ia2_\" UNIQUE_STR(#target) \", .\\n\"");
+  } else if (as_macro) {
+    add_asm_line(aw, ".text");
+    add_raw_line(aw, "\".global __ia2_\" #target \"\\n\"");
+    add_raw_line(aw, "\"__ia2_\" #target \":\\n\"");
   } else {
     add_asm_line(aw, ".text");
     add_asm_line(aw, ".global __ia2_"s + name);
@@ -512,6 +518,8 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
                  "\"movq \" UNIQUE_STR(#target) \"@GOTPCREL(%rip), %r10\\n\"");
     add_asm_line(aw, "movq (%r10), %r10");
     add_asm_line(aw, "call *%r10");
+  } else if (as_macro) {
+    add_raw_line(aw, "\"call \" #target \"\\n\"");
   } else {
     add_asm_line(aw, "call "s + name);
   }

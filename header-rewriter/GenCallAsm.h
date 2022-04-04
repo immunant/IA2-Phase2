@@ -20,6 +20,8 @@ enum class WrapperKind {
 // depending on the wrapper kind.
 // \p callee_pkey is a string giving the index of the callee's protection key,
 // which must be valid to pass to the `PKRU` macro in ia2.h.
+// \p as_macro determines if the wrappers for direct calls is emitted as a
+// macro. Indirect calls are unconditionally emitted as macros.
 std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
-                             WrapperKind kind,
-                             const std::string &callee_pkey);
+                             WrapperKind kind, const std::string &callee_pkey,
+                             bool as_macro = false);

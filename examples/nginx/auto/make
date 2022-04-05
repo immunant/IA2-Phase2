@@ -250,7 +250,7 @@ END
 if test -n "$NGX_PCH"; then
     ngx_cc="\$(CC) $ngx_compile_opt \$(CFLAGS) $ngx_use_pch \$(ALL_INCS)"
 else
-    ngx_cc="\$(CC) $ngx_compile_opt \$(CFLAGS) \$(CORE_INCS)"
+    ngx_cc="\$(CC) $ngx_compile_opt \$(CFLAGS) -I \$(BUILD_DIR) \$(patsubst src/%,-I\$(BUILD_DIR)/mod_shim_src/%,\$(ALL_INCS_REL_PATH))"
 fi
 
 cat << END                                                    >> $NGX_MAKEFILE

@@ -3,7 +3,12 @@ RUN: cp %s %t.h
 RUN: ia2-header-rewriter %t.c %t.h -- -I%resource_dir
 RUN: cat %t.h | sed 's/^.*CHECK.*$//' | FileCheck %s
 RUN: %binary_dir/tests/minimal/minimal-main | diff %S/../Output/minimal.out -
+RUN: readelf -lW %binary_dir/tests/minimal/minimal-main | FileCheck --check-prefix=SEGMENTS %s
 */
+
+// Check that readelf shows exactly one executable segment
+// SEGMENTS-COUNT-1: LOAD{{.*}}R E
+// SEGMENTS-NOT:     LOAD{{.*}}R E
 
 #pragma once
 

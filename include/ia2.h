@@ -20,7 +20,7 @@
 
 #define INIT_RUNTIME(n) _INIT_RUNTIME(n + 1)
 #ifdef LIBIA2_INSECURE
-#define INIT_COMPARTMENT(n)
+#define INIT_COMPARTMENT(n) DECLARE_PADDING_SECTIONS
 #define IA2_WRPKRU
 #else
 #define INIT_COMPARTMENT(n) _INIT_COMPARTMENT(n)
@@ -99,6 +99,12 @@
           "\n"                                                                 \
           ".previous");
 
+#define DECLARE_PADDING_SECTIONS                                               \
+  NEW_SECTION(".fini_padding");                                                \
+  NEW_SECTION(".rela.plt_padding");                                            \
+  NEW_SECTION(".eh_frame_padding");                                            \
+  NEW_SECTION(".bss_padding");
+
 // Ensure that all required pkeys are allocated.
 void ensure_pkeys_allocated(int *n_to_alloc) {
   if (*n_to_alloc != 0) {
@@ -114,14 +120,11 @@ void ensure_pkeys_allocated(int *n_to_alloc) {
 }
 
 // Initializes a compartment with protection key `n` when the ELF invoking this
-// macro is loaded. This must only be called once for each key. The copmartment
+// macro is loaded. This must only be called once for each key. The compartment
 // includes all segments in the ELF except the `ia2_shared_data` section, if one
 // exists.
 #define _INIT_COMPARTMENT(n)                                                   \
-  NEW_SECTION(".fini_padding");                                                \
-  NEW_SECTION(".rela.plt_padding");                                            \
-  NEW_SECTION(".eh_frame_padding");                                            \
-  NEW_SECTION(".bss_padding");                                                 \
+  DECLARE_PADDING_SECTIONS;                                                    \
   extern int ia2_n_pkeys_to_alloc;                                             \
   __attribute__((constructor)) static void init_pkey_ctor() {                  \
     ensure_pkeys_allocated(&ia2_n_pkeys_to_alloc);                             \

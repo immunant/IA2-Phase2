@@ -5,7 +5,14 @@ RUN: cat %t.h | sed 's/^.*CHECK.*$//' | FileCheck %s
 RUN: %binary_dir/tests/two_keys_minimal/two_keys_minimal-main plugin | diff %binary_dir/tests/two_keys_minimal/plugin.out -
 RUN: %binary_dir/tests/two_keys_minimal/two_keys_minimal-main main | diff %binary_dir/tests/two_keys_minimal/main.out -
 TODO: %binary_dir/tests/two_keys_minimal/two_keys_minimal-main clean_exit | diff %source_dir/tests/two_keys_minimal/Output/clean_exit.out -
+RUN: readelf -lW %binary_dir/tests/two_keys_minimal/two_keys_minimal-main | FileCheck --check-prefix=SEGMENTS %s
+RUN: readelf -lW %binary_dir/tests/two_keys_minimal/libtwo_keys_minimal-original.so | FileCheck --check-prefix=SEGMENTS %s
 */
+
+// Check that readelf shows exactly one executable segment
+// SEGMENTS-COUNT-1: LOAD{{.*}}R E
+// SEGMENTS-NOT:     LOAD{{.*}}R E
+
 #pragma once
 #include <stdint.h>
 #include <stdbool.h>

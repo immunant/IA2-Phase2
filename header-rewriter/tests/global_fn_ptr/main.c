@@ -3,7 +3,7 @@
 
 uint32_t add(uint32_t x, uint32_t y) { return x + y; }
 uint16_t sub(uint16_t x, uint16_t y) { return x - y; }
-uint32_t mul(uint32_t x, uint32_t y) { return x - y; }
+uint32_t mul(uint32_t x, uint32_t y) { return x * y; }
 
 INIT_RUNTIME(1);
 INIT_COMPARTMENT(0);

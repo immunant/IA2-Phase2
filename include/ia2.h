@@ -18,7 +18,7 @@
 // flexible.
 #define UNIQUE_STR(s) s "_line_" XSTR(__LINE__)
 
-#define INIT_RUNTIME(n) _INIT_RUNTIME(n + 1)
+#define INIT_RUNTIME(n) _INIT_RUNTIME(n)
 #ifdef LIBIA2_INSECURE
 #define INIT_COMPARTMENT(n) DECLARE_PADDING_SECTIONS
 #define IA2_WRPKRU
@@ -114,7 +114,7 @@ void ensure_pkeys_allocated(int *n_to_alloc) {
   __attribute__((constructor)) static void init_pkey_ctor() {                  \
     ensure_pkeys_allocated(&ia2_n_pkeys_to_alloc);                             \
     struct PhdrSearchArgs args = {                                             \
-        .pkey = n + 1,                                                         \
+        .pkey = n,                                                             \
         .address = &init_pkey_ctor,                                            \
     };                                                                         \
     dl_iterate_phdr(protect_pages, &args);                                     \
@@ -125,22 +125,22 @@ void ensure_pkeys_allocated(int *n_to_alloc) {
 // pkey is 0 and everything else increases by 1.
 #define STACK(n) _STACK(n)
 #define _STACK(n) STACK_##n
-#define STACK_UNTRUSTED "0"
-#define STACK_0 "8"
-#define STACK_1 "16"
-#define STACK_2 "24"
-#define STACK_3 "32"
-#define STACK_4 "40"
-#define STACK_5 "48"
-#define STACK_6 "56"
-#define STACK_7 "64"
-#define STACK_8 "72"
-#define STACK_9 "80"
-#define STACK_10 "88"
-#define STACK_11 "96"
-#define STACK_12 "104"
-#define STACK_13 "112"
-#define STACK_14 "120"
+#define STACK_0 "0"
+#define STACK_1 "8"
+#define STACK_2 "16"
+#define STACK_3 "24"
+#define STACK_4 "32"
+#define STACK_5 "40"
+#define STACK_6 "48"
+#define STACK_7 "56"
+#define STACK_8 "64"
+#define STACK_9 "72"
+#define STACK_10 "80"
+#define STACK_11 "88"
+#define STACK_12 "96"
+#define STACK_13 "104"
+#define STACK_14 "112"
+#define STACK_15 "120"
 
 #define STACK_SIZE (4 * 1024 * 1024)
 
@@ -167,18 +167,18 @@ char *allocate_stack(int i) {
 #ifndef LIBIA2_INSECURE
 #define _INIT_RUNTIME(n)                                                       \
   int ia2_n_pkeys_to_alloc = n;                                                \
-  char *ia2_stackptrs[n] IA2_SHARED_DATA;                                      \
+  char *ia2_stackptrs[n + 1] IA2_SHARED_DATA;                                  \
   __attribute__((constructor)) static void init_stacks() {                     \
     ensure_pkeys_allocated(&ia2_n_pkeys_to_alloc);                             \
-    for (int i = 0; i < n; i++) {                                              \
+    for (int i = 0; i < n + 1; i++) {                                          \
       ia2_stackptrs[i] = allocate_stack(i);                                    \
     }                                                                          \
   }
 #else
 #define _INIT_RUNTIME(n)                                                       \
-  char *ia2_stackptrs[n];                                                      \
+  char *ia2_stackptrs[n + 1];                                                  \
   __attribute__((constructor)) static void init_stacks() {                     \
-    for (int i = 0; i < n; i++) {                                              \
+    for (int i = 0; i < n + 1; i++) {                                          \
       ia2_stackptrs[i] = allocate_stack(i);                                    \
     }                                                                          \
   }

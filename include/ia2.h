@@ -27,6 +27,16 @@
 #define IA2_WRPKRU "wrpkru"
 #endif
 
+asm(".macro mov_pkru_eax pkey\n"
+    ".byte 0xb8\n"
+    ".long ~((3 << (2 * \\pkey)) | 3)\n"
+    ".endm");
+
+asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
+    ".byte 0xb8\n"
+    ".long ~((3 << (2 * \\pkey0)) | (3 << (2 * \\pkey1)) | 3)\n"
+    ".endm");
+
 #define PKRU(n) _PKRU(n)
 #define _PKRU(n) PKRU_##n
 // On linux protection key 0 is the default for anything not covered by

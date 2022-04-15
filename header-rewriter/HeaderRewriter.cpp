@@ -278,8 +278,8 @@ public:
       auto cAbiSig = determineAbiForDecl(*fn_decl);
       std::string asm_wrapper;
       if (CompartmentPkey.getNumOccurrences() == 0) {
-        asm_wrapper = emit_asm_wrapper(cAbiSig, fn_name, WrapperKind::Direct,
-                                       "UNTRUSTED"s);
+        asm_wrapper =
+            emit_asm_wrapper(cAbiSig, fn_name, WrapperKind::Direct, "0"s);
       } else {
         asm_wrapper = emit_asm_wrapper(cAbiSig, fn_name, WrapperKind::Direct,
                                        std::to_string(CompartmentPkey));

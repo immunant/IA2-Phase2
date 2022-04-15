@@ -183,35 +183,36 @@ static void emit_reg_pop(AsmWriter &aw, const ParamLocation &loc) {
   }
 }
 
-// Emit code to set the PKRU. Clobbers eax, ecx and edx.
-// \p pkru_value is a std::string of an assembly literal without a $ prefix.
-static void emit_wrpkru(AsmWriter &aw, const std::string &pkru_value) {
-  // wrpkru requires zeroing ecx and edx
-  add_asm_line(aw, "xorl %ecx, %ecx");
-  add_asm_line(aw, "xorl %edx, %edx");
-  add_raw_line(aw, llvm::formatv("\"movl ${0}, %eax\\n\"", pkru_value));
-  add_raw_line(aw, "IA2_WRPKRU \"\\n\"");
-}
-
-// Convert a string holding a pkey index name to a pkru value (as an assembly
-// literal without $ prefix).
-static std::string pkru_value_for_idx(const std::string &pkey_idx) {
-  return llvm::formatv("\" PKRU({0}) \"", pkey_idx);
-}
-
-// Emit code to set the PKRU. Clobbers eax, ecx and edx.
-// \p pkru_value is a std::string of a pkru index name (i.e., a valid argument
-// to the `PKRU` macro from ia2.h.
-static void emit_wrpkru_idx(AsmWriter &aw, const std::string &pkey_idx) {
-  emit_wrpkru(aw, pkru_value_for_idx(pkey_idx));
-}
-
 // Adapt a macro parameter (for indirect calls) or a macro into a context
 // suitable for interpolation into the string literals for asm(), expanding it
 // in the process. This involves closing/reopening the asm string and
 // stringifying the macro.
 static std::string asm_macro_expansion(const std::string &macro) {
   return llvm::formatv("\" XSTR({0}) \"", macro);
+}
+
+// Emit code to set the PKRU. Clobbers eax, ecx and edx.
+// \p pkey is a std::string of an assembly literal without a $ prefix.
+static void emit_wrpkru(AsmWriter &aw, const std::string &pkey) {
+  // wrpkru requires zeroing ecx and edx
+  add_asm_line(aw, "xorl %ecx, %ecx");
+  add_asm_line(aw, "xorl %edx, %edx");
+  add_asm_line(aw,
+               llvm::formatv("mov_pkru_eax {0}", asm_macro_expansion(pkey)));
+  add_raw_line(aw, "IA2_WRPKRU \"\\n\"");
+}
+
+// Emit code to set the PKRU. Clobbers eax, ecx and edx.
+// \p pkey is a std::string of an assembly literal without a $ prefix.
+static void emit_mixed_wrpkru(AsmWriter &aw, const std::string &pkey0,
+                              const std::string &pkey1) {
+  // wrpkru requires zeroing ecx and edx
+  add_asm_line(aw, "xorl %ecx, %ecx");
+  add_asm_line(aw, "xorl %edx, %edx");
+  add_asm_line(aw, llvm::formatv("mov_mixed_pkru_eax {0}, {1}",
+                                 asm_macro_expansion(pkey0),
+                                 asm_macro_expansion(pkey1)));
+  add_raw_line(aw, "IA2_WRPKRU \"\\n\"");
 }
 
 static void append_arg_kinds(std::stringstream &ss,
@@ -355,23 +356,6 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     add_asm_line(aw, "__ia2_"s + name + ":");
   }
 
-  // Define the intermediate PKRU value. We need a PKRU that can access both
-  // caller and target compartment to be able to move data between compartment
-  // stacks.
-  add_comment_line(aw, "define intermediate PKRU:");
-  // The PKRU macro accepts UNTRUSTED because PKEY_UNTRUSTED is defined; we have
-  // to support it too, so treat it as index -1.
-  add_asm_line(aw, ".set UNTRUSTED, -1");
-
-  // Define MIXED_PKRU as the integer PKRU value combining the caller and target
-  // pkeys. The pkeys are given as macros or macro parameters, so they must be
-  // expanded explicitly here as they are not simply passed to the STACK macro.
-  add_asm_line(
-      aw,
-      llvm::formatv(
-          ".set MIXED_PKRU, ~((3 << (2 + 2 * {0})) | (3 << (2 + 2 * {1})) | 3)",
-          asm_macro_expansion(caller_pkey), asm_macro_expansion(target_pkey)));
-
   // Save registers that are preserved across function calls before switching to
   // the other compartment's stack. This is on the caller's stack so it's not in
   // the diagram above.
@@ -433,7 +417,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   // and r11 as scratch registers
   add_asm_line(aw, "movq %rcx, %r10");
   add_asm_line(aw, "movq %rdx, %r11");
-  emit_wrpkru(aw, "MIXED_PKRU");
+  emit_mixed_wrpkru(aw, caller_pkey, target_pkey);
   add_asm_line(aw, "movq %r10, %rcx");
   add_asm_line(aw, "movq %r11, %rdx");
 
@@ -499,7 +483,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   // and r11 as scratch registers
   add_asm_line(aw, "movq %rcx, %r10");
   add_asm_line(aw, "movq %rdx, %r11");
-  emit_wrpkru_idx(aw, target_pkey);
+  emit_wrpkru(aw, target_pkey);
   add_asm_line(aw, "movq %r10, %rcx");
   add_asm_line(aw, "movq %r11, %rdx");
 
@@ -532,7 +516,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   add_asm_line(aw, "movq %rdx, %r11");
   // Change pkru to the intermediate value. This uses rax, r10 and r11 as
   // scratch registers.
-  emit_wrpkru(aw, "MIXED_PKRU");
+  emit_mixed_wrpkru(aw, caller_pkey, target_pkey);
 
   // Free stack space used for stack args on the target stack
   if (stack_arg_size > 0) {
@@ -567,7 +551,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
 
   // Once again use r10 and r11 as scratch registers
   add_comment_line(aw, "Set PKRU to the caller's value");
-  emit_wrpkru_idx(aw, caller_pkey);
+  emit_wrpkru(aw, caller_pkey);
   add_asm_line(aw, "movq %r10, %rax");
   add_asm_line(aw, "movq %r11, %rdx");
 

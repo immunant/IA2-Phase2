@@ -142,6 +142,81 @@ static bool skip_fn_decls(llvm::StringRef header_name) {
                       }) != SharedHeaders.end();
 }
 
+struct FunctionWrapper {
+  std::string name;
+  std::string definition;
+
+  FunctionWrapper(const clang::FunctionDecl *fn_decl) {
+    auto fn_name = fn_decl->getNameInfo().getAsString();
+
+    auto ret_type = fn_decl->getReturnType();
+    if (ret_type->isFunctionPointerType()) {
+      auto &sm = fn_decl->getASTContext().getSourceManager();
+      llvm::errs() << "Function that returns a non-typedefed function pointer"
+                      " is not supported, location:"
+                   << fn_decl->getSourceRange().printToString(sm) << "\n";
+    }
+
+    std::string param_decls;
+    std::string param_names;
+
+    for (auto &p : fn_decl->parameters()) {
+      if (!param_names.empty()) {
+        param_decls.append(", ");
+        param_names.append(", ");
+      }
+      auto name = p->getNameAsString();
+      if (name.empty()) {
+        auto n = &p - fn_decl->param_begin();
+        name = llvm::formatv("__ia2_arg_{0}", n);
+      }
+
+      auto param_type = p->getOriginalType();
+      if (param_type->isFunctionPointerType()) {
+        // Parameter is a function pointer, so we need to rewrite it
+        // into the internal mangled structure type
+        auto mangled_type = mangle_type(fn_decl->getASTContext(), param_type);
+        auto param_decl =
+            llvm::formatv("{0}{1} {2}", kFnPtrTypePrefix, mangled_type, name);
+        param_decls.append(param_decl);
+      } else {
+        auto param_type_string = type_string_with_placeholder(param_type);
+        param_decls.append(replace_type_placeholder(param_type_string, name));
+      }
+      param_names.append(name);
+    }
+
+    auto ret_type_string = type_string_with_placeholder(ret_type);
+    std::string ret_val;
+    auto ret_stmt = "";
+    if (!ret_type.isCForbiddenLValueType()) {
+      auto ret_var = replace_type_placeholder(ret_type_string, "res");
+      ret_val = ret_var + " = ";
+      ret_stmt = "    return res;\n";
+    }
+
+    auto cAbiSig = determineAbiForDecl(*fn_decl);
+    std::string asm_wrapper;
+    if (CompartmentPkey.getNumOccurrences() == 0) {
+      asm_wrapper =
+          emit_asm_wrapper(cAbiSig, fn_name, WrapperKind::Direct, "0"s);
+    } else {
+      asm_wrapper = emit_asm_wrapper(cAbiSig, fn_name, WrapperKind::Direct,
+                                     std::to_string(CompartmentPkey));
+    }
+
+    // Generate wrapper symbol definition, invoking call gates around call
+    this->name = "__ia2_" + fn_name;
+    this->definition = llvm::formatv(
+        "// {0}({1});\n"
+        "asm(\n"
+        "{2}\n"
+        ");\n\n",
+        replace_type_placeholder(ret_type_string, this->name), param_decls,
+        asm_wrapper);
+  }
+};
+
 class FnDecl : public RefactoringCallback {
 public:
   FnDecl(llvm::raw_ostream &WrapperOut, llvm::raw_ostream &SymsOut,
@@ -228,73 +303,14 @@ public:
         return;
       }
 
-      auto wrapper_name = "__ia2_" + fn_name;
-      auto ret_type = fn_decl->getReturnType();
-      if (ret_type->isFunctionPointerType()) {
-        auto &sm = fn_decl->getASTContext().getSourceManager();
-        llvm::errs() << "Function that returns a non-typedefed function pointer"
-                        " is not supported, location:"
-                     << fn_decl->getSourceRange().printToString(sm) << "\n";
-      }
+      // Define the wrapper for this function
+      FunctionWrapper wrapper(fn_decl);
 
-      std::string param_decls;
-      std::string param_names;
+      // Add the wrapper function definition to the wrapper file
+      WrapperOut << wrapper.definition;
 
-      for (auto &p : fn_decl->parameters()) {
-        if (!param_names.empty()) {
-          param_decls.append(", ");
-          param_names.append(", ");
-        }
-        auto name = p->getNameAsString();
-        if (name.empty()) {
-          auto n = &p - fn_decl->param_begin();
-          name = llvm::formatv("__ia2_arg_{0}", n);
-        }
-
-        auto param_type = p->getOriginalType();
-        if (param_type->isFunctionPointerType()) {
-          // Parameter is a function pointer, so we need to rewrite it
-          // into the internal mangled structure type
-          auto mangled_type = mangle_type(fn_decl->getASTContext(), param_type);
-          auto param_decl =
-              llvm::formatv("{0}{1} {2}", kFnPtrTypePrefix, mangled_type, name);
-          param_decls.append(param_decl);
-        } else {
-          auto param_type_string = type_string_with_placeholder(param_type);
-          param_decls.append(replace_type_placeholder(param_type_string, name));
-        }
-        param_names.append(name);
-      }
-
-      auto ret_type_string = type_string_with_placeholder(ret_type);
-      std::string ret_val;
-      auto ret_stmt = "";
-      if (!ret_type.isCForbiddenLValueType()) {
-        auto ret_var = replace_type_placeholder(ret_type_string, "res");
-        ret_val = ret_var + " = ";
-        ret_stmt = "    return res;\n";
-      }
-
-      auto cAbiSig = determineAbiForDecl(*fn_decl);
-      std::string asm_wrapper;
-      if (CompartmentPkey.getNumOccurrences() == 0) {
-        asm_wrapper =
-            emit_asm_wrapper(cAbiSig, fn_name, WrapperKind::Direct, "0"s);
-      } else {
-        asm_wrapper = emit_asm_wrapper(cAbiSig, fn_name, WrapperKind::Direct,
-                                       std::to_string(CompartmentPkey));
-      }
-
-      // Generate wrapper symbol definition, invoking call gates around call
-      WrapperOut << llvm::formatv(
-          "// {0}({1});\n"
-          "asm(\n"
-          "{2}\n"
-          ");\n\n",
-          replace_type_placeholder(ret_type_string, wrapper_name), param_decls,
-          asm_wrapper);
-
-      SymsOut << "    " << wrapper_name << ";\n";
+      // Add the wrapper to the list of symbols to redirect
+      SymsOut << "    " << wrapper.name << ";\n";
     }
   }
 

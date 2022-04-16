@@ -242,20 +242,6 @@ public:
       return;
     }
 
-    // Get a reference to the header file so we can (later) ensure we process it
-    // only once
-    auto header_ref_result =
-        Result.SourceManager->getFileManager().getFileRef(header_name);
-    if (auto err = header_ref_result.takeError()) {
-      llvm::errs() << "Error getting FileEntryRef for '" << header_name << "' ("
-                   << fn_decl->getLocation().printToString(
-                          *Result.SourceManager)
-                   << "): " << err << '\n';
-      return;
-    }
-    clang::FileEntryRef header_ref = *header_ref_result;
-    auto fn_name = fn_decl->getNameInfo().getAsString();
-
     // Calls to compiler builtins produce an inline declaration that should
     // not be wrapped; we also don't want to wrap explicit decls of builtins
     if (fn_decl->getBuiltinID() != 0) {
@@ -284,40 +270,59 @@ public:
 
     // This callback may find a fn decl multiple times so only wrap it the
     // first time it's encountered in an input header
-    if (!functionIsWrapped(fn_decl)) {
-      WrappedFunctions.push_back(mangle_name(fn_decl));
+    if (functionIsWrapped(fn_decl)) {
+      return;
+    }
 
-      // Add a header import once for this file
-      if (!isInitialized(header_ref)) {
-        if (addHeaderImport(header_name, OutputHeader)) {
-          return;
-        }
-        InitializedHeaders.push_back(header_ref);
-      }
+    // At this point we know we need to wrap this function
 
-      // Insert a symbol versioning attribute prior to the function's decl
-      // to redirect it to the wrapper
-      std::string wrapper_macro = "IA2_WRAP_FUNCTION(" + fn_name + ");\n";
-      clang::SourceLocation expansion_loc =
-          Result.SourceManager->getExpansionLoc(fn_decl->getBeginLoc());
-      Replacement decl_replacement{*Result.SourceManager, expansion_loc, 0,
-                                   wrapper_macro};
+    // Get a reference to the header file so we can ensure we add our headers to
+    // its imports only the first time we modify it
+    auto header_ref_result =
+        Result.SourceManager->getFileManager().getFileRef(header_name);
+    if (auto err = header_ref_result.takeError()) {
+      llvm::errs() << "Error getting FileEntryRef for '" << header_name << "' ("
+                   << fn_decl->getLocation().printToString(
+                          *Result.SourceManager)
+                   << "): " << err << '\n';
+      return;
+    }
+    clang::FileEntryRef header_ref = *header_ref_result;
 
-      auto err = FileReplacements[header_name].add(decl_replacement);
-      if (err) {
-        llvm::errs() << "Error adding replacement: " << err << '\n';
+    // Add our header imports to the header
+    if (!isInitialized(header_ref)) {
+      if (addHeaderImport(header_name, OutputHeader)) {
         return;
       }
-
-      // Define the wrapper for this function
-      FunctionWrapper wrapper(fn_decl);
-
-      // Add the wrapper function definition to the wrapper file
-      WrapperOut << wrapper.definition;
-
-      // Add the wrapper to the list of symbols to redirect
-      SymsOut << "    " << wrapper.name << ";\n";
+      InitializedHeaders.push_back(header_ref);
     }
+
+    // Insert a symbol versioning attribute prior to the function's decl
+    // to redirect it to the wrapper
+    auto fn_name = fn_decl->getNameInfo().getAsString();
+    std::string wrapper_macro = "IA2_WRAP_FUNCTION(" + fn_name + ");\n";
+    clang::SourceLocation expansion_loc =
+        Result.SourceManager->getExpansionLoc(fn_decl->getBeginLoc());
+    Replacement decl_replacement{*Result.SourceManager, expansion_loc, 0,
+                                 wrapper_macro};
+
+    auto err = FileReplacements[header_name].add(decl_replacement);
+    if (err) {
+      llvm::errs() << "Error adding replacement: " << err << '\n';
+      return;
+    }
+
+    // Generate a wrapper for this function
+    FunctionWrapper wrapper(fn_decl);
+
+    // Add the wrapper function definition to the wrapper file
+    WrapperOut << wrapper.definition;
+
+    // Add the wrapper to the list of symbols to redirect
+    SymsOut << "    " << wrapper.name << ";\n";
+
+    // Mark this function as wrapped
+    WrappedFunctions.push_back(mangle_name(fn_decl));
   }
 
 private:

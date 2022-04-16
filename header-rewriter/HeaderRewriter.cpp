@@ -60,6 +60,14 @@ static llvm::cl::list<std::string>
                   llvm::cl::desc("Headers which are only needed for types"),
                   llvm::cl::cat(HeaderRewriterCategory), llvm::cl::Optional);
 
+// Limit wrapped functions to those whose names are in the given file.
+static llvm::cl::opt<std::string> FunctionAllowlistFilename(
+    "function-allowlist",
+    llvm::cl::desc("File containing list of function names to wrap"),
+    llvm::cl::cat(HeaderRewriterCategory), llvm::cl::Optional);
+
+static std::vector<std::string> FunctionAllowlist;
+
 // Skip outputting a .c file with wrappers
 static llvm::cl::opt<bool> OmitWrappers(
     "omit-wrappers",
@@ -254,29 +262,30 @@ public:
       return;
     }
 
+    if (!functionShouldBeWrapped(fn_decl)) {
+      return;
+    }
+
     // If we're emitting wrappers, we should remove declarations of functions
     // present in the library that we would wrap but cannot presently. The only
     // remaining class of functions for which this holds is variadics; see:
     // https://github.com/immunant/IA2-Phase2/issues/18
-    if (!OmitWrappers) {
-      if (fn_decl->isVariadic()) {
-        // Make sure to include any macro expansions in the SourceRange being
-        // rewritten
-        clang::CharSourceRange expansion_range =
-            Result.SourceManager->getExpansionRange(fn_decl->getSourceRange());
-        Replacement decl_replacement{*Result.SourceManager, expansion_range,
-                                     ""};
+    if (fn_decl->isVariadic()) {
+      // Make sure to include any macro expansions in the SourceRange being
+      // rewritten
+      clang::CharSourceRange expansion_range =
+          Result.SourceManager->getExpansionRange(fn_decl->getSourceRange());
+      Replacement decl_replacement{*Result.SourceManager, expansion_range, ""};
 
-        auto err = FileReplacements[header_name].add(decl_replacement);
-        if (err) {
-          llvm::errs() << "Error adding replacement: " << err << '\n';
-          return;
-        } else {
-          llvm::errs() << "Warning: deleting variadic function "
-                       << fn_decl->getNameAsString() << '\n';
-        }
+      auto err = FileReplacements[header_name].add(decl_replacement);
+      if (err) {
+        llvm::errs() << "Error adding replacement: " << err << '\n';
         return;
+      } else {
+        llvm::errs() << "Warning: deleting variadic function "
+                     << fn_decl->getNameAsString() << '\n';
       }
+      return;
     }
 
     // This callback may find a fn decl multiple times so only wrap it the
@@ -345,6 +354,17 @@ private:
                         [&](const auto &wrapped) {
                           return wrapped.mangled_name == mangled;
                         }) != WrappedFunctions.end();
+  }
+
+  bool functionShouldBeWrapped(const clang::FunctionDecl *fn_decl) {
+    if (OmitWrappers) {
+      return false;
+    }
+    if (FunctionAllowlistFilename.empty()) {
+      return true;
+    }
+    return std::find(FunctionAllowlist.begin(), FunctionAllowlist.end(),
+                     fn_decl->getName().str()) != FunctionAllowlist.end();
   }
 
   bool isInitialized(clang::FileEntryRef InputHeader) {
@@ -615,6 +635,20 @@ int main(int argc, const char **argv) {
     }
     clang::FileEntryRef input_ref = *input_ref_result;
     input_files.push_back(input_ref);
+  }
+
+  // Load the allowlist of functions to wrap, if specified
+  if (!FunctionAllowlistFilename.empty()) {
+    std::ifstream allowlist_file(FunctionAllowlistFilename);
+    if (!allowlist_file) {
+      llvm::errs() << "Could not open specified function allowlist file "
+                   << FunctionAllowlistFilename << '\n';
+      return 1;
+    }
+    std::string func_name;
+    while (std::getline(allowlist_file, func_name)) {
+      FunctionAllowlist.push_back(func_name);
+    }
   }
 
   ASTMatchRefactorer refactorer(tool.getReplacements());

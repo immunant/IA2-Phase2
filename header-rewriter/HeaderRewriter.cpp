@@ -550,6 +550,28 @@ static std::string generate_output_header(
   return result;
 }
 
+static void
+emit_wrappers(llvm::raw_ostream &WrapperOut, llvm::raw_ostream &SymsOut,
+              const std::vector<FunctionWrapper> &WrappedFunctions) {
+  WrapperOut << "#include <ia2.h>\n"
+             << "#ifndef CALLER_PKEY\n"
+             << "#error CALLER_PKEY must be defined to compile this file\n"
+             << "#endif\n";
+
+  SymsOut << "IA2 {\n"
+          << "  global:\n";
+
+  for (const auto &wrapper : WrappedFunctions) {
+    // Add the wrapper function definition to the wrapper file
+    WrapperOut << wrapper.definition;
+
+    // Add the wrapper to the list of symbols to redirect
+    SymsOut << "    " << wrapper.name << ";\n";
+  }
+
+  SymsOut << "};\n";
+}
+
 int main(int argc, const char **argv) {
 #if LLVM_VERSION_MAJOR >= 13
   auto parser_ptr =
@@ -584,6 +606,16 @@ int main(int argc, const char **argv) {
     input_files.push_back(input_ref);
   }
 
+  ASTMatchRefactorer refactorer(tool.getReplacements());
+  FnPtrPrinter printer(tool.getReplacements());
+  FnDecl decl_replacement(tool.getReplacements());
+  refactorer.addMatcher(fn_decl_matcher, &decl_replacement);
+  refactorer.addMatcher(fn_ptr_param_matcher, &printer);
+  refactorer.addMatcher(fn_ptr_field_matcher, &printer);
+  refactorer.addMatcher(fn_ptr_typedef_matcher, &printer);
+
+  auto rc = tool.runAndSave(newFrontendActionFactory(&refactorer).get());
+
   std::error_code EC;
   llvm::raw_fd_ostream wrapper_out(WrapperOutputFilename, EC);
   if (EC) {
@@ -596,34 +628,8 @@ int main(int argc, const char **argv) {
     llvm::errs() << "Error opening output syms file: " << EC.message() << "\n";
     return EC.value();
   }
+  emit_wrappers(wrapper_out, syms_out, decl_replacement.wrapped_functions());
 
-  wrapper_out << "#include <ia2.h>\n"
-              << "#ifndef CALLER_PKEY\n"
-              << "#error CALLER_PKEY must be defined to compile this file\n"
-              << "#endif\n";
-
-  syms_out << "IA2 {\n"
-           << "  global:\n";
-
-  ASTMatchRefactorer refactorer(tool.getReplacements());
-  FnPtrPrinter printer(tool.getReplacements());
-  FnDecl decl_replacement(tool.getReplacements());
-  refactorer.addMatcher(fn_decl_matcher, &decl_replacement);
-  refactorer.addMatcher(fn_ptr_param_matcher, &printer);
-  refactorer.addMatcher(fn_ptr_field_matcher, &printer);
-  refactorer.addMatcher(fn_ptr_typedef_matcher, &printer);
-
-  auto rc = tool.runAndSave(newFrontendActionFactory(&refactorer).get());
-
-  for (const auto &wrapper : decl_replacement.wrapped_functions()) {
-    // Add the wrapper function definition to the wrapper file
-    wrapper_out << wrapper.definition;
-
-    // Add the wrapper to the list of symbols to redirect
-    syms_out << "    " << wrapper.name << ";\n";
-  }
-
-  syms_out << "};\n";
   if (rc != EXIT_SUCCESS) {
     return rc;
   }

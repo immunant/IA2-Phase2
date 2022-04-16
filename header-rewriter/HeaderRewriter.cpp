@@ -60,6 +60,12 @@ static llvm::cl::list<std::string>
                   llvm::cl::desc("Headers which are only needed for types"),
                   llvm::cl::cat(HeaderRewriterCategory), llvm::cl::Optional);
 
+// Skip outputting a .c file with wrappers
+static llvm::cl::opt<bool> OmitWrappers(
+    "omit-wrappers",
+    llvm::cl::desc("Do not emit a source file containing function wrappers"),
+    llvm::cl::cat(HeaderRewriterCategory), llvm::cl::Optional);
+
 // For types that have both a left and right side, this is what
 // we emit for the name between the two sides, e.g.,
 // int (*$$$IA2_PLACEHOLDER$$$)(int).
@@ -248,24 +254,29 @@ public:
       return;
     }
 
-    // Deleting variadic functions from the rewritten header for now
-    // See https://github.com/immunant/IA2-Phase2/issues/18
-    if (fn_decl->isVariadic()) {
-      // Make sure to include any macro expansions in the SourceRange being
-      // rewritten
-      clang::CharSourceRange expansion_range =
-          Result.SourceManager->getExpansionRange(fn_decl->getSourceRange());
-      Replacement decl_replacement{*Result.SourceManager, expansion_range, ""};
+    // If we're emitting wrappers, we should remove declarations of functions
+    // present in the library that we would wrap but cannot presently. The only
+    // remaining class of functions for which this holds is variadics; see:
+    // https://github.com/immunant/IA2-Phase2/issues/18
+    if (!OmitWrappers) {
+      if (fn_decl->isVariadic()) {
+        // Make sure to include any macro expansions in the SourceRange being
+        // rewritten
+        clang::CharSourceRange expansion_range =
+            Result.SourceManager->getExpansionRange(fn_decl->getSourceRange());
+        Replacement decl_replacement{*Result.SourceManager, expansion_range,
+                                     ""};
 
-      auto err = FileReplacements[header_name].add(decl_replacement);
-      if (err) {
-        llvm::errs() << "Error adding replacement: " << err << '\n';
+        auto err = FileReplacements[header_name].add(decl_replacement);
+        if (err) {
+          llvm::errs() << "Error adding replacement: " << err << '\n';
+          return;
+        } else {
+          llvm::errs() << "Warning: deleting variadic function "
+                       << fn_decl->getNameAsString() << '\n';
+        }
         return;
-      } else {
-        llvm::errs() << "Warning: deleting variadic function "
-                     << fn_decl->getNameAsString() << '\n';
       }
-      return;
     }
 
     // This callback may find a fn decl multiple times so only wrap it the
@@ -616,19 +627,22 @@ int main(int argc, const char **argv) {
 
   auto rc = tool.runAndSave(newFrontendActionFactory(&refactorer).get());
 
-  std::error_code EC;
-  llvm::raw_fd_ostream wrapper_out(WrapperOutputFilename, EC);
-  if (EC) {
-    llvm::errs() << "Error opening output wrapper file: " << EC.message()
-                 << "\n";
-    return EC.value();
+  if (!OmitWrappers) {
+    std::error_code EC;
+    llvm::raw_fd_ostream wrapper_out(WrapperOutputFilename, EC);
+    if (EC) {
+      llvm::errs() << "Error opening output wrapper file: " << EC.message()
+                   << "\n";
+      return EC.value();
+    }
+    llvm::raw_fd_ostream syms_out(WrapperOutputFilename + ".syms", EC);
+    if (EC) {
+      llvm::errs() << "Error opening output syms file: " << EC.message()
+                   << "\n";
+      return EC.value();
+    }
+    emit_wrappers(wrapper_out, syms_out, decl_replacement.wrapped_functions());
   }
-  llvm::raw_fd_ostream syms_out(WrapperOutputFilename + ".syms", EC);
-  if (EC) {
-    llvm::errs() << "Error opening output syms file: " << EC.message() << "\n";
-    return EC.value();
-  }
-  emit_wrappers(wrapper_out, syms_out, decl_replacement.wrapped_functions());
 
   if (rc != EXIT_SUCCESS) {
     return rc;

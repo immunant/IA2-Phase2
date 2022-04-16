@@ -538,6 +538,11 @@ int main(int argc, const char **argv) {
 #if LLVM_VERSION_MAJOR >= 13
   auto parser_ptr =
       CommonOptionsParser::create(argc, argv, HeaderRewriterCategory);
+  if (!parser_ptr) {
+    auto error = parser_ptr.takeError();
+    llvm::errs() << error;
+    return 1;
+  }
   CommonOptionsParser &options_parser = *parser_ptr;
 #else
   CommonOptionsParser options_parser(argc, argv, HeaderRewriterCategory);

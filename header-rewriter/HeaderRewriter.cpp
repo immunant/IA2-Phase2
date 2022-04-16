@@ -241,6 +241,9 @@ public:
         skip_fn_decls(header_name)) {
       return;
     }
+
+    // Get a reference to the header file so we can (later) ensure we process it
+    // only once
     auto header_ref_result =
         Result.SourceManager->getFileManager().getFileRef(header_name);
     if (auto err = header_ref_result.takeError()) {
@@ -284,6 +287,7 @@ public:
     if (!functionIsWrapped(fn_decl)) {
       WrappedFunctions.push_back(mangle_name(fn_decl));
 
+      // Add a header import once for this file
       if (!isInitialized(header_ref)) {
         if (addHeaderImport(header_name, OutputHeader)) {
           return;
@@ -291,6 +295,8 @@ public:
         InitializedHeaders.push_back(header_ref);
       }
 
+      // Insert a symbol versioning attribute prior to the function's decl
+      // to redirect it to the wrapper
       std::string wrapper_macro = "IA2_WRAP_FUNCTION(" + fn_name + ");\n";
       clang::SourceLocation expansion_loc =
           Result.SourceManager->getExpansionLoc(fn_decl->getBeginLoc());

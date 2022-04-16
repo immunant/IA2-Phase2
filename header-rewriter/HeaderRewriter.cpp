@@ -486,22 +486,14 @@ private:
   std::map<std::string, Replacements> &FileReplacements;
 };
 
-static int emit_output_header(const FnPtrPrinter &printer) {
-  if (OutputHeader.empty()) {
-    return EXIT_SUCCESS;
-  }
-
-  std::error_code err;
-  llvm::raw_fd_ostream os(OutputHeader, err, llvm::sys::fs::OF_Text);
-  if (err) {
-    llvm::errs() << "Error opening file " << OutputHeader << ": "
-                 << err.message() << '\n';
-    return EXIT_FAILURE;
-  }
+static std::string generate_output_header(
+    const std::map<std::string, FunctionInfo> &FunctionInfo) {
+  std::string result;
+  llvm::raw_string_ostream os{result};
 
   os << "#pragma once\n";
 
-  for (auto &p : printer.function_info()) {
+  for (auto &p : FunctionInfo) {
     auto &mangled_type = p.first;
     auto &fi = p.second;
 
@@ -547,7 +539,7 @@ static int emit_output_header(const FnPtrPrinter &printer) {
     os << wrapper_from_untrusted << "\n";
   }
 
-  return EXIT_SUCCESS;
+  return result;
 }
 
 int main(int argc, const char **argv) {
@@ -620,9 +612,17 @@ int main(int argc, const char **argv) {
     return rc;
   }
 
-  rc = emit_output_header(printer);
-  if (rc != EXIT_SUCCESS) {
-    return rc;
+  // Emit output header
+  if (!OutputHeader.empty()) {
+    std::error_code err;
+    llvm::raw_fd_ostream os(OutputHeader, err, llvm::sys::fs::OF_Text);
+    if (err) {
+      llvm::errs() << "Error opening file " << OutputHeader << ": "
+                   << err.message() << '\n';
+      return EXIT_FAILURE;
+    }
+
+    os << generate_output_header(printer.function_info());
   }
 
   return EXIT_SUCCESS;

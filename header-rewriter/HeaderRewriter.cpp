@@ -144,6 +144,7 @@ static bool skip_fn_decls(llvm::StringRef header_name) {
 
 struct FunctionWrapper {
   std::string name;
+  std::string mangled_name;
   std::string definition;
 
   FunctionWrapper(const clang::FunctionDecl *fn_decl) {
@@ -207,6 +208,7 @@ struct FunctionWrapper {
 
     // Generate wrapper symbol definition, invoking call gates around call
     this->name = "__ia2_" + fn_name;
+    this->mangled_name = mangle_name(fn_decl);
     this->definition = llvm::formatv(
         "// {0}({1});\n"
         "asm(\n"
@@ -219,10 +221,8 @@ struct FunctionWrapper {
 
 class FnDecl : public RefactoringCallback {
 public:
-  FnDecl(llvm::raw_ostream &WrapperOut, llvm::raw_ostream &SymsOut,
-         std::map<std::string, Replacements> &FileReplacements)
-      : WrapperOut(WrapperOut), SymsOut(SymsOut),
-        FileReplacements(FileReplacements) {}
+  FnDecl(std::map<std::string, Replacements> &FileReplacements)
+      : FileReplacements(FileReplacements) {}
 
   virtual void run(const MatchFinder::MatchResult &Result) {
     const clang::FunctionDecl *fn_decl =
@@ -313,30 +313,27 @@ public:
     }
 
     // Generate a wrapper for this function
-    FunctionWrapper wrapper(fn_decl);
+    WrappedFunctions.push_back(FunctionWrapper(fn_decl));
+  }
 
-    // Add the wrapper function definition to the wrapper file
-    WrapperOut << wrapper.definition;
-
-    // Add the wrapper to the list of symbols to redirect
-    SymsOut << "    " << wrapper.name << ";\n";
-
-    // Mark this function as wrapped
-    WrappedFunctions.push_back(mangle_name(fn_decl));
+public:
+  const std::vector<FunctionWrapper> &wrapped_functions() {
+    return WrappedFunctions;
   }
 
 private:
-  llvm::raw_ostream &WrapperOut;
-  llvm::raw_ostream &SymsOut;
   std::map<std::string, Replacements> &FileReplacements;
   // Headers that have included the IA2 header
   std::vector<clang::FileEntryRef> InitializedHeaders;
-  // The mangled names of all functions that have been wrapped so far.
-  std::vector<std::string> WrappedFunctions;
+  // The wrappers for functions that have been wrapped so far.
+  std::vector<FunctionWrapper> WrappedFunctions;
 
   bool functionIsWrapped(const clang::FunctionDecl *fn_decl) {
-    return std::find(WrappedFunctions.begin(), WrappedFunctions.end(),
-                     mangle_name(fn_decl)) != WrappedFunctions.end();
+    auto mangled = mangle_name(fn_decl);
+    return std::find_if(WrappedFunctions.begin(), WrappedFunctions.end(),
+                        [&](const auto &wrapped) {
+                          return wrapped.mangled_name == mangled;
+                        }) != WrappedFunctions.end();
   }
 
   bool isInitialized(clang::FileEntryRef InputHeader) {
@@ -610,13 +607,21 @@ int main(int argc, const char **argv) {
 
   ASTMatchRefactorer refactorer(tool.getReplacements());
   FnPtrPrinter printer(tool.getReplacements());
-  FnDecl decl_replacement(wrapper_out, syms_out, tool.getReplacements());
+  FnDecl decl_replacement(tool.getReplacements());
   refactorer.addMatcher(fn_decl_matcher, &decl_replacement);
   refactorer.addMatcher(fn_ptr_param_matcher, &printer);
   refactorer.addMatcher(fn_ptr_field_matcher, &printer);
   refactorer.addMatcher(fn_ptr_typedef_matcher, &printer);
 
   auto rc = tool.runAndSave(newFrontendActionFactory(&refactorer).get());
+
+  for (const auto &wrapper : decl_replacement.wrapped_functions()) {
+    // Add the wrapper function definition to the wrapper file
+    wrapper_out << wrapper.definition;
+
+    // Add the wrapper to the list of symbols to redirect
+    syms_out << "    " << wrapper.name << ";\n";
+  }
 
   syms_out << "};\n";
   if (rc != EXIT_SUCCESS) {

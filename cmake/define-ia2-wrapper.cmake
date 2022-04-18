@@ -40,7 +40,7 @@ function(define_ia2_wrapper)
     set(options USE_SYSTEM_HEADERS WRAP_MAIN)
     set(oneValueArgs WRAPPER WRAPPED_LIB OUTPUT_HEADER INCLUDE_DIR OUTPUT_DIR
         COMPARTMENT_PKEY CALLER_PKEY)
-    set(multiValueArgs HEADERS PRIVATE_HEADERS SHARED_HEADERS)
+    set(multiValueArgs HEADERS PRIVATE_HEADERS SHARED_HEADERS EXTRA_REWRITER_ARGS)
     cmake_parse_arguments(DEFINE_IA2_WRAPPER "${options}" "${oneValueArgs}"
                           "${multiValueArgs}" ${ARGN} )
 
@@ -62,6 +62,7 @@ function(define_ia2_wrapper)
     endif()
     set(HEADERS ${DEFINE_IA2_WRAPPER_HEADERS})
     set(PRIVATE_HEADERS ${DEFINE_IA2_WRAPPER_PRIVATE_HEADERS})
+    set(EXTRA_REWRITER_ARGS ${DEFINE_IA2_WRAPPER_EXTRA_REWRITER_ARGS})
     if(DEFINED DEFINE_IA2_WRAPPER_OUTPUT_HEADER)
         set(OUTPUT_HEADER ${DEFINE_IA2_WRAPPER_OUTPUT_HEADER})
     else()
@@ -155,6 +156,7 @@ function(define_ia2_wrapper)
         # Run the rewriter itself, mutating the headers
         COMMAND ia2-header-rewriter
           --output-header ${REWRITTEN_HEADER_DIR}/${OUTPUT_HEADER}
+          ${EXTRA_REWRITER_ARGS}
           ${SHARED_HEADERS}
           ${COMPARTMENT_PKEY_OPTION}
           ${CMAKE_CURRENT_BINARY_DIR}/${WRAPPER_SRC}

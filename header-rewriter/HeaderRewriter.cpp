@@ -306,7 +306,7 @@ public:
     }
     clang::FileEntryRef header_ref = *header_ref_result;
 
-    // Add our header imports to the header
+    // Add ia2.h and the output header to the header being rewritten
     if (!isInitialized(header_ref)) {
       if (addHeaderImport(header_name, OutputHeader)) {
         return;

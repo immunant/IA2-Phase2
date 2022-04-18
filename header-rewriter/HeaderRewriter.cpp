@@ -211,14 +211,11 @@ struct FunctionWrapper {
     }
 
     auto cAbiSig = determineAbiForDecl(*fn_decl);
-    std::string asm_wrapper;
-    if (CompartmentPkey.getNumOccurrences() == 0) {
-      asm_wrapper =
-          emit_asm_wrapper(cAbiSig, fn_name, WrapperKind::Direct, "0"s);
-    } else {
-      asm_wrapper = emit_asm_wrapper(cAbiSig, fn_name, WrapperKind::Direct,
-                                     std::to_string(CompartmentPkey));
-    }
+    // Default to 0 if --compartment-pkey is not passed
+    auto PkeyValue =
+        (CompartmentPkey.getNumOccurrences() == 0) ? 0 : CompartmentPkey;
+    std::string asm_wrapper = emit_asm_wrapper(
+        cAbiSig, fn_name, WrapperKind::Direct, std::to_string(PkeyValue));
 
     // Generate wrapper symbol definition, invoking call gates around call
     this->name = "__ia2_" + fn_name;

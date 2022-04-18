@@ -26,11 +26,13 @@
 #define IA2_WRPKRU "wrpkru"
 #endif
 
+// This emits the 5 bytes correponding to the movl $PKRU, %eax instruction
 asm(".macro mov_pkru_eax pkey\n"
     ".byte 0xb8\n"
     ".long ~((3 << (2 * \\pkey)) | 3)\n"
     ".endm");
 
+// This emits the 5 bytes correponding to the movl $PKRU, %eax instruction
 asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
     ".byte 0xb8\n"
     ".long ~((3 << (2 * \\pkey0)) | (3 << (2 * \\pkey1)) | 3)\n"

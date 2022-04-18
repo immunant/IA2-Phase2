@@ -25,6 +25,7 @@ add_dependencies(check check-ia2)
 set_target_properties(check PROPERTIES FOLDER "tests")
 
 add_subdirectory(ffmpeg)
+add_subdirectory(function_allowlist)
 add_subdirectory(header_includes)
 add_subdirectory(libusb)
 add_subdirectory(macro_attr)

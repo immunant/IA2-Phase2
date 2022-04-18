@@ -639,6 +639,16 @@ int main(int argc, const char **argv) {
 
   // Load the allowlist of functions to wrap, if specified
   if (!FunctionAllowlistFilename.empty()) {
+    // Forbid using --function-allowlist and --omit-wrappers together
+    if (OmitWrappers) {
+      llvm::errs()
+          << "--function-allowlist and --omit-wrappers flags may not be "
+             "specified together. The former indicates intent to wrap the "
+             "listed functions while the latter indicates intent to generate "
+             "no wrapper library at all.\n";
+      return 1;
+    }
+
     std::ifstream allowlist_file(FunctionAllowlistFilename);
     if (!allowlist_file) {
       llvm::errs() << "Could not open specified function allowlist file "

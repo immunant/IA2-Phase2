@@ -31,7 +31,7 @@ add_subdirectory(libusb)
 add_subdirectory(macro_attr)
 add_subdirectory(minimal)
 #add_subdirectory(namespaces)
-# omit_wrappers does not actually have compilable tests, just ones picked up by lit
+# We don't actually compile the `omit_wrappers` test, but it is picked up by LIT.
 add_subdirectory(shared_data)
 add_subdirectory(should_segfault)
 add_subdirectory(simple1)

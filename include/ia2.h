@@ -98,6 +98,7 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
 #define _INIT_COMPARTMENT(n)                                                   \
   DECLARE_PADDING_SECTIONS;                                                    \
   extern int ia2_n_pkeys_to_alloc;                                             \
+  void ensure_pkeys_allocated(int *n_to_alloc);                                \
   __attribute__((constructor)) static void init_pkey_ctor() {                  \
     ensure_pkeys_allocated(&ia2_n_pkeys_to_alloc);                             \
     struct PhdrSearchArgs args = {                                             \

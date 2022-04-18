@@ -8,7 +8,7 @@
 #include "simple1.h"
 
 INIT_RUNTIME(1);
-INIT_COMPARTMENT(0);
+INIT_COMPARTMENT(1);
 
 // libsimple1 checks if the function pointer is NULL. To initialize this to a
 // function defined in this binary, we'd need to use IA2_FNPTR_WRAPPER with an
@@ -42,8 +42,8 @@ int main() {
   // These will be called from untrusted code but may access trusted compartment
   // 0
   struct SimpleCallbacks scb = {
-      .read_cb = IA2_FNPTR_WRAPPER(main_read, _ZTSPFiiE, UNTRUSTED, 0),
-      .write_cb = IA2_FNPTR_WRAPPER(main_write, _ZTSPFviE, UNTRUSTED, 0),
+      .read_cb = IA2_FNPTR_WRAPPER(main_read, _ZTSPFiiE, 0, 1),
+      .write_cb = IA2_FNPTR_WRAPPER(main_write, _ZTSPFviE, 0, 1),
   };
 
   struct Simple *s = simple_new(scb);
@@ -55,9 +55,9 @@ int main() {
   srand(time(NULL));
   // These will be called from untrusted code but may access trusted compartment
   // 0
-  simple_foreach_v1(s, IA2_FNPTR_WRAPPER(main_map, _ZTSPFiiE, UNTRUSTED, 0));
+  simple_foreach_v1(s, IA2_FNPTR_WRAPPER(main_map, _ZTSPFiiE, 0, 1));
   simple_reset(s);
-  simple_foreach_v2(s, IA2_FNPTR_WRAPPER(main_map, _ZTSPFiiE, UNTRUSTED, 0));
+  simple_foreach_v2(s, IA2_FNPTR_WRAPPER(main_map, _ZTSPFiiE, 0, 1));
   simple_destroy(s);
 
   // We need to check if exit_hook_fn is NULL since IA2_FNPTR_UNWRAPPER always
@@ -68,7 +68,7 @@ int main() {
     // untrusted since libsimple1 sets the value of exit_hook_fn. If
     // exit_hook_fn were to point to a function defined in this binary, it must
     // be a wrapped function with an untrusted caller and callee with pkey 0.
-    IA2_FNPTR_UNWRAPPER(exit_hook_fn, _ZTSPFvvE, 0, UNTRUSTED)();
+    IA2_FNPTR_UNWRAPPER(exit_hook_fn, _ZTSPFvvE, 1, 0)();
   }
 
   return 0;

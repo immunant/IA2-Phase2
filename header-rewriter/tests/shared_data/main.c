@@ -4,7 +4,7 @@
 #include "access_shared.h"
 
 INIT_RUNTIME(1);
-INIT_COMPARTMENT(0);
+INIT_COMPARTMENT(1);
 
 uint8_t shared_val[4097] IA2_SHARED_DATA = { 0 };
 

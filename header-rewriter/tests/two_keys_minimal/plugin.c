@@ -3,7 +3,7 @@
 #include "exported_fn.h"
 #include "test_fault_handler.h"
 
-INIT_COMPARTMENT(1);
+INIT_COMPARTMENT(2);
 
 uint32_t plugin_secret = 0x78341244;
 

@@ -10,7 +10,7 @@
 */
 
 INIT_RUNTIME(1);
-INIT_COMPARTMENT(0);
+INIT_COMPARTMENT(1);
 
 #define check_close_float(name, val) { printf("%s(s) = %.4f (expected %.4f)\n", #name, name(s), val); }
 #define check_field_float(name, val) { printf("s.%s = %.4f (expected %.4f)\n", #name, s.name, val); }

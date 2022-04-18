@@ -4,10 +4,10 @@ define_ia2_wrapper(
     # libsimple1.so wraps function pointers so we need the macros from the
     # output header
     OUTPUT_HEADER
-    # simple1-main has pkey 0
-    COMPARTMENT_PKEY 0
-    # libsimple1.so has no pkey
-    CALLER_PKEY UNTRUSTED
+    # simple1-main has pkey 1
+    COMPARTMENT_PKEY 1
+    # libsimple1.so has pkey 0 (untrusted)
+    CALLER_PKEY 0
     HEADERS hooks.h
     # Where to find the input headers
     INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libsimple1
@@ -40,9 +40,9 @@ define_ia2_wrapper(
     # Put the output haeders in BIN_DIR/lib_shim since hooks.h it's function
     # declarations are not rewritten for this shim.
     OUTPUT_DIR lib_shim
-    # simple1-main has pkey 0
-    # COMPARTMENT_PKEY defaults to untrusted since libsimple1.so has no pkey
-    CALLER_PKEY 0
+    # simple1-main has pkey 1
+    # COMPARTMENT_PKEY defaults to 0 (untrusted) since libsimple1.so has no pkey
+    CALLER_PKEY 1
     # hooks.h also has the functions defined outside this compartment which we should
     # not generate wrappers for so we must blacklist it.
     HEADER_BLACKLIST hooks.h

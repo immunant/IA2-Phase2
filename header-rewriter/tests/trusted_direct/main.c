@@ -9,7 +9,7 @@
 // passed in. Otherwise the program exits cleanly.
 
 INIT_RUNTIME(1);
-INIT_COMPARTMENT(0);
+INIT_COMPARTMENT(1);
 
 uint32_t secret = 0x09431233;
 

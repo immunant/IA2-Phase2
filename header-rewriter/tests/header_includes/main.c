@@ -10,7 +10,7 @@ RUN: cat impl.h | sed 's/^.*CHECK.*$//' | FileCheck %S/include/impl.h
 #include <ia2.h>
 
 INIT_RUNTIME(1);
-INIT_COMPARTMENT(0);
+INIT_COMPARTMENT(1);
 
 int main() {
     Option x = Some(3);

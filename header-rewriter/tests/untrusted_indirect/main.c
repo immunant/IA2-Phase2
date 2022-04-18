@@ -4,7 +4,7 @@
 #include "untrusted_indirect-original_fn_ptr_ia2.h"
 
 INIT_RUNTIME(1);
-INIT_COMPARTMENT(0);
+INIT_COMPARTMENT(1);
 
 /*
     This program tests that a trusted binary can pass function pointers to an untrusted shared
@@ -57,10 +57,10 @@ int main(int argc, char **argv) {
     printf("TRUSTED: the secret is 0x%lx\n", secret);
     printf("0x%lx\n", apply_callback(1, 2));
 
-    register_callback(IA2_FNPTR_WRAPPER(pick_rhs, _ZTSPFmmmE, UNTRUSTED, 0));
+    register_callback(IA2_FNPTR_WRAPPER(pick_rhs, _ZTSPFmmmE, 0, 1));
     printf("0x%lx\n", apply_callback(3, 4));
 
-    register_callback(IA2_FNPTR_WRAPPER(leak_secret_address, _ZTSPFmmmE, UNTRUSTED, 0));
+    register_callback(IA2_FNPTR_WRAPPER(leak_secret_address, _ZTSPFmmmE, 0, 1));
     printf("TRUSTED: oops we leaked the address of the secret\n");
     apply_callback(5, 6);
 

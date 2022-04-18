@@ -3,7 +3,7 @@ define_ia2_wrapper(
     WRAPPER function_allowlist_wrapper
     WRAPPED_LIB function_allowlist_original
     HEADERS library.h
-    CALLER_PKEY 0
+    CALLER_PKEY 1
     EXTRA_REWRITER_ARGS --function-allowlist=library.h.fns
 )
 

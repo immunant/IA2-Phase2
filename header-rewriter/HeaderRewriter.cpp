@@ -121,9 +121,6 @@ static std::string mangle_type(clang::ASTContext &ctx, clang::QualType ty) {
   return os;
 }
 
-static DeclarationMatcher fn_decl_matcher =
-    functionDecl(unless(isDefinition())).bind("exportedFn");
-
 static std::string mangle_name(const clang::FunctionDecl *decl) {
   clang::ASTContext &ctx = decl->getASTContext();
   std::unique_ptr<clang::MangleContext> mctx{
@@ -232,8 +229,14 @@ struct FunctionWrapper {
 
 class FnDecl : public RefactoringCallback {
 public:
-  FnDecl(std::map<std::string, Replacements> &FileReplacements)
-      : FileReplacements(FileReplacements) {}
+  FnDecl(ASTMatchRefactorer &refactorer,
+         std::map<std::string, Replacements> &FileReplacements)
+      : FileReplacements(FileReplacements) {
+    // Bind to all function declarations
+    DeclarationMatcher fn_decl_matcher =
+        functionDecl(unless(isDefinition())).bind("exportedFn");
+    refactorer.addMatcher(fn_decl_matcher, this);
+  }
 
   virtual void run(const MatchFinder::MatchResult &Result) {
     const clang::FunctionDecl *fn_decl =
@@ -387,15 +390,6 @@ private:
   }
 };
 
-static TypeMatcher fn_ptr_matcher =
-    pointerType(pointee(ignoringParens(functionType())));
-static DeclarationMatcher fn_ptr_param_matcher =
-    parmVarDecl(hasType(fn_ptr_matcher)).bind("fnPtrParam");
-static DeclarationMatcher fn_ptr_field_matcher =
-    fieldDecl(hasType(fn_ptr_matcher)).bind("fnPtrField");
-static DeclarationMatcher fn_ptr_typedef_matcher =
-    typedefNameDecl(hasType(fn_ptr_matcher)).bind("fnPtrTypedef");
-
 struct FunctionInfo {
   // The new type for this function pointer
   std::string new_type;
@@ -412,8 +406,23 @@ struct FunctionInfo {
 
 class FnPtrPrinter : public RefactoringCallback {
 public:
-  FnPtrPrinter(std::map<std::string, Replacements> &FileReplacements)
-      : FileReplacements(FileReplacements) {}
+  FnPtrPrinter(ASTMatchRefactorer &refactorer,
+               std::map<std::string, Replacements> &FileReplacements)
+      : FileReplacements(FileReplacements) {
+    TypeMatcher fn_ptr_matcher =
+        pointerType(pointee(ignoringParens(functionType())));
+
+    // Bind to declarations of fn ptrs in parameters, fields, and typedefs
+    DeclarationMatcher fn_ptr_param_matcher =
+        parmVarDecl(hasType(fn_ptr_matcher)).bind("fnPtrParam");
+    DeclarationMatcher fn_ptr_field_matcher =
+        fieldDecl(hasType(fn_ptr_matcher)).bind("fnPtrField");
+    DeclarationMatcher fn_ptr_typedef_matcher =
+        typedefNameDecl(hasType(fn_ptr_matcher)).bind("fnPtrTypedef");
+    refactorer.addMatcher(fn_ptr_param_matcher, this);
+    refactorer.addMatcher(fn_ptr_field_matcher, this);
+    refactorer.addMatcher(fn_ptr_typedef_matcher, this);
+  }
   virtual void run(const MatchFinder::MatchResult &Result) {
     const clang::Decl *old_decl = nullptr;
     clang::QualType old_type;
@@ -659,12 +668,8 @@ int main(int argc, const char **argv) {
   }
 
   ASTMatchRefactorer refactorer(tool.getReplacements());
-  FnPtrPrinter printer(tool.getReplacements());
-  FnDecl decl_replacement(tool.getReplacements());
-  refactorer.addMatcher(fn_decl_matcher, &decl_replacement);
-  refactorer.addMatcher(fn_ptr_param_matcher, &printer);
-  refactorer.addMatcher(fn_ptr_field_matcher, &printer);
-  refactorer.addMatcher(fn_ptr_typedef_matcher, &printer);
+  FnPtrPrinter printer(refactorer, tool.getReplacements());
+  FnDecl decl_replacement(refactorer, tool.getReplacements());
 
   auto rc = tool.runAndSave(newFrontendActionFactory(&refactorer).get());
 

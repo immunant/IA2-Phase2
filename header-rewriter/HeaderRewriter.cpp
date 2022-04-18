@@ -1,8 +1,7 @@
 #include "DetermineAbi.h"
 #include "GenCallAsm.h"
+#include "TypeOps.h"
 #include "clang/AST/AST.h"
-#include "clang/AST/GlobalDecl.h"
-#include "clang/AST/Mangle.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "clang/ASTMatchers/ASTMatchers.h"
 #include "clang/Basic/FileManager.h"
@@ -73,67 +72,6 @@ static llvm::cl::opt<bool> OmitWrappers(
     "omit-wrappers",
     llvm::cl::desc("Do not emit a source file containing function wrappers"),
     llvm::cl::cat(HeaderRewriterCategory), llvm::cl::Optional);
-
-// For types that have both a left and right side, this is what
-// we emit for the name between the two sides, e.g.,
-// int (*$$$IA2_PLACEHOLDER$$$)(int).
-// We can replace this placeholder with any identifier to produce
-// a new variable with that same type.
-static const std::string kTypePlaceHolder = "$$$IA2_PLACEHOLDER$$$";
-
-// Prefix we prepend to each rewritten function pointer type
-static const std::string kFnPtrTypePrefix = "struct IA2_fnptr_";
-
-// Convert a QualType to a string.
-static std::string type_string(clang::QualType ty) {
-  std::string result;
-  llvm::raw_string_ostream os{result};
-  ty.print(os, clang::LangOptions());
-  return result;
-}
-
-// Convert a QualType to a string that contains kTypePlaceholder
-static std::string type_string_with_placeholder(clang::QualType ty) {
-  std::string result;
-  llvm::raw_string_ostream os{result};
-  ty.print(os, clang::LangOptions(), kTypePlaceHolder);
-  return result;
-}
-
-// Replace kTypePlaceholder in a string produced by
-// type_string_with_placeholder with an actual given name
-template <typename T>
-static std::string replace_type_placeholder(std::string s, const T &with) {
-  auto placeholder_pos = s.find(kTypePlaceHolder);
-  if (placeholder_pos != std::string::npos) {
-    s.replace(placeholder_pos, kTypePlaceHolder.size(), with);
-  }
-  return s;
-}
-
-static std::string mangle_type(clang::ASTContext &ctx, clang::QualType ty) {
-  std::unique_ptr<clang::MangleContext> mctx{
-      clang::ItaniumMangleContext::create(ctx, ctx.getDiagnostics())};
-
-  std::string os;
-  llvm::raw_string_ostream out{os};
-  mctx->mangleTypeName(ty.getCanonicalType(), out);
-  return os;
-}
-
-static std::string mangle_name(const clang::FunctionDecl *decl) {
-  clang::ASTContext &ctx = decl->getASTContext();
-  std::unique_ptr<clang::MangleContext> mctx{
-      clang::ItaniumMangleContext::create(ctx, ctx.getDiagnostics())};
-  std::string os;
-  llvm::raw_string_ostream out{os};
-#if CLANG_VERSION_MAJOR <= 10
-  mctx->mangleName(decl, out);
-#else
-  mctx->mangleName(clang::GlobalDecl(decl), out);
-#endif
-  return os;
-}
 
 static std::string get_expansion_filename(const clang::Decl *decl,
                                           const clang::SourceManager *sm) {

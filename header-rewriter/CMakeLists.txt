@@ -15,6 +15,7 @@ add_executable(ia2-header-rewriter
     DetermineAbi.cpp
     GenCallAsm.cpp
     HeaderRewriter.cpp
+    TypeOps.cpp
     )
 
 set_target_properties(ia2-header-rewriter PROPERTIES

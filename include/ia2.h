@@ -37,31 +37,6 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
     ".long ~((3 << (2 * \\pkey0)) | (3 << (2 * \\pkey1)) | 3)\n"
     ".endm");
 
-#define PKRU(n) _PKRU(n)
-#define _PKRU(n) PKRU_##n
-// On linux protection key 0 is the default for anything not covered by
-// pkey_mprotect so untrusted compartments have the lower 2 bits of PKRU cleared
-#define PKRU_UNTRUSTED "0xFFFFFFFC"
-// The PKRU value for protection key N has bits 2(N + 1) and 2(N + 1) + 1 clear
-// to allow read and write access to compartment N. The lowest two bits should
-// also be cleared since we should always have access to memory not covered by
-// pkey_mprotect.
-#define PKRU_0 "0xFFFFFFF0"
-#define PKRU_1 "0xFFFFFFCC"
-#define PKRU_2 "0xFFFFFF3C"
-#define PKRU_3 "0xFFFFFCFC"
-#define PKRU_4 "0xFFFFF3FC"
-#define PKRU_5 "0xFFFFCFFC"
-#define PKRU_6 "0xFFFF3FFC"
-#define PKRU_7 "0xFFFCFFFC"
-#define PKRU_8 "0xFFF3FFFC"
-#define PKRU_9 "0xFFCFFFFC"
-#define PKRU_10 "0xFF3FFFFC"
-#define PKRU_11 "0xFCFFFFFC"
-#define PKRU_12 "0xF3FFFFFC"
-#define PKRU_13 "0xCFFFFFFC"
-#define PKRU_14 "0x3FFFFFFC"
-
 #define IA2_WRAPPER(target, ty, caller_pkey, target_pkey)                      \
   __asm__(IA2_WRAPPER_##ty(target, caller_pkey, target_pkey));                 \
   extern struct IA2_fnptr_##ty##_inner_t __ia2_##target;

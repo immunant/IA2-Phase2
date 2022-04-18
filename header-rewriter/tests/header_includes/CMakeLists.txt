@@ -6,7 +6,7 @@ set(PRIVATE_HEADERS impl.h)
 define_ia2_wrapper(
     HEADERS ${PUBLIC_HEADERS}
     PRIVATE_HEADERS ${PRIVATE_HEADERS}
-    CALLER_PKEY 0
+    CALLER_PKEY 1
 )
 
 # Build the wrapped lib

@@ -3,7 +3,7 @@ define_ia2_wrapper(
     WRAPPER wrapper
     WRAPPED_LIB original
     HEADERS minimal.h
-    CALLER_PKEY 0
+    CALLER_PKEY 1
 )
 
 # Build the wrapped lib

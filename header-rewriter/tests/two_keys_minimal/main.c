@@ -6,7 +6,7 @@
 
 // This test uses two protection keys
 INIT_RUNTIME(2);
-INIT_COMPARTMENT(0);
+INIT_COMPARTMENT(1);
 
 uint32_t secret = 0x09431233;
 

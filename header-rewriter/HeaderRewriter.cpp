@@ -91,6 +91,23 @@ static bool skip_fn_decls(llvm::StringRef header_name) {
                       }) != SharedHeaders.end();
 }
 
+static bool
+replace_decl(const clang::Decl *decl, const std::string &replacement,
+             const clang::SourceManager *sm,
+             std::map<std::string, Replacements> &FileReplacements) {
+  std::string header_name = get_expansion_filename(decl, sm);
+  // Make sure to include any macro expansions in the SourceRange being replaced
+  clang::CharSourceRange expansion_range =
+      sm->getExpansionRange(decl->getSourceRange());
+  Replacement r{*sm, expansion_range, replacement};
+  auto err = FileReplacements[header_name].add(r);
+  if (err) {
+    llvm::errs() << "Error adding replacement: " << err << '\n';
+    return false;
+  }
+  return true;
+}
+
 struct FunctionWrapper {
   std::string name;
   std::string mangled_name;
@@ -209,15 +226,7 @@ public:
     // remaining class of functions for which this holds is variadics; see:
     // https://github.com/immunant/IA2-Phase2/issues/18
     if (fn_decl->isVariadic()) {
-      // Make sure to include any macro expansions in the SourceRange being
-      // rewritten
-      clang::CharSourceRange expansion_range =
-          Result.SourceManager->getExpansionRange(fn_decl->getSourceRange());
-      Replacement decl_replacement{*Result.SourceManager, expansion_range, ""};
-
-      auto err = FileReplacements[header_name].add(decl_replacement);
-      if (err) {
-        llvm::errs() << "Error adding replacement: " << err << '\n';
+      if (!replace_decl(fn_decl, "", Result.SourceManager, FileReplacements)) {
         return;
       } else {
         llvm::errs() << "Warning: deleting variadic function "
@@ -432,12 +441,9 @@ public:
         return;
       }
 
-      clang::CharSourceRange expansion_range =
-          Result.SourceManager->getExpansionRange(old_decl->getSourceRange());
-      Replacement r{*Result.SourceManager, expansion_range, new_decl};
-      auto err = FileReplacements[header_name].add(r);
-      if (err) {
-        llvm::errs() << "Error adding replacement: " << err << '\n';
+      // Replace the old decl with the new one
+      if (!replace_decl(old_decl, new_decl, Result.SourceManager,
+                        FileReplacements)) {
         return;
       }
 

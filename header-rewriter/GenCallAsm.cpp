@@ -547,14 +547,6 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     }
   }
 
-  // Once again use r10 and r11 as scratch registers
-  add_comment_line(aw, "Set PKRU to the caller's value");
-  add_asm_line(aw, "movq %rax, %r10");
-  add_asm_line(aw, "movq %rdx, %r11");
-  emit_wrpkru(aw, caller_pkey);
-  add_asm_line(aw, "movq %r10, %rax");
-  add_asm_line(aw, "movq %r11, %rdx");
-
   // Switch back to the caller's stack
   add_comment_line(aw, "Switch back to the caller's stack");
   add_asm_line(aw, "movq ia2_stackptrs@GOTPCREL(%rip), %rsp");
@@ -576,6 +568,14 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   // FIXME: If this will use the System V ABI make sure that the %rsp is aligned
   // before this call
   add_asm_line(aw, "call __libia2_scrub_registers");
+
+  // Once again use r10 and r11 as scratch registers
+  add_comment_line(aw, "Set PKRU to the caller's value");
+  add_asm_line(aw, "movq %rax, %r10");
+  add_asm_line(aw, "movq %rdx, %r11");
+  emit_wrpkru(aw, caller_pkey);
+  add_asm_line(aw, "movq %r10, %rax");
+  add_asm_line(aw, "movq %r11, %rdx");
 
   // pop return regs
   add_comment_line(aw, "Pop return regs");

@@ -13,7 +13,7 @@
 #define CHECK_VIOLATION(expr)                                                  \
   ({                                                                           \
     expect_fault = true;                                                       \
-    asm volatile("": : :"memory");                                             \
+    asm volatile("" : : : "memory");                                           \
     volatile typeof(expr) _tmp = expr;                                         \
     printf("CHECK_VIOLATION: did not seg fault as expected\n");                \
     exit(0);                                                                   \
@@ -26,19 +26,38 @@
 // header included in ia2.h).
 bool expect_fault __attribute__((section("ia2_shared_data"))) = false;
 
-// The test output should be checked to see that the segfault occurred at the
-// expected place.
+// Create a stack for the signal handler to use
+char sighandler_stack[4 * 1024] __attribute__((section("ia2_shared_data")))
+__attribute__((aligned(16))) = {0};
+char *sighandler_sp = &sighandler_stack[(4 * 1024) - 8];
+
 // This function must be declared naked because it's not necessarily safe for it
 // to write to the stack in its prelude (the stack isn't written to when the
 // function itself is called because it's only invoked as a signal handler).
 __attribute__((naked)) void handle_segfault(int sig) {
-  if (sig == SIGSEGV) {
+  // This asm must preserve %rdi which contains the argument since
+  // print_mpk_message reads it
+  __asm__(
+  // Signal handlers are defined in the main binary, but they don't run with the
+  // same pkru state as the interrupted context. This means we have to remove
+  // all MPK restrictions to ensure can run it correctly.
 #ifndef LIBIA2_INSECURE
-    // The installed handler is in the main binary, but signal handlers
-    // don't run with the same pkru state as the interrupted context so
-    // remove all MPK restrictions to ensure we can access the main binary.
-    __asm__("wrpkru" ::"a"(0), "c"(0), "d"(0));
+      "xorl %ecx, %ecx\n"
+      "xorl %edx, %edx\n"
+      "xorl %eax, %eax\n"
+      "wrpkru\n"
 #endif
+      // Switch the stack to a shared buffer. There's only one u32 argument and
+      // no returns so we don't need a full wrapper here.
+      "movq sighandler_sp@GOTPCREL(%rip), %rsp\n"
+      "movq (%rsp), %rsp\n"
+      "callq print_mpk_message");
+}
+
+// The test output should be checked to see that the segfault occurred at the
+// expected place.
+void print_mpk_message(int sig) {
+  if (sig == SIGSEGV) {
     // Write directly to stdout since printf is not async-signal-safe
     const char *ok_msg = "CHECK_VIOLATION: seg faulted as expected\n";
     const char *early_fault_msg = "CHECK_VIOLATION: unexpected seg fault\n";

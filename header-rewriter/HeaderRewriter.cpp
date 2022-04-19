@@ -351,6 +351,11 @@ struct FunctionInfo {
   CAbiSignature sig;
 };
 
+static std::string append_name_if_nonempty(const std::string &new_type,
+                                           const std::string &name) {
+  return new_type + (name.empty() ? "" : " ") + name;
+};
+
 class FnPtrPrinter : public RefactoringCallback {
 public:
   FnPtrPrinter(ASTMatchRefactorer &refactorer,
@@ -374,52 +379,43 @@ public:
     const clang::Decl *old_decl = nullptr;
     clang::QualType old_type;
     std::string mangled_type;
-    std::string new_type = kFnPtrTypePrefix;
-    std::string new_decl;
+    std::function<std::string(std::string &, std::string &)> generate_decl;
+    // Depending on which matcher hit, determine what the fn ptr type is and how
+    // to make a new, wrapped declaration of the same kind from it
     if (auto *parm_var_decl =
             Result.Nodes.getNodeAs<clang::ParmVarDecl>("fnPtrParam")) {
       old_decl = llvm::cast<clang::Decl>(parm_var_decl);
       old_type = parm_var_decl->getOriginalType();
-      mangled_type = mangle_type(old_decl->getASTContext(), old_type);
-
-      new_type += mangled_type;
-      new_decl = new_type;
-      if (!parm_var_decl->getName().empty()) {
-        new_decl += ' ';
-        new_decl += parm_var_decl->getName().str();
-      }
+      generate_decl = append_name_if_nonempty;
     } else if (auto *field_decl =
                    Result.Nodes.getNodeAs<clang::FieldDecl>("fnPtrField")) {
       old_decl = llvm::cast<clang::Decl>(field_decl);
       old_type = field_decl->getType();
-      mangled_type = mangle_type(old_decl->getASTContext(), old_type);
-
-      new_type += mangled_type;
-      new_decl = new_type;
-      if (!field_decl->getName().empty()) {
-        new_decl += ' ';
-        new_decl += field_decl->getName().str();
-      }
+      generate_decl = append_name_if_nonempty;
     } else if (auto *typedef_decl =
                    Result.Nodes.getNodeAs<clang::TypedefDecl>("fnPtrTypedef")) {
       old_decl = llvm::cast<clang::Decl>(typedef_decl);
       old_type = typedef_decl->getUnderlyingType();
-      mangled_type = mangle_type(old_decl->getASTContext(), old_type);
-
-      new_type += mangled_type;
-      new_decl = "typedef " + new_type + ' ' + typedef_decl->getName().str();
+      generate_decl = [](const auto &new_type, const auto &name) {
+        return "typedef "s + new_type + ' ' + name;
+      };
     } else if (auto *type_alias_decl =
                    Result.Nodes.getNodeAs<clang::TypeAliasDecl>(
                        "fnPtrTypedef")) {
       old_decl = llvm::cast<clang::Decl>(type_alias_decl);
       old_type = typedef_decl->getUnderlyingType();
-      mangled_type = mangle_type(old_decl->getASTContext(), old_type);
-
-      new_type += mangled_type;
-      new_decl = "using " + typedef_decl->getName().str() + " = " + new_type;
+      generate_decl = [](const auto &new_type, const auto &name) {
+        return "using "s + name + " = " + new_type;
+      };
     }
 
     if (old_decl != nullptr) {
+      mangled_type = mangle_type(old_decl->getASTContext(), old_type);
+      std::string new_type = kFnPtrTypePrefix + mangled_type;
+      std::string name =
+          llvm::cast<clang::NamedDecl>(old_decl)->getName().str();
+      std::string new_decl = generate_decl(new_type, name);
+
       std::string header_name =
           get_expansion_filename(old_decl, Result.SourceManager);
       if (llvm::StringRef(header_name).startswith("/usr/")) {

@@ -1,18 +1,12 @@
-#include "DetermineAbi.h"
-#include "GenCallAsm.h"
+#include "RewriteHeaders.h"
 #include "TypeOps.h"
 #include "clang/AST/AST.h"
-#include "clang/ASTMatchers/ASTMatchFinder.h"
-#include "clang/ASTMatchers/ASTMatchers.h"
 #include "clang/Basic/FileManager.h"
-#include "clang/Basic/SourceManager.h"
 #include "clang/Frontend/FrontendActions.h"
 #include "clang/Tooling/CommonOptionsParser.h"
 #include "clang/Tooling/Refactoring.h"
-#include "clang/Tooling/RefactoringCallbacks.h"
 #include "clang/Tooling/Tooling.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/FormatVariadic.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 #include <fstream>
@@ -27,9 +21,10 @@ using namespace std::string_literals;
 static llvm::cl::OptionCategory
     HeaderRewriterCategory("Header rewriter options");
 
-static llvm::cl::opt<std::string>
-    OutputHeader("output-header", llvm::cl::desc("Output header file"),
-                 llvm::cl::cat(HeaderRewriterCategory), llvm::cl::Optional);
+llvm::cl::opt<std::string> OutputHeader("output-header",
+                                        llvm::cl::desc("Output header file"),
+                                        llvm::cl::cat(HeaderRewriterCategory),
+                                        llvm::cl::Optional);
 
 // CommonOptionsParser declares HelpMessage with a description of the common
 // command-line options related to the compilation database and input files.
@@ -45,7 +40,7 @@ static llvm::cl::opt<std::string>
                           llvm::cl::desc("<wrapper output filename>"));
 
 // Specifies the compartment's protection key index, if any.
-static llvm::cl::opt<uint32_t>
+llvm::cl::opt<uint32_t>
     CompartmentPkey("compartment-pkey",
                     llvm::cl::desc("The compartment's protection key index"),
                     llvm::cl::cat(HeaderRewriterCategory), llvm::cl::Optional);
@@ -54,21 +49,21 @@ static llvm::cl::opt<uint32_t>
 // compartments. If a shared header declares functions that do not belong to the
 // compartment we are generating a wrapper for, it must be marked as shared to
 // avoid adding incorrect .symver statements.
-static llvm::cl::list<std::string>
+llvm::cl::list<std::string>
     SharedHeaders("shared-headers",
                   llvm::cl::desc("Headers which are only needed for types"),
                   llvm::cl::cat(HeaderRewriterCategory), llvm::cl::Optional);
 
 // Limit wrapped functions to those whose names are in the given file.
-static llvm::cl::opt<std::string> FunctionAllowlistFilename(
+llvm::cl::opt<std::string> FunctionAllowlistFilename(
     "function-allowlist",
     llvm::cl::desc("File containing list of function names to wrap"),
     llvm::cl::cat(HeaderRewriterCategory), llvm::cl::Optional);
 
-static std::vector<std::string> FunctionAllowlist;
+std::vector<std::string> FunctionAllowlist;
 
 // Skip outputting a .c file with wrappers
-static llvm::cl::opt<bool> OmitWrappers(
+llvm::cl::opt<bool> OmitWrappers(
     "omit-wrappers",
     llvm::cl::desc("Do not emit a source file containing function wrappers"),
     llvm::cl::cat(HeaderRewriterCategory), llvm::cl::Optional);
@@ -132,8 +127,8 @@ int main(int argc, const char **argv) {
   }
 
   ASTMatchRefactorer refactorer(tool.getReplacements());
-  FnPtrPrinter printer(refactorer, tool.getReplacements());
-  FnDecl decl_replacement(refactorer, tool.getReplacements());
+  auto printer(createFnPtrPrinter(refactorer, tool.getReplacements()));
+  auto decl_replacement(createFnDecl(refactorer, tool.getReplacements()));
 
   auto rc = tool.runAndSave(newFrontendActionFactory(&refactorer).get());
 
@@ -151,7 +146,8 @@ int main(int argc, const char **argv) {
                    << "\n";
       return EC.value();
     }
-    emit_wrappers(wrapper_out, syms_out, decl_replacement.wrapped_functions());
+    emit_wrappers(wrapper_out, syms_out,
+                  getWrappedFunctions(*decl_replacement));
   }
 
   if (rc != EXIT_SUCCESS) {
@@ -168,7 +164,7 @@ int main(int argc, const char **argv) {
       return EXIT_FAILURE;
     }
 
-    os << generate_output_header(printer.function_info());
+    os << generate_output_header(getFunctionInfo(*printer));
   }
 
   return EXIT_SUCCESS;

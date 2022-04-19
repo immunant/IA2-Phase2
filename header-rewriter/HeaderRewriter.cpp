@@ -73,12 +73,12 @@ static llvm::cl::opt<bool> OmitWrappers(
     llvm::cl::desc("Do not emit a source file containing function wrappers"),
     llvm::cl::cat(HeaderRewriterCategory), llvm::cl::Optional);
 
-static std::string get_expansion_filename(const clang::Decl *decl,
-                                          const clang::SourceManager *sm) {
-  if (!decl || !sm) {
+static std::string get_expansion_filename(const clang::Decl *decl) {
+  if (!decl) {
     return "";
   }
-  return sm->getFilename(sm->getExpansionLoc(decl->getLocation())).str();
+  const auto &sm = decl->getASTContext().getSourceManager();
+  return sm.getFilename(sm.getExpansionLoc(decl->getLocation())).str();
 }
 
 static bool skip_fn_decls(llvm::StringRef header_name) {
@@ -93,13 +93,13 @@ static bool skip_fn_decls(llvm::StringRef header_name) {
 
 static bool
 replace_decl(const clang::Decl *decl, const std::string &replacement,
-             const clang::SourceManager *sm,
              std::map<std::string, Replacements> &FileReplacements) {
-  std::string header_name = get_expansion_filename(decl, sm);
+  const auto &sm = decl->getASTContext().getSourceManager();
+  std::string header_name = get_expansion_filename(decl);
   // Make sure to include any macro expansions in the SourceRange being replaced
   clang::CharSourceRange expansion_range =
-      sm->getExpansionRange(decl->getSourceRange());
-  Replacement r{*sm, expansion_range, replacement};
+      sm.getExpansionRange(decl->getSourceRange());
+  Replacement r{sm, expansion_range, replacement};
   auto err = FileReplacements[header_name].add(r);
   if (err) {
     llvm::errs() << "Error adding replacement: " << err << '\n';
@@ -202,8 +202,7 @@ public:
     }
 
     // This is an absolute path to the header with the fn decl
-    std::string header_name =
-        get_expansion_filename(fn_decl, Result.SourceManager);
+    std::string header_name = get_expansion_filename(fn_decl);
 
     // Avoid wrapping functions declared in system headers or shared headers
     if (llvm::StringRef(header_name).startswith("/usr/") ||
@@ -226,7 +225,7 @@ public:
     // remaining class of functions for which this holds is variadics; see:
     // https://github.com/immunant/IA2-Phase2/issues/18
     if (fn_decl->isVariadic()) {
-      if (!replace_decl(fn_decl, "", Result.SourceManager, FileReplacements)) {
+      if (!replace_decl(fn_decl, "", FileReplacements)) {
         return;
       } else {
         llvm::errs() << "Warning: deleting variadic function "
@@ -416,8 +415,7 @@ public:
           llvm::cast<clang::NamedDecl>(old_decl)->getName().str();
       std::string new_decl = generate_decl(new_type, name);
 
-      std::string header_name =
-          get_expansion_filename(old_decl, Result.SourceManager);
+      std::string header_name = get_expansion_filename(old_decl);
       if (llvm::StringRef(header_name).startswith("/usr/")) {
         return;
       }
@@ -438,8 +436,7 @@ public:
       }
 
       // Replace the old decl with the new one
-      if (!replace_decl(old_decl, new_decl, Result.SourceManager,
-                        FileReplacements)) {
+      if (!replace_decl(old_decl, new_decl, FileReplacements)) {
         return;
       }
 

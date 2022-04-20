@@ -1,13 +1,13 @@
 NGINX_ROOT = $(dir $(abspath $(lastword ($MAKEFILE_LIST))))
 
 # The root of the IA2-Phase2 repo
-REPO_ROOT = $(abspath $(NGINX_ROOT)/../../)
+REPO_ROOT = $(abspath $(NGINX_ROOT)/../..)
 IA2_INC = $(REPO_ROOT)/include/
 IA2_LIB = $(REPO_ROOT)/libia2/
 
 HEADER_REWRITER ?= $(REPO_ROOT)/build/header-rewriter/ia2-header-rewriter
 
-BUILD_DIR ?= $(NGINX_ROOT)/build/
+BUILD_DIR ?= $(NGINX_ROOT)/build
 
 PERL_SCRIPT_DIR = $(BUILD_DIR)/perl/lib
 PERL_SCRIPT = $(NGINX_ROOT)/hello.pm
@@ -17,11 +17,11 @@ C_SYSTEM_INCLUDE_FIXED = $(shell $(CC) -print-file-name=include-fixed)
 
 # This directory is for the main binary's shim which the module must link
 # against.
-MAIN_SHIM_SRC = $(BUILD_DIR)/main_shim_src/
+MAIN_SHIM_SRC = $(BUILD_DIR)/main_shim_src
 
 # This directory is for the module's shim. The main binary doesn't call the
 # module directly, but we need to generate an output header.
-MOD_SHIM_SRC = $(BUILD_DIR)/mod_shim_src/
+MOD_SHIM_SRC = $(BUILD_DIR)/mod_shim_src
 
 ia2_all: main_shim mod_shim_src
 

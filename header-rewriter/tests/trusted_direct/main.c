@@ -3,6 +3,8 @@
 #include <unistd.h>
 #include <ia2.h>
 #include "plugin.h"
+#define IA2_DEFINE_TEST_HANDLER
+#include "test_fault_handler.h"
 
 // This test checks that an untrusted library can call a trusted main binary. An
 // MPK violation is triggered from the untrusted library if no arguments are

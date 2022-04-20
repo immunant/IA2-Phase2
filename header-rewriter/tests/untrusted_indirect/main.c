@@ -2,6 +2,8 @@
 #include <stdint.h>
 #include "foo.h"
 #include "untrusted_indirect-original_fn_ptr_ia2.h"
+#define IA2_DEFINE_TEST_HANDLER
+#include "test_fault_handler.h"
 
 INIT_RUNTIME(1);
 INIT_COMPARTMENT(1);

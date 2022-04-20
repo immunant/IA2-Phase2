@@ -4,6 +4,18 @@
 #include <string.h>
 #include <unistd.h>
 
+/*
+ * This header defines a test framework for detecting MPK violations using
+ * signal handlers. This file must be included exactly once from a source file
+ * in the main binary with IA2_DEFINE_TEST_HANDLER defined by the preprocessor.
+ * This will define the functions and variables used by the test handler, ensure
+ * it is initialized before main and provide access to the LOG and
+ * CHECK_VIOLATION macros. Other files which need CHECK_VIOLATION or LOG may
+ * include the header without defining IA2_DEFINE_TEST_HANDLER. Using
+ * CHECK_VIOLATION without defining the test handler will trigger a linker error
+ * when building the shared object.
+ */
+
 #define VA_ARGS(...) , ##__VA_ARGS__
 #define LOG(msg, ...) printf("%s: " msg "\n", __func__ VA_ARGS(__VA_ARGS__))
 
@@ -20,8 +32,11 @@
     _tmp;                                                                      \
   })
 
+#ifndef IA2_DEFINE_TEST_HANDLER
+extern bool expect_fault;
+#else
 // This is shared data to allow checking for violations in multiple
-// compartments. The attribute was added manually here to avoid including ia2.h
+// compartments. We avoid using IA2_SHARED_DATA here to avoid including ia2.h
 // since that would pull in libia2 as a dependency (the libia2 build generates a
 // header included in ia2.h).
 bool expect_fault __attribute__((section("ia2_shared_data"))) = false;
@@ -29,7 +44,8 @@ bool expect_fault __attribute__((section("ia2_shared_data"))) = false;
 // Create a stack for the signal handler to use
 char sighandler_stack[4 * 1024] __attribute__((section("ia2_shared_data")))
 __attribute__((aligned(16))) = {0};
-char *sighandler_sp = &sighandler_stack[(4 * 1024) - 8];
+char *sighandler_sp __attribute__((section("ia2_shared_data"))) =
+    &sighandler_stack[(4 * 1024) - 8];
 
 // This function must be declared naked because it's not necessarily safe for it
 // to write to the stack in its prelude (the stack isn't written to when the
@@ -72,15 +88,10 @@ void print_mpk_message(int sig) {
   _exit(0);
 }
 
-bool handler_installed = false;
-
 // Installs the previously defined signal handler and disables buffering on
 // stdout to allow using printf prior to the sighandler
 __attribute__((constructor)) void install_segfault_handler(void) {
-  if (handler_installed) {
-    return;
-  }
-  handler_installed = true;
   setbuf(stdout, NULL);
   signal(SIGSEGV, handle_segfault);
 }
+#endif

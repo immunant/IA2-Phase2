@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <ia2.h>
 #include "plugin.h"
+#define IA2_DEFINE_TEST_HANDLER
 #include "test_fault_handler.h"
 
 // This test uses two protection keys

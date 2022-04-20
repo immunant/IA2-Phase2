@@ -10,10 +10,12 @@ fn main() {
     cbindgen::Builder::new()
         .include_item("PhdrSearchArgs")
         .rename_item("dl_phdr_info", "struct dl_phdr_info")
+        .with_after_include("struct dl_phdr_info;")
         .with_style(Style::Tag)
         .with_crate(crate_dir)
         .with_include_guard("PKEY_INIT_H")
         .with_language(Language::C)
+        .with_include_version(true)
         .generate()
         .expect("Unable to generate bindings")
         .write_to_file(HEADER_NAME);

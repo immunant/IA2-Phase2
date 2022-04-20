@@ -52,9 +52,9 @@ int main() {
 		};
 		check_close_float(extract_s2, s.f1);
 		assert(extract_s2(s) == s.f1);
-		assert(fabsf(extract_s2(s) - 999.99) < 0.0001);
+		assert(fabs(extract_s2(s) - 999.99) < 0.0001);
 		s = get_s2();
-		assert(fabsf(s.f1 - 3.14) < 0.0001);
+		assert(fabs(s.f1 - 3.14) < 0.0001);
 	}
 
 	{

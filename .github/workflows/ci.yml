@@ -10,6 +10,32 @@ on:
       - main
 
 jobs:
+  test-compartmentalized-nginx:
+    runs-on: self-hosted
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+      - name: Build
+        run: |
+          mkdir build
+          pushd build
+          cmake ..                                                       \
+            -DCMAKE_BUILD_TYPE=Release                                   \
+            -DClang_DIR=/usr/lib/cmake/clang-13                          \
+            -DLLVM_DIR=/usr/lib/llvm-13/cmake                            \
+            -DLLVM_EXTERNAL_LIT=$HOME/.local/bin/lit                     \
+            -G Ninja
+          ninja
+          popd
+      - name: Test compartmentalized nginx
+        run: |
+          pushd examples
+          pushd nginx
+          make clean
+          ./reconfigure
+          make
+          popd
+          popd
   test-on-pkru-enabled-host:
     runs-on: self-hosted
     strategy:

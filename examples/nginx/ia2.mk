@@ -28,7 +28,7 @@ ia2_all: main_shim mod_shim_src
 main_shim_src:
 	rm -rf $(MAIN_SHIM_SRC)
 	cp -r $(NGINX_ROOT)/src/ $(MAIN_SHIM_SRC)
-	$(HEADER_REWRITER) --compartment-pkey=0 \
+	$(HEADER_REWRITER) --compartment-pkey=1 \
 		$(MAIN_SHIM_SRC)/main_shim.c \
 		$(MAIN_SHIM_SRC)/core/ngx_config.h \
 		$(MAIN_SHIM_SRC)/core/ngx_core.h \
@@ -53,7 +53,7 @@ main_shim_src:
 main_shim: main_shim_src
 	gcc -shared $(MAIN_SHIM_SRC)/main_shim.c -Wl,-z,now \
 		-Wl,--version-script,$(MAIN_SHIM_SRC)/main_shim.c.syms \
-		-DCALLER_PKEY=UNTRUSTED -I $(IA2_INC) \
+		-DCALLER_PKEY=0 -I $(IA2_INC) \
 		-o $(BUILD_DIR)/libmain_shim.so
 
 mod_shim_src:

@@ -327,7 +327,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   // value doesn't use memory, this entire subexpression is zero.
   size_t compartment_stack_space =
       stack_arg_size + (stack_return_size > 0 ? 8 + stack_return_size : 0);
-  if (kind == WrapperKind::IndirectFromTrusted) {
+  if (kind == WrapperKind::Indirect) {
     // Count the space for the function pointer if the call is indirect from
     // trusted
     compartment_stack_space += 8;
@@ -386,7 +386,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   add_raw_line(aw, llvm::formatv("\"movq \" STACK({0}) \"(%rsp), %rsp\\n\"",
                                  target_pkey));
 
-  if (kind == WrapperKind::IndirectFromTrusted) {
+  if (kind == WrapperKind::Indirect) {
     add_comment_line(aw, "Load indirect call target and put it on the stack");
     add_raw_line(aw,
                  "\"movq \" UNIQUE_STR(#target) \"@GOTPCREL(%rip), %r10\\n\"");
@@ -460,12 +460,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   add_comment_line(aw, "Zero all registers except rsp");
   // FIXME: If this will use the System V ABI make sure that the %rsp is aligned
   // before this call
-  if (kind == WrapperKind::IndirectFromUntrusted) {
-    // FIXME: A call causes a fault in the PLT for this type of indirect call so
-    // inline scrub_registers here
-  } else {
-    add_asm_line(aw, "call __libia2_scrub_registers");
-  }
+  add_asm_line(aw, "call __libia2_scrub_registers");
 
   // Restore used arg regs after zeroing registers
   if (reg_arg_count > 0) {
@@ -489,18 +484,10 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
 
   // Call wrapped function
   add_comment_line(aw, "Call wrapped function");
-  if (kind == WrapperKind::IndirectFromTrusted) {
+  if (kind == WrapperKind::Indirect) {
     size_t fn_ptr_offset = compartment_stack_space + stack_alignment - 8;
     add_comment_line(aw, "Load indirect call target from the stack");
     add_asm_line(aw, "movq "s + std::to_string(fn_ptr_offset) + "(%rsp), %r10");
-    add_asm_line(aw, "call *%r10");
-  } else if (kind == WrapperKind::IndirectFromUntrusted) {
-    // If the caller is untrusted, we have access to the target compartment
-    // after the first wrpkru
-    add_comment_line(aw, "Load indirect call target");
-    add_raw_line(aw,
-                 "\"movq \" UNIQUE_STR(#target) \"@GOTPCREL(%rip), %r10\\n\"");
-    add_asm_line(aw, "movq (%r10), %r10");
     add_asm_line(aw, "call *%r10");
   } else if (as_macro) {
     add_raw_line(aw, "\"call \" #target \"\\n\"");
@@ -579,12 +566,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   add_comment_line(aw, "Scrub registers after call");
   // FIXME: If this will use the System V ABI make sure that the %rsp is aligned
   // before this call
-  if (kind == WrapperKind::IndirectFromUntrusted) {
-    // FIXME: A call causes a fault in the PLT for this type of indirect call so
-    // inline scrub_registers here
-  } else {
-    add_asm_line(aw, "call __libia2_scrub_registers");
-  }
+  add_asm_line(aw, "call __libia2_scrub_registers");
 
   // pop return regs
   add_comment_line(aw, "Pop return regs");

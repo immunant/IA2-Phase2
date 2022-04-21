@@ -155,9 +155,11 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
 
 #define DECLARE_PADDING_SECTIONS                                               \
   NEW_SECTION(".fini_padding", ax);                                            \
-  NEW_SECTION(".rela.plt_padding", a);                                         \
+  NEW_SECTION("._rela.plt_padding", a);                                        \
   NEW_SECTION(".eh_frame_padding", a);                                         \
-  NEW_SECTION(".bss_padding", a);
+  NEW_SECTION(".plt_padding", ax);                                             \
+  NEW_SECTION(".jcr", aw);                                                     \
+  NEW_SECTION(".bss_padding", aw);
 
 // Initializes a compartment with protection key `n` when the ELF invoking this
 // macro is loaded. This must only be called once for each key. The compartment

@@ -15,6 +15,7 @@ jobs:
     strategy:
       matrix:
         build-type: [Release, Debug]
+        compiler: [clang, gcc]
     steps:
       - name: Check out code
         uses: actions/checkout@v2
@@ -26,6 +27,7 @@ jobs:
           pushd build
           cmake ..                                                       \
             -DCMAKE_BUILD_TYPE=${{ matrix.build-type }}                  \
+            -DCMAKE_C_COMPILER=${{ matrix.compiler }}                    \
             -DClang_DIR=$Clang_DIR                                       \
             -DLLVM_DIR=$LLVM_DIR                                         \
             -DLLVM_EXTERNAL_LIT=$HOME/.local/bin/lit                     \

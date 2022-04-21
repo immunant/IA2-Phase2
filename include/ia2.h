@@ -14,7 +14,11 @@
 
 #define XSTR(s) STR(s)
 #define STR(s) #s
-#define UNIQUE_STR(s) s "_line_" XSTR(__LINE__)
+#define TOKENPASTE3_(x, y, z) x##y##z
+#define TOKENPASTE3(x, y, z) TOKENPASTE3_(x, y, z)
+
+#define UNIQUE(s) TOKENPASTE3(s, _line_, __LINE__)
+#define UNIQUE_STR(s) XSTR(UNIQUE(s))
 
 #ifdef LIBIA2_INSECURE
 #define INIT_COMPARTMENT(n) DECLARE_PADDING_SECTIONS
@@ -97,9 +101,9 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
 // immediately is the more ergonomic approach.
 #define IA2_CALL(target, ty, caller_pkey)                                      \
   ({                                                                           \
-    static struct IA2_fnptr_##ty##_inner_t *target_ptr __asm__(                \
-        UNIQUE_STR(#ty)) __attribute__((used));                                \
-    static void *wrapper __asm__("__ia2_" UNIQUE_STR(#ty));                    \
+    static struct IA2_fnptr_##ty##_inner_t *target_ptr __asm__(UNIQUE_STR(ty)) \
+        __attribute__((used));                                                 \
+    static void *wrapper __asm__("__ia2_" UNIQUE_STR(ty));                     \
     target_ptr = target.ptr;                                                   \
     __asm__(IA2_CALL_##ty(target, ty, caller_pkey, 0));                        \
     (IA2_FNPTR_TYPE_##ty) & wrapper;                                           \

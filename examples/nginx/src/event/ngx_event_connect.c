@@ -31,7 +31,7 @@ ngx_event_connect_peer(ngx_peer_connection_t *pc)
     ngx_event_t       *rev, *wev;
     ngx_connection_t  *c;
 
-    rc = pc->get(pc, pc->data);
+    rc = IA2_CALL(pc->get, _ZTSPFlP21ngx_peer_connection_sPvE, 1)(pc, pc->data);
     if (rc != NGX_OK) {
         return rc;
     }
@@ -197,7 +197,7 @@ ngx_event_connect_peer(ngx_peer_connection_t *pc)
 
     c->start_time = ngx_current_msec;
 
-    if (ngx_add_conn) {
+    if (!IA2_FNPTR_IS_NULL(ngx_event_actions.add_conn)) {
         if (ngx_add_conn(c) == NGX_ERROR) {
             goto failed;
         }
@@ -249,7 +249,7 @@ ngx_event_connect_peer(ngx_peer_connection_t *pc)
         }
     }
 
-    if (ngx_add_conn) {
+    if (!IA2_FNPTR_IS_NULL(ngx_event_actions.add_conn)) {
         if (rc == -1) {
 
             /* NGX_EINPROGRESS */

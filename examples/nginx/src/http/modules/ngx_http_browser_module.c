@@ -71,33 +71,37 @@ static char *ngx_http_modern_browser_value(ngx_conf_t *cf, ngx_command_t *cmd,
 static char *ngx_http_ancient_browser_value(ngx_conf_t *cf, ngx_command_t *cmd,
     void *conf);
 
+IA2_DEFINE_WRAPPER(ngx_http_modern_browser, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+IA2_DEFINE_WRAPPER(ngx_http_ancient_browser, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+IA2_DEFINE_WRAPPER(ngx_http_modern_browser_value, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+IA2_DEFINE_WRAPPER(ngx_http_ancient_browser_value, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
 
 static ngx_command_t  ngx_http_browser_commands[] = {
 
     { ngx_string("modern_browser"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE12,
-      ngx_http_modern_browser,
+      IA2_WRAPPER(ngx_http_modern_browser, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       NULL },
 
     { ngx_string("ancient_browser"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_1MORE,
-      ngx_http_ancient_browser,
+      IA2_WRAPPER(ngx_http_ancient_browser, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       NULL },
 
     { ngx_string("modern_browser_value"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-      ngx_http_modern_browser_value,
+      IA2_WRAPPER(ngx_http_modern_browser_value, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       NULL },
 
     { ngx_string("ancient_browser_value"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-      ngx_http_ancient_browser_value,
+      IA2_WRAPPER(ngx_http_ancient_browser_value, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       NULL },
@@ -105,19 +109,22 @@ static ngx_command_t  ngx_http_browser_commands[] = {
       ngx_null_command
 };
 
+IA2_DEFINE_WRAPPER(ngx_http_browser_add_variables, _ZTSPFlP10ngx_conf_sE, 1);
+IA2_DEFINE_WRAPPER(ngx_http_browser_create_conf, _ZTSPFPvP10ngx_conf_sE, 1);
+IA2_DEFINE_WRAPPER(ngx_http_browser_merge_conf, _ZTSPFPcP10ngx_conf_sPvS2_E, 1);
 
 static ngx_http_module_t  ngx_http_browser_module_ctx = {
-    ngx_http_browser_add_variables,        /* preconfiguration */
-    NULL,                                  /* postconfiguration */
+    IA2_WRAPPER(ngx_http_browser_add_variables, 1),        /* preconfiguration */
+    IA2_NULL_FNPTR,                                  /* postconfiguration */
 
-    NULL,                                  /* create main configuration */
-    NULL,                                  /* init main configuration */
+    IA2_NULL_FNPTR,                                  /* create main configuration */
+    IA2_NULL_FNPTR,                                  /* init main configuration */
 
-    NULL,                                  /* create server configuration */
-    NULL,                                  /* merge server configuration */
+    IA2_NULL_FNPTR,                                  /* create server configuration */
+    IA2_NULL_FNPTR,                                  /* merge server configuration */
 
-    ngx_http_browser_create_conf,          /* create location configuration */
-    ngx_http_browser_merge_conf            /* merge location configuration */
+    IA2_WRAPPER(ngx_http_browser_create_conf, 1),          /* create location configuration */
+    IA2_WRAPPER(ngx_http_browser_merge_conf, 1)            /* merge location configuration */
 };
 
 
@@ -126,13 +133,13 @@ ngx_module_t  ngx_http_browser_module = {
     &ngx_http_browser_module_ctx,          /* module context */
     ngx_http_browser_commands,             /* module directives */
     NGX_HTTP_MODULE,                       /* module type */
-    NULL,                                  /* init master */
-    NULL,                                  /* init module */
-    NULL,                                  /* init process */
-    NULL,                                  /* init thread */
-    NULL,                                  /* exit thread */
-    NULL,                                  /* exit process */
-    NULL,                                  /* exit master */
+    IA2_NULL_FNPTR,                                  /* init master */
+    IA2_NULL_FNPTR,                                  /* init module */
+    IA2_NULL_FNPTR,                                  /* init process */
+    IA2_NULL_FNPTR,                                  /* init thread */
+    IA2_NULL_FNPTR,                                  /* exit thread */
+    IA2_NULL_FNPTR,                                  /* exit process */
+    IA2_NULL_FNPTR,                                  /* exit master */
     NGX_MODULE_V1_PADDING
 };
 
@@ -210,16 +217,18 @@ static ngx_http_modern_browser_mask_t  ngx_http_modern_browser_masks[] = {
 
 };
 
+IA2_DEFINE_WRAPPER(ngx_http_msie_variable, _ZTSPFlP18ngx_http_request_sP20ngx_variable_value_tmE, 1);
+IA2_DEFINE_WRAPPER(ngx_http_browser_variable, _ZTSPFlP18ngx_http_request_sP20ngx_variable_value_tmE, 1);
 
 static ngx_http_variable_t  ngx_http_browser_vars[] = {
 
-    { ngx_string("msie"), NULL, ngx_http_msie_variable,
+    { ngx_string("msie"), IA2_NULL_FNPTR, IA2_WRAPPER(ngx_http_msie_variable, 1),
       0, NGX_HTTP_VAR_CHANGEABLE, 0 },
 
-    { ngx_string("modern_browser"), NULL, ngx_http_browser_variable,
+    { ngx_string("modern_browser"), IA2_NULL_FNPTR, IA2_WRAPPER(ngx_http_browser_variable, 1),
       NGX_HTTP_MODERN_BROWSER, NGX_HTTP_VAR_CHANGEABLE, 0 },
 
-    { ngx_string("ancient_browser"), NULL, ngx_http_browser_variable,
+    { ngx_string("ancient_browser"), IA2_NULL_FNPTR, IA2_WRAPPER(ngx_http_browser_variable, 1),
       NGX_HTTP_ANCIENT_BROWSER, NGX_HTTP_VAR_CHANGEABLE, 0 },
 
       ngx_http_null_variable

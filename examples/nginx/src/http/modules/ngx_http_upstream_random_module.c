@@ -48,12 +48,13 @@ static void *ngx_http_upstream_random_create_conf(ngx_conf_t *cf);
 static char *ngx_http_upstream_random(ngx_conf_t *cf, ngx_command_t *cmd,
     void *conf);
 
+IA2_DEFINE_WRAPPER(ngx_http_upstream_random, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
 
 static ngx_command_t  ngx_http_upstream_random_commands[] = {
 
     { ngx_string("random"),
       NGX_HTTP_UPS_CONF|NGX_CONF_NOARGS|NGX_CONF_TAKE12,
-      ngx_http_upstream_random,
+      IA2_WRAPPER(ngx_http_upstream_random, 1),
       NGX_HTTP_SRV_CONF_OFFSET,
       0,
       NULL },
@@ -61,19 +62,20 @@ static ngx_command_t  ngx_http_upstream_random_commands[] = {
       ngx_null_command
 };
 
+IA2_DEFINE_WRAPPER(ngx_http_upstream_random_create_conf, _ZTSPFPvP10ngx_conf_sE, 1);
 
 static ngx_http_module_t  ngx_http_upstream_random_module_ctx = {
-    NULL,                                  /* preconfiguration */
-    NULL,                                  /* postconfiguration */
+    IA2_NULL_FNPTR,                                  /* preconfiguration */
+    IA2_NULL_FNPTR,                                  /* postconfiguration */
 
-    NULL,                                  /* create main configuration */
-    NULL,                                  /* init main configuration */
+    IA2_NULL_FNPTR,                                  /* create main configuration */
+    IA2_NULL_FNPTR,                                  /* init main configuration */
 
-    ngx_http_upstream_random_create_conf,  /* create server configuration */
-    NULL,                                  /* merge server configuration */
+    IA2_WRAPPER(ngx_http_upstream_random_create_conf, 1),  /* create server configuration */
+    IA2_NULL_FNPTR,                                  /* merge server configuration */
 
-    NULL,                                  /* create location configuration */
-    NULL                                   /* merge location configuration */
+    IA2_NULL_FNPTR,                                  /* create location configuration */
+    IA2_NULL_FNPTR                                   /* merge location configuration */
 };
 
 
@@ -82,13 +84,13 @@ ngx_module_t  ngx_http_upstream_random_module = {
     &ngx_http_upstream_random_module_ctx,  /* module context */
     ngx_http_upstream_random_commands,     /* module directives */
     NGX_HTTP_MODULE,                       /* module type */
-    NULL,                                  /* init master */
-    NULL,                                  /* init module */
-    NULL,                                  /* init process */
-    NULL,                                  /* init thread */
-    NULL,                                  /* exit thread */
-    NULL,                                  /* exit process */
-    NULL,                                  /* exit master */
+    IA2_NULL_FNPTR,                                  /* init master */
+    IA2_NULL_FNPTR,                                  /* init module */
+    IA2_NULL_FNPTR,                                  /* init process */
+    IA2_NULL_FNPTR,                                  /* init thread */
+    IA2_NULL_FNPTR,                                  /* exit thread */
+    IA2_NULL_FNPTR,                                  /* exit process */
+    IA2_NULL_FNPTR,                                  /* exit master */
     NGX_MODULE_V1_PADDING
 };
 
@@ -102,7 +104,7 @@ ngx_http_upstream_init_random(ngx_conf_t *cf, ngx_http_upstream_srv_conf_t *us)
         return NGX_ERROR;
     }
 
-    us->peer.init = ngx_http_upstream_init_random_peer;
+    us->peer.init = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_upstream_init_random_peer, _ZTSPFlP18ngx_http_request_sP28ngx_http_upstream_srv_conf_sE, 1);
 
 #if (NGX_HTTP_UPSTREAM_ZONE)
     if (us->shm_zone) {
@@ -174,10 +176,10 @@ ngx_http_upstream_init_random_peer(ngx_http_request_t *r,
     }
 
     if (rcf->two) {
-        r->upstream->peer.get = ngx_http_upstream_get_random2_peer;
+        r->upstream->peer.get = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_upstream_get_random2_peer, _ZTSPFlP21ngx_peer_connection_sPvE, 1);
 
     } else {
-        r->upstream->peer.get = ngx_http_upstream_get_random_peer;
+        r->upstream->peer.get = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_upstream_get_random_peer, _ZTSPFlP21ngx_peer_connection_sPvE, 1);
     }
 
     rp->conf = rcf;
@@ -459,12 +461,12 @@ ngx_http_upstream_random(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     uscf = ngx_http_conf_get_module_srv_conf(cf, ngx_http_upstream_module);
 
-    if (uscf->peer.init_upstream) {
+    if (!IA2_FNPTR_IS_NULL(uscf->peer.init_upstream)) {
         ngx_conf_log_error(NGX_LOG_WARN, cf, 0,
                            "load balancing method redefined");
     }
 
-    uscf->peer.init_upstream = ngx_http_upstream_init_random;
+    uscf->peer.init_upstream = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_upstream_init_random, _ZTSPFlP10ngx_conf_sP28ngx_http_upstream_srv_conf_sE, 1);
 
     uscf->flags = NGX_HTTP_UPSTREAM_CREATE
                   |NGX_HTTP_UPSTREAM_WEIGHT

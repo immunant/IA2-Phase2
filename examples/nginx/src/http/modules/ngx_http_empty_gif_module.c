@@ -12,11 +12,13 @@
 static char *ngx_http_empty_gif(ngx_conf_t *cf, ngx_command_t *cmd,
     void *conf);
 
+IA2_DEFINE_WRAPPER(ngx_http_empty_gif, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+
 static ngx_command_t  ngx_http_empty_gif_commands[] = {
 
     { ngx_string("empty_gif"),
       NGX_HTTP_LOC_CONF|NGX_CONF_NOARGS,
-      ngx_http_empty_gif,
+      IA2_WRAPPER(ngx_http_empty_gif, 1),
       0,
       0,
       NULL },
@@ -76,17 +78,17 @@ static u_char  ngx_empty_gif[] = {
 
 
 static ngx_http_module_t  ngx_http_empty_gif_module_ctx = {
-    NULL,                          /* preconfiguration */
-    NULL,                          /* postconfiguration */
+    IA2_NULL_FNPTR,                          /* preconfiguration */
+    IA2_NULL_FNPTR,                          /* postconfiguration */
 
-    NULL,                          /* create main configuration */
-    NULL,                          /* init main configuration */
+    IA2_NULL_FNPTR,                          /* create main configuration */
+    IA2_NULL_FNPTR,                          /* init main configuration */
 
-    NULL,                          /* create server configuration */
-    NULL,                          /* merge server configuration */
+    IA2_NULL_FNPTR,                          /* create server configuration */
+    IA2_NULL_FNPTR,                          /* merge server configuration */
 
-    NULL,                          /* create location configuration */
-    NULL                           /* merge location configuration */
+    IA2_NULL_FNPTR,                          /* create location configuration */
+    IA2_NULL_FNPTR                           /* merge location configuration */
 };
 
 
@@ -95,13 +97,13 @@ ngx_module_t  ngx_http_empty_gif_module = {
     &ngx_http_empty_gif_module_ctx, /* module context */
     ngx_http_empty_gif_commands,   /* module directives */
     NGX_HTTP_MODULE,               /* module type */
-    NULL,                          /* init master */
-    NULL,                          /* init module */
-    NULL,                          /* init process */
-    NULL,                          /* init thread */
-    NULL,                          /* exit thread */
-    NULL,                          /* exit process */
-    NULL,                          /* exit master */
+    IA2_NULL_FNPTR,                          /* init master */
+    IA2_NULL_FNPTR,                          /* init module */
+    IA2_NULL_FNPTR,                          /* init process */
+    IA2_NULL_FNPTR,                          /* init thread */
+    IA2_NULL_FNPTR,                          /* exit thread */
+    IA2_NULL_FNPTR,                          /* exit process */
+    IA2_NULL_FNPTR,                          /* exit master */
     NGX_MODULE_V1_PADDING
 };
 
@@ -134,7 +136,7 @@ ngx_http_empty_gif(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     ngx_http_core_loc_conf_t  *clcf;
 
     clcf = ngx_http_conf_get_module_loc_conf(cf, ngx_http_core_module);
-    clcf->handler = ngx_http_empty_gif_handler;
+    clcf->handler = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_empty_gif_handler, _ZTSPFlP18ngx_http_request_sE, 1);
 
     return NGX_CONF_OK;
 }

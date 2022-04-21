@@ -95,45 +95,51 @@ static ngx_conf_enum_t  ngx_http_limit_req_log_levels[] = {
     { ngx_null_string, 0 }
 };
 
+IA2_DECLARE_WRAPPER(ngx_conf_check_num_bounds, _ZTSPFPcP10ngx_conf_sPvS2_E, 1);
 
 static ngx_conf_num_bounds_t  ngx_http_limit_req_status_bounds = {
-    ngx_conf_check_num_bounds, 400, 599
+    IA2_WRAPPER(ngx_conf_check_num_bounds, 1), 400, 599
 };
 
+IA2_DEFINE_WRAPPER(ngx_http_limit_req_zone, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+IA2_DEFINE_WRAPPER(ngx_http_limit_req, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+IA2_DECLARE_WRAPPER(ngx_conf_set_enum_slot, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+IA2_DECLARE_WRAPPER(ngx_conf_set_num_slot, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+IA2_DECLARE_WRAPPER(ngx_conf_set_flag_slot, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
 
 static ngx_command_t  ngx_http_limit_req_commands[] = {
 
     { ngx_string("limit_req_zone"),
       NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE3,
-      ngx_http_limit_req_zone,
+      IA2_WRAPPER(ngx_http_limit_req_zone, 1),
       0,
       0,
       NULL },
 
     { ngx_string("limit_req"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE123,
-      ngx_http_limit_req,
+      IA2_WRAPPER(ngx_http_limit_req, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       NULL },
 
     { ngx_string("limit_req_log_level"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_enum_slot,
+      IA2_WRAPPER(ngx_conf_set_enum_slot, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_limit_req_conf_t, limit_log_level),
       &ngx_http_limit_req_log_levels },
 
     { ngx_string("limit_req_status"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_num_slot,
+      IA2_WRAPPER(ngx_conf_set_num_slot, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_limit_req_conf_t, status_code),
       &ngx_http_limit_req_status_bounds },
 
     { ngx_string("limit_req_dry_run"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_FLAG,
-      ngx_conf_set_flag_slot,
+      IA2_WRAPPER(ngx_conf_set_flag_slot, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_limit_req_conf_t, dry_run),
       NULL },
@@ -142,18 +148,23 @@ static ngx_command_t  ngx_http_limit_req_commands[] = {
 };
 
 
+IA2_DEFINE_WRAPPER(ngx_http_limit_req_add_variables, _ZTSPFlP10ngx_conf_sE, 1);
+IA2_DEFINE_WRAPPER(ngx_http_limit_req_init, _ZTSPFlP10ngx_conf_sE, 1);
+IA2_DEFINE_WRAPPER(ngx_http_limit_req_create_conf, _ZTSPFPvP10ngx_conf_sE, 1);
+IA2_DEFINE_WRAPPER(ngx_http_limit_req_merge_conf, _ZTSPFPcP10ngx_conf_sPvS2_E, 1);
+
 static ngx_http_module_t  ngx_http_limit_req_module_ctx = {
-    ngx_http_limit_req_add_variables,      /* preconfiguration */
-    ngx_http_limit_req_init,               /* postconfiguration */
+    IA2_WRAPPER(ngx_http_limit_req_add_variables, 1),      /* preconfiguration */
+    IA2_WRAPPER(ngx_http_limit_req_init, 1),               /* postconfiguration */
 
-    NULL,                                  /* create main configuration */
-    NULL,                                  /* init main configuration */
+    IA2_NULL_FNPTR,                                  /* create main configuration */
+    IA2_NULL_FNPTR,                                  /* init main configuration */
 
-    NULL,                                  /* create server configuration */
-    NULL,                                  /* merge server configuration */
+    IA2_NULL_FNPTR,                                  /* create server configuration */
+    IA2_NULL_FNPTR,                                  /* merge server configuration */
 
-    ngx_http_limit_req_create_conf,        /* create location configuration */
-    ngx_http_limit_req_merge_conf          /* merge location configuration */
+    IA2_WRAPPER(ngx_http_limit_req_create_conf, 1),        /* create location configuration */
+    IA2_WRAPPER(ngx_http_limit_req_merge_conf, 1)          /* merge location configuration */
 };
 
 
@@ -162,21 +173,22 @@ ngx_module_t  ngx_http_limit_req_module = {
     &ngx_http_limit_req_module_ctx,        /* module context */
     ngx_http_limit_req_commands,           /* module directives */
     NGX_HTTP_MODULE,                       /* module type */
-    NULL,                                  /* init master */
-    NULL,                                  /* init module */
-    NULL,                                  /* init process */
-    NULL,                                  /* init thread */
-    NULL,                                  /* exit thread */
-    NULL,                                  /* exit process */
-    NULL,                                  /* exit master */
+    IA2_NULL_FNPTR,                                  /* init master */
+    IA2_NULL_FNPTR,                                  /* init module */
+    IA2_NULL_FNPTR,                                  /* init process */
+    IA2_NULL_FNPTR,                                  /* init thread */
+    IA2_NULL_FNPTR,                                  /* exit thread */
+    IA2_NULL_FNPTR,                                  /* exit process */
+    IA2_NULL_FNPTR,                                  /* exit master */
     NGX_MODULE_V1_PADDING
 };
 
+IA2_DEFINE_WRAPPER(ngx_http_limit_req_status_variable, _ZTSPFlP18ngx_http_request_sP20ngx_variable_value_tmE, 1);
 
 static ngx_http_variable_t  ngx_http_limit_req_vars[] = {
 
-    { ngx_string("limit_req_status"), NULL,
-      ngx_http_limit_req_status_variable, 0, NGX_HTTP_VAR_NOCACHEABLE, 0 },
+    { ngx_string("limit_req_status"), IA2_NULL_FNPTR,
+      IA2_WRAPPER(ngx_http_limit_req_status_variable, 1), 0, NGX_HTTP_VAR_NOCACHEABLE, 0 },
 
       ngx_http_null_variable
 };
@@ -319,8 +331,8 @@ ngx_http_limit_req_handler(ngx_http_request_t *r)
         }
     }
 
-    r->read_event_handler = ngx_http_test_reading;
-    r->write_event_handler = ngx_http_limit_req_delay;
+    r->read_event_handler = IA2_DECLARE_WRAPPER_FN_SCOPE(ngx_http_test_reading, _ZTSPFvP18ngx_http_request_sE, 1);
+    r->write_event_handler = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_limit_req_delay, _ZTSPFvP18ngx_http_request_sE, 1);
 
     r->connection->write->delayed = 1;
     ngx_add_timer(r->connection->write, delay);
@@ -353,8 +365,8 @@ ngx_http_limit_req_delay(ngx_http_request_t *r)
         return;
     }
 
-    r->read_event_handler = ngx_http_block_reading;
-    r->write_event_handler = ngx_http_core_run_phases;
+    r->read_event_handler = IA2_DECLARE_WRAPPER_FN_SCOPE(ngx_http_block_reading, _ZTSPFvP18ngx_http_request_sE, 1);
+    r->write_event_handler = IA2_DECLARE_WRAPPER_FN_SCOPE(ngx_http_core_run_phases, _ZTSPFvP18ngx_http_request_sE, 1);
 
     ngx_http_core_run_phases(r);
 }
@@ -740,6 +752,7 @@ ngx_http_limit_req_init_zone(ngx_shm_zone_t *shm_zone, void *data)
 
     ctx->shpool->data = ctx->sh;
 
+    IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_limit_req_rbtree_insert_value, _ZTSPFvP17ngx_rbtree_node_sS0_S0_E, 1);
     ngx_rbtree_init(&ctx->sh->rbtree, &ctx->sh->sentinel,
                     ngx_http_limit_req_rbtree_insert_value);
 
@@ -953,7 +966,7 @@ ngx_http_limit_req_zone(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         return NGX_CONF_ERROR;
     }
 
-    shm_zone->init = ngx_http_limit_req_init_zone;
+    shm_zone->init = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_limit_req_init_zone, _ZTSPFlP14ngx_shm_zone_sPvE, 1);
     shm_zone->data = ctx;
 
     return NGX_CONF_OK;
@@ -1096,7 +1109,7 @@ ngx_http_limit_req_init(ngx_conf_t *cf)
         return NGX_ERROR;
     }
 
-    *h = ngx_http_limit_req_handler;
+    *h = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_limit_req_handler, _ZTSPFlP18ngx_http_request_sE, 1);
 
     return NGX_OK;
 }

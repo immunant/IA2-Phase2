@@ -300,7 +300,7 @@ ngx_event_accept(ngx_event_t *ev)
         }
 #endif
 
-        if (ngx_add_conn && (ngx_event_flags & NGX_USE_EPOLL_EVENT) == 0) {
+        if (!IA2_FNPTR_IS_NULL(ngx_event_actions.add_conn) && (ngx_event_flags & NGX_USE_EPOLL_EVENT) == 0) {
             if (ngx_add_conn(c) == NGX_ERROR) {
                 ngx_close_accepted_connection(c);
                 return;
@@ -308,9 +308,9 @@ ngx_event_accept(ngx_event_t *ev)
         }
 
         log->data = NULL;
-        log->handler = NULL;
+        IA2_NULL_FNPTR_FN_SCOPE(log->handler);
 
-        ls->handler(c);
+        IA2_CALL(ls->handler, _ZTSPFvP16ngx_connection_sE, 1)(c);
 
         if (ngx_event_flags & NGX_USE_KQUEUE_EVENT) {
             ev->available--;

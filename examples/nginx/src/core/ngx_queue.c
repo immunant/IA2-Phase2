@@ -49,7 +49,7 @@ ngx_queue_middle(ngx_queue_t *queue)
 
 void
 ngx_queue_sort(ngx_queue_t *queue,
-    ngx_int_t (*cmp)(const ngx_queue_t *, const ngx_queue_t *))
+    struct IA2_fnptr__ZTSPFlPK11ngx_queue_sS1_E cmp)
 {
     ngx_queue_t  *q, *prev, *next;
 
@@ -67,7 +67,7 @@ ngx_queue_sort(ngx_queue_t *queue,
         ngx_queue_remove(q);
 
         do {
-            if (cmp(prev, q) <= 0) {
+            if (IA2_CALL(cmp, _ZTSPFlPK11ngx_queue_sS1_E, 1)(prev, q) <= 0) {
                 break;
             }
 

@@ -53,6 +53,9 @@ static ngx_cached_open_file_t *
 static void ngx_open_file_cache_remove(ngx_event_t *ev);
 
 
+IA2_DEFINE_WRAPPER(ngx_open_file_cache_rbtree_insert_value, _ZTSPFvP17ngx_rbtree_node_sS0_S0_E, 1);
+IA2_DEFINE_WRAPPER(ngx_open_file_cache_cleanup, _ZTSPFvPvE, 1);
+
 ngx_open_file_cache_t *
 ngx_open_file_cache_init(ngx_pool_t *pool, ngx_uint_t max, time_t inactive)
 {
@@ -78,7 +81,7 @@ ngx_open_file_cache_init(ngx_pool_t *pool, ngx_uint_t max, time_t inactive)
         return NULL;
     }
 
-    cln->handler = ngx_open_file_cache_cleanup;
+    cln->handler = IA2_WRAPPER_FN_SCOPE(ngx_open_file_cache_cleanup, 1);
     cln->data = cache;
 
     return cache;
@@ -186,7 +189,8 @@ ngx_open_cached_file(ngx_open_file_cache_t *cache, ngx_str_t *name,
         rc = ngx_open_and_stat_file(name, of, pool->log);
 
         if (rc == NGX_OK && !of->is_dir) {
-            cln->handler = ngx_pool_cleanup_file;
+            IA2_DECLARE_WRAPPER(ngx_pool_cleanup_file, _ZTSPFvPvE, 1);
+            cln->handler = IA2_WRAPPER_FN_SCOPE(ngx_pool_cleanup_file, 1);
             clnf = cln->data;
 
             clnf->fd = of->fd;
@@ -436,7 +440,8 @@ found:
     if (of->err == 0) {
 
         if (!of->is_dir) {
-            cln->handler = ngx_open_file_cleanup;
+            IA2_DEFINE_WRAPPER(ngx_open_file_cleanup, _ZTSPFvPvE, 1);
+            cln->handler = IA2_WRAPPER_FN_SCOPE(ngx_open_file_cleanup, 1);
             ofcln = cln->data;
 
             ofcln->cache = cache;
@@ -983,7 +988,8 @@ ngx_open_file_add_event(ngx_open_file_cache_t *cache,
     fev->file = file;
     fev->cache = cache;
 
-    file->event->handler = ngx_open_file_cache_remove;
+    IA2_DEFINE_WRAPPER(ngx_open_file_cache_remove, _ZTSPFvP11ngx_event_sE, 1);
+    file->event->handler = IA2_WRAPPER_FN_SCOPE(ngx_open_file_cache_remove, 1);
     file->event->data = fev;
 
     /*

@@ -110,11 +110,13 @@ static u_char *ngx_http_geo_copy_values(u_char *base, u_char *p,
     ngx_rbtree_node_t *node, ngx_rbtree_node_t *sentinel);
 
 
+IA2_DEFINE_WRAPPER(ngx_http_geo_block, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+
 static ngx_command_t  ngx_http_geo_commands[] = {
 
     { ngx_string("geo"),
       NGX_HTTP_MAIN_CONF|NGX_CONF_BLOCK|NGX_CONF_TAKE12,
-      ngx_http_geo_block,
+      IA2_WRAPPER(ngx_http_geo_block, 1),
       NGX_HTTP_MAIN_CONF_OFFSET,
       0,
       NULL },
@@ -124,17 +126,17 @@ static ngx_command_t  ngx_http_geo_commands[] = {
 
 
 static ngx_http_module_t  ngx_http_geo_module_ctx = {
-    NULL,                                  /* preconfiguration */
-    NULL,                                  /* postconfiguration */
+    IA2_NULL_FNPTR,                                  /* preconfiguration */
+    IA2_NULL_FNPTR,                                  /* postconfiguration */
 
-    NULL,                                  /* create main configuration */
-    NULL,                                  /* init main configuration */
+    IA2_NULL_FNPTR,                                  /* create main configuration */
+    IA2_NULL_FNPTR,                                  /* init main configuration */
 
-    NULL,                                  /* create server configuration */
-    NULL,                                  /* merge server configuration */
+    IA2_NULL_FNPTR,                                  /* create server configuration */
+    IA2_NULL_FNPTR,                                  /* merge server configuration */
 
-    NULL,                                  /* create location configuration */
-    NULL                                   /* merge location configuration */
+    IA2_NULL_FNPTR,                                  /* create location configuration */
+    IA2_NULL_FNPTR                                   /* merge location configuration */
 };
 
 
@@ -143,13 +145,13 @@ ngx_module_t  ngx_http_geo_module = {
     &ngx_http_geo_module_ctx,              /* module context */
     ngx_http_geo_commands,                 /* module directives */
     NGX_HTTP_MODULE,                       /* module type */
-    NULL,                                  /* init master */
-    NULL,                                  /* init module */
-    NULL,                                  /* init process */
-    NULL,                                  /* init thread */
-    NULL,                                  /* exit thread */
-    NULL,                                  /* exit process */
-    NULL,                                  /* exit master */
+    IA2_NULL_FNPTR,                                  /* init master */
+    IA2_NULL_FNPTR,                                  /* init module */
+    IA2_NULL_FNPTR,                                  /* init process */
+    IA2_NULL_FNPTR,                                  /* init thread */
+    IA2_NULL_FNPTR,                                  /* exit thread */
+    IA2_NULL_FNPTR,                                  /* exit process */
+    IA2_NULL_FNPTR,                                  /* exit master */
     NGX_MODULE_V1_PADDING
 };
 
@@ -467,7 +469,7 @@ ngx_http_geo_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     save = *cf;
     cf->pool = pool;
     cf->ctx = &ctx;
-    cf->handler = ngx_http_geo;
+    cf->handler = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_geo, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
     cf->handler_conf = conf;
 
     rv = ngx_conf_parse(cf, NULL);
@@ -523,7 +525,7 @@ ngx_http_geo_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
         geo->u.high = ctx.high;
 
-        var->get_handler = ngx_http_geo_range_variable;
+        var->get_handler = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_geo_range_variable, _ZTSPFlP18ngx_http_request_sP20ngx_variable_value_tmE, 1);
         var->data = (uintptr_t) geo;
 
     } else {
@@ -547,7 +549,7 @@ ngx_http_geo_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         geo->u.trees.tree6 = ctx.tree6;
 #endif
 
-        var->get_handler = ngx_http_geo_cidr_variable;
+        var->get_handler = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_geo_cidr_variable, _ZTSPFlP18ngx_http_request_sP20ngx_variable_value_tmE, 1);
         var->data = (uintptr_t) geo;
 
         if (ngx_radix32tree_insert(ctx.tree, 0, 0,

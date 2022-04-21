@@ -36,6 +36,8 @@ static ngx_log_t    ngx_syslog_dummy_log;
 static ngx_event_t  ngx_syslog_dummy_event;
 
 
+IA2_DEFINE_WRAPPER(ngx_syslog_cleanup, _ZTSPFvPvE, 1);
+
 char *
 ngx_syslog_process_conf(ngx_conf_t *cf, ngx_syslog_peer_t *peer)
 {
@@ -79,7 +81,7 @@ ngx_syslog_process_conf(ngx_conf_t *cf, ngx_syslog_peer_t *peer)
     }
 
     cln->data = peer;
-    cln->handler = ngx_syslog_cleanup;
+    cln->handler = IA2_WRAPPER_FN_SCOPE(ngx_syslog_cleanup, 1);
 
     return NGX_CONF_OK;
 }
@@ -295,12 +297,12 @@ ngx_syslog_send(ngx_syslog_peer_t *peer, u_char *buf, size_t len)
     /* log syslog socket events with valid log */
     peer->conn.log = ngx_cycle->log;
 
-    if (ngx_send) {
-        n = ngx_send(&peer->conn, buf, len);
+    if (!IA2_FNPTR_IS_NULL(ngx_send)) {
+        n = IA2_CALL(ngx_send, _ZTSPFlP16ngx_connection_sPhmE, 1)(&peer->conn, buf, len);
 
     } else {
         /* event module has not yet set ngx_io */
-        n = ngx_os_io.send(&peer->conn, buf, len);
+        n = IA2_CALL(ngx_os_io.send, _ZTSPFlP16ngx_connection_sPhmE, 1)(&peer->conn, buf, len);
     }
 
     if (n == NGX_ERROR) {

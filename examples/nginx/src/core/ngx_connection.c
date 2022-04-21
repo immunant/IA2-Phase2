@@ -15,6 +15,7 @@ ngx_os_io_t  ngx_io;
 
 static void ngx_drain_connections(ngx_cycle_t *cycle);
 
+IA2_DEFINE_WRAPPER(ngx_udp_rbtree_insert_value, _ZTSPFvP17ngx_rbtree_node_sS0_S0_E, 1);
 
 ngx_listening_t *
 ngx_create_listening(ngx_conf_t *cf, struct sockaddr *sockaddr,
@@ -1193,7 +1194,7 @@ ngx_close_connection(ngx_connection_t *c)
     }
 
     if (!c->shared) {
-        if (ngx_del_conn) {
+        if (!IA2_FNPTR_IS_NULL(ngx_event_actions.del_conn)) {
             ngx_del_conn(c, NGX_CLOSE_EVENT);
 
         } else {
@@ -1328,7 +1329,7 @@ ngx_drain_connections(ngx_cycle_t *cycle)
                        "reusing connection");
 
         c->close = 1;
-        c->read->handler(c->read);
+        IA2_CALL(c->read->handler, _ZTSPFvP11ngx_event_sE, 1)(c->read);
     }
 
     if (cycle->free_connection_n == 0 && c && c->reusable) {
@@ -1343,7 +1344,7 @@ ngx_drain_connections(ngx_cycle_t *cycle)
                        "reusing connection again");
 
         c->close = 1;
-        c->read->handler(c->read);
+        IA2_CALL(c->read->handler, _ZTSPFvP11ngx_event_sE, 1)(c->read);
     }
 }
 
@@ -1362,7 +1363,7 @@ ngx_close_idle_connections(ngx_cycle_t *cycle)
 
         if (c[i].fd != (ngx_socket_t) -1 && c[i].idle) {
             c[i].close = 1;
-            c[i].read->handler(c[i].read);
+            IA2_CALL(c[i].read->handler, _ZTSPFvP11ngx_event_sE, 1)(c[i].read);
         }
     }
 }

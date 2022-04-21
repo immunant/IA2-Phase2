@@ -44,7 +44,8 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
 // opaque pointer type.
 #define IA2_DECLARE_WRAPPER(target, ty, target_pkey)                           \
   /* Forward declare the function and mark it as used */                       \
-  __attribute__((used)) typeof(target) target;                                 \
+  /* TODO: This needed `static` to allow using it within a function */ \
+  __attribute__((used)) static void *target##_unused = (void *)target;                                 \
   /* Create an identifier to get the wrapper's address with                    \
    * IA2_WRAPPER/IA2_WRAPPER_FN_SCOPE */                                       \
   extern struct IA2_fnptr_##ty##_inner_t __ia2_##target##_0_##target_pkey;     \

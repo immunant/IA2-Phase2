@@ -77,33 +77,36 @@ static void *ngx_http_upstream_keepalive_create_conf(ngx_conf_t *cf);
 static char *ngx_http_upstream_keepalive(ngx_conf_t *cf, ngx_command_t *cmd,
     void *conf);
 
+IA2_DEFINE_WRAPPER(ngx_http_upstream_keepalive, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+IA2_DECLARE_WRAPPER(ngx_conf_set_msec_slot, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+IA2_DECLARE_WRAPPER(ngx_conf_set_num_slot, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
 
 static ngx_command_t  ngx_http_upstream_keepalive_commands[] = {
 
     { ngx_string("keepalive"),
       NGX_HTTP_UPS_CONF|NGX_CONF_TAKE1,
-      ngx_http_upstream_keepalive,
+      IA2_WRAPPER(ngx_http_upstream_keepalive, 1),
       NGX_HTTP_SRV_CONF_OFFSET,
       0,
       NULL },
 
     { ngx_string("keepalive_time"),
       NGX_HTTP_UPS_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_msec_slot,
+      IA2_WRAPPER(ngx_conf_set_msec_slot, 1),
       NGX_HTTP_SRV_CONF_OFFSET,
       offsetof(ngx_http_upstream_keepalive_srv_conf_t, time),
       NULL },
 
     { ngx_string("keepalive_timeout"),
       NGX_HTTP_UPS_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_msec_slot,
+      IA2_WRAPPER(ngx_conf_set_msec_slot, 1),
       NGX_HTTP_SRV_CONF_OFFSET,
       offsetof(ngx_http_upstream_keepalive_srv_conf_t, timeout),
       NULL },
 
     { ngx_string("keepalive_requests"),
       NGX_HTTP_UPS_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_num_slot,
+      IA2_WRAPPER(ngx_conf_set_num_slot, 1),
       NGX_HTTP_SRV_CONF_OFFSET,
       offsetof(ngx_http_upstream_keepalive_srv_conf_t, requests),
       NULL },
@@ -111,19 +114,20 @@ static ngx_command_t  ngx_http_upstream_keepalive_commands[] = {
       ngx_null_command
 };
 
+IA2_DEFINE_WRAPPER(ngx_http_upstream_keepalive_create_conf, _ZTSPFPvP10ngx_conf_sE, 1);
 
 static ngx_http_module_t  ngx_http_upstream_keepalive_module_ctx = {
-    NULL,                                  /* preconfiguration */
-    NULL,                                  /* postconfiguration */
+    IA2_NULL_FNPTR,                                  /* preconfiguration */
+    IA2_NULL_FNPTR,                                  /* postconfiguration */
 
-    NULL,                                  /* create main configuration */
-    NULL,                                  /* init main configuration */
+    IA2_NULL_FNPTR,                                  /* create main configuration */
+    IA2_NULL_FNPTR,                                  /* init main configuration */
 
-    ngx_http_upstream_keepalive_create_conf, /* create server configuration */
-    NULL,                                  /* merge server configuration */
+    IA2_WRAPPER(ngx_http_upstream_keepalive_create_conf, 1), /* create server configuration */
+    IA2_NULL_FNPTR,                                  /* merge server configuration */
 
-    NULL,                                  /* create location configuration */
-    NULL                                   /* merge location configuration */
+    IA2_NULL_FNPTR,                                  /* create location configuration */
+    IA2_NULL_FNPTR                                   /* merge location configuration */
 };
 
 
@@ -132,13 +136,13 @@ ngx_module_t  ngx_http_upstream_keepalive_module = {
     &ngx_http_upstream_keepalive_module_ctx, /* module context */
     ngx_http_upstream_keepalive_commands,    /* module directives */
     NGX_HTTP_MODULE,                       /* module type */
-    NULL,                                  /* init master */
-    NULL,                                  /* init module */
-    NULL,                                  /* init process */
-    NULL,                                  /* init thread */
-    NULL,                                  /* exit thread */
-    NULL,                                  /* exit process */
-    NULL,                                  /* exit master */
+    IA2_NULL_FNPTR,                                  /* init master */
+    IA2_NULL_FNPTR,                                  /* init module */
+    IA2_NULL_FNPTR,                                  /* init process */
+    IA2_NULL_FNPTR,                                  /* init thread */
+    IA2_NULL_FNPTR,                                  /* exit thread */
+    IA2_NULL_FNPTR,                                  /* exit process */
+    IA2_NULL_FNPTR,                                  /* exit master */
     NGX_MODULE_V1_PADDING
 };
 
@@ -161,13 +165,13 @@ ngx_http_upstream_init_keepalive(ngx_conf_t *cf,
     ngx_conf_init_msec_value(kcf->timeout, 60000);
     ngx_conf_init_uint_value(kcf->requests, 1000);
 
-    if (kcf->original_init_upstream(cf, us) != NGX_OK) {
+    if (IA2_CALL(kcf->original_init_upstream, _ZTSPFlP10ngx_conf_sP28ngx_http_upstream_srv_conf_sE, 1)(cf, us) != NGX_OK) {
         return NGX_ERROR;
     }
 
     kcf->original_init_peer = us->peer.init;
 
-    us->peer.init = ngx_http_upstream_init_keepalive_peer;
+    us->peer.init = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_upstream_init_keepalive_peer, _ZTSPFlP18ngx_http_request_sP28ngx_http_upstream_srv_conf_sE, 1);
 
     /* allocate cache items and add to free queue */
 
@@ -207,7 +211,7 @@ ngx_http_upstream_init_keepalive_peer(ngx_http_request_t *r,
         return NGX_ERROR;
     }
 
-    if (kcf->original_init_peer(r, us) != NGX_OK) {
+    if (IA2_CALL(kcf->original_init_peer, _ZTSPFlP18ngx_http_request_sP28ngx_http_upstream_srv_conf_sE, 1)(r, us) != NGX_OK) {
         return NGX_ERROR;
     }
 
@@ -218,8 +222,8 @@ ngx_http_upstream_init_keepalive_peer(ngx_http_request_t *r,
     kp->original_free_peer = r->upstream->peer.free;
 
     r->upstream->peer.data = kp;
-    r->upstream->peer.get = ngx_http_upstream_get_keepalive_peer;
-    r->upstream->peer.free = ngx_http_upstream_free_keepalive_peer;
+    r->upstream->peer.get = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_upstream_get_keepalive_peer, _ZTSPFlP21ngx_peer_connection_sPvE, 1);
+    r->upstream->peer.free = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_upstream_free_keepalive_peer, _ZTSPFvP21ngx_peer_connection_sPvmE, 1);
 
 #if (NGX_HTTP_SSL)
     kp->original_set_session = r->upstream->peer.set_session;
@@ -247,7 +251,7 @@ ngx_http_upstream_get_keepalive_peer(ngx_peer_connection_t *pc, void *data)
 
     /* ask balancer */
 
-    rc = kp->original_get_peer(pc, kp->data);
+    rc = IA2_CALL(kp->original_get_peer, _ZTSPFlP21ngx_peer_connection_sPvE, 1)(pc, kp->data);
 
     if (rc != NGX_OK) {
         return rc;
@@ -387,8 +391,8 @@ ngx_http_upstream_free_keepalive_peer(ngx_peer_connection_t *pc, void *data,
         ngx_del_timer(c->write);
     }
 
-    c->write->handler = ngx_http_upstream_keepalive_dummy_handler;
-    c->read->handler = ngx_http_upstream_keepalive_close_handler;
+    c->write->handler = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_upstream_keepalive_dummy_handler, _ZTSPFvP11ngx_event_sE, 1);
+    c->read->handler = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_upstream_keepalive_close_handler, _ZTSPFvP11ngx_event_sE, 1);
 
     c->data = item;
     c->idle = 1;
@@ -406,7 +410,7 @@ ngx_http_upstream_free_keepalive_peer(ngx_peer_connection_t *pc, void *data,
 
 invalid:
 
-    kp->original_free_peer(pc, kp->data, state);
+    IA2_CALL(kp->original_free_peer, _ZTSPFvP21ngx_peer_connection_sPvmE, 1)(pc, kp->data, state);
 }
 
 
@@ -566,11 +570,11 @@ ngx_http_upstream_keepalive(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     uscf = ngx_http_conf_get_module_srv_conf(cf, ngx_http_upstream_module);
 
-    kcf->original_init_upstream = uscf->peer.init_upstream
+    kcf->original_init_upstream = !IA2_FNPTR_IS_NULL(uscf->peer.init_upstream)
                                   ? uscf->peer.init_upstream
-                                  : ngx_http_upstream_init_round_robin;
+                                  : IA2_DECLARE_WRAPPER_FN_SCOPE(ngx_http_upstream_init_round_robin, _ZTSPFlP10ngx_conf_sP28ngx_http_upstream_srv_conf_sE, 1);
 
-    uscf->peer.init_upstream = ngx_http_upstream_init_keepalive;
+    uscf->peer.init_upstream = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_upstream_init_keepalive, _ZTSPFlP10ngx_conf_sP28ngx_http_upstream_srv_conf_sE, 1);
 
     return NGX_CONF_OK;
 }

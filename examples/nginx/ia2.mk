@@ -62,7 +62,9 @@ mod_shim_src:
 	$(HEADER_REWRITER) \
 		$(MOD_SHIM_SRC)/core/ngx_config.h \
 		$(MOD_SHIM_SRC)/core/ngx_core.h \
+		$(MOD_SHIM_SRC)/core/ngx_conf_file.h \
 		$(MOD_SHIM_SRC)/http/ngx_http.h \
+		$(MOD_SHIM_SRC)/event/ngx_event.h \
 		--omit-wrappers \
 		--output-header \
 		$(MOD_SHIM_SRC)/mod_shim_fn_ptr.h \

@@ -31,12 +31,13 @@ static char *ngx_http_copy_filter_merge_conf(ngx_conf_t *cf,
     void *parent, void *child);
 static ngx_int_t ngx_http_copy_filter_init(ngx_conf_t *cf);
 
+IA2_DECLARE_WRAPPER(ngx_conf_set_bufs_slot, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
 
 static ngx_command_t  ngx_http_copy_filter_commands[] = {
 
     { ngx_string("output_buffers"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE2,
-      ngx_conf_set_bufs_slot,
+      IA2_WRAPPER(ngx_conf_set_bufs_slot, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_copy_filter_conf_t, bufs),
       NULL },
@@ -44,19 +45,22 @@ static ngx_command_t  ngx_http_copy_filter_commands[] = {
       ngx_null_command
 };
 
+IA2_DEFINE_WRAPPER(ngx_http_copy_filter_init, _ZTSPFlP10ngx_conf_sE, 1);
+IA2_DEFINE_WRAPPER(ngx_http_copy_filter_create_conf, _ZTSPFPvP10ngx_conf_sE, 1);
+IA2_DEFINE_WRAPPER(ngx_http_copy_filter_merge_conf, _ZTSPFPcP10ngx_conf_sPvS2_E, 1);
 
 static ngx_http_module_t  ngx_http_copy_filter_module_ctx = {
-    NULL,                                  /* preconfiguration */
-    ngx_http_copy_filter_init,             /* postconfiguration */
+    IA2_NULL_FNPTR,                                  /* preconfiguration */
+    IA2_WRAPPER(ngx_http_copy_filter_init, 1),             /* postconfiguration */
 
-    NULL,                                  /* create main configuration */
-    NULL,                                  /* init main configuration */
+    IA2_NULL_FNPTR,                                  /* create main configuration */
+    IA2_NULL_FNPTR,                                  /* init main configuration */
 
-    NULL,                                  /* create server configuration */
-    NULL,                                  /* merge server configuration */
+    IA2_NULL_FNPTR,                                  /* create server configuration */
+    IA2_NULL_FNPTR,                                  /* merge server configuration */
 
-    ngx_http_copy_filter_create_conf,      /* create location configuration */
-    ngx_http_copy_filter_merge_conf        /* merge location configuration */
+    IA2_WRAPPER(ngx_http_copy_filter_create_conf, 1),      /* create location configuration */
+    IA2_WRAPPER(ngx_http_copy_filter_merge_conf, 1)        /* merge location configuration */
 };
 
 
@@ -65,13 +69,13 @@ ngx_module_t  ngx_http_copy_filter_module = {
     &ngx_http_copy_filter_module_ctx,      /* module context */
     ngx_http_copy_filter_commands,         /* module directives */
     NGX_HTTP_MODULE,                       /* module type */
-    NULL,                                  /* init master */
-    NULL,                                  /* init module */
-    NULL,                                  /* init process */
-    NULL,                                  /* init thread */
-    NULL,                                  /* exit thread */
-    NULL,                                  /* exit process */
-    NULL,                                  /* exit master */
+    IA2_NULL_FNPTR,                                  /* init master */
+    IA2_NULL_FNPTR,                                  /* init module */
+    IA2_NULL_FNPTR,                                  /* init process */
+    IA2_NULL_FNPTR,                                  /* init thread */
+    IA2_NULL_FNPTR,                                  /* exit thread */
+    IA2_NULL_FNPTR,                                  /* exit process */
+    IA2_NULL_FNPTR,                                  /* exit master */
     NGX_MODULE_V1_PADDING
 };
 
@@ -117,8 +121,8 @@ ngx_http_copy_filter(ngx_http_request_t *r, ngx_chain_t *in)
         ctx->bufs = conf->bufs;
         ctx->tag = (ngx_buf_tag_t) &ngx_http_copy_filter_module;
 
-        ctx->output_filter = (ngx_output_chain_filter_pt)
-                                  ngx_http_next_body_filter;
+        // TODO: This is questionable, but seems ok since the function pointer types are ABI-compatible.
+        IA2_ASSIGN_FN_SCOPE(ctx->output_filter, IA2_WRAPPER_ADDR(ngx_http_next_body_filter));
         ctx->filter_ctx = r;
 
 #if (NGX_HAVE_FILE_AIO)
@@ -355,7 +359,7 @@ static ngx_int_t
 ngx_http_copy_filter_init(ngx_conf_t *cf)
 {
     ngx_http_next_body_filter = ngx_http_top_body_filter;
-    ngx_http_top_body_filter = ngx_http_copy_filter;
+    ngx_http_top_body_filter = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_copy_filter, _ZTSPFlP18ngx_http_request_sP11ngx_chain_sE, 1);
 
     return NGX_OK;
 }

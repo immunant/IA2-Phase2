@@ -81,12 +81,13 @@ ngx_str_t  ngx_http_html_default_types[] = {
     ngx_null_string
 };
 
+IA2_DEFINE_WRAPPER(ngx_http_block, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
 
 static ngx_command_t  ngx_http_commands[] = {
 
     { ngx_string("http"),
       NGX_MAIN_CONF|NGX_CONF_BLOCK|NGX_CONF_NOARGS,
-      ngx_http_block,
+      IA2_WRAPPER(ngx_http_block, 1),
       0,
       0,
       NULL },
@@ -97,8 +98,8 @@ static ngx_command_t  ngx_http_commands[] = {
 
 static ngx_core_module_t  ngx_http_module_ctx = {
     ngx_string("http"),
-    NULL,
-    NULL
+    IA2_NULL_FNPTR,
+    IA2_NULL_FNPTR
 };
 
 
@@ -107,13 +108,13 @@ ngx_module_t  ngx_http_module = {
     &ngx_http_module_ctx,                  /* module context */
     ngx_http_commands,                     /* module directives */
     NGX_CORE_MODULE,                       /* module type */
-    NULL,                                  /* init master */
-    NULL,                                  /* init module */
-    NULL,                                  /* init process */
-    NULL,                                  /* init thread */
-    NULL,                                  /* exit thread */
-    NULL,                                  /* exit process */
-    NULL,                                  /* exit master */
+    IA2_NULL_FNPTR,                                  /* init master */
+    IA2_NULL_FNPTR,                                  /* init module */
+    IA2_NULL_FNPTR,                                  /* init process */
+    IA2_NULL_FNPTR,                                  /* init thread */
+    IA2_NULL_FNPTR,                                  /* exit thread */
+    IA2_NULL_FNPTR,                                  /* exit process */
+    IA2_NULL_FNPTR,                                  /* exit master */
     NGX_MODULE_V1_PADDING
 };
 
@@ -193,22 +194,22 @@ ngx_http_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         module = cf->cycle->modules[m]->ctx;
         mi = cf->cycle->modules[m]->ctx_index;
 
-        if (module->create_main_conf) {
-            ctx->main_conf[mi] = module->create_main_conf(cf);
+        if (!IA2_FNPTR_IS_NULL(module->create_main_conf)) {
+            ctx->main_conf[mi] = IA2_CALL(module->create_main_conf, _ZTSPFPvP10ngx_conf_sE, 1)(cf);
             if (ctx->main_conf[mi] == NULL) {
                 return NGX_CONF_ERROR;
             }
         }
 
-        if (module->create_srv_conf) {
-            ctx->srv_conf[mi] = module->create_srv_conf(cf);
+        if (!IA2_FNPTR_IS_NULL(module->create_srv_conf)) {
+            ctx->srv_conf[mi] = IA2_CALL(module->create_srv_conf, _ZTSPFPvP10ngx_conf_sE, 1)(cf);
             if (ctx->srv_conf[mi] == NULL) {
                 return NGX_CONF_ERROR;
             }
         }
 
-        if (module->create_loc_conf) {
-            ctx->loc_conf[mi] = module->create_loc_conf(cf);
+        if (!IA2_FNPTR_IS_NULL(module->create_loc_conf)) {
+            ctx->loc_conf[mi] = IA2_CALL(module->create_loc_conf, _ZTSPFPvP10ngx_conf_sE, 1)(cf);
             if (ctx->loc_conf[mi] == NULL) {
                 return NGX_CONF_ERROR;
             }
@@ -225,8 +226,8 @@ ngx_http_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
         module = cf->cycle->modules[m]->ctx;
 
-        if (module->preconfiguration) {
-            if (module->preconfiguration(cf) != NGX_OK) {
+        if (!IA2_FNPTR_IS_NULL(module->preconfiguration)) {
+            if (IA2_CALL(module->preconfiguration, _ZTSPFlP10ngx_conf_sE, 1)(cf) != NGX_OK) {
                 return NGX_CONF_ERROR;
             }
         }
@@ -260,8 +261,8 @@ ngx_http_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
         /* init http{} main_conf's */
 
-        if (module->init_main_conf) {
-            rv = module->init_main_conf(cf, ctx->main_conf[mi]);
+        if (!IA2_FNPTR_IS_NULL(module->init_main_conf)) {
+            rv = IA2_CALL(module->init_main_conf, _ZTSPFPcP10ngx_conf_sPvE, 1)(cf, ctx->main_conf[mi]);
             if (rv != NGX_CONF_OK) {
                 goto failed;
             }
@@ -306,8 +307,8 @@ ngx_http_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
         module = cf->cycle->modules[m]->ctx;
 
-        if (module->postconfiguration) {
-            if (module->postconfiguration(cf) != NGX_OK) {
+        if (!IA2_FNPTR_IS_NULL(module->postconfiguration)) {
+            if (IA2_CALL(module->postconfiguration, _ZTSPFlP10ngx_conf_sE, 1)(cf) != NGX_OK) {
                 return NGX_CONF_ERROR;
             }
         }
@@ -435,7 +436,7 @@ ngx_http_init_headers_in_hash(ngx_conf_t *cf, ngx_http_core_main_conf_t *cmcf)
     }
 
     hash.hash = &cmcf->headers_in_hash;
-    hash.key = ngx_hash_key_lc;
+    hash.key = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_hash_key_lc, _ZTSPFmPhmE, 1);
     hash.max_size = 512;
     hash.bucket_size = ngx_align(64, ngx_cacheline_size);
     hash.name = "headers_in_hash";
@@ -492,14 +493,14 @@ ngx_http_init_phase_handlers(ngx_conf_t *cf, ngx_http_core_main_conf_t *cmcf)
             if (cmcf->phase_engine.server_rewrite_index == (ngx_uint_t) -1) {
                 cmcf->phase_engine.server_rewrite_index = n;
             }
-            checker = ngx_http_core_rewrite_phase;
+            checker = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_core_rewrite_phase, _ZTSPFlP18ngx_http_request_sP24ngx_http_phase_handler_sE, 1);
 
             break;
 
         case NGX_HTTP_FIND_CONFIG_PHASE:
             find_config_index = n;
 
-            ph->checker = ngx_http_core_find_config_phase;
+            ph->checker = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_core_find_config_phase, _ZTSPFlP18ngx_http_request_sP24ngx_http_phase_handler_sE, 1);
             n++;
             ph++;
 
@@ -509,13 +510,13 @@ ngx_http_init_phase_handlers(ngx_conf_t *cf, ngx_http_core_main_conf_t *cmcf)
             if (cmcf->phase_engine.location_rewrite_index == (ngx_uint_t) -1) {
                 cmcf->phase_engine.location_rewrite_index = n;
             }
-            checker = ngx_http_core_rewrite_phase;
+            checker = IA2_DECLARE_WRAPPER_FN_SCOPE(ngx_http_core_rewrite_phase, _ZTSPFlP18ngx_http_request_sP24ngx_http_phase_handler_sE, 1);
 
             break;
 
         case NGX_HTTP_POST_REWRITE_PHASE:
             if (use_rewrite) {
-                ph->checker = ngx_http_core_post_rewrite_phase;
+                ph->checker = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_core_post_rewrite_phase, _ZTSPFlP18ngx_http_request_sP24ngx_http_phase_handler_sE, 1);
                 ph->next = find_config_index;
                 n++;
                 ph++;
@@ -524,13 +525,13 @@ ngx_http_init_phase_handlers(ngx_conf_t *cf, ngx_http_core_main_conf_t *cmcf)
             continue;
 
         case NGX_HTTP_ACCESS_PHASE:
-            checker = ngx_http_core_access_phase;
+            checker = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_core_access_phase, _ZTSPFlP18ngx_http_request_sP24ngx_http_phase_handler_sE, 1);
             n++;
             break;
 
         case NGX_HTTP_POST_ACCESS_PHASE:
             if (use_access) {
-                ph->checker = ngx_http_core_post_access_phase;
+                ph->checker = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_core_post_access_phase, _ZTSPFlP18ngx_http_request_sP24ngx_http_phase_handler_sE, 1);
                 ph->next = n;
                 ph++;
             }
@@ -538,11 +539,11 @@ ngx_http_init_phase_handlers(ngx_conf_t *cf, ngx_http_core_main_conf_t *cmcf)
             continue;
 
         case NGX_HTTP_CONTENT_PHASE:
-            checker = ngx_http_core_content_phase;
+            checker = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_core_content_phase, _ZTSPFlP18ngx_http_request_sP24ngx_http_phase_handler_sE, 1);
             break;
 
         default:
-            checker = ngx_http_core_generic_phase;
+            checker = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_core_generic_phase, _ZTSPFlP18ngx_http_request_sP24ngx_http_phase_handler_sE, 1);
         }
 
         n += cmcf->phases[i].handlers.nelts;
@@ -580,21 +581,21 @@ ngx_http_merge_servers(ngx_conf_t *cf, ngx_http_core_main_conf_t *cmcf,
 
         ctx->srv_conf = cscfp[s]->ctx->srv_conf;
 
-        if (module->merge_srv_conf) {
-            rv = module->merge_srv_conf(cf, saved.srv_conf[ctx_index],
+        if (!IA2_FNPTR_IS_NULL(module->merge_srv_conf)) {
+            rv = IA2_CALL(module->merge_srv_conf, _ZTSPFPcP10ngx_conf_sPvS2_E, 1)(cf, saved.srv_conf[ctx_index],
                                         cscfp[s]->ctx->srv_conf[ctx_index]);
             if (rv != NGX_CONF_OK) {
                 goto failed;
             }
         }
 
-        if (module->merge_loc_conf) {
+        if (!IA2_FNPTR_IS_NULL(module->merge_loc_conf)) {
 
             /* merge the server{}'s loc_conf */
 
             ctx->loc_conf = cscfp[s]->ctx->loc_conf;
 
-            rv = module->merge_loc_conf(cf, saved.loc_conf[ctx_index],
+            rv = IA2_CALL(module->merge_loc_conf, _ZTSPFPcP10ngx_conf_sPvS2_E, 1)(cf, saved.loc_conf[ctx_index],
                                         cscfp[s]->ctx->loc_conf[ctx_index]);
             if (rv != NGX_CONF_OK) {
                 goto failed;
@@ -647,7 +648,7 @@ ngx_http_merge_locations(ngx_conf_t *cf, ngx_queue_t *locations,
         clcf = lq->exact ? lq->exact : lq->inclusive;
         ctx->loc_conf = clcf->loc_conf;
 
-        rv = module->merge_loc_conf(cf, loc_conf[ctx_index],
+        rv = IA2_CALL(module->merge_loc_conf, _ZTSPFPcP10ngx_conf_sPvS2_E, 1)(cf, loc_conf[ctx_index],
                                     clcf->loc_conf[ctx_index]);
         if (rv != NGX_CONF_OK) {
             return rv;
@@ -686,7 +687,7 @@ ngx_http_init_locations(ngx_conf_t *cf, ngx_http_core_srv_conf_t *cscf,
         return NGX_OK;
     }
 
-    ngx_queue_sort(locations, ngx_http_cmp_locations);
+    ngx_queue_sort(locations, IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_cmp_locations, _ZTSPFlPK11ngx_queue_sS1_E, 1));
 
     named = NULL;
     n = 0;
@@ -1426,7 +1427,7 @@ ngx_http_optimize_servers(ngx_conf_t *cf, ngx_http_core_main_conf_t *cmcf,
     for (p = 0; p < ports->nelts; p++) {
 
         ngx_sort(port[p].addrs.elts, (size_t) port[p].addrs.nelts,
-                 sizeof(ngx_http_conf_addr_t), ngx_http_cmp_conf_addrs);
+                 sizeof(ngx_http_conf_addr_t), IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_cmp_conf_addrs, _ZTSPFlPKvS0_E, 1));
 
         /*
          * check whether all name-based servers have the same
@@ -1523,7 +1524,7 @@ ngx_http_server_names(ngx_conf_t *cf, ngx_http_core_main_conf_t *cmcf,
         }
     }
 
-    hash.key = ngx_hash_key_lc;
+    hash.key = IA2_DECLARE_WRAPPER_FN_SCOPE(ngx_hash_key_lc, _ZTSPFmPhmE, 1);
     hash.max_size = cmcf->server_names_hash_max_size;
     hash.bucket_size = cmcf->server_names_hash_bucket_size;
     hash.name = "server_names_hash";
@@ -1746,7 +1747,7 @@ ngx_http_add_listening(ngx_conf_t *cf, ngx_http_conf_addr_t *addr)
 
     ls->addr_ntop = 1;
 
-    ls->handler = ngx_http_init_connection;
+    ls->handler = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_init_connection, _ZTSPFvP16ngx_connection_sE, 1);
 
     cscf = addr->default_server;
     ls->pool_size = cscf->connection_pool_size;
@@ -1755,7 +1756,7 @@ ngx_http_add_listening(ngx_conf_t *cf, ngx_http_conf_addr_t *addr)
 
     ls->logp = clcf->error_log;
     ls->log.data = &ls->addr_text;
-    ls->log.handler = ngx_accept_log_error;
+    ls->log.handler = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_accept_log_error, _ZTSPFPhP9ngx_log_sS_mE, 1);
 
 #if (NGX_WIN32)
     {
@@ -2030,7 +2031,7 @@ ngx_http_merge_types(ngx_conf_t *cf, ngx_array_t **keys, ngx_hash_t *types_hash,
         }
 
         hash.hash = types_hash;
-        hash.key = NULL;
+        IA2_NULL_FNPTR_FN_SCOPE(hash.key);
         hash.max_size = 2048;
         hash.bucket_size = 64;
         hash.name = "test_types_hash";
@@ -2060,7 +2061,7 @@ ngx_http_merge_types(ngx_conf_t *cf, ngx_array_t **keys, ngx_hash_t *types_hash,
         }
 
         hash.hash = prev_types_hash;
-        hash.key = NULL;
+        IA2_NULL_FNPTR_FN_SCOPE(hash.key);
         hash.max_size = 2048;
         hash.bucket_size = 64;
         hash.name = "test_types_hash";

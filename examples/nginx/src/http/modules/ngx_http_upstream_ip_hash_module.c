@@ -32,12 +32,13 @@ static ngx_int_t ngx_http_upstream_get_ip_hash_peer(ngx_peer_connection_t *pc,
 static char *ngx_http_upstream_ip_hash(ngx_conf_t *cf, ngx_command_t *cmd,
     void *conf);
 
+IA2_DEFINE_WRAPPER(ngx_http_upstream_ip_hash, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
 
 static ngx_command_t  ngx_http_upstream_ip_hash_commands[] = {
 
     { ngx_string("ip_hash"),
       NGX_HTTP_UPS_CONF|NGX_CONF_NOARGS,
-      ngx_http_upstream_ip_hash,
+      IA2_WRAPPER(ngx_http_upstream_ip_hash, 1),
       0,
       0,
       NULL },
@@ -47,17 +48,17 @@ static ngx_command_t  ngx_http_upstream_ip_hash_commands[] = {
 
 
 static ngx_http_module_t  ngx_http_upstream_ip_hash_module_ctx = {
-    NULL,                                  /* preconfiguration */
-    NULL,                                  /* postconfiguration */
+    IA2_NULL_FNPTR,                                  /* preconfiguration */
+    IA2_NULL_FNPTR,                                  /* postconfiguration */
 
-    NULL,                                  /* create main configuration */
-    NULL,                                  /* init main configuration */
+    IA2_NULL_FNPTR,                                  /* create main configuration */
+    IA2_NULL_FNPTR,                                  /* init main configuration */
 
-    NULL,                                  /* create server configuration */
-    NULL,                                  /* merge server configuration */
+    IA2_NULL_FNPTR,                                  /* create server configuration */
+    IA2_NULL_FNPTR,                                  /* merge server configuration */
 
-    NULL,                                  /* create location configuration */
-    NULL                                   /* merge location configuration */
+    IA2_NULL_FNPTR,                                  /* create location configuration */
+    IA2_NULL_FNPTR                                   /* merge location configuration */
 };
 
 
@@ -66,13 +67,13 @@ ngx_module_t  ngx_http_upstream_ip_hash_module = {
     &ngx_http_upstream_ip_hash_module_ctx, /* module context */
     ngx_http_upstream_ip_hash_commands,    /* module directives */
     NGX_HTTP_MODULE,                       /* module type */
-    NULL,                                  /* init master */
-    NULL,                                  /* init module */
-    NULL,                                  /* init process */
-    NULL,                                  /* init thread */
-    NULL,                                  /* exit thread */
-    NULL,                                  /* exit process */
-    NULL,                                  /* exit master */
+    IA2_NULL_FNPTR,                                  /* init master */
+    IA2_NULL_FNPTR,                                  /* init module */
+    IA2_NULL_FNPTR,                                  /* init process */
+    IA2_NULL_FNPTR,                                  /* init thread */
+    IA2_NULL_FNPTR,                                  /* exit thread */
+    IA2_NULL_FNPTR,                                  /* exit process */
+    IA2_NULL_FNPTR,                                  /* exit master */
     NGX_MODULE_V1_PADDING
 };
 
@@ -87,7 +88,7 @@ ngx_http_upstream_init_ip_hash(ngx_conf_t *cf, ngx_http_upstream_srv_conf_t *us)
         return NGX_ERROR;
     }
 
-    us->peer.init = ngx_http_upstream_init_ip_hash_peer;
+    us->peer.init = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_upstream_init_ip_hash_peer, _ZTSPFlP18ngx_http_request_sP28ngx_http_upstream_srv_conf_sE, 1);
 
     return NGX_OK;
 }
@@ -114,7 +115,7 @@ ngx_http_upstream_init_ip_hash_peer(ngx_http_request_t *r,
         return NGX_ERROR;
     }
 
-    r->upstream->peer.get = ngx_http_upstream_get_ip_hash_peer;
+    r->upstream->peer.get = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_upstream_get_ip_hash_peer, _ZTSPFlP21ngx_peer_connection_sPvE, 1);
 
     switch (r->connection->sockaddr->sa_family) {
 
@@ -139,7 +140,7 @@ ngx_http_upstream_init_ip_hash_peer(ngx_http_request_t *r,
 
     iphp->hash = 89;
     iphp->tries = 0;
-    iphp->get_rr_peer = ngx_http_upstream_get_round_robin_peer;
+    iphp->get_rr_peer = IA2_DECLARE_WRAPPER_FN_SCOPE(ngx_http_upstream_get_round_robin_peer, _ZTSPFlP21ngx_peer_connection_sPvE, 1);
 
     return NGX_OK;
 }
@@ -165,7 +166,7 @@ ngx_http_upstream_get_ip_hash_peer(ngx_peer_connection_t *pc, void *data)
 
     if (iphp->tries > 20 || iphp->rrp.peers->single) {
         ngx_http_upstream_rr_peers_unlock(iphp->rrp.peers);
-        return iphp->get_rr_peer(pc, &iphp->rrp);
+        return IA2_CALL(iphp->get_rr_peer, _ZTSPFlP21ngx_peer_connection_sPvE, 1)(pc, &iphp->rrp);
     }
 
     now = ngx_time();
@@ -227,7 +228,7 @@ ngx_http_upstream_get_ip_hash_peer(ngx_peer_connection_t *pc, void *data)
 
         if (++iphp->tries > 20) {
             ngx_http_upstream_rr_peers_unlock(iphp->rrp.peers);
-            return iphp->get_rr_peer(pc, &iphp->rrp);
+            return IA2_CALL(iphp->get_rr_peer, _ZTSPFlP21ngx_peer_connection_sPvE, 1)(pc, &iphp->rrp);
         }
     }
 
@@ -260,12 +261,12 @@ ngx_http_upstream_ip_hash(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     uscf = ngx_http_conf_get_module_srv_conf(cf, ngx_http_upstream_module);
 
-    if (uscf->peer.init_upstream) {
+    if (!IA2_FNPTR_IS_NULL(uscf->peer.init_upstream)) {
         ngx_conf_log_error(NGX_LOG_WARN, cf, 0,
                            "load balancing method redefined");
     }
 
-    uscf->peer.init_upstream = ngx_http_upstream_init_ip_hash;
+    uscf->peer.init_upstream = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_upstream_init_ip_hash, _ZTSPFlP10ngx_conf_sP28ngx_http_upstream_srv_conf_sE, 1);
 
     uscf->flags = NGX_HTTP_UPSTREAM_CREATE
                   |NGX_HTTP_UPSTREAM_WEIGHT

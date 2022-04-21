@@ -19,7 +19,11 @@
 #define TOKENPASTE3_(x, y, z) x##y##z
 #define TOKENPASTE3(x, y, z) TOKENPASTE3_(x, y, z)
 
+#define TOKENPASTE4_(w, x, y, z) w##x##y##z
+#define TOKENPASTE4(w, x, y, z) TOKENPASTE4_(w, x, y, z)
+
 #define UNIQUE(s) TOKENPASTE3(s, _line_, __LINE__)
+#define UNIQUE_IA2(s) TOKENPASTE4(__ia2_, s, _line_, __LINE__)
 #define UNIQUE_STR(s) XSTR(UNIQUE(s))
 
 #ifdef LIBIA2_INSECURE
@@ -52,10 +56,11 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
   ({                                                                           \
     static struct IA2_fnptr_##ty##_inner_t *target_ptr __asm__(                \
         UNIQUE_STR(target)) __attribute__((used));                             \
-    static void *wrapper __asm__("__ia2_" UNIQUE_STR(target));                 \
+    extern void *UNIQUE_IA2(target);                                           \
     target_ptr = (struct IA2_fnptr_##ty##_inner_t *)target;                    \
     __asm__(IA2_FNPTR_WRAPPER_##ty(target, caller_pkey, target_pkey));         \
-    (struct IA2_fnptr_##ty){(struct IA2_fnptr_##ty##_inner_t *)&wrapper};      \
+    (struct IA2_fnptr_##ty){                                                   \
+        (struct IA2_fnptr_##ty##_inner_t *)&UNIQUE_IA2(target)};               \
   })
 
 // Takes an opaque pointer `target` and returns a function pointer for its call
@@ -64,10 +69,10 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
   ({                                                                           \
     static struct IA2_fnptr_##ty##_inner_t *target_ptr __asm__(                \
         UNIQUE_STR(target)) __attribute__((used));                             \
-    static void *wrapper __asm__("__ia2_" UNIQUE_STR(target));                 \
+    extern void *UNIQUE_IA2(target);                                           \
     target_ptr = target.ptr;                                                   \
     __asm__(IA2_FNPTR_UNWRAPPER_##ty(target, caller_pkey, target_pkey));       \
-    (IA2_FNPTR_TYPE_##ty) & wrapper;                                           \
+    (IA2_FNPTR_TYPE_##ty) & UNIQUE_IA2(target);                                \
   })
 
 // Takes a mangled type name and returns a NULL opaque pointer

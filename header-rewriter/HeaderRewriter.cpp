@@ -506,7 +506,7 @@ static std::string generate_output_header(
        << "(target, caller_pkey, target_pkey) \\\n";
     // target_pkey is the macro param defining the callee's pkey
     auto wrapper_from_untrusted = emit_asm_wrapper(
-        fi.sig, fi.new_type, WrapperKind::IndirectFromTrusted, "target_pkey"s);
+        fi.sig, fi.new_type, WrapperKind::Indirect, "target_pkey"s);
     os << wrapper_from_untrusted << "\n";
   }
 

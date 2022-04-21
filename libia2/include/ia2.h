@@ -110,6 +110,16 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
 #define IA2_WRAPPER_FN_SCOPE(target, target_pkey)                              \
   (typeof(__ia2_##target##_wrapper)) { &__ia2_##target##_0_##target_pkey }
 
+// Declare a wrapper for the function `target` and expands to an opaque pointer
+// expression for the wrapper.
+//
+// This macro may only be used inside functions.
+#define IA2_DECLARE_WRAPPER_FN_SCOPE(target, ty, target_pkey)                  \
+  ({                                                                           \
+    IA2_DECLARE_WRAPPER(target, ty, target_pkey);                              \
+    IA2_WRAPPER_FN_SCOPE(target, target_pkey);                                 \
+  })
+
 // Defines a wrapper for the function `target` and expands to an opaque pointer
 // expression for the wrapper.
 //
@@ -165,6 +175,31 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
 
 // Checks if an opaque pointer is null
 #define IA2_FNPTR_IS_NULL(target) (target.ptr == NULL)
+
+#define IA2_WRAPPER_ADDR(target) (void *)target.ptr
+
+// lhs: opaque pointer, rhs: void *
+// This is safe because we must use IA2_CALL before calling the pointer
+#define IA2_ASSIGN_FN_SCOPE(lhs, rhs)                                          \
+  lhs = (typeof(lhs)) { rhs }
+
+// We must declare the sections used to pad the end of each program header
+// segment to make sure their rwx permissions match the segment they're placed
+// in. Otherwise if the padding sections are declared in the linker script
+// without any input sections they and their corresponding segment will default
+// to rwx. We avoid using .balign to align the sections at the start of each
+// segment because it inserts a fill value (defaults to 0) which may break some
+// sections (e.g.  insert null pointers into .init_array).
+#define NEW_SECTION(name)                                                      \
+  __asm__(".section " #name                                                    \
+          "\n"                                                                 \
+          ".previous");
+
+#define DECLARE_PADDING_SECTIONS                                               \
+  NEW_SECTION(".fini_padding");                                                \
+  NEW_SECTION(".rela.plt_padding");                                            \
+  NEW_SECTION(".eh_frame_padding");                                            \
+  NEW_SECTION(".bss_padding");
 
 // Initializes a compartment with protection key `n` when the ELF invoking this
 // macro is loaded. This must only be called once for each key. The compartment

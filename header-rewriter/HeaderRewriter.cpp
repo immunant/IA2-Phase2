@@ -216,6 +216,28 @@ public:
       return;
     }
 
+    // Get a reference to the header file so we can ensure we add our headers to
+    // its imports only the first time we modify it
+    auto header_ref_result =
+        Result.SourceManager->getFileManager().getFileRef(header_name);
+    if (auto err = header_ref_result.takeError()) {
+      llvm::errs() << "Error getting FileEntryRef for '" << header_name << "' ("
+                   << fn_decl->getLocation().printToString(
+                          *Result.SourceManager)
+                   << "): " << err << '\n';
+      return;
+    }
+    clang::FileEntryRef header_ref = *header_ref_result;
+
+    // Add ia2.h and the output header to the header being rewritten
+    if (!isInitialized(header_ref)) {
+      if (addHeaderImport(header_name, OutputHeader)) {
+        return;
+      }
+      InitializedHeaders.push_back(header_ref);
+    }
+
+
     if (!functionShouldBeWrapped(fn_decl)) {
       return;
     }
@@ -241,27 +263,6 @@ public:
     }
 
     // At this point we know we need to wrap this function
-
-    // Get a reference to the header file so we can ensure we add our headers to
-    // its imports only the first time we modify it
-    auto header_ref_result =
-        Result.SourceManager->getFileManager().getFileRef(header_name);
-    if (auto err = header_ref_result.takeError()) {
-      llvm::errs() << "Error getting FileEntryRef for '" << header_name << "' ("
-                   << fn_decl->getLocation().printToString(
-                          *Result.SourceManager)
-                   << "): " << err << '\n';
-      return;
-    }
-    clang::FileEntryRef header_ref = *header_ref_result;
-
-    // Add ia2.h and the output header to the header being rewritten
-    if (!isInitialized(header_ref)) {
-      if (addHeaderImport(header_name, OutputHeader)) {
-        return;
-      }
-      InitializedHeaders.push_back(header_ref);
-    }
 
     // Insert a symbol versioning attribute prior to the function's decl
     // to redirect it to the wrapper

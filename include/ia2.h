@@ -16,7 +16,11 @@
 #define STR(s) #s
 // TODO: Incorporate __FILE_NAME__ and __COUNTER__ if possible to make this more
 // flexible.
-#define UNIQUE_STR(s) s "_line_" XSTR(__LINE__)
+#define TOKENPASTE3_(x, y, z) x##y##z
+#define TOKENPASTE3(x, y, z) TOKENPASTE3_(x, y, z)
+
+#define UNIQUE(s) TOKENPASTE3(s, _line_, __LINE__)
+#define UNIQUE_STR(s) XSTR(UNIQUE(s))
 
 #ifdef LIBIA2_INSECURE
 #define INIT_COMPARTMENT(n) DECLARE_PADDING_SECTIONS
@@ -47,8 +51,8 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
 #define IA2_FNPTR_WRAPPER(target, ty, caller_pkey, target_pkey)                \
   ({                                                                           \
     static struct IA2_fnptr_##ty##_inner_t *target_ptr __asm__(                \
-        UNIQUE_STR(#target)) __attribute__((used));                            \
-    static void *wrapper __asm__("__ia2_" UNIQUE_STR(#target));                \
+        UNIQUE_STR(target)) __attribute__((used));                             \
+    static void *wrapper __asm__("__ia2_" UNIQUE_STR(target));                 \
     target_ptr = (struct IA2_fnptr_##ty##_inner_t *)target;                    \
     __asm__(IA2_FNPTR_WRAPPER_##ty(target, caller_pkey, target_pkey));         \
     (struct IA2_fnptr_##ty){(struct IA2_fnptr_##ty##_inner_t *)&wrapper};      \
@@ -59,8 +63,8 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
 #define IA2_FNPTR_UNWRAPPER(target, ty, caller_pkey, target_pkey)              \
   ({                                                                           \
     static struct IA2_fnptr_##ty##_inner_t *target_ptr __asm__(                \
-        UNIQUE_STR(#target)) __attribute__((used));                            \
-    static void *wrapper __asm__("__ia2_" UNIQUE_STR(#target));                \
+        UNIQUE_STR(target)) __attribute__((used));                             \
+    static void *wrapper __asm__("__ia2_" UNIQUE_STR(target));                 \
     target_ptr = target.ptr;                                                   \
     __asm__(IA2_FNPTR_UNWRAPPER_##ty(target, caller_pkey, target_pkey));       \
     (IA2_FNPTR_TYPE_##ty) & wrapper;                                           \

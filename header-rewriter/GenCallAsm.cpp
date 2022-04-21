@@ -344,8 +344,8 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     // Jump to a subsection of .text to avoid inlining this wrapper function in
     // the function that invoked the macro for indirect wrappers
     add_asm_line(aw, ".text 1");
-    add_raw_line(aw, "\"__ia2_\" UNIQUE_STR(#target) \"_wrapper:\\n\"");
-    add_raw_line(aw, "\".equ __ia2_\" UNIQUE_STR(#target) \", .\\n\"");
+    add_raw_line(aw, "\".equ __ia2_\" UNIQUE_STR(target) \"_wrapper, .\\n\"");
+    add_raw_line(aw, "\".equ __ia2_\" UNIQUE_STR(target) \", .\\n\"");
   } else if (as_macro) {
     add_asm_line(aw, ".text");
     add_raw_line(aw, "\".global __ia2_\" #target \"\\n\"");
@@ -379,7 +379,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   if (kind == WrapperKind::IndirectFromTrusted) {
     add_comment_line(aw, "Load indirect call target and put it on the stack");
     add_raw_line(aw,
-                 "\"movq \" UNIQUE_STR(#target) \"@GOTPCREL(%rip), %r10\\n\"");
+                 "\"movq \" UNIQUE_STR(target) \"@GOTPCREL(%rip), %r10\\n\"");
     add_asm_line(aw, "movq (%r10), %r10");
     add_asm_line(aw, "pushq %r10");
   }
@@ -499,7 +499,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     // after the first wrpkru
     add_comment_line(aw, "Load indirect call target");
     add_raw_line(aw,
-                 "\"movq \" UNIQUE_STR(#target) \"@GOTPCREL(%rip), %r10\\n\"");
+                 "\"movq \" UNIQUE_STR(target) \"@GOTPCREL(%rip), %r10\\n\"");
     add_asm_line(aw, "movq (%r10), %r10");
     add_asm_line(aw, "call *%r10");
   } else if (as_macro) {

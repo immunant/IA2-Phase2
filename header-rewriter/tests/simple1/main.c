@@ -61,7 +61,7 @@ int main() {
   simple_foreach_v2(s, IA2_WRAPPER_FN_SCOPE(main_map));
   simple_destroy(s);
 
-  // We need to check if exit_hook_fn is NULL since IA2_FNPTR_UNWRAPPER always
+  // We need to check if exit_hook_fn is NULL since IA2_CALL always
   // returns a non-null pointer. Since it's an opaque pointer, we use this macro
   // instead of directly comparing with NULL.
   if (!IA2_FNPTR_IS_NULL(exit_hook_fn)) {
@@ -69,7 +69,7 @@ int main() {
     // untrusted since libsimple1 sets the value of exit_hook_fn. If
     // exit_hook_fn were to point to a function defined in this binary, it must
     // be a wrapped function with an untrusted caller and callee with pkey 0.
-    IA2_FNPTR_UNWRAPPER(exit_hook_fn, _ZTSPFvvE, 1)();
+    IA2_CALL(exit_hook_fn, _ZTSPFvvE, 1)();
   }
 
   return 0;

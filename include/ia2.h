@@ -38,37 +38,88 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
     ".long ~((3 << (2 * \\pkey0)) | (3 << (2 * \\pkey1)) | 3)\n"
     ".endm");
 
-#define IA2_WRAPPER(target, ty, caller_pkey, target_pkey)                      \
-  __asm__(IA2_WRAPPER_##ty(target, caller_pkey, target_pkey));                 \
-  extern struct IA2_fnptr_##ty##_inner_t __ia2_##target;
+// Declares a wrapper for the function `target`.
+//
+// The wrapper expects caller pkey 0 and uses the given target_pkey. This macro
+// may be used both in a function and in the global scope. Use
+// IA2_WRAPPER(target) or IA2_WRAPPER_FN_SCOPE(target) to get the wrapper as an
+// opaque pointer type.
+#define IA2_DECLARE_WRAPPER(target, ty, target_pkey)                           \
+  /* Forward declare the function and mark it as used */                       \
+  __attribute__((used)) typeof(target) target;                                 \
+  /* Create an identifier to get the wrapper's address with                    \
+   * IA2_WRAPPER/IA2_WRAPPER_FN_SCOPE */                                       \
+  extern struct IA2_fnptr_##ty##_inner_t __ia2_##target;                       \
+  /* Create an identifier to get the wrapper's type with                       \
+   * IA2_WRAPPER/IA2_WRAPPER_FN_SCOPE */                                       \
+  extern struct IA2_fnptr_##ty __ia2_##target##_wrapper;
 
-// Takes a function pointer `target` and returns an opaque pointer for its call
-// gate wrapper.
-#define IA2_FNPTR_WRAPPER(target, ty, caller_pkey, target_pkey)                \
+// Defines a wrapper for the function `target`.
+//
+// The wrapper expects caller pkey 0 and uses the given target_pkey. This macro
+// may be used both in a function and in the global scope. Use
+// IA2_WRAPPER(target) or IA2_WRAPPER_FN_SCOPE(target) to get the wrapper as an
+// opaque pointer type.
+#define IA2_DEFINE_WRAPPER(target, ty, target_pkey)                            \
+  /* Define the wrapper in asm */                                              \
+  __asm__(IA2_WRAPPER_##ty(target, 0, target_pkey));                           \
+  IA2_DECLARE_WRAPPER(target, ty, target_pkey)
+
+// Expands to an opaque pointer expression for a wrapper defined by
+// IA2_DEFINE_WRAPPER.
+//
+// This macro may only be used in the global scope.
+#define IA2_WRAPPER(target)                                                    \
+  { &__ia2_##target }
+
+// Expands to an opaque pointer expression for a wrapper defined by
+// IA2_DEFINE_WRAPPER.
+//
+// This macro may only be used inside functions.
+#define IA2_WRAPPER_FN_SCOPE(target)                                           \
+  (typeof(__ia2_##target##_wrapper)) { &__ia2_##target }
+
+// Defines a wrapper for the function `target` and expands to an opaque pointer
+// expression for the wrapper.
+//
+// This macro may only be used inside functions.
+#define IA2_DEFINE_WRAPPER_FN_SCOPE(target, ty, target_pkey)                   \
   ({                                                                           \
-    static struct IA2_fnptr_##ty##_inner_t *target_ptr __asm__(                \
-        UNIQUE_STR(#target)) __attribute__((used));                            \
-    static void *wrapper __asm__("__ia2_" UNIQUE_STR(#target));                \
-    target_ptr = (struct IA2_fnptr_##ty##_inner_t *)target;                    \
-    __asm__(IA2_FNPTR_WRAPPER_##ty(target, caller_pkey, target_pkey));         \
-    (struct IA2_fnptr_##ty){(struct IA2_fnptr_##ty##_inner_t *)&wrapper};      \
+    IA2_DEFINE_WRAPPER(target, ty, target_pkey);                               \
+    IA2_WRAPPER_FN_SCOPE(target);                                              \
   })
 
 // Takes an opaque pointer `target` and returns a function pointer for its call
 // gate wrapper.
-#define IA2_FNPTR_UNWRAPPER(target, ty, caller_pkey, target_pkey)              \
+
+// Defines a wrapper for the opaque pointer `target` and expands to a function
+// pointer expression for this wrapper.
+//
+// The wrapper expects the given caller_pkey and uses target pkey 0. This macro
+// may only be used inside functions. The resulting function pointer expression
+// may be assigned an identifier or called immediately. Since the rewritten
+// headers replace function pointer types with opaque pointer types, calling it
+// immediately is the more ergonomic approach.
+#define IA2_FNPTR_UNWRAPPER(target, ty, caller_pkey)                           \
   ({                                                                           \
     static struct IA2_fnptr_##ty##_inner_t *target_ptr __asm__(                \
         UNIQUE_STR(#target)) __attribute__((used));                            \
     static void *wrapper __asm__("__ia2_" UNIQUE_STR(#target));                \
     target_ptr = target.ptr;                                                   \
-    __asm__(IA2_FNPTR_UNWRAPPER_##ty(target, caller_pkey, target_pkey));       \
+    __asm__(IA2_FNPTR_UNWRAPPER_##ty(target, caller_pkey, 0));                 \
     (IA2_FNPTR_TYPE_##ty) & wrapper;                                           \
   })
 
-// Takes a mangled type name and returns a NULL opaque pointer
-#define IA2_NULL_FNPTR(ty)                                                     \
-  (struct IA2_fnptr_##ty) { (struct IA2_fnptr_##ty##_inner_t *)NULL }
+// Expands to a NULL pointer expression which can be coerced to any opaque
+// pointer type.
+//
+// This macro may only be used in the global scope.
+#define IA2_NULL_FNPTR                                                         \
+  { (void *)NULL }
+
+// Sets the given opaque pointer to NULL.
+#define IA2_NULL_FNPTR_FN_SCOPE(ptr)                                           \
+  ptr = (typeof(ptr)) { (void *)NULL }
 
 // Checks if an opaque pointer is null
 #define IA2_FNPTR_IS_NULL(target) (target.ptr == NULL)

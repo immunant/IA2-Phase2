@@ -147,16 +147,17 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
 // to rwx. We avoid using .balign to align the sections at the start of each
 // segment because it inserts a fill value (defaults to 0) which may break some
 // sections (e.g.  insert null pointers into .init_array).
-#define NEW_SECTION(name)                                                      \
-  __asm__(".section " #name                                                    \
+#define NEW_SECTION(name, attrs)                                               \
+  __asm__(".section " #name ", \"" #attrs                                      \
+          "\""                                                                 \
           "\n"                                                                 \
           ".previous");
 
 #define DECLARE_PADDING_SECTIONS                                               \
-  NEW_SECTION(".fini_padding");                                                \
-  NEW_SECTION(".rela.plt_padding");                                            \
-  NEW_SECTION(".eh_frame_padding");                                            \
-  NEW_SECTION(".bss_padding");
+  NEW_SECTION(".fini_padding", ax);                                            \
+  NEW_SECTION(".rela.plt_padding", a);                                         \
+  NEW_SECTION(".eh_frame_padding", a);                                         \
+  NEW_SECTION(".bss_padding", a);
 
 // Initializes a compartment with protection key `n` when the ELF invoking this
 // macro is loaded. This must only be called once for each key. The compartment

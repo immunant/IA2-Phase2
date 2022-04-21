@@ -503,7 +503,7 @@ static std::string generate_output_header(
     // IA2_CALL_* takes an opaque pointer and returns a function
     // pointer so the wrapper will be called from the trusted compartment.
     os << "#define IA2_CALL_" << mangled_type
-       << "(target, caller_pkey, target_pkey) \\\n";
+       << "(target, ty, caller_pkey, target_pkey) \\\n";
     // target_pkey is the macro param defining the callee's pkey
     auto wrapper_from_untrusted = emit_asm_wrapper(
         fi.sig, fi.new_type, WrapperKind::Indirect, "target_pkey"s);

@@ -14,8 +14,6 @@
 
 #define XSTR(s) STR(s)
 #define STR(s) #s
-// TODO: Incorporate __FILE_NAME__ and __COUNTER__ if possible to make this more
-// flexible.
 #define UNIQUE_STR(s) s "_line_" XSTR(__LINE__)
 
 #ifdef LIBIA2_INSECURE
@@ -89,9 +87,6 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
     IA2_WRAPPER_FN_SCOPE(target);                                              \
   })
 
-// Takes an opaque pointer `target` and returns a function pointer for its call
-// gate wrapper.
-
 // Defines a wrapper for the opaque pointer `target` and expands to a function
 // pointer expression for this wrapper.
 //
@@ -103,10 +98,10 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
 #define IA2_CALL(target, ty, caller_pkey)                                      \
   ({                                                                           \
     static struct IA2_fnptr_##ty##_inner_t *target_ptr __asm__(                \
-        UNIQUE_STR(#target)) __attribute__((used));                            \
-    static void *wrapper __asm__("__ia2_" UNIQUE_STR(#target));                \
+        UNIQUE_STR(#ty)) __attribute__((used));                                \
+    static void *wrapper __asm__("__ia2_" UNIQUE_STR(#ty));                    \
     target_ptr = target.ptr;                                                   \
-    __asm__(IA2_CALL_##ty(target, caller_pkey, 0));                            \
+    __asm__(IA2_CALL_##ty(target, ty, caller_pkey, 0));                        \
     (IA2_FNPTR_TYPE_##ty) & wrapper;                                           \
   })
 

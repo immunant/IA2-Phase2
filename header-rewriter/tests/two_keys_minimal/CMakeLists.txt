@@ -29,9 +29,11 @@ define_ia2_wrapper(
 define_shared_lib(
     SRCS plugin.c
     LINK_LIBS two_keys_minimal-main-wrapper
-    LINK_OPTS "-Wl,-T${libia2_BINARY_DIR}/shared_lib.ld"
+    LINK_OPTS "-Wl,-T${IA2_SHLIB_LINKER_SCRIPT}"
     INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR}/
 )
+# Declare the plugin as depending on the shared library linker script
+set_target_properties(two_keys_minimal-original PROPERTIES LINK_DEPENDS ${IA2_SHLIB_LINKER_SCRIPT})
 
 # Build the test
 define_test(

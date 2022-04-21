@@ -133,13 +133,17 @@ static ngx_str_t  ngx_http_charset_default_types[] = {
     ngx_null_string
 };
 
+IA2_DEFINE_WRAPPER(ngx_http_set_charset_slot, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+IA2_DECLARE_WRAPPER(ngx_conf_set_flag_slot, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+IA2_DECLARE_WRAPPER(ngx_http_types_slot, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+IA2_DEFINE_WRAPPER(ngx_http_charset_map_block, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
 
 static ngx_command_t  ngx_http_charset_filter_commands[] = {
 
     { ngx_string("charset"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF
                         |NGX_HTTP_LIF_CONF|NGX_CONF_TAKE1,
-      ngx_http_set_charset_slot,
+      IA2_WRAPPER(ngx_http_set_charset_slot, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_charset_loc_conf_t, charset),
       NULL },
@@ -147,7 +151,7 @@ static ngx_command_t  ngx_http_charset_filter_commands[] = {
     { ngx_string("source_charset"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF
                         |NGX_HTTP_LIF_CONF|NGX_CONF_TAKE1,
-      ngx_http_set_charset_slot,
+      IA2_WRAPPER(ngx_http_set_charset_slot, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_charset_loc_conf_t, source_charset),
       NULL },
@@ -155,21 +159,21 @@ static ngx_command_t  ngx_http_charset_filter_commands[] = {
     { ngx_string("override_charset"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF
                         |NGX_HTTP_LIF_CONF|NGX_CONF_FLAG,
-      ngx_conf_set_flag_slot,
+      IA2_WRAPPER(ngx_conf_set_flag_slot, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_charset_loc_conf_t, override_charset),
       NULL },
 
     { ngx_string("charset_types"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_1MORE,
-      ngx_http_types_slot,
+      IA2_WRAPPER(ngx_http_types_slot, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_charset_loc_conf_t, types_keys),
       &ngx_http_charset_default_types[0] },
 
     { ngx_string("charset_map"),
       NGX_HTTP_MAIN_CONF|NGX_CONF_BLOCK|NGX_CONF_TAKE2,
-      ngx_http_charset_map_block,
+      IA2_WRAPPER(ngx_http_charset_map_block, 1),
       NGX_HTTP_MAIN_CONF_OFFSET,
       0,
       NULL },
@@ -177,19 +181,23 @@ static ngx_command_t  ngx_http_charset_filter_commands[] = {
       ngx_null_command
 };
 
+IA2_DEFINE_WRAPPER(ngx_http_charset_postconfiguration, _ZTSPFlP10ngx_conf_sE, 1);
+IA2_DEFINE_WRAPPER(ngx_http_charset_create_main_conf, _ZTSPFPvP10ngx_conf_sE, 1);
+IA2_DEFINE_WRAPPER(ngx_http_charset_create_loc_conf, _ZTSPFPvP10ngx_conf_sE, 1);
+IA2_DEFINE_WRAPPER(ngx_http_charset_merge_loc_conf, _ZTSPFPcP10ngx_conf_sPvS2_E, 1);
 
 static ngx_http_module_t  ngx_http_charset_filter_module_ctx = {
-    NULL,                                  /* preconfiguration */
-    ngx_http_charset_postconfiguration,    /* postconfiguration */
+    IA2_NULL_FNPTR,                                  /* preconfiguration */
+    IA2_WRAPPER(ngx_http_charset_postconfiguration, 1),    /* postconfiguration */
 
-    ngx_http_charset_create_main_conf,     /* create main configuration */
-    NULL,                                  /* init main configuration */
+    IA2_WRAPPER(ngx_http_charset_create_main_conf, 1),     /* create main configuration */
+    IA2_NULL_FNPTR,                                  /* init main configuration */
 
-    NULL,                                  /* create server configuration */
-    NULL,                                  /* merge server configuration */
+    IA2_NULL_FNPTR,                                  /* create server configuration */
+    IA2_NULL_FNPTR,                                  /* merge server configuration */
 
-    ngx_http_charset_create_loc_conf,      /* create location configuration */
-    ngx_http_charset_merge_loc_conf        /* merge location configuration */
+    IA2_WRAPPER(ngx_http_charset_create_loc_conf, 1),      /* create location configuration */
+    IA2_WRAPPER(ngx_http_charset_merge_loc_conf, 1)        /* merge location configuration */
 };
 
 
@@ -198,13 +206,13 @@ ngx_module_t  ngx_http_charset_filter_module = {
     &ngx_http_charset_filter_module_ctx,   /* module context */
     ngx_http_charset_filter_commands,      /* module directives */
     NGX_HTTP_MODULE,                       /* module type */
-    NULL,                                  /* init master */
-    NULL,                                  /* init module */
-    NULL,                                  /* init process */
-    NULL,                                  /* init thread */
-    NULL,                                  /* exit thread */
-    NULL,                                  /* exit process */
-    NULL,                                  /* exit master */
+    IA2_NULL_FNPTR,                                  /* init master */
+    IA2_NULL_FNPTR,                                  /* init module */
+    IA2_NULL_FNPTR,                                  /* init process */
+    IA2_NULL_FNPTR,                                  /* init thread */
+    IA2_NULL_FNPTR,                                  /* exit thread */
+    IA2_NULL_FNPTR,                                  /* exit process */
+    IA2_NULL_FNPTR,                                  /* exit master */
     NGX_MODULE_V1_PADDING
 };
 
@@ -233,7 +241,7 @@ ngx_http_charset_header_filter(ngx_http_request_t *r)
     }
 
     if (charset == NGX_DECLINED) {
-        return ngx_http_next_header_filter(r);
+        return IA2_CALL(ngx_http_next_header_filter, _ZTSPFlP18ngx_http_request_sE, 1)(r);
     }
 
     /* charset: charset index or NGX_HTTP_NO_CHARSET */
@@ -255,7 +263,7 @@ ngx_http_charset_header_filter(ngx_http_request_t *r)
     if (source_charset == NGX_HTTP_CHARSET_OFF) {
         ngx_http_set_charset(r, &dst);
 
-        return ngx_http_next_header_filter(r);
+        return IA2_CALL(ngx_http_next_header_filter, _ZTSPFlP18ngx_http_request_sE, 1)(r);
     }
 
     if (charset == NGX_HTTP_NO_CHARSET
@@ -269,7 +277,7 @@ ngx_http_charset_header_filter(ngx_http_request_t *r)
 
         ngx_http_set_charset(r, &dst);
 
-        return ngx_http_next_header_filter(r);
+        return IA2_CALL(ngx_http_next_header_filter, _ZTSPFlP18ngx_http_request_sE, 1)(r);
     }
 
     if (source_charset == charset) {
@@ -277,7 +285,7 @@ ngx_http_charset_header_filter(ngx_http_request_t *r)
 
         ngx_http_set_charset(r, &dst);
 
-        return ngx_http_next_header_filter(r);
+        return IA2_CALL(ngx_http_next_header_filter, _ZTSPFlP18ngx_http_request_sE, 1)(r);
     }
 
     /* source_charset != charset */
@@ -285,7 +293,7 @@ ngx_http_charset_header_filter(ngx_http_request_t *r)
     if (r->headers_out.content_encoding
         && r->headers_out.content_encoding->value.len)
     {
-        return ngx_http_next_header_filter(r);
+        return IA2_CALL(ngx_http_next_header_filter, _ZTSPFlP18ngx_http_request_sE, 1)(r);
     }
 
     mcf = ngx_http_get_module_main_conf(r, ngx_http_charset_filter_module);
@@ -309,7 +317,7 @@ no_charset_map:
                   "no \"charset_map\" between the charsets \"%V\" and \"%V\"",
                   &src, &dst);
 
-    return ngx_http_next_header_filter(r);
+    return IA2_CALL(ngx_http_next_header_filter, _ZTSPFlP18ngx_http_request_sE, 1)(r);
 }
 
 
@@ -539,7 +547,7 @@ ngx_http_charset_ctx(ngx_http_request_t *r, ngx_http_charset_t *charsets,
         r->filter_need_temporary = 1;
     }
 
-    return ngx_http_next_header_filter(r);
+    return IA2_CALL(ngx_http_next_header_filter, _ZTSPFlP18ngx_http_request_sE, 1)(r);
 }
 
 
@@ -554,7 +562,7 @@ ngx_http_charset_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
     ctx = ngx_http_get_module_ctx(r, ngx_http_charset_filter_module);
 
     if (ctx == NULL || ctx->table == NULL) {
-        return ngx_http_next_body_filter(r, in);
+        return IA2_CALL(ngx_http_next_body_filter, _ZTSPFlP18ngx_http_request_sP11ngx_chain_sE, 1)(r, in);
     }
 
     if ((ctx->to_utf8 || ctx->from_utf8) || ctx->busy) {
@@ -596,7 +604,7 @@ ngx_http_charset_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
             }
         }
 
-        rc = ngx_http_next_body_filter(r, out);
+        rc = IA2_CALL(ngx_http_next_body_filter, _ZTSPFlP18ngx_http_request_sP11ngx_chain_sE, 1)(r, out);
 
         if (out) {
             if (ctx->busy == NULL) {
@@ -644,7 +652,7 @@ ngx_http_charset_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
         (void) ngx_http_charset_recode(cl->buf, ctx->table);
     }
 
-    return ngx_http_next_body_filter(r, in);
+    return IA2_CALL(ngx_http_next_body_filter, _ZTSPFlP18ngx_http_request_sP11ngx_chain_sE, 1)(r, in);
 }
 
 
@@ -1283,7 +1291,7 @@ ngx_http_charset_map_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     pvcf = *cf;
     cf->ctx = &ctx;
-    cf->handler = ngx_http_charset_map;
+    cf->handler = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_charset_map, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
     cf->handler_conf = conf;
 
     rv = ngx_conf_parse(cf, NULL);
@@ -1676,10 +1684,10 @@ ngx_http_charset_postconfiguration(ngx_conf_t *cf)
     }
 
     ngx_http_next_header_filter = ngx_http_top_header_filter;
-    ngx_http_top_header_filter = ngx_http_charset_header_filter;
+    ngx_http_top_header_filter = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_charset_header_filter, _ZTSPFlP18ngx_http_request_sE, 1);
 
     ngx_http_next_body_filter = ngx_http_top_body_filter;
-    ngx_http_top_body_filter = ngx_http_charset_body_filter;
+    ngx_http_top_body_filter = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_charset_body_filter, _ZTSPFlP18ngx_http_request_sP11ngx_chain_sE, 1);
 
     return NGX_OK;
 }

@@ -22,6 +22,7 @@ static ngx_rbtree_node_t  ngx_event_timer_sentinel;
 ngx_int_t
 ngx_event_timer_init(ngx_log_t *log)
 {
+    IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_rbtree_insert_timer_value, _ZTSPFvP17ngx_rbtree_node_sS0_S0_E, 1);
     ngx_rbtree_init(&ngx_event_timer_rbtree, &ngx_event_timer_sentinel,
                     ngx_rbtree_insert_timer_value);
 
@@ -91,7 +92,7 @@ ngx_event_expire_timers(void)
 
         ev->timedout = 1;
 
-        ev->handler(ev);
+        IA2_CALL(ev->handler, _ZTSPFvP11ngx_event_sE, 1)(ev);
     }
 }
 

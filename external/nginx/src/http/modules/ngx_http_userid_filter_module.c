@@ -111,73 +111,83 @@ static ngx_conf_bitmask_t  ngx_http_userid_flags[] = {
 };
 
 
-static ngx_conf_post_handler_pt  ngx_http_userid_domain_p =
-    ngx_http_userid_domain;
-static ngx_conf_post_handler_pt  ngx_http_userid_path_p = ngx_http_userid_path;
-static ngx_conf_post_handler_pt  ngx_http_userid_p3p_p = ngx_http_userid_p3p;
+IA2_DEFINE_WRAPPER(ngx_http_userid_domain, _ZTSPFPcP10ngx_conf_sPvS2_E, 1);
+IA2_DEFINE_WRAPPER(ngx_http_userid_path, _ZTSPFPcP10ngx_conf_sPvS2_E, 1);
+IA2_DEFINE_WRAPPER(ngx_http_userid_p3p, _ZTSPFPcP10ngx_conf_sPvS2_E, 1);
 
+static ngx_conf_post_handler_pt  ngx_http_userid_domain_p =
+    IA2_WRAPPER(ngx_http_userid_domain, 1);
+static ngx_conf_post_handler_pt  ngx_http_userid_path_p = IA2_WRAPPER(ngx_http_userid_path, 1);
+static ngx_conf_post_handler_pt  ngx_http_userid_p3p_p = IA2_WRAPPER(ngx_http_userid_p3p, 1);
+
+IA2_DECLARE_WRAPPER(ngx_conf_set_enum_slot, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+IA2_DECLARE_WRAPPER(ngx_conf_set_num_slot, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+IA2_DECLARE_WRAPPER(ngx_conf_set_str_slot, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+IA2_DEFINE_WRAPPER(ngx_http_userid_expires, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+IA2_DECLARE_WRAPPER(ngx_conf_set_bitmask_slot, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+IA2_DEFINE_WRAPPER(ngx_http_userid_mark, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
 
 static ngx_command_t  ngx_http_userid_commands[] = {
 
     { ngx_string("userid"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_enum_slot,
+      IA2_WRAPPER(ngx_conf_set_enum_slot, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_userid_conf_t, enable),
       ngx_http_userid_state },
 
     { ngx_string("userid_service"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_num_slot,
+      IA2_WRAPPER(ngx_conf_set_num_slot, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_userid_conf_t, service),
       NULL },
 
     { ngx_string("userid_name"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_str_slot,
+      IA2_WRAPPER(ngx_conf_set_str_slot, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_userid_conf_t, name),
       NULL },
 
     { ngx_string("userid_domain"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_str_slot,
+      IA2_WRAPPER(ngx_conf_set_str_slot, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_userid_conf_t, domain),
       &ngx_http_userid_domain_p },
 
     { ngx_string("userid_path"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_str_slot,
+      IA2_WRAPPER(ngx_conf_set_str_slot, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_userid_conf_t, path),
       &ngx_http_userid_path_p },
 
     { ngx_string("userid_expires"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-      ngx_http_userid_expires,
+      IA2_WRAPPER(ngx_http_userid_expires, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       NULL },
 
     { ngx_string("userid_flags"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE123,
-      ngx_conf_set_bitmask_slot,
+      IA2_WRAPPER(ngx_conf_set_bitmask_slot, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_userid_conf_t, flags),
       &ngx_http_userid_flags },
 
     { ngx_string("userid_p3p"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_str_slot,
+      IA2_WRAPPER(ngx_conf_set_str_slot, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_userid_conf_t, p3p),
       &ngx_http_userid_p3p_p },
 
     { ngx_string("userid_mark"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-      ngx_http_userid_mark,
+      IA2_WRAPPER(ngx_http_userid_mark, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       NULL },
@@ -185,34 +195,39 @@ static ngx_command_t  ngx_http_userid_commands[] = {
       ngx_null_command
 };
 
+IA2_DEFINE_WRAPPER(ngx_http_userid_add_variables, _ZTSPFlP10ngx_conf_sE, 1);
+IA2_DEFINE_WRAPPER(ngx_http_userid_init, _ZTSPFlP10ngx_conf_sE, 1);
+IA2_DEFINE_WRAPPER(ngx_http_userid_create_conf, _ZTSPFPvP10ngx_conf_sE, 1);
+IA2_DEFINE_WRAPPER(ngx_http_userid_merge_conf, _ZTSPFPcP10ngx_conf_sPvS2_E, 1);
 
 static ngx_http_module_t  ngx_http_userid_filter_module_ctx = {
-    ngx_http_userid_add_variables,         /* preconfiguration */
-    ngx_http_userid_init,                  /* postconfiguration */
+    IA2_WRAPPER(ngx_http_userid_add_variables, 1),         /* preconfiguration */
+    IA2_WRAPPER(ngx_http_userid_init, 1),                  /* postconfiguration */
 
-    NULL,                                  /* create main configuration */
-    NULL,                                  /* init main configuration */
+    IA2_NULL_FNPTR,                                  /* create main configuration */
+    IA2_NULL_FNPTR,                                  /* init main configuration */
 
-    NULL,                                  /* create server configuration */
-    NULL,                                  /* merge server configuration */
+    IA2_NULL_FNPTR,                                  /* create server configuration */
+    IA2_NULL_FNPTR,                                  /* merge server configuration */
 
-    ngx_http_userid_create_conf,           /* create location configuration */
-    ngx_http_userid_merge_conf             /* merge location configuration */
+    IA2_WRAPPER(ngx_http_userid_create_conf, 1),           /* create location configuration */
+    IA2_WRAPPER(ngx_http_userid_merge_conf, 1)             /* merge location configuration */
 };
 
+IA2_DEFINE_WRAPPER(ngx_http_userid_init_worker, _ZTSPFlP11ngx_cycle_sE, 1);
 
 ngx_module_t  ngx_http_userid_filter_module = {
     NGX_MODULE_V1,
     &ngx_http_userid_filter_module_ctx,    /* module context */
     ngx_http_userid_commands,              /* module directives */
     NGX_HTTP_MODULE,                       /* module type */
-    NULL,                                  /* init master */
-    NULL,                                  /* init module */
-    ngx_http_userid_init_worker,           /* init process */
-    NULL,                                  /* init thread */
-    NULL,                                  /* exit thread */
-    NULL,                                  /* exit process */
-    NULL,                                  /* exit master */
+    IA2_NULL_FNPTR,                                  /* init master */
+    IA2_NULL_FNPTR,                                  /* init module */
+    IA2_WRAPPER(ngx_http_userid_init_worker, 1),           /* init process */
+    IA2_NULL_FNPTR,                                  /* init thread */
+    IA2_NULL_FNPTR,                                  /* exit thread */
+    IA2_NULL_FNPTR,                                  /* exit process */
+    IA2_NULL_FNPTR,                                  /* exit master */
     NGX_MODULE_V1_PADDING
 };
 
@@ -230,13 +245,13 @@ ngx_http_userid_filter(ngx_http_request_t *r)
     ngx_http_userid_conf_t  *conf;
 
     if (r != r->main) {
-        return ngx_http_next_header_filter(r);
+        return IA2_CALL(ngx_http_next_header_filter, _ZTSPFlP18ngx_http_request_sE, 1)(r);
     }
 
     conf = ngx_http_get_module_loc_conf(r, ngx_http_userid_filter_module);
 
     if (conf->enable < NGX_HTTP_USERID_V1) {
-        return ngx_http_next_header_filter(r);
+        return IA2_CALL(ngx_http_next_header_filter, _ZTSPFlP18ngx_http_request_sE, 1)(r);
     }
 
     ctx = ngx_http_userid_get_uid(r, conf);
@@ -246,7 +261,7 @@ ngx_http_userid_filter(ngx_http_request_t *r)
     }
 
     if (ngx_http_userid_set_uid(r, ctx, conf) == NGX_OK) {
-        return ngx_http_next_header_filter(r);
+        return IA2_CALL(ngx_http_next_header_filter, _ZTSPFlP18ngx_http_request_sE, 1)(r);
     }
 
     return NGX_ERROR;
@@ -687,14 +702,14 @@ ngx_http_userid_add_variables(ngx_conf_t *cf)
         return NGX_ERROR;
     }
 
-    var->get_handler = ngx_http_userid_got_variable;
+    var->get_handler = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_userid_got_variable, _ZTSPFlP18ngx_http_request_sP20ngx_variable_value_tmE, 1);
 
     var = ngx_http_add_variable(cf, &ngx_http_userid_set, 0);
     if (var == NULL) {
         return NGX_ERROR;
     }
 
-    var->get_handler = ngx_http_userid_set_variable;
+    var->get_handler = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_userid_set_variable, _ZTSPFlP18ngx_http_request_sP20ngx_variable_value_tmE, 1);
 
     var = ngx_http_add_variable(cf, &ngx_http_userid_reset,
                                 NGX_HTTP_VAR_CHANGEABLE);
@@ -702,7 +717,7 @@ ngx_http_userid_add_variables(ngx_conf_t *cf)
         return NGX_ERROR;
     }
 
-    var->get_handler = ngx_http_userid_reset_variable;
+    var->get_handler = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_userid_reset_variable, _ZTSPFlP18ngx_http_request_sP20ngx_variable_value_tmE, 1);
 
     n = ngx_http_get_variable_index(cf, &ngx_http_userid_reset);
     if (n == NGX_ERROR) {
@@ -780,7 +795,7 @@ static ngx_int_t
 ngx_http_userid_init(ngx_conf_t *cf)
 {
     ngx_http_next_header_filter = ngx_http_top_header_filter;
-    ngx_http_top_header_filter = ngx_http_userid_filter;
+    ngx_http_top_header_filter = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_userid_filter, _ZTSPFlP18ngx_http_request_sE, 1);
 
     return NGX_OK;
 }

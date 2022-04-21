@@ -305,7 +305,7 @@ ngx_event_pipe_read_upstream(ngx_event_pipe_t *p)
                 break;
             }
 
-            n = p->upstream->recv_chain(p->upstream, chain, limit);
+            n = IA2_CALL(p->upstream->recv_chain, _ZTSPFlP16ngx_connection_sP11ngx_chain_slE, 1)(p->upstream, chain, limit);
 
             ngx_log_debug1(NGX_LOG_DEBUG_EVENT, p->log, 0,
                            "pipe recv chain: %z", n);
@@ -353,7 +353,7 @@ ngx_event_pipe_read_upstream(ngx_event_pipe_t *p)
 
                 /* STUB */ cl->buf->num = p->num++;
 
-                if (p->input_filter(p, cl->buf) == NGX_ERROR) {
+                if (IA2_CALL(p->input_filter, _ZTSPFlP16ngx_event_pipe_sP9ngx_buf_sE, 1)(p, cl->buf) == NGX_ERROR) {
                     return NGX_ABORT;
                 }
 
@@ -450,7 +450,7 @@ ngx_event_pipe_read_upstream(ngx_event_pipe_t *p)
 
             /* STUB */ cl->buf->num = p->num++;
 
-            if (p->input_filter(p, cl->buf) == NGX_ERROR) {
+            if (IA2_CALL(p->input_filter, _ZTSPFlP16ngx_event_pipe_sP9ngx_buf_sE, 1)(p, cl->buf) == NGX_ERROR) {
                 return NGX_ABORT;
             }
 
@@ -467,7 +467,7 @@ ngx_event_pipe_read_upstream(ngx_event_pipe_t *p)
 
         /* STUB */ p->free_raw_bufs->buf->num = p->num++;
 
-        if (p->input_filter(p, p->free_raw_bufs->buf) == NGX_ERROR) {
+        if (IA2_CALL(p->input_filter, _ZTSPFlP16ngx_event_pipe_sP9ngx_buf_sE, 1)(p, p->free_raw_bufs->buf) == NGX_ERROR) {
             return NGX_ABORT;
         }
 
@@ -548,7 +548,7 @@ ngx_event_pipe_write_to_downstream(ngx_event_pipe_t *p)
                     cl->buf->recycled = 0;
                 }
 
-                rc = p->output_filter(p->output_ctx, p->out);
+                rc = IA2_CALL(p->output_filter, _ZTSPFlPvP11ngx_chain_sE, 1)(p->output_ctx, p->out);
 
                 if (rc == NGX_ERROR) {
                     p->downstream_error = 1;
@@ -570,7 +570,7 @@ ngx_event_pipe_write_to_downstream(ngx_event_pipe_t *p)
                     cl->buf->recycled = 0;
                 }
 
-                rc = p->output_filter(p->output_ctx, p->in);
+                rc = IA2_CALL(p->output_filter, _ZTSPFlPvP11ngx_chain_sE, 1)(p->output_ctx, p->in);
 
                 if (rc == NGX_ERROR) {
                     p->downstream_error = 1;
@@ -691,7 +691,7 @@ ngx_event_pipe_write_to_downstream(ngx_event_pipe_t *p)
             }
         }
 
-        rc = p->output_filter(p->output_ctx, out);
+        rc = IA2_CALL(p->output_filter, _ZTSPFlPvP11ngx_chain_sE, 1)(p->output_ctx, out);
 
         ngx_chain_update_chains(p->pool, &p->free, &p->busy, &out, p->tag);
 

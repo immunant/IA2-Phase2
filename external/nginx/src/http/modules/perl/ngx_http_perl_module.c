@@ -10,6 +10,7 @@
 #include <ngx_http.h>
 #include <ngx_http_perl_module.h>
 
+INIT_COMPARTMENT(2);
 
 typedef struct {
     PerlInterpreter   *perl;
@@ -63,33 +64,36 @@ static void ngx_http_perl_cleanup_perl(void *data);
 static ngx_int_t ngx_http_perl_init_worker(ngx_cycle_t *cycle);
 static void ngx_http_perl_exit(ngx_cycle_t *cycle);
 
+IA2_DEFINE_WRAPPER(ngx_conf_set_str_array_slot, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 2);
+IA2_DEFINE_WRAPPER(ngx_http_perl, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 2);
+IA2_DEFINE_WRAPPER(ngx_http_perl_set, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 2);
 
 static ngx_command_t  ngx_http_perl_commands[] = {
 
     { ngx_string("perl_modules"),
       NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_str_array_slot,
+      IA2_WRAPPER(ngx_conf_set_str_array_slot, 2),
       NGX_HTTP_MAIN_CONF_OFFSET,
       offsetof(ngx_http_perl_main_conf_t, modules),
       NULL },
 
     { ngx_string("perl_require"),
       NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_str_array_slot,
+      IA2_WRAPPER(ngx_conf_set_str_array_slot, 2),
       NGX_HTTP_MAIN_CONF_OFFSET,
       offsetof(ngx_http_perl_main_conf_t, requires),
       NULL },
 
     { ngx_string("perl"),
       NGX_HTTP_LOC_CONF|NGX_HTTP_LMT_CONF|NGX_CONF_TAKE1,
-      ngx_http_perl,
+      IA2_WRAPPER(ngx_http_perl, 2),
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       NULL },
 
     { ngx_string("perl_set"),
       NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE2,
-      ngx_http_perl_set,
+      IA2_WRAPPER(ngx_http_perl_set, 2),
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       NULL },
@@ -97,34 +101,41 @@ static ngx_command_t  ngx_http_perl_commands[] = {
       ngx_null_command
 };
 
+IA2_DEFINE_WRAPPER(ngx_http_perl_preconfiguration, _ZTSPFlP10ngx_conf_sE, 2);
+IA2_DEFINE_WRAPPER(ngx_http_perl_create_main_conf, _ZTSPFPvP10ngx_conf_sE, 2);
+IA2_DEFINE_WRAPPER(ngx_http_perl_init_main_conf, _ZTSPFPcP10ngx_conf_sPvE, 2);
+IA2_DEFINE_WRAPPER(ngx_http_perl_create_loc_conf, _ZTSPFPvP10ngx_conf_sE, 2);
+IA2_DEFINE_WRAPPER(ngx_http_perl_merge_loc_conf, _ZTSPFPcP10ngx_conf_sPvS2_E, 2);
 
 static ngx_http_module_t  ngx_http_perl_module_ctx = {
-    ngx_http_perl_preconfiguration,        /* preconfiguration */
-    NULL,                                  /* postconfiguration */
+    IA2_WRAPPER(ngx_http_perl_preconfiguration, 2),        /* preconfiguration */
+    IA2_NULL_FNPTR,                                  /* postconfiguration */
 
-    ngx_http_perl_create_main_conf,        /* create main configuration */
-    ngx_http_perl_init_main_conf,          /* init main configuration */
+    IA2_WRAPPER(ngx_http_perl_create_main_conf, 2),        /* create main configuration */
+    IA2_WRAPPER(ngx_http_perl_init_main_conf, 2),          /* init main configuration */
 
-    NULL,                                  /* create server configuration */
-    NULL,                                  /* merge server configuration */
+    IA2_NULL_FNPTR,                                  /* create server configuration */
+    IA2_NULL_FNPTR,                                  /* merge server configuration */
 
-    ngx_http_perl_create_loc_conf,         /* create location configuration */
-    ngx_http_perl_merge_loc_conf           /* merge location configuration */
+    IA2_WRAPPER(ngx_http_perl_create_loc_conf, 2),         /* create location configuration */
+    IA2_WRAPPER(ngx_http_perl_merge_loc_conf, 2)           /* merge location configuration */
 };
 
+IA2_DEFINE_WRAPPER(ngx_http_perl_init_worker, _ZTSPFlP11ngx_cycle_sE, 2);
+IA2_DEFINE_WRAPPER(ngx_http_perl_exit, _ZTSPFvP11ngx_cycle_sE, 2);
 
 ngx_module_t  ngx_http_perl_module = {
     NGX_MODULE_V1,
     &ngx_http_perl_module_ctx,             /* module context */
     ngx_http_perl_commands,                /* module directives */
     NGX_HTTP_MODULE,                       /* module type */
-    NULL,                                  /* init master */
-    NULL,                                  /* init module */
-    ngx_http_perl_init_worker,             /* init process */
-    NULL,                                  /* init thread */
-    NULL,                                  /* exit thread */
-    NULL,                                  /* exit process */
-    ngx_http_perl_exit,                    /* exit master */
+    IA2_NULL_FNPTR,                                  /* init master */
+    IA2_NULL_FNPTR,                                  /* init module */
+    IA2_WRAPPER(ngx_http_perl_init_worker, 2),             /* init process */
+    IA2_NULL_FNPTR,                                  /* init thread */
+    IA2_NULL_FNPTR,                                  /* exit thread */
+    IA2_NULL_FNPTR,                                  /* exit process */
+    IA2_WRAPPER(ngx_http_perl_exit, 2),                    /* exit master */
     NGX_MODULE_V1_PADDING
 };
 
@@ -141,8 +152,10 @@ static ngx_http_ssi_param_t  ngx_http_perl_ssi_params[] = {
     { ngx_null_string, 0, 0, 0 }
 };
 
+IA2_DEFINE_WRAPPER(ngx_http_perl_ssi, _ZTSPFlP18ngx_http_request_sP18ngx_http_ssi_ctx_tPP9ngx_str_tE, 2);
+
 static ngx_http_ssi_command_t  ngx_http_perl_ssi_command = {
-    ngx_string("perl"), ngx_http_perl_ssi, ngx_http_perl_ssi_params, 0, 0, 1
+    ngx_string("perl"), IA2_WRAPPER(ngx_http_perl_ssi, 2), ngx_http_perl_ssi_params, 0, 0, 1
 };
 
 #endif
@@ -558,7 +571,8 @@ ngx_http_perl_init_interpreter(ngx_conf_t *cf, ngx_http_perl_main_conf_t *pmcf)
 
 #if (NGX_HAVE_PERL_MULTIPLICITY)
 
-    cln->handler = ngx_http_perl_cleanup_perl;
+    IA2_DEFINE_WRAPPER(ngx_http_perl_cleanup_perl, _ZTSPFvPvE, 2);
+    cln->handler = IA2_WRAPPER_FN_SCOPE(ngx_http_perl_cleanup_perl, 2);
     cln->data = pmcf->perl;
 
 #else
@@ -591,7 +605,8 @@ ngx_http_perl_create_interpreter(ngx_conf_t *cf,
 
     perl = perl_alloc();
     if (perl == NULL) {
-        ngx_log_error(NGX_LOG_ALERT, cf->log, 0, "perl_alloc() failed");
+        // TODO: Handle variadics
+        //ngx_log_error(NGX_LOG_ALERT, cf->log, 0, "perl_alloc() failed");
         return NULL;
     }
 
@@ -632,7 +647,8 @@ ngx_http_perl_create_interpreter(ngx_conf_t *cf,
     n = perl_parse(perl, ngx_http_perl_xs_init, n, embedding, NULL);
 
     if (n != 0) {
-        ngx_log_error(NGX_LOG_ALERT, cf->log, 0, "perl_parse() failed: %d", n);
+        // TODO: Handle variadics
+        //ngx_log_error(NGX_LOG_ALERT, cf->log, 0, "perl_parse() failed: %d", n);
         goto fail;
     }
 
@@ -640,9 +656,10 @@ ngx_http_perl_create_interpreter(ngx_conf_t *cf,
     ver = SvPV(sv, len);
 
     if (ngx_strcmp(ver, NGINX_VERSION) != 0) {
-        ngx_log_error(NGX_LOG_ALERT, cf->log, 0,
-                      "version " NGINX_VERSION " of nginx.pm is required, "
-                      "but %s was found", ver);
+        // TODO: Handle variadics
+        //ngx_log_error(NGX_LOG_ALERT, cf->log, 0,
+        //              "version " NGINX_VERSION " of nginx.pm is required, "
+        //              "but %s was found", ver);
         goto fail;
     }
 
@@ -686,9 +703,10 @@ ngx_http_perl_run_requires(pTHX_ ngx_array_t *requires, ngx_log_t *log)
             err = (u_char *) SvPV(ERRSV, len);
             while (--len && (err[len] == CR || err[len] == LF)) { /* void */ }
 
-            ngx_log_error(NGX_LOG_EMERG, log, 0,
-                          "require_pv(\"%s\") failed: \"%*s\"",
-                          script[i].data, len + 1, err);
+            // TODO: Handle variadics
+            //ngx_log_error(NGX_LOG_EMERG, log, 0,
+            //              "require_pv(\"%s\") failed: \"%*s\"",
+            //              script[i].data, len + 1, err);
 
             return NGX_ERROR;
         }
@@ -709,7 +727,8 @@ ngx_http_perl_call_handler(pTHX_ ngx_http_request_t *r,
     u_char            *err;
     STRLEN             len, n_a;
     ngx_uint_t         i;
-    ngx_connection_t  *c;
+    // TODO: Handle variadics
+    //ngx_connection_t  *c;
 
     dSP;
 
@@ -736,7 +755,8 @@ ngx_http_perl_call_handler(pTHX_ ngx_http_request_t *r,
 
     PUTBACK;
 
-    c = r->connection;
+    // TODO: Handle variadics
+    //c = r->connection;
 
     n = call_sv(sub, G_EVAL);
 
@@ -786,8 +806,9 @@ ngx_http_perl_call_handler(pTHX_ ngx_http_request_t *r,
         err = (u_char *) SvPV(ERRSV, len);
         while (--len && (err[len] == CR || err[len] == LF)) { /* void */ }
 
-        ngx_log_error(NGX_LOG_ERR, c->log, 0,
-                      "call_sv(\"%V\") failed: \"%*s\"", handler, len + 1, err);
+        // TODO: Handle variadics
+        //ngx_log_error(NGX_LOG_ERR, c->log, 0,
+        //              "call_sv(\"%V\") failed: \"%*s\"", handler, len + 1, err);
 
         if (rv) {
             return NGX_ERROR;
@@ -803,8 +824,9 @@ ngx_http_perl_call_handler(pTHX_ ngx_http_request_t *r,
     }
 
     if (n != 1) {
-        ngx_log_error(NGX_LOG_ALERT, c->log, 0,
-                      "call_sv(\"%V\") returned %d results", handler, n);
+        // TODO: Handle variadics
+        //ngx_log_error(NGX_LOG_ALERT, c->log, 0,
+        //              "call_sv(\"%V\") returned %d results", handler, n);
         status = NGX_OK;
     }
 
@@ -912,9 +934,10 @@ ngx_http_perl_preconfiguration(ngx_conf_t *cf)
 
     if (rc != NGX_OK) {
         if (rc == NGX_BUSY) {
-            ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
-                               "conflicting SSI command \"%V\"",
-                               &ngx_http_perl_ssi_command.name);
+            // TODO: Handle variadics
+            //ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+            //                   "conflicting SSI command \"%V\"",
+            //                   &ngx_http_perl_ssi_command.name);
         }
 
         return NGX_ERROR;
@@ -972,8 +995,9 @@ ngx_http_perl(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     value = cf->args->elts;
 
     if (plcf->handler.data) {
-        ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
-                           "duplicate perl handler \"%V\"", &value[1]);
+        // TODO: Handle variadics
+        //ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+        //                   "duplicate perl handler \"%V\"", &value[1]);
         return NGX_CONF_ERROR;
     }
 
@@ -996,8 +1020,9 @@ ngx_http_perl(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     ngx_http_perl_eval_anon_sub(aTHX_ &value[1], &plcf->sub);
 
     if (plcf->sub == &PL_sv_undef) {
-        ngx_conf_log_error(NGX_LOG_ERR, cf, 0,
-                           "eval_pv(\"%V\") failed", &value[1]);
+        // TODO: Handle variadics
+        //ngx_conf_log_error(NGX_LOG_ERR, cf, 0,
+        //                   "eval_pv(\"%V\") failed", &value[1]);
         return NGX_CONF_ERROR;
     }
 
@@ -1008,7 +1033,8 @@ ngx_http_perl(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     }
 
     clcf = ngx_http_conf_get_module_loc_conf(cf, ngx_http_core_module);
-    clcf->handler = ngx_http_perl_handler;
+    IA2_DEFINE_WRAPPER(ngx_http_perl_handler, _ZTSPFlP18ngx_http_request_sE, 2);
+    clcf->handler = IA2_WRAPPER_FN_SCOPE(ngx_http_perl_handler, 2);
 
     return NGX_CONF_OK;
 }
@@ -1026,8 +1052,9 @@ ngx_http_perl_set(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     value = cf->args->elts;
 
     if (value[1].data[0] != '$') {
-        ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
-                           "invalid variable name \"%V\"", &value[1]);
+        // TODO: Handle variadics
+        //ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+        //                   "invalid variable name \"%V\"", &value[1]);
         return NGX_CONF_ERROR;
     }
 
@@ -1068,8 +1095,9 @@ ngx_http_perl_set(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     ngx_http_perl_eval_anon_sub(aTHX_ &value[2], &pv->sub);
 
     if (pv->sub == &PL_sv_undef) {
-        ngx_conf_log_error(NGX_LOG_ERR, cf, 0,
-                           "eval_pv(\"%V\") failed", &value[2]);
+        // TODO: Handle variadics
+        //ngx_conf_log_error(NGX_LOG_ERR, cf, 0,
+        //                   "eval_pv(\"%V\") failed", &value[2]);
         return NGX_CONF_ERROR;
     }
 
@@ -1079,7 +1107,8 @@ ngx_http_perl_set(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     }
 
-    v->get_handler = ngx_http_perl_variable;
+    IA2_DEFINE_WRAPPER(ngx_http_perl_variable, _ZTSPFlP18ngx_http_request_sP20ngx_variable_value_tmE, 2);
+    v->get_handler = IA2_WRAPPER_FN_SCOPE(ngx_http_perl_variable, 2);
     v->data = (uintptr_t) pv;
 
     return NGX_CONF_OK;

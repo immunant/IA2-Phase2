@@ -129,6 +129,15 @@ static ngx_resolver_node_t *ngx_resolver_lookup_addr6(ngx_resolver_t *r,
 #endif
 
 
+IA2_DEFINE_WRAPPER(ngx_resolver_rbtree_insert_value, _ZTSPFvP17ngx_rbtree_node_sS0_S0_E, 1);
+IA2_DEFINE_WRAPPER(ngx_rbtree_insert_value, _ZTSPFvP17ngx_rbtree_node_sS0_S0_E, 1);
+IA2_DEFINE_WRAPPER(ngx_resolver_rbtree_insert_addr6_value, _ZTSPFvP17ngx_rbtree_node_sS0_S0_E, 1);
+
+
+IA2_DEFINE_WRAPPER(ngx_resolver_cleanup, _ZTSPFvPvE, 1);
+IA2_DEFINE_WRAPPER(ngx_resolver_resend_handler, _ZTSPFvP11ngx_event_sE, 1);
+
+
 ngx_resolver_t *
 ngx_resolver_create(ngx_conf_t *cf, ngx_str_t *names, ngx_uint_t n)
 {
@@ -154,7 +163,7 @@ ngx_resolver_create(ngx_conf_t *cf, ngx_str_t *names, ngx_uint_t n)
         return NULL;
     }
 
-    cln->handler = ngx_resolver_cleanup;
+    cln->handler = IA2_WRAPPER_FN_SCOPE(ngx_resolver_cleanup, 1);
     cln->data = r;
 
     ngx_rbtree_init(&r->name_rbtree, &r->name_sentinel,
@@ -185,7 +194,7 @@ ngx_resolver_create(ngx_conf_t *cf, ngx_str_t *names, ngx_uint_t n)
     ngx_queue_init(&r->addr6_expire_queue);
 #endif
 
-    r->event->handler = ngx_resolver_resend_handler;
+    r->event->handler = IA2_WRAPPER_FN_SCOPE(ngx_resolver_resend_handler, 1);
     r->event->data = r;
     r->event->log = &cf->cycle->new_log;
     r->event->cancelable = 1;
@@ -420,7 +429,7 @@ ngx_resolve_name(ngx_resolver_ctx_t *ctx)
                    "resolve: \"%V\"", &ctx->name);
 
     if (ctx->quick) {
-        ctx->handler(ctx);
+        IA2_CALL(ctx->handler, _ZTSPFvP18ngx_resolver_ctx_sE, 1)(ctx);
         return NGX_OK;
     }
 
@@ -664,7 +673,7 @@ ngx_resolve_name_locked(ngx_resolver_t *r, ngx_resolver_ctx_t *ctx,
 
                     next = ctx->next;
 
-                    ctx->handler(ctx);
+                    IA2_CALL(ctx->handler, _ZTSPFvP18ngx_resolver_ctx_sE, 1)(ctx);
 
                     ctx = next;
                 } while (ctx);
@@ -714,7 +723,7 @@ ngx_resolve_name_locked(ngx_resolver_t *r, ngx_resolver_ctx_t *ctx,
                 ctx->valid = ngx_time() + (r->valid ? r->valid : 10);
                 next = ctx->next;
 
-                ctx->handler(ctx);
+                IA2_CALL(ctx->handler, _ZTSPFvP18ngx_resolver_ctx_sE, 1)(ctx);
 
                 ctx = next;
             } while (ctx);
@@ -823,7 +832,7 @@ ngx_resolve_name_locked(ngx_resolver_t *r, ngx_resolver_ctx_t *ctx,
             ctx->state = NGX_RESOLVE_NXDOMAIN;
             next = ctx->next;
 
-            ctx->handler(ctx);
+            IA2_CALL(ctx->handler, _ZTSPFvP18ngx_resolver_ctx_sE, 1)(ctx);
 
             ctx = next;
         } while (ctx);
@@ -982,7 +991,7 @@ ngx_resolve_addr(ngx_resolver_ctx_t *ctx)
             ctx->state = NGX_OK;
             ctx->valid = rn->valid;
 
-            ctx->handler(ctx);
+            IA2_CALL(ctx->handler, _ZTSPFvP18ngx_resolver_ctx_sE, 1)(ctx);
 
             ngx_resolver_free(r, name);
 
@@ -1256,9 +1265,10 @@ ngx_resolver_send_query(ngx_resolver_t *r, ngx_resolver_node_t *rn)
     rec = r->connections.elts;
     rec = &rec[rn->last_connection];
 
-    if (rec->log.handler == NULL) {
+    if (IA2_FNPTR_IS_NULL(rec->log.handler)) {
         rec->log = *r->log;
-        rec->log.handler = ngx_resolver_log_error;
+        IA2_DEFINE_WRAPPER(ngx_resolver_log_error, _ZTSPFPhP9ngx_log_sS_mE, 1);
+        rec->log.handler = IA2_WRAPPER_FN_SCOPE(ngx_resolver_log_error, 1);
         rec->log.data = rec;
         rec->log.action = "resolving";
     }
@@ -1302,11 +1312,12 @@ ngx_resolver_send_udp_query(ngx_resolver_t *r, ngx_resolver_connection_t  *rec,
         }
 
         rec->udp->data = rec;
-        rec->udp->read->handler = ngx_resolver_udp_read;
+        IA2_DEFINE_WRAPPER(ngx_resolver_udp_read, _ZTSPFvP11ngx_event_sE, 1);
+        rec->udp->read->handler = IA2_WRAPPER_FN_SCOPE(ngx_resolver_udp_read, 1);
         rec->udp->read->resolver = 1;
     }
 
-    n = ngx_send(rec->udp, query, qlen);
+    n = IA2_CALL(ngx_send, _ZTSPFlP16ngx_connection_sPhmE, 1)(rec->udp, query, qlen);
 
     if (n == NGX_ERROR) {
         goto failed;
@@ -1388,8 +1399,10 @@ ngx_resolver_send_tcp_query(ngx_resolver_t *r, ngx_resolver_connection_t *rec,
         }
 
         rec->tcp->data = rec;
-        rec->tcp->write->handler = ngx_resolver_tcp_write;
-        rec->tcp->read->handler = ngx_resolver_tcp_read;
+        IA2_DEFINE_WRAPPER(ngx_resolver_tcp_write, _ZTSPFvP11ngx_event_sE, 1);
+        rec->tcp->write->handler = IA2_WRAPPER_FN_SCOPE(ngx_resolver_tcp_write, 1);
+        IA2_DEFINE_WRAPPER(ngx_resolver_tcp_read, _ZTSPFvP11ngx_event_sE, 1);
+        rec->tcp->read->handler = IA2_WRAPPER_FN_SCOPE(ngx_resolver_tcp_read, 1);
         rec->tcp->read->resolver = 1;
 
         ngx_add_timer(rec->tcp->write, (ngx_msec_t) (r->tcp_timeout * 1000));
@@ -1559,7 +1572,7 @@ ngx_resolver_udp_read(ngx_event_t *rev)
     rec = c->data;
 
     do {
-        n = ngx_udp_recv(c, buf, NGX_RESOLVER_UDP_SIZE);
+        n = IA2_CALL(ngx_udp_recv, _ZTSPFlP16ngx_connection_sPhmE, 1)(c, buf, NGX_RESOLVER_UDP_SIZE);
 
         if (n == NGX_AGAIN) {
             break;
@@ -1608,7 +1621,7 @@ ngx_resolver_tcp_write(ngx_event_t *wev)
     sent = c->sent;
 
     while (wev->ready && b->pos < b->last) {
-        n = ngx_send(c, b->pos, b->last - b->pos);
+        n = IA2_CALL(ngx_send, _ZTSPFlP16ngx_connection_sPhmE, 1)(c, b->pos, b->last - b->pos);
 
         if (n == NGX_AGAIN) {
             break;
@@ -1661,7 +1674,7 @@ ngx_resolver_tcp_read(ngx_event_t *rev)
     r = rec->resolver;
 
     while (rev->ready) {
-        n = ngx_recv(c, b->last, b->end - b->last);
+        n = IA2_CALL(ngx_recv, _ZTSPFlP16ngx_connection_sPhmE, 1)(c, b->last, b->end - b->last);
 
         if (n == NGX_AGAIN) {
             break;
@@ -2112,7 +2125,7 @@ ngx_resolver_process_a(ngx_resolver_t *r, u_char *buf, size_t n,
             ctx->valid = ngx_time() + (r->valid ? r->valid : 10);
             next = ctx->next;
 
-            ctx->handler(ctx);
+            IA2_CALL(ctx->handler, _ZTSPFvP18ngx_resolver_ctx_sE, 1)(ctx);
         }
 
         ngx_resolver_free_node(r, rn);
@@ -2441,7 +2454,7 @@ ngx_resolver_process_a(ngx_resolver_t *r, u_char *buf, size_t n,
 
             next = ctx->next;
 
-            ctx->handler(ctx);
+            IA2_CALL(ctx->handler, _ZTSPFvP18ngx_resolver_ctx_sE, 1)(ctx);
         }
 
         if (addrs != NULL) {
@@ -2507,7 +2520,7 @@ ngx_resolver_process_a(ngx_resolver_t *r, u_char *buf, size_t n,
                     ctx->state = NGX_RESOLVE_NXDOMAIN;
                     next = ctx->next;
 
-                    ctx->handler(ctx);
+                    IA2_CALL(ctx->handler, _ZTSPFvP18ngx_resolver_ctx_sE, 1)(ctx);
 
                     ctx = next;
                 } while (ctx);
@@ -2654,7 +2667,7 @@ ngx_resolver_process_srv(ngx_resolver_t *r, u_char *buf, size_t n,
             ctx->valid = ngx_time() + (r->valid ? r->valid : 10);
             next = ctx->next;
 
-            ctx->handler(ctx);
+            IA2_CALL(ctx->handler, _ZTSPFvP18ngx_resolver_ctx_sE, 1)(ctx);
         }
 
         ngx_resolver_free_node(r, rn);
@@ -2825,7 +2838,7 @@ ngx_resolver_process_srv(ngx_resolver_t *r, u_char *buf, size_t n,
         }
 
         ngx_sort(srvs, nsrvs, sizeof(ngx_resolver_srv_t),
-                 ngx_resolver_cmp_srvs);
+                 IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_resolver_cmp_srvs, _ZTSPFlPKvS0_E, 1));
 
         ngx_resolver_free(r, rn->query);
         rn->query = NULL;
@@ -2892,7 +2905,7 @@ ngx_resolver_process_srv(ngx_resolver_t *r, u_char *buf, size_t n,
                     ctx->state = NGX_RESOLVE_NXDOMAIN;
                     next = ctx->next;
 
-                    ctx->handler(ctx);
+                    IA2_CALL(ctx->handler, _ZTSPFvP18ngx_resolver_ctx_sE, 1)(ctx);
 
                     ctx = next;
                 } while (ctx);
@@ -2979,7 +2992,7 @@ ngx_resolver_resolve_srv_names(ngx_resolver_ctx_t *ctx, ngx_resolver_node_t *rn)
         }
 
         cctx->name = srvs[i].name;
-        cctx->handler = ngx_resolver_srv_names_handler;
+        cctx->handler = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_resolver_srv_names_handler, _ZTSPFvP18ngx_resolver_ctx_sE, 1);
         cctx->data = ctx;
         cctx->srvs = &srvs[i];
         cctx->timeout = ctx->timeout;
@@ -3002,7 +3015,7 @@ failed:
     ctx->state = NGX_ERROR;
     ctx->valid = ngx_time() + (r->valid ? r->valid : 10);
 
-    ctx->handler(ctx);
+    IA2_CALL(ctx->handler, _ZTSPFvP18ngx_resolver_ctx_sE, 1)(ctx);
 }
 
 
@@ -3221,7 +3234,7 @@ valid:
             ctx->valid = ngx_time() + (r->valid ? r->valid : 10);
             next = ctx->next;
 
-            ctx->handler(ctx);
+            IA2_CALL(ctx->handler, _ZTSPFvP18ngx_resolver_ctx_sE, 1)(ctx);
         }
 
         ngx_resolver_free_node(r, rn);
@@ -3357,7 +3370,7 @@ ptr:
         ctx->name = name;
         next = ctx->next;
 
-        ctx->handler(ctx);
+        IA2_CALL(ctx->handler, _ZTSPFvP18ngx_resolver_ctx_sE, 1)(ctx);
     }
 
     ngx_resolver_free(r, name.data);
@@ -4046,7 +4059,9 @@ ngx_resolver_set_timeout(ngx_resolver_t *r, ngx_resolver_ctx_t *ctx)
         return NGX_ERROR;
     }
 
-    ctx->event->handler = ngx_resolver_timeout_handler;
+    IA2_DEFINE_WRAPPER(ngx_resolver_timeout_handler, _ZTSPFvP11ngx_event_sE, 1);
+    ctx->event->handler = IA2_WRAPPER_FN_SCOPE(ngx_resolver_timeout_handler, 1);
+
     ctx->event->data = ctx;
     ctx->event->log = r->log;
     ctx->event->cancelable = ctx->cancelable;
@@ -4067,7 +4082,7 @@ ngx_resolver_timeout_handler(ngx_event_t *ev)
 
     ctx->state = NGX_RESOLVE_TIMEDOUT;
 
-    ctx->handler(ctx);
+    IA2_CALL(ctx->handler, _ZTSPFvP18ngx_resolver_ctx_sE, 1)(ctx);
 }
 
 
@@ -4281,7 +4296,7 @@ ngx_resolver_report_srv(ngx_resolver_t *r, ngx_resolver_ctx_t *ctx)
             ctx->state = NGX_ERROR;
             ctx->valid = ngx_time() + (r->valid ? r->valid : 10);
 
-            ctx->handler(ctx);
+            IA2_CALL(ctx->handler, _ZTSPFvP18ngx_resolver_ctx_sE, 1)(ctx);
             return;
         }
 
@@ -4300,7 +4315,7 @@ ngx_resolver_report_srv(ngx_resolver_t *r, ngx_resolver_ctx_t *ctx)
 
         ctx->valid = ngx_time() + (r->valid ? r->valid : 10);
 
-        ctx->handler(ctx);
+        IA2_CALL(ctx->handler, _ZTSPFvP18ngx_resolver_ctx_sE, 1)(ctx);
         return;
     }
 
@@ -4309,7 +4324,7 @@ ngx_resolver_report_srv(ngx_resolver_t *r, ngx_resolver_ctx_t *ctx)
         ctx->state = NGX_ERROR;
         ctx->valid = ngx_time() + (r->valid ? r->valid : 10);
 
-        ctx->handler(ctx);
+        IA2_CALL(ctx->handler, _ZTSPFvP18ngx_resolver_ctx_sE, 1)(ctx);
         return;
     }
 
@@ -4367,7 +4382,7 @@ next_srv:
     ctx->addrs = addrs;
     ctx->naddrs = naddrs;
 
-    ctx->handler(ctx);
+    IA2_CALL(ctx->handler, _ZTSPFvP18ngx_resolver_ctx_sE, 1)(ctx);
 
     ngx_resolver_free(r, addrs);
 }
@@ -4556,7 +4571,7 @@ ngx_tcp_connect(ngx_resolver_connection_t *rec)
 
     c->start_time = ngx_current_msec;
 
-    if (ngx_add_conn) {
+    if (!IA2_FNPTR_IS_NULL(ngx_event_actions.add_conn)) {
         if (ngx_add_conn(c) == NGX_ERROR) {
             goto failed;
         }
@@ -4608,7 +4623,7 @@ ngx_tcp_connect(ngx_resolver_connection_t *rec)
         }
     }
 
-    if (ngx_add_conn) {
+    if (!IA2_FNPTR_IS_NULL(ngx_event_actions.add_conn)) {
         if (rc == -1) {
 
             /* NGX_EINPROGRESS */

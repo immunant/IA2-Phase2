@@ -46,25 +46,28 @@ static char *ngx_http_map_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 static char *ngx_http_map(ngx_conf_t *cf, ngx_command_t *dummy, void *conf);
 
 
+IA2_DEFINE_WRAPPER(ngx_http_map_block, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+IA2_DECLARE_WRAPPER(ngx_conf_set_num_slot, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+
 static ngx_command_t  ngx_http_map_commands[] = {
 
     { ngx_string("map"),
       NGX_HTTP_MAIN_CONF|NGX_CONF_BLOCK|NGX_CONF_TAKE2,
-      ngx_http_map_block,
+      IA2_WRAPPER(ngx_http_map_block, 1),
       NGX_HTTP_MAIN_CONF_OFFSET,
       0,
       NULL },
 
     { ngx_string("map_hash_max_size"),
       NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_num_slot,
+      IA2_WRAPPER(ngx_conf_set_num_slot, 1),
       NGX_HTTP_MAIN_CONF_OFFSET,
       offsetof(ngx_http_map_conf_t, hash_max_size),
       NULL },
 
     { ngx_string("map_hash_bucket_size"),
       NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_num_slot,
+      IA2_WRAPPER(ngx_conf_set_num_slot, 1),
       NGX_HTTP_MAIN_CONF_OFFSET,
       offsetof(ngx_http_map_conf_t, hash_bucket_size),
       NULL },
@@ -72,19 +75,20 @@ static ngx_command_t  ngx_http_map_commands[] = {
       ngx_null_command
 };
 
+IA2_DEFINE_WRAPPER(ngx_http_map_create_conf, _ZTSPFPvP10ngx_conf_sE, 1);
 
 static ngx_http_module_t  ngx_http_map_module_ctx = {
-    NULL,                                  /* preconfiguration */
-    NULL,                                  /* postconfiguration */
+    IA2_NULL_FNPTR,                                  /* preconfiguration */
+    IA2_NULL_FNPTR,                                  /* postconfiguration */
 
-    ngx_http_map_create_conf,              /* create main configuration */
-    NULL,                                  /* init main configuration */
+    IA2_WRAPPER(ngx_http_map_create_conf, 1),              /* create main configuration */
+    IA2_NULL_FNPTR,                                  /* init main configuration */
 
-    NULL,                                  /* create server configuration */
-    NULL,                                  /* merge server configuration */
+    IA2_NULL_FNPTR,                                  /* create server configuration */
+    IA2_NULL_FNPTR,                                  /* merge server configuration */
 
-    NULL,                                  /* create location configuration */
-    NULL                                   /* merge location configuration */
+    IA2_NULL_FNPTR,                                  /* create location configuration */
+    IA2_NULL_FNPTR                                   /* merge location configuration */
 };
 
 
@@ -93,13 +97,13 @@ ngx_module_t  ngx_http_map_module = {
     &ngx_http_map_module_ctx,              /* module context */
     ngx_http_map_commands,                 /* module directives */
     NGX_HTTP_MODULE,                       /* module type */
-    NULL,                                  /* init master */
-    NULL,                                  /* init module */
-    NULL,                                  /* init process */
-    NULL,                                  /* init thread */
-    NULL,                                  /* exit thread */
-    NULL,                                  /* exit process */
-    NULL,                                  /* exit master */
+    IA2_NULL_FNPTR,                                  /* init master */
+    IA2_NULL_FNPTR,                                  /* init module */
+    IA2_NULL_FNPTR,                                  /* init process */
+    IA2_NULL_FNPTR,                                  /* init thread */
+    IA2_NULL_FNPTR,                                  /* exit thread */
+    IA2_NULL_FNPTR,                                  /* exit process */
+    IA2_NULL_FNPTR,                                  /* exit master */
     NGX_MODULE_V1_PADDING
 };
 
@@ -232,7 +236,7 @@ ngx_http_map_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         return NGX_CONF_ERROR;
     }
 
-    var->get_handler = ngx_http_map_variable;
+    var->get_handler = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_map_variable, _ZTSPFlP18ngx_http_request_sP20ngx_variable_value_tmE, 1);
     var->data = (uintptr_t) map;
 
     pool = ngx_create_pool(NGX_DEFAULT_POOL_SIZE, cf->log);
@@ -271,7 +275,7 @@ ngx_http_map_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     save = *cf;
     cf->pool = pool;
     cf->ctx = &ctx;
-    cf->handler = ngx_http_map;
+    cf->handler = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_map, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
     cf->handler_conf = conf;
 
     rv = ngx_conf_parse(cf, NULL);
@@ -292,7 +296,7 @@ ngx_http_map_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     map->hostnames = ctx.hostnames;
 
-    hash.key = ngx_hash_key_lc;
+    hash.key = IA2_DECLARE_WRAPPER_FN_SCOPE(ngx_hash_key_lc, _ZTSPFmPhmE, 1);
     hash.max_size = mcf->hash_max_size;
     hash.bucket_size = mcf->hash_bucket_size;
     hash.name = "map_hash";

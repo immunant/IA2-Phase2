@@ -31,11 +31,13 @@ typedef struct {
 #endif
 
 
+IA2_DEFINE_WRAPPER(ngx_error_log, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+
 static ngx_command_t  ngx_errlog_commands[] = {
 
     { ngx_string("error_log"),
       NGX_MAIN_CONF|NGX_CONF_1MORE,
-      ngx_error_log,
+      IA2_WRAPPER(ngx_error_log, 1),
       0,
       0,
       NULL },
@@ -46,8 +48,8 @@ static ngx_command_t  ngx_errlog_commands[] = {
 
 static ngx_core_module_t  ngx_errlog_module_ctx = {
     ngx_string("errlog"),
-    NULL,
-    NULL
+    IA2_NULL_FNPTR,
+    IA2_NULL_FNPTR
 };
 
 
@@ -56,13 +58,13 @@ ngx_module_t  ngx_errlog_module = {
     &ngx_errlog_module_ctx,                /* module context */
     ngx_errlog_commands,                   /* module directives */
     NGX_CORE_MODULE,                       /* module type */
-    NULL,                                  /* init master */
-    NULL,                                  /* init module */
-    NULL,                                  /* init process */
-    NULL,                                  /* init thread */
-    NULL,                                  /* exit thread */
-    NULL,                                  /* exit process */
-    NULL,                                  /* exit master */
+    IA2_NULL_FNPTR,                                  /* init master */
+    IA2_NULL_FNPTR,                                  /* init module */
+    IA2_NULL_FNPTR,                                  /* init process */
+    IA2_NULL_FNPTR,                                  /* init thread */
+    IA2_NULL_FNPTR,                                  /* exit thread */
+    IA2_NULL_FNPTR,                                  /* exit process */
+    IA2_NULL_FNPTR,                                  /* exit master */
     NGX_MODULE_V1_PADDING
 };
 
@@ -145,8 +147,8 @@ ngx_log_error_core(ngx_uint_t level, ngx_log_t *log, ngx_err_t err,
         p = ngx_log_errno(p, last, err);
     }
 
-    if (level != NGX_LOG_DEBUG && log->handler) {
-        p = log->handler(log, p, last - p);
+    if (level != NGX_LOG_DEBUG && !IA2_FNPTR_IS_NULL(log->handler)) {
+        p = IA2_CALL(log->handler, _ZTSPFPhP9ngx_log_sS_mE, 1)(log, p, last - p);
     }
 
     if (p > last - NGX_LINEFEED_SIZE) {
@@ -164,8 +166,8 @@ ngx_log_error_core(ngx_uint_t level, ngx_log_t *log, ngx_err_t err,
             break;
         }
 
-        if (log->writer) {
-            log->writer(log, level, errstr, p - errstr);
+        if (!IA2_FNPTR_IS_NULL(log->writer)) {
+            IA2_CALL(log->writer, _ZTSPFvP9ngx_log_smPhmE, 1)(log, level, errstr, p - errstr);
             goto next;
         }
 
@@ -549,6 +551,8 @@ ngx_error_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 }
 
 
+IA2_DEFINE_WRAPPER(ngx_syslog_writer, _ZTSPFvP9ngx_log_smPhmE, 1)
+
 char *
 ngx_log_set_log(ngx_conf_t *cf, ngx_log_t **head)
 {
@@ -651,7 +655,7 @@ ngx_log_set_log(ngx_conf_t *cf, ngx_log_t **head)
             return NGX_CONF_ERROR;
         }
 
-        new_log->writer = ngx_syslog_writer;
+        new_log->writer = IA2_WRAPPER_FN_SCOPE(ngx_syslog_writer, 1);
         new_log->wdata = peer;
 
     } else {

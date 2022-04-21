@@ -34,6 +34,7 @@ ngx_uint_t             ngx_quiet_mode;
 static ngx_connection_t  dumb;
 /* STUB */
 
+IA2_DEFINE_WRAPPER(ngx_str_rbtree_insert_value, _ZTSPFvP17ngx_rbtree_node_sS0_S0_E, 1);
 
 ngx_cycle_t *
 ngx_init_cycle(ngx_cycle_t *old_cycle)
@@ -235,8 +236,8 @@ ngx_init_cycle(ngx_cycle_t *old_cycle)
 
         module = cycle->modules[i]->ctx;
 
-        if (module->create_conf) {
-            rv = module->create_conf(cycle);
+        if (!IA2_FNPTR_IS_NULL(module->create_conf)) {
+            rv = IA2_CALL(module->create_conf, _ZTSPFPvP11ngx_cycle_sE, 1)(cycle);
             if (rv == NULL) {
                 ngx_destroy_pool(pool);
                 return NULL;
@@ -299,8 +300,8 @@ ngx_init_cycle(ngx_cycle_t *old_cycle)
 
         module = cycle->modules[i]->ctx;
 
-        if (module->init_conf) {
-            if (module->init_conf(cycle,
+        if (!IA2_FNPTR_IS_NULL(module->init_conf)) {
+            if (IA2_CALL(module->init_conf, _ZTSPFPcP11ngx_cycle_sPvE, 1)(cycle,
                                   cycle->conf_ctx[cycle->modules[i]->index])
                 == NGX_CONF_ERROR)
             {
@@ -470,7 +471,7 @@ ngx_init_cycle(ngx_cycle_t *old_cycle)
                 shm_zone[i].shm.handle = oshm_zone[n].shm.handle;
 #endif
 
-                if (shm_zone[i].init(&shm_zone[i], oshm_zone[n].data)
+                if (IA2_CALL(shm_zone[i].init, _ZTSPFlP14ngx_shm_zone_sPvE, 1)(&shm_zone[i], oshm_zone[n].data)
                     != NGX_OK)
                 {
                     goto failed;
@@ -490,7 +491,7 @@ ngx_init_cycle(ngx_cycle_t *old_cycle)
             goto failed;
         }
 
-        if (shm_zone[i].init(&shm_zone[i], NULL) != NGX_OK) {
+        if (IA2_CALL(shm_zone[i].init, _ZTSPFlP14ngx_shm_zone_sPvE, 1)(&shm_zone[i], NULL) != NGX_OK) {
             goto failed;
         }
 
@@ -794,7 +795,8 @@ old_shm_zone_done:
 
         ngx_memzero(ngx_old_cycles.elts, n * sizeof(ngx_cycle_t *));
 
-        ngx_cleaner_event.handler = ngx_clean_old_cycles;
+        IA2_DEFINE_WRAPPER(ngx_clean_old_cycles, _ZTSPFvP11ngx_event_sE, 1);
+        ngx_cleaner_event.handler = IA2_WRAPPER_FN_SCOPE(ngx_clean_old_cycles, 1);
         ngx_cleaner_event.log = cycle->log;
         ngx_cleaner_event.data = &dumb;
         dumb.fd = (ngx_socket_t) -1;
@@ -1190,8 +1192,8 @@ ngx_reopen_files(ngx_cycle_t *cycle, ngx_uid_t user)
             continue;
         }
 
-        if (file[i].flush) {
-            file[i].flush(&file[i], cycle->log);
+        if (!IA2_FNPTR_IS_NULL(file[i].flush)) {
+            IA2_CALL(file[i].flush, _ZTSPFvP15ngx_open_file_sP9ngx_log_sE, 1)(&file[i], cycle->log);
         }
 
         fd = ngx_open_file(file[i].name.data, NGX_FILE_APPEND,
@@ -1354,7 +1356,7 @@ ngx_shared_memory_add(ngx_conf_t *cf, ngx_str_t *name, size_t size, void *tag)
     shm_zone->shm.size = size;
     shm_zone->shm.name = *name;
     shm_zone->shm.exists = 0;
-    shm_zone->init = NULL;
+    IA2_NULL_FNPTR_FN_SCOPE(shm_zone->init);
     shm_zone->tag = tag;
     shm_zone->noreuse = 0;
 
@@ -1427,7 +1429,8 @@ ngx_set_shutdown_timer(ngx_cycle_t *cycle)
     ccf = (ngx_core_conf_t *) ngx_get_conf(cycle->conf_ctx, ngx_core_module);
 
     if (ccf->shutdown_timeout) {
-        ngx_shutdown_event.handler = ngx_shutdown_timer_handler;
+        IA2_DEFINE_WRAPPER(ngx_shutdown_timer_handler, _ZTSPFvP11ngx_event_sE, 1);
+        ngx_shutdown_event.handler = IA2_WRAPPER_FN_SCOPE(ngx_shutdown_timer_handler, 1);
         ngx_shutdown_event.data = cycle;
         ngx_shutdown_event.log = cycle->log;
         ngx_shutdown_event.cancelable = 1;
@@ -1465,6 +1468,6 @@ ngx_shutdown_timer_handler(ngx_event_t *ev)
         c[i].close = 1;
         c[i].error = 1;
 
-        c[i].read->handler(c[i].read);
+        IA2_CALL(c[i].read->handler, _ZTSPFvP11ngx_event_sE, 1)(c[i].read);
     }
 }

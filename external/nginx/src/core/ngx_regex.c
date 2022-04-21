@@ -33,14 +33,16 @@ static void *ngx_regex_create_conf(ngx_cycle_t *cycle);
 static char *ngx_regex_init_conf(ngx_cycle_t *cycle, void *conf);
 
 static char *ngx_regex_pcre_jit(ngx_conf_t *cf, void *post, void *data);
-static ngx_conf_post_t  ngx_regex_pcre_jit_post = { ngx_regex_pcre_jit };
+IA2_DEFINE_WRAPPER(ngx_regex_pcre_jit, _ZTSPFPcP10ngx_conf_sPvS2_E, 1);
+static ngx_conf_post_t  ngx_regex_pcre_jit_post = { IA2_WRAPPER(ngx_regex_pcre_jit, 1) };
 
+IA2_DECLARE_WRAPPER(ngx_conf_set_flag_slot, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
 
 static ngx_command_t  ngx_regex_commands[] = {
 
     { ngx_string("pcre_jit"),
       NGX_MAIN_CONF|NGX_DIRECT_CONF|NGX_CONF_FLAG,
-      ngx_conf_set_flag_slot,
+      IA2_WRAPPER(ngx_conf_set_flag_slot, 1),
       0,
       offsetof(ngx_regex_conf_t, pcre_jit),
       &ngx_regex_pcre_jit_post },
@@ -48,26 +50,29 @@ static ngx_command_t  ngx_regex_commands[] = {
       ngx_null_command
 };
 
+IA2_DEFINE_WRAPPER(ngx_regex_create_conf, _ZTSPFPvP11ngx_cycle_sE, 1);
+IA2_DEFINE_WRAPPER(ngx_regex_init_conf, _ZTSPFPcP11ngx_cycle_sPvE, 1);
 
 static ngx_core_module_t  ngx_regex_module_ctx = {
     ngx_string("regex"),
-    ngx_regex_create_conf,
-    ngx_regex_init_conf
+    IA2_WRAPPER(ngx_regex_create_conf, 1),
+    IA2_WRAPPER(ngx_regex_init_conf, 1)
 };
 
+IA2_DEFINE_WRAPPER(ngx_regex_module_init, _ZTSPFlP11ngx_cycle_sE, 1);
 
 ngx_module_t  ngx_regex_module = {
     NGX_MODULE_V1,
     &ngx_regex_module_ctx,                 /* module context */
     ngx_regex_commands,                    /* module directives */
     NGX_CORE_MODULE,                       /* module type */
-    NULL,                                  /* init master */
-    ngx_regex_module_init,                 /* init module */
-    NULL,                                  /* init process */
-    NULL,                                  /* init thread */
-    NULL,                                  /* exit thread */
-    NULL,                                  /* exit process */
-    NULL,                                  /* exit master */
+    IA2_NULL_FNPTR,                                  /* init master */
+    IA2_WRAPPER(ngx_regex_module_init, 1),                /* init module */
+    IA2_NULL_FNPTR,                                  /* init process */
+    IA2_NULL_FNPTR,                                  /* init thread */
+    IA2_NULL_FNPTR,                                  /* exit thread */
+    IA2_NULL_FNPTR,                                  /* exit process */
+    IA2_NULL_FNPTR,                                  /* exit master */
     NGX_MODULE_V1_PADDING
 };
 
@@ -732,7 +737,7 @@ ngx_regex_create_conf(ngx_cycle_t *cycle)
         return NULL;
     }
 
-    cln->handler = ngx_regex_cleanup;
+    cln->handler = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_regex_cleanup, _ZTSPFvPvE, 1);
     cln->data = rcf;
 
     rcf->studies = ngx_list_create(cycle->pool, 8, sizeof(ngx_regex_elt_t));

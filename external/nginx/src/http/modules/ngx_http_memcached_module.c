@@ -51,81 +51,89 @@ static ngx_conf_bitmask_t  ngx_http_memcached_next_upstream_masks[] = {
 };
 
 
+IA2_DEFINE_WRAPPER(ngx_http_memcached_pass, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+IA2_DECLARE_WRAPPER(ngx_http_upstream_bind_set_slot, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+IA2_DECLARE_WRAPPER(ngx_conf_set_flag_slot, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+IA2_DECLARE_WRAPPER(ngx_conf_set_msec_slot, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+IA2_DECLARE_WRAPPER(ngx_conf_set_size_slot, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+IA2_DECLARE_WRAPPER(ngx_conf_set_bitmask_slot, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+IA2_DECLARE_WRAPPER(ngx_conf_set_num_slot, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+
 static ngx_command_t  ngx_http_memcached_commands[] = {
 
     { ngx_string("memcached_pass"),
       NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF|NGX_CONF_TAKE1,
-      ngx_http_memcached_pass,
+      IA2_WRAPPER(ngx_http_memcached_pass, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       NULL },
 
     { ngx_string("memcached_bind"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE12,
-      ngx_http_upstream_bind_set_slot,
+      IA2_WRAPPER(ngx_http_upstream_bind_set_slot, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_memcached_loc_conf_t, upstream.local),
       NULL },
 
     { ngx_string("memcached_socket_keepalive"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_FLAG,
-      ngx_conf_set_flag_slot,
+      IA2_WRAPPER(ngx_conf_set_flag_slot, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_memcached_loc_conf_t, upstream.socket_keepalive),
       NULL },
 
     { ngx_string("memcached_connect_timeout"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_msec_slot,
+      IA2_WRAPPER(ngx_conf_set_msec_slot, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_memcached_loc_conf_t, upstream.connect_timeout),
       NULL },
 
     { ngx_string("memcached_send_timeout"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_msec_slot,
+      IA2_WRAPPER(ngx_conf_set_msec_slot, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_memcached_loc_conf_t, upstream.send_timeout),
       NULL },
 
     { ngx_string("memcached_buffer_size"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_size_slot,
+      IA2_WRAPPER(ngx_conf_set_size_slot, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_memcached_loc_conf_t, upstream.buffer_size),
       NULL },
 
     { ngx_string("memcached_read_timeout"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_msec_slot,
+      IA2_WRAPPER(ngx_conf_set_msec_slot, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_memcached_loc_conf_t, upstream.read_timeout),
       NULL },
 
     { ngx_string("memcached_next_upstream"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_1MORE,
-      ngx_conf_set_bitmask_slot,
+      IA2_WRAPPER(ngx_conf_set_bitmask_slot, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_memcached_loc_conf_t, upstream.next_upstream),
       &ngx_http_memcached_next_upstream_masks },
 
     { ngx_string("memcached_next_upstream_tries"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_num_slot,
+      IA2_WRAPPER(ngx_conf_set_num_slot, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_memcached_loc_conf_t, upstream.next_upstream_tries),
       NULL },
 
     { ngx_string("memcached_next_upstream_timeout"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_msec_slot,
+      IA2_WRAPPER(ngx_conf_set_msec_slot, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_memcached_loc_conf_t, upstream.next_upstream_timeout),
       NULL },
 
     { ngx_string("memcached_gzip_flag"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_num_slot,
+      IA2_WRAPPER(ngx_conf_set_num_slot, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_memcached_loc_conf_t, gzip_flag),
       NULL },
@@ -133,19 +141,21 @@ static ngx_command_t  ngx_http_memcached_commands[] = {
       ngx_null_command
 };
 
+IA2_DEFINE_WRAPPER(ngx_http_memcached_create_loc_conf, _ZTSPFPvP10ngx_conf_sE, 1);
+IA2_DEFINE_WRAPPER(ngx_http_memcached_merge_loc_conf, _ZTSPFPcP10ngx_conf_sPvS2_E, 1);
 
 static ngx_http_module_t  ngx_http_memcached_module_ctx = {
-    NULL,                                  /* preconfiguration */
-    NULL,                                  /* postconfiguration */
+    IA2_NULL_FNPTR,                                  /* preconfiguration */
+    IA2_NULL_FNPTR,                                  /* postconfiguration */
 
-    NULL,                                  /* create main configuration */
-    NULL,                                  /* init main configuration */
+    IA2_NULL_FNPTR,                                  /* create main configuration */
+    IA2_NULL_FNPTR,                                  /* init main configuration */
 
-    NULL,                                  /* create server configuration */
-    NULL,                                  /* merge server configuration */
+    IA2_NULL_FNPTR,                                  /* create server configuration */
+    IA2_NULL_FNPTR,                                  /* merge server configuration */
 
-    ngx_http_memcached_create_loc_conf,    /* create location configuration */
-    ngx_http_memcached_merge_loc_conf      /* merge location configuration */
+    IA2_WRAPPER(ngx_http_memcached_create_loc_conf, 1),    /* create location configuration */
+    IA2_WRAPPER(ngx_http_memcached_merge_loc_conf, 1)      /* merge location configuration */
 };
 
 
@@ -154,13 +164,13 @@ ngx_module_t  ngx_http_memcached_module = {
     &ngx_http_memcached_module_ctx,        /* module context */
     ngx_http_memcached_commands,           /* module directives */
     NGX_HTTP_MODULE,                       /* module type */
-    NULL,                                  /* init master */
-    NULL,                                  /* init module */
-    NULL,                                  /* init process */
-    NULL,                                  /* init thread */
-    NULL,                                  /* exit thread */
-    NULL,                                  /* exit process */
-    NULL,                                  /* exit master */
+    IA2_NULL_FNPTR,                                  /* init master */
+    IA2_NULL_FNPTR,                                  /* init module */
+    IA2_NULL_FNPTR,                                  /* init process */
+    IA2_NULL_FNPTR,                                  /* init thread */
+    IA2_NULL_FNPTR,                                  /* exit thread */
+    IA2_NULL_FNPTR,                                  /* exit process */
+    IA2_NULL_FNPTR,                                  /* exit master */
     NGX_MODULE_V1_PADDING
 };
 
@@ -207,11 +217,11 @@ ngx_http_memcached_handler(ngx_http_request_t *r)
 
     u->conf = &mlcf->upstream;
 
-    u->create_request = ngx_http_memcached_create_request;
-    u->reinit_request = ngx_http_memcached_reinit_request;
-    u->process_header = ngx_http_memcached_process_header;
-    u->abort_request = ngx_http_memcached_abort_request;
-    u->finalize_request = ngx_http_memcached_finalize_request;
+    u->create_request = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_memcached_create_request, _ZTSPFlP18ngx_http_request_sE, 1);
+    u->reinit_request = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_memcached_reinit_request, _ZTSPFlP18ngx_http_request_sE, 1);
+    u->process_header = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_memcached_process_header, _ZTSPFlP18ngx_http_request_sE, 1);
+    u->abort_request = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_memcached_abort_request, _ZTSPFvP18ngx_http_request_sE, 1);
+    u->finalize_request = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_memcached_finalize_request, _ZTSPFvP18ngx_http_request_slE, 1);
 
     ctx = ngx_palloc(r->pool, sizeof(ngx_http_memcached_ctx_t));
     if (ctx == NULL) {
@@ -222,8 +232,8 @@ ngx_http_memcached_handler(ngx_http_request_t *r)
 
     ngx_http_set_ctx(r, ctx, ngx_http_memcached_module);
 
-    u->input_filter_init = ngx_http_memcached_filter_init;
-    u->input_filter = ngx_http_memcached_filter;
+    u->input_filter_init = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_memcached_filter_init, _ZTSPFlPvE, 1);
+    u->input_filter = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_memcached_filter, _ZTSPFlPvlE, 1);
     u->input_filter_ctx = ctx;
 
     r->main->count++;
@@ -719,7 +729,7 @@ ngx_http_memcached_pass(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     clcf = ngx_http_conf_get_module_loc_conf(cf, ngx_http_core_module);
 
-    clcf->handler = ngx_http_memcached_handler;
+    clcf->handler = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_memcached_handler, _ZTSPFlP18ngx_http_request_sE, 1);
 
     if (clcf->name.len && clcf->name.data[clcf->name.len - 1] == '/') {
         clcf->auto_redirect = 1;

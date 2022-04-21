@@ -196,7 +196,7 @@ ngx_spawn_process(ngx_cycle_t *cycle, ngx_spawn_proc_pt proc, void *data,
     case 0:
         ngx_parent = ngx_pid;
         ngx_pid = ngx_getpid();
-        proc(cycle, data);
+        IA2_CALL(proc, _ZTSPFvP11ngx_cycle_sPvE, 1)(cycle, data);
         break;
 
     default:
@@ -261,7 +261,8 @@ ngx_spawn_process(ngx_cycle_t *cycle, ngx_spawn_proc_pt proc, void *data,
 ngx_pid_t
 ngx_execute(ngx_cycle_t *cycle, ngx_exec_ctx_t *ctx)
 {
-    return ngx_spawn_process(cycle, ngx_execute_proc, ctx, ctx->name,
+    IA2_DEFINE_WRAPPER(ngx_execute_proc, _ZTSPFvP11ngx_cycle_sPvE, 1);
+    return ngx_spawn_process(cycle, IA2_WRAPPER_FN_SCOPE(ngx_execute_proc, 1), ctx, ctx->name,
                              NGX_PROCESS_DETACHED);
 }
 

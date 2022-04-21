@@ -41,12 +41,19 @@ static char * ngx_http_rewrite_value(ngx_conf_t *cf,
     ngx_http_rewrite_loc_conf_t *lcf, ngx_str_t *value);
 
 
+IA2_DEFINE_WRAPPER(ngx_http_rewrite, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+IA2_DEFINE_WRAPPER(ngx_http_rewrite_return, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+IA2_DEFINE_WRAPPER(ngx_http_rewrite_break, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+IA2_DEFINE_WRAPPER(ngx_http_rewrite_if, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+IA2_DEFINE_WRAPPER(ngx_http_rewrite_set, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+IA2_DECLARE_WRAPPER(ngx_conf_set_flag_slot, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+
 static ngx_command_t  ngx_http_rewrite_commands[] = {
 
     { ngx_string("rewrite"),
       NGX_HTTP_SRV_CONF|NGX_HTTP_SIF_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF
                        |NGX_CONF_TAKE23,
-      ngx_http_rewrite,
+      IA2_WRAPPER(ngx_http_rewrite, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       NULL },
@@ -54,7 +61,7 @@ static ngx_command_t  ngx_http_rewrite_commands[] = {
     { ngx_string("return"),
       NGX_HTTP_SRV_CONF|NGX_HTTP_SIF_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF
                        |NGX_CONF_TAKE12,
-      ngx_http_rewrite_return,
+      IA2_WRAPPER(ngx_http_rewrite_return, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       NULL },
@@ -62,14 +69,14 @@ static ngx_command_t  ngx_http_rewrite_commands[] = {
     { ngx_string("break"),
       NGX_HTTP_SRV_CONF|NGX_HTTP_SIF_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF
                        |NGX_CONF_NOARGS,
-      ngx_http_rewrite_break,
+      IA2_WRAPPER(ngx_http_rewrite_break, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       NULL },
 
     { ngx_string("if"),
       NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_BLOCK|NGX_CONF_1MORE,
-      ngx_http_rewrite_if,
+      IA2_WRAPPER(ngx_http_rewrite_if, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       NULL },
@@ -77,7 +84,7 @@ static ngx_command_t  ngx_http_rewrite_commands[] = {
     { ngx_string("set"),
       NGX_HTTP_SRV_CONF|NGX_HTTP_SIF_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF
                        |NGX_CONF_TAKE2,
-      ngx_http_rewrite_set,
+      IA2_WRAPPER(ngx_http_rewrite_set, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       NULL },
@@ -85,7 +92,7 @@ static ngx_command_t  ngx_http_rewrite_commands[] = {
     { ngx_string("rewrite_log"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_SIF_CONF|NGX_HTTP_LOC_CONF
                         |NGX_HTTP_LIF_CONF|NGX_CONF_FLAG,
-      ngx_conf_set_flag_slot,
+      IA2_WRAPPER(ngx_conf_set_flag_slot, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_rewrite_loc_conf_t, log),
       NULL },
@@ -93,7 +100,7 @@ static ngx_command_t  ngx_http_rewrite_commands[] = {
     { ngx_string("uninitialized_variable_warn"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_SIF_CONF|NGX_HTTP_LOC_CONF
                         |NGX_HTTP_LIF_CONF|NGX_CONF_FLAG,
-      ngx_conf_set_flag_slot,
+      IA2_WRAPPER(ngx_conf_set_flag_slot, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_rewrite_loc_conf_t, uninitialized_variable_warn),
       NULL },
@@ -102,18 +109,22 @@ static ngx_command_t  ngx_http_rewrite_commands[] = {
 };
 
 
+IA2_DEFINE_WRAPPER(ngx_http_rewrite_init, _ZTSPFlP10ngx_conf_sE, 1);
+IA2_DEFINE_WRAPPER(ngx_http_rewrite_create_loc_conf, _ZTSPFPvP10ngx_conf_sE, 1);
+IA2_DEFINE_WRAPPER(ngx_http_rewrite_merge_loc_conf, _ZTSPFPcP10ngx_conf_sPvS2_E, 1);
+
 static ngx_http_module_t  ngx_http_rewrite_module_ctx = {
-    NULL,                                  /* preconfiguration */
-    ngx_http_rewrite_init,                 /* postconfiguration */
+    IA2_NULL_FNPTR,                                  /* preconfiguration */
+    IA2_WRAPPER(ngx_http_rewrite_init, 1),                 /* postconfiguration */
 
-    NULL,                                  /* create main configuration */
-    NULL,                                  /* init main configuration */
+    IA2_NULL_FNPTR,                                  /* create main configuration */
+    IA2_NULL_FNPTR,                                  /* init main configuration */
 
-    NULL,                                  /* create server configuration */
-    NULL,                                  /* merge server configuration */
+    IA2_NULL_FNPTR,                                  /* create server configuration */
+    IA2_NULL_FNPTR,                                  /* merge server configuration */
 
-    ngx_http_rewrite_create_loc_conf,      /* create location configuration */
-    ngx_http_rewrite_merge_loc_conf        /* merge location configuration */
+    IA2_WRAPPER(ngx_http_rewrite_create_loc_conf, 1),      /* create location configuration */
+    IA2_WRAPPER(ngx_http_rewrite_merge_loc_conf, 1)        /* merge location configuration */
 };
 
 
@@ -122,13 +133,13 @@ ngx_module_t  ngx_http_rewrite_module = {
     &ngx_http_rewrite_module_ctx,          /* module context */
     ngx_http_rewrite_commands,             /* module directives */
     NGX_HTTP_MODULE,                       /* module type */
-    NULL,                                  /* init master */
-    NULL,                                  /* init module */
-    NULL,                                  /* init process */
-    NULL,                                  /* init thread */
-    NULL,                                  /* exit thread */
-    NULL,                                  /* exit process */
-    NULL,                                  /* exit master */
+    IA2_NULL_FNPTR,                                  /* init master */
+    IA2_NULL_FNPTR,                                  /* init module */
+    IA2_NULL_FNPTR,                                  /* init process */
+    IA2_NULL_FNPTR,                                  /* init thread */
+    IA2_NULL_FNPTR,                                  /* exit thread */
+    IA2_NULL_FNPTR,                                  /* exit process */
+    IA2_NULL_FNPTR,                                  /* exit master */
     NGX_MODULE_V1_PADDING
 };
 
@@ -177,7 +188,7 @@ ngx_http_rewrite_handler(ngx_http_request_t *r)
 
     while (*(uintptr_t *) e->ip) {
         code = *(ngx_http_script_code_pt *) e->ip;
-        code(e);
+        IA2_CALL(code, _ZTSPFvP24ngx_http_script_engine_tE, 1)(e);
     }
 
     return e->status;
@@ -281,14 +292,14 @@ ngx_http_rewrite_init(ngx_conf_t *cf)
         return NGX_ERROR;
     }
 
-    *h = ngx_http_rewrite_handler;
+    *h = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_rewrite_handler, _ZTSPFlP18ngx_http_request_sE, 1);
 
     h = ngx_array_push(&cmcf->phases[NGX_HTTP_REWRITE_PHASE].handlers);
     if (h == NULL) {
         return NGX_ERROR;
     }
 
-    *h = ngx_http_rewrite_handler;
+    *h = IA2_DECLARE_WRAPPER_FN_SCOPE(ngx_http_rewrite_handler, _ZTSPFlP18ngx_http_request_sE, 1);
 
     return NGX_OK;
 }
@@ -336,7 +347,7 @@ ngx_http_rewrite(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         return NGX_CONF_ERROR;
     }
 
-    regex->code = ngx_http_script_regex_start_code;
+    regex->code = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_script_regex_start_code, _ZTSPFvP24ngx_http_script_engine_tE, 1);
     regex->uri = 1;
     regex->name = value[1];
 
@@ -416,7 +427,7 @@ ngx_http_rewrite(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         return NGX_CONF_ERROR;
     }
 
-    regex_end->code = ngx_http_script_regex_end_code;
+    regex_end->code = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_script_regex_end_code, _ZTSPFvP24ngx_http_script_engine_tE, 1);
     regex_end->uri = regex->uri;
     regex_end->args = regex->args;
     regex_end->add_args = regex->add_args;
@@ -428,7 +439,7 @@ ngx_http_rewrite(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
             return NGX_CONF_ERROR;
         }
 
-        *code = NULL;
+        IA2_NULL_FNPTR_FN_SCOPE(*code);
     }
 
     regex->next = (u_char *) lcf->codes->elts + lcf->codes->nelts
@@ -458,7 +469,7 @@ ngx_http_rewrite_return(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     ngx_memzero(ret, sizeof(ngx_http_script_return_code_t));
 
-    ret->code = ngx_http_script_return_code;
+    ret->code = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_script_return_code, _ZTSPFvP24ngx_http_script_engine_tE, 1);
 
     p = value[1].data;
 
@@ -521,7 +532,7 @@ ngx_http_rewrite_break(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         return NGX_CONF_ERROR;
     }
 
-    *code = ngx_http_script_break_code;
+    *code = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_script_break_code, _ZTSPFvP24ngx_http_script_engine_tE, 1);
 
     return NGX_CONF_OK;
 }
@@ -564,9 +575,9 @@ ngx_http_rewrite_if(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
         module = cf->cycle->modules[i]->ctx;
 
-        if (module->create_loc_conf) {
+        if (!IA2_FNPTR_IS_NULL(module->create_loc_conf)) {
 
-            mconf = module->create_loc_conf(cf);
+            mconf = IA2_CALL(module->create_loc_conf, _ZTSPFPvP10ngx_conf_sE, 1)(cf);
             if (mconf == NULL) {
                 return NGX_CONF_ERROR;
             }
@@ -595,7 +606,7 @@ ngx_http_rewrite_if(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         return NGX_CONF_ERROR;
     }
 
-    if_code->code = ngx_http_script_if_code;
+    if_code->code = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_script_if_code, _ZTSPFvP24ngx_http_script_engine_tE, 1);
 
     elts = lcf->codes->elts;
 
@@ -724,7 +735,7 @@ ngx_http_rewrite_if_condition(ngx_conf_t *cf, ngx_http_rewrite_loc_conf_t *lcf)
                 return NGX_CONF_ERROR;
             }
 
-            *code = ngx_http_script_equal_code;
+            *code = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_script_equal_code, _ZTSPFvP24ngx_http_script_engine_tE, 1);
 
             return NGX_CONF_OK;
         }
@@ -741,7 +752,7 @@ ngx_http_rewrite_if_condition(ngx_conf_t *cf, ngx_http_rewrite_loc_conf_t *lcf)
                 return NGX_CONF_ERROR;
             }
 
-            *code = ngx_http_script_not_equal_code;
+            *code = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_script_not_equal_code, _ZTSPFvP24ngx_http_script_engine_tE, 1);
             return NGX_CONF_OK;
         }
 
@@ -770,7 +781,7 @@ ngx_http_rewrite_if_condition(ngx_conf_t *cf, ngx_http_rewrite_loc_conf_t *lcf)
                 return NGX_CONF_ERROR;
             }
 
-            regex->code = ngx_http_script_regex_start_code;
+            regex->code = IA2_DECLARE_WRAPPER_FN_SCOPE(ngx_http_script_regex_start_code, _ZTSPFvP24ngx_http_script_engine_tE, 1);
             regex->next = sizeof(ngx_http_script_regex_code_t);
             regex->test = 1;
             if (p[0] == '!') {
@@ -807,7 +818,7 @@ ngx_http_rewrite_if_condition(ngx_conf_t *cf, ngx_http_rewrite_loc_conf_t *lcf)
             return NGX_CONF_ERROR;
         }
 
-        fop->code = ngx_http_script_file_code;
+        fop->code = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_script_file_code, _ZTSPFvP24ngx_http_script_engine_tE, 1);
 
         if (p[1] == 'f') {
             fop->op = ngx_http_script_file_plain;
@@ -885,7 +896,7 @@ ngx_http_rewrite_variable(ngx_conf_t *cf, ngx_http_rewrite_loc_conf_t *lcf,
         return NGX_CONF_ERROR;
     }
 
-    var_code->code = ngx_http_script_var_code;
+    var_code->code = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_script_var_code, _ZTSPFvP24ngx_http_script_engine_tE, 1);
     var_code->index = index;
 
     return NGX_CONF_OK;
@@ -925,8 +936,8 @@ ngx_http_rewrite_set(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         return NGX_CONF_ERROR;
     }
 
-    if (v->get_handler == NULL) {
-        v->get_handler = ngx_http_rewrite_var;
+    if (IA2_FNPTR_IS_NULL(v->get_handler)) {
+        v->get_handler = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_rewrite_var, _ZTSPFlP18ngx_http_request_sP20ngx_variable_value_tmE, 1);
         v->data = index;
     }
 
@@ -934,14 +945,14 @@ ngx_http_rewrite_set(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         return NGX_CONF_ERROR;
     }
 
-    if (v->set_handler) {
+    if (!IA2_FNPTR_IS_NULL(v->set_handler)) {
         vhcode = ngx_http_script_start_code(cf->pool, &lcf->codes,
                                    sizeof(ngx_http_script_var_handler_code_t));
         if (vhcode == NULL) {
             return NGX_CONF_ERROR;
         }
 
-        vhcode->code = ngx_http_script_var_set_handler_code;
+        vhcode->code = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_script_var_set_handler_code, _ZTSPFvP24ngx_http_script_engine_tE, 1);
         vhcode->handler = v->set_handler;
         vhcode->data = v->data;
 
@@ -954,7 +965,7 @@ ngx_http_rewrite_set(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         return NGX_CONF_ERROR;
     }
 
-    vcode->code = ngx_http_script_set_var_code;
+    vcode->code = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_script_set_var_code, _ZTSPFvP24ngx_http_script_engine_tE, 1);
     vcode->index = (uintptr_t) index;
 
     return NGX_CONF_OK;
@@ -985,7 +996,7 @@ ngx_http_rewrite_value(ngx_conf_t *cf, ngx_http_rewrite_loc_conf_t *lcf,
             n = 0;
         }
 
-        val->code = ngx_http_script_value_code;
+        val->code = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_script_value_code, _ZTSPFvP24ngx_http_script_engine_tE, 1);
         val->value = (uintptr_t) n;
         val->text_len = (uintptr_t) value->len;
         val->text_data = (uintptr_t) value->data;
@@ -999,7 +1010,7 @@ ngx_http_rewrite_value(ngx_conf_t *cf, ngx_http_rewrite_loc_conf_t *lcf,
         return NGX_CONF_ERROR;
     }
 
-    complex->code = ngx_http_script_complex_value_code;
+    complex->code = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_script_complex_value_code, _ZTSPFvP24ngx_http_script_engine_tE, 1);
     complex->lengths = NULL;
 
     ngx_memzero(&sc, sizeof(ngx_http_script_compile_t));

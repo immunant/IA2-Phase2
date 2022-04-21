@@ -62,7 +62,7 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
 // opaque pointer type.
 #define IA2_DEFINE_WRAPPER(target, ty, target_pkey)                            \
   /* Define the wrapper in asm */                                              \
-  __asm__(IA2_WRAPPER_##ty(target, 0, target_pkey));                           \
+  __asm__(IA2_DEFINE_WRAPPER_##ty(target, 0, target_pkey));                    \
   IA2_DECLARE_WRAPPER(target, ty, target_pkey)
 
 // Expands to an opaque pointer expression for a wrapper defined by
@@ -100,13 +100,13 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
 // may be assigned an identifier or called immediately. Since the rewritten
 // headers replace function pointer types with opaque pointer types, calling it
 // immediately is the more ergonomic approach.
-#define IA2_FNPTR_UNWRAPPER(target, ty, caller_pkey)                           \
+#define IA2_CALL(target, ty, caller_pkey)                                      \
   ({                                                                           \
     static struct IA2_fnptr_##ty##_inner_t *target_ptr __asm__(                \
         UNIQUE_STR(#target)) __attribute__((used));                            \
     static void *wrapper __asm__("__ia2_" UNIQUE_STR(#target));                \
     target_ptr = target.ptr;                                                   \
-    __asm__(IA2_FNPTR_UNWRAPPER_##ty(target, caller_pkey, 0));                 \
+    __asm__(IA2_CALL_##ty(target, caller_pkey, 0));                            \
     (IA2_FNPTR_TYPE_##ty) & wrapper;                                           \
   })
 

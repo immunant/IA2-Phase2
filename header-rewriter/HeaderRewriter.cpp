@@ -490,9 +490,9 @@ static std::string generate_output_header(
     }
     os << "(" << llvm::join(fi.parameter_types, ", ") << ")\n";
 
-    // IA2_WRAPPER_* takes a function name and declares a wrapped function
-    // which we can be used to initialize a function pointer
-    os << "#define IA2_WRAPPER_" << mangled_type
+    // IA2_DEFINE_WRAPPER_* takes a function name and declares a wrapped
+    // function which we can be used to initialize a function pointer
+    os << "#define IA2_DEFINE_WRAPPER_" << mangled_type
        << "(target, caller_pkey, target_pkey) \\\n";
     // This argument must be a valid asm identifier for direct calls
     auto direct_wrapper =
@@ -500,20 +500,9 @@ static std::string generate_output_header(
                          true /* as_macro */);
     os << direct_wrapper << "\n";
 
-    // IA2_FNPTR_WRAPPER_* takes a function pointer and returns an opaque type
-    // which we can pass to other compartments. This means that the wrapper will
-    // be called from an untrusted compartment.
-    os << "#define IA2_FNPTR_WRAPPER_" << mangled_type
-       << "(target, caller_pkey, target_pkey) \\\n";
-    // target_pkey is the macro param defining the callee's pkey
-    auto wrapper_from_trusted =
-        emit_asm_wrapper(fi.sig, fi.new_type,
-                         WrapperKind::IndirectFromUntrusted, "target_pkey"s);
-    os << wrapper_from_trusted << "\n";
-
-    // IA2_FNPTR_UNWRAPPER_* takes an opaque pointer and returns a function
+    // IA2_CALL_* takes an opaque pointer and returns a function
     // pointer so the wrapper will be called from the trusted compartment.
-    os << "#define IA2_FNPTR_UNWRAPPER_" << mangled_type
+    os << "#define IA2_CALL_" << mangled_type
        << "(target, caller_pkey, target_pkey) \\\n";
     // target_pkey is the macro param defining the callee's pkey
     auto wrapper_from_untrusted = emit_asm_wrapper(

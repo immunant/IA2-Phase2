@@ -347,7 +347,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     add_raw_line(aw, "\"__ia2_\" UNIQUE_STR(#target) \"_wrapper:\\n\"");
     add_raw_line(aw, "\".equ __ia2_\" UNIQUE_STR(#target) \", .\\n\"");
   } else if (as_macro) {
-    add_asm_line(aw, ".text");
+    add_asm_line(aw, ".text 1");
     add_raw_line(aw, "\".global __ia2_\" #target \"\\n\"");
     add_raw_line(aw, "\"__ia2_\" #target \":\\n\"");
   } else {
@@ -362,6 +362,16 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   for (auto &r : preserved_registers) {
     add_asm_line(aw, "pushq %"s + r);
   }
+
+  // Change pkru to the intermediate value before copying args
+  add_comment_line(aw, "Set PKRU to the intermediate value to move arguments");
+  // wrpkru requires zeroing rcx and rdx, but they may have arguments so use r10
+  // and r11 as scratch registers
+  add_asm_line(aw, "movq %rcx, %r10");
+  add_asm_line(aw, "movq %rdx, %r11");
+  emit_mixed_wrpkru(aw, caller_pkey, target_pkey);
+  add_asm_line(aw, "movq %r10, %rcx");
+  add_asm_line(aw, "movq %r11, %rdx");
 
   // Save caller stack pointer
   add_comment_line(aw, "Save caller stack pointer");
@@ -410,16 +420,6 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     assert(stack_alignment == 8);
     add_asm_line(aw, "subq $8, %rsp");
   }
-
-  // Change pkru to the intermediate value before copying args
-  add_comment_line(aw, "Set PKRU to the intermediate value to move arguments");
-  // wrpkru requires zeroing rcx and rdx, but they may have arguments so use r10
-  // and r11 as scratch registers
-  add_asm_line(aw, "movq %rcx, %r10");
-  add_asm_line(aw, "movq %rdx, %r11");
-  emit_mixed_wrpkru(aw, caller_pkey, target_pkey);
-  add_asm_line(aw, "movq %r10, %rcx");
-  add_asm_line(aw, "movq %r11, %rdx");
 
   // Copy stack args to target stack
   if (stack_arg_count > 0) {
@@ -517,6 +517,8 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   // Change pkru to the intermediate value. This uses rax, r10 and r11 as
   // scratch registers.
   emit_mixed_wrpkru(aw, caller_pkey, target_pkey);
+  add_asm_line(aw, "movq %r10, %rax");
+  add_asm_line(aw, "movq %r11, %rdx");
 
   // Free stack space used for stack args on the target stack
   if (stack_arg_size > 0) {
@@ -551,6 +553,8 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
 
   // Once again use r10 and r11 as scratch registers
   add_comment_line(aw, "Set PKRU to the caller's value");
+  add_asm_line(aw, "movq %rax, %r10");
+  add_asm_line(aw, "movq %rdx, %r11");
   emit_wrpkru(aw, caller_pkey);
   add_asm_line(aw, "movq %r10, %rax");
   add_asm_line(aw, "movq %r11, %rdx");

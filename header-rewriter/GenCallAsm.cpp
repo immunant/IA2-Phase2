@@ -243,8 +243,7 @@ static std::string sig_string(const CAbiSignature &sig,
 std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
                              WrapperKind kind, const std::string &target_pkey,
                              bool as_macro) {
-  bool indirect_wrapper = kind != WrapperKind::Direct;
-  as_macro = as_macro || indirect_wrapper;
+  as_macro = as_macro || (kind == WrapperKind::Indirect);
   std::string terminator = {};
   // Code for indirect wrappers is generated as a macro so we need to terminate
   // each line with '\'
@@ -340,17 +339,20 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
 
   add_comment_line(aw, "Wrapper for "s + sig_string(sig, name) + ":");
   // Define the wrapper symbol
-  if (indirect_wrapper) {
+  if (kind == WrapperKind::Indirect) {
+    // This is for IA2_CALL
     // Jump to a subsection of .text to avoid inlining this wrapper function in
     // the function that invoked the macro for indirect wrappers
     add_asm_line(aw, ".text 1");
-    add_raw_line(aw, "\"__ia2_\" UNIQUE_STR(#target) \"_wrapper:\\n\"");
-    add_raw_line(aw, "\".equ __ia2_\" UNIQUE_STR(#target) \", .\\n\"");
+    add_raw_line(aw, "\"__ia2_\" UNIQUE_STR(#ty) \"_wrapper:\\n\"");
+    add_raw_line(aw, "\".equ __ia2_\" UNIQUE_STR(#ty) \", .\\n\"");
   } else if (as_macro) {
+    // This is for IA2_DEFINE_WRAPPER
     add_asm_line(aw, ".text 1");
     add_raw_line(aw, "\".global __ia2_\" #target \"\\n\"");
     add_raw_line(aw, "\"__ia2_\" #target \":\\n\"");
   } else {
+    // This is for wrappers defined in the shims
     add_asm_line(aw, ".text");
     add_asm_line(aw, ".global __ia2_"s + name);
     add_asm_line(aw, "__ia2_"s + name + ":");
@@ -388,8 +390,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
 
   if (kind == WrapperKind::Indirect) {
     add_comment_line(aw, "Load indirect call target and put it on the stack");
-    add_raw_line(aw,
-                 "\"movq \" UNIQUE_STR(#target) \"@GOTPCREL(%rip), %r10\\n\"");
+    add_raw_line(aw, "\"movq \" UNIQUE_STR(#ty) \"@GOTPCREL(%rip), %r10\\n\"");
     add_asm_line(aw, "movq (%r10), %r10");
     add_asm_line(aw, "pushq %r10");
   }

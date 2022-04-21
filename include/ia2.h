@@ -17,7 +17,11 @@
 #define TOKENPASTE3_(x, y, z) x##y##z
 #define TOKENPASTE3(x, y, z) TOKENPASTE3_(x, y, z)
 
+#define TOKENPASTE4_(w, x, y, z) w##x##y##z
+#define TOKENPASTE4(w, x, y, z) TOKENPASTE4_(w, x, y, z)
+
 #define UNIQUE(s) TOKENPASTE3(s, _line_, __LINE__)
+#define UNIQUE_IA2(s) TOKENPASTE4(__ia2_, s, _line_, __LINE__)
 #define UNIQUE_STR(s) XSTR(UNIQUE(s))
 
 #ifdef LIBIA2_INSECURE
@@ -48,7 +52,7 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
 // opaque pointer type.
 #define IA2_DECLARE_WRAPPER(target, ty, target_pkey)                           \
   /* Forward declare the function and mark it as used */                       \
-  __attribute__((used)) typeof(target) target;                                 \
+  extern void* UNIQUE_IA2(target);                                             \
   /* Create an identifier to get the wrapper's address with                    \
    * IA2_WRAPPER/IA2_WRAPPER_FN_SCOPE */                                       \
   extern struct IA2_fnptr_##ty##_inner_t __ia2_##target##_0_##target_pkey;     \
@@ -64,6 +68,7 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
 // opaque pointer type.
 #define IA2_DEFINE_WRAPPER(target, ty, target_pkey)                            \
   /* Define the wrapper in asm */                                              \
+  /*extern typeof((void)0, target) target;                                   */\
   __asm__(IA2_DEFINE_WRAPPER_##ty(target, 0, target_pkey));                    \
   IA2_DECLARE_WRAPPER(target, ty, target_pkey)
 
@@ -103,10 +108,10 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
   ({                                                                           \
     static struct IA2_fnptr_##ty##_inner_t *target_ptr __asm__(UNIQUE_STR(ty)) \
         __attribute__((used));                                                 \
-    static void *wrapper __asm__("__ia2_" UNIQUE_STR(ty));                     \
+    extern void *UNIQUE_IA2(ty);                                               \
     target_ptr = target.ptr;                                                   \
     __asm__(IA2_CALL_##ty(target, ty, caller_pkey, 0));                        \
-    (IA2_FNPTR_TYPE_##ty) & wrapper;                                           \
+    (IA2_FNPTR_TYPE_##ty) & UNIQUE_IA2(ty);                                    \
   })
 
 // Expands to a NULL pointer expression which can be coerced to any opaque

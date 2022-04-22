@@ -275,6 +275,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
       std::count_if(return_locs.begin(), return_locs.end(),
                     [](auto &x) { return x.is_stack(); });
   size_t stack_return_size = stack_return_count * 8;
+  size_t stack_return_padding = 16;
 
   /*
     Just before calling the wrapped function, its compartment's stack may
@@ -290,6 +291,9 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     |     |pointer is in the caller we copy it to the target stack before
     |     |changing pkru. TODO: Check if it's possible to remove this given that
     |     |we use an intermediate PKRU.
+    +-----+
+    |ret  |Padding for alignment prior to the compartment's return value (if it
+    |align|has class MEMORY) as such memory must be 16B aligned.
     +-----+
     |     |Space for the compartment's return value if it has class MEMORY. This
     |ret  |space is only allocated if the pointer to the caller's return value
@@ -322,7 +326,9 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   // need to store a pointer to the previous return value memory. If the return
   // value doesn't use memory, this entire subexpression is zero.
   size_t compartment_stack_space =
-      stack_arg_size + (stack_return_size > 0 ? 8 + stack_return_size : 0);
+      stack_arg_size + (stack_return_size > 0
+                            ? 8 + stack_return_padding + stack_return_size
+                            : 0);
   if (kind == WrapperKind::Indirect) {
     // Count the space for the function pointer if the call is indirect
     compartment_stack_space += 8;
@@ -408,7 +414,8 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   if (stack_return_size > 0) {
     add_comment_line(
         aw, "Allocate space on the compartment's stack for the return value");
-    add_asm_line(aw, "subq $"s + std::to_string(stack_return_size) + ", %rsp");
+    size_t padded_return_size = stack_return_size + stack_return_padding;
+    add_asm_line(aw, "subq $"s + std::to_string(padded_return_size) + ", %rsp");
     add_comment_line(aw, "Save address of the caller's return value");
     add_asm_line(aw, "pushq %rdi");
     add_comment_line(aw, "Set rdi to the compartment's return value memory");

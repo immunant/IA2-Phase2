@@ -420,9 +420,9 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     add_asm_line(aw, "pushq %rdi");
     add_comment_line(aw, "Set rdi to the compartment's return value memory");
     add_asm_line(aw, "movq %rsp, %rdi");
-    // The new return value is 8 bytes above the bottom of the stack so we need
-    // to add 8 to rdi
-    add_asm_line(aw, "addq $8, %rdi");
+    // The new return value is 8 bytes above the bottom of the stack, but rdi
+    // need to be 16-byte aligned; round 8 up to 16 and add that to rdi
+    add_asm_line(aw, "addq $16, %rdi");
   }
 
   // Insert 8 bytes to align the stack to 16 bytes if necessary.
@@ -542,6 +542,8 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
 
     // After the pop rsp points to the memory for the return value on the
     // compartment's stack.
+    add_asm_line(aw, "addq $8, %rsp");
+
     add_comment_line(aw,
                      "Copy "s + std::to_string(stack_return_size) +
                          " bytes for the return value to the caller's stack");

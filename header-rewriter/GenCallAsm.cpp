@@ -499,7 +499,9 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     add_asm_line(aw, "movq "s + std::to_string(fn_ptr_offset) + "(%rsp), %r10");
     add_asm_line(aw, "call *%r10");
   } else if (as_macro) {
-    add_raw_line(aw, "\"call \" #target \"\\n\"");
+    add_asm_line(aw, "movq \" #target \"@GOTPCREL(%rip), %r10");
+    add_asm_line(aw, "movq (%r10), %r10");
+    add_asm_line(aw, "call *%r10");
   } else {
     add_asm_line(aw, "call "s + name);
   }

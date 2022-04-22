@@ -51,14 +51,18 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
 // IA2_WRAPPER(target) or IA2_WRAPPER_FN_SCOPE(target) to get the wrapper as an
 // opaque pointer type.
 #define IA2_DECLARE_WRAPPER(target, ty, target_pkey)                           \
-  /* Forward declare the function and mark it as used */                       \
-  extern void* UNIQUE_IA2(target);                                             \
+  /* Define a symbol (extern_...) that holds a pointer to the wrapped          \
+  function. The name of the variable itself doesn't matter because it is only  \
+  referenced by way of its linker name, in the wrapper's asm. */               \
+  __attribute__((used)) static void *dummy_##target __asm__(                   \
+      XSTR(extern_##target)) = target;                                         \
   /* Create an identifier to get the wrapper's address with                    \
    * IA2_WRAPPER/IA2_WRAPPER_FN_SCOPE */                                       \
-  extern struct IA2_fnptr_##ty##_inner_t __ia2_##target##_0_##target_pkey;     \
+  extern struct IA2_fnptr_##ty##_inner_t                                       \
+      __ia2_extern_##target##_0_##target_pkey;                                 \
   /* Create an identifier to get the wrapper's type with                       \
    * IA2_WRAPPER/IA2_WRAPPER_FN_SCOPE */                                       \
-  extern struct IA2_fnptr_##ty __ia2_##target##_wrapper;
+  extern struct IA2_fnptr_##ty __ia2_extern_##target##_wrapper;
 
 // Defines a wrapper for the function `target`.
 //
@@ -68,8 +72,7 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
 // opaque pointer type.
 #define IA2_DEFINE_WRAPPER(target, ty, target_pkey)                            \
   /* Define the wrapper in asm */                                              \
-  /*extern typeof((void)0, target) target;                                   */\
-  __asm__(IA2_DEFINE_WRAPPER_##ty(target, 0, target_pkey));                    \
+  __asm__(IA2_DEFINE_WRAPPER_##ty(extern_##target, 0, target_pkey));           \
   IA2_DECLARE_WRAPPER(target, ty, target_pkey)
 
 // Expands to an opaque pointer expression for a wrapper defined by
@@ -77,14 +80,16 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
 //
 // This macro may only be used in the global scope.
 #define IA2_WRAPPER(target, target_pkey)                                       \
-  { &__ia2_##target##_0_##target_pkey }
+  { &__ia2_extern_##target##_0_##target_pkey }
 
 // Expands to an opaque pointer expression for a wrapper defined by
 // IA2_DEFINE_WRAPPER.
 //
 // This macro may only be used inside functions.
 #define IA2_WRAPPER_FN_SCOPE(target, target_pkey)                              \
-  (typeof(__ia2_##target##_wrapper)) { &__ia2_##target##_0_##target_pkey }
+  (typeof(__ia2_extern_##target##_wrapper)) {                                  \
+    &__ia2_extern_##target##_0_##target_pkey                                   \
+  }
 
 // Defines a wrapper for the function `target` and expands to an opaque pointer
 // expression for the wrapper.

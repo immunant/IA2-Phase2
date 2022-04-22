@@ -275,12 +275,6 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
       std::count_if(return_locs.begin(), return_locs.end(),
                     [](auto &x) { return x.is_stack(); });
   size_t stack_return_size = stack_return_count * 8;
-  size_t reg_return_size = 0;
-  for (auto loc : return_locs) {
-    if (!loc.is_stack()) {
-      reg_return_size += loc.size();
-    }
-  }
 
   /*
     Just before calling the wrapped function, its compartment's stack may

@@ -346,7 +346,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     // Jump to a subsection of .text to avoid inlining this wrapper function in
     // the function that invoked the macro for indirect wrappers
     add_asm_line(aw, ".text 1");
-    add_raw_line(aw, "\"__ia2_\" UNIQUE_STR(ty) \"_wrapper:\\n\"");
+    add_raw_line(aw, "\".equ __ia2_\" UNIQUE_STR(ty) \"_wrapper, .\\n\"");
     add_raw_line(aw, "\".equ __ia2_\" UNIQUE_STR(ty) \", .\\n\"");
   } else if (as_macro) {
     // This is for IA2_DEFINE_WRAPPER

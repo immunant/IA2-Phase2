@@ -243,10 +243,11 @@ static std::string sig_string(const CAbiSignature &sig,
 std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
                              WrapperKind kind, const std::string &target_pkey,
                              bool as_macro) {
+  // Indirect wrappers and manually defined direct wrappers are always generated
+  // as macros
   as_macro = as_macro || (kind == WrapperKind::Indirect);
   std::string terminator = {};
-  // Code for indirect wrappers is generated as a macro so we need to terminate
-  // each line with '\'
+  // Code generated as a macro needs to terminate each line with '\'
   if (as_macro) {
     terminator = "\\"s;
   }
@@ -290,9 +291,11 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     |     |aligned to 16 bytes assuming the wrapper's caller follows the SysV
     |     |ABI.
     +-----+
-    |fnptr|If the call is indirect from the trusted compartment the first wrpkru
-    |     |removes access to the caller's binary. Since the target pointer is in
-    |     |the caller we copy it to the target stack before changing pkru.
+    |fnptr|In indirect calls the wrprku before calling the wrapped function
+    |     |removes access to the target function pointer. Since the target
+    |     |pointer is in the caller we copy it to the target stack before
+    |     |changing pkru. TODO: Check if it's possible to remove this given that
+    |     |we use an intermediate PKRU.
     +-----+
     |     |Space for the compartment's return value if it has class MEMORY. This
     |ret  |space is only allocated if the pointer to the caller's return value
@@ -327,8 +330,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   size_t compartment_stack_space =
       stack_arg_size + (stack_return_size > 0 ? 8 + stack_return_size : 0);
   if (kind == WrapperKind::Indirect) {
-    // Count the space for the function pointer if the call is indirect from
-    // trusted
+    // Count the space for the function pointer if the call is indirect
     compartment_stack_space += 8;
   }
   // Compute what the stack alignment would be before calling the wrapped

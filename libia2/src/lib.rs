@@ -81,23 +81,34 @@ pub unsafe extern "C" fn protect_pages(
 
         let start = info.dlpi_addr + phdr.p_vaddr;
         let end = start + phdr.p_memsz;
-        let mut mprotect_range = AddressRange { start: start as *const u8, end: end as *const u8 };
+        let mut mprotect_range = AddressRange {
+            start: start as *const u8,
+            end: end as *const u8,
+        };
 
         fn pkey_mprotect(start: *const u8, end: *const u8, prot: i32, pkey: i32) {
-            assert!(start.align_offset(PAGE_SIZE) == 0, "Start of section at {:p} is not page-aligned", start);
-            assert!(end.align_offset(PAGE_SIZE) == 0, "End of section at {:p} is not page-aligned", end);
+            assert!(
+                start.align_offset(PAGE_SIZE) == 0,
+                "Start of section at {:p} is not page-aligned",
+                start
+            );
+            assert!(
+                end.align_offset(PAGE_SIZE) == 0,
+                "End of section at {:p} is not page-aligned",
+                end
+            );
 
             let addr = start;
-                unsafe {
-            let len = end.offset_from(start);
-            if len > 0 {
+            unsafe {
+                let len = end.offset_from(start);
+                if len > 0 {
                     libc::syscall(libc::SYS_pkey_mprotect, addr, len, prot, pkey);
                 }
             }
         }
         // If the ignore range splits the phdr in two non-zero subsegments, we need two calls to pkey_mprotect
-        let ignore_splits_phdr = ignore_range.start > mprotect_range.start
-            && ignore_range.end < mprotect_range.end;
+        let ignore_splits_phdr =
+            ignore_range.start > mprotect_range.start && ignore_range.end < mprotect_range.end;
         if ignore_splits_phdr {
             // protect region before ignored range
             pkey_mprotect(mprotect_range.start, ignore_range.start, prot, pkey);
@@ -106,8 +117,10 @@ pub unsafe extern "C" fn protect_pages(
             pkey_mprotect(ignore_range.end, mprotect_range.end, prot, pkey);
         } else {
             // If the ignore range overlaps the phdr we need to shift either the start or the end
-            let ignore_overlaps_start = ignore_range.end > mprotect_range.start && ignore_range.start <= mprotect_range.start;
-            let ignore_overlaps_end = ignore_range.start < mprotect_range.end && ignore_range.end >= mprotect_range.end;
+            let ignore_overlaps_start = ignore_range.end > mprotect_range.start
+                && ignore_range.start <= mprotect_range.start;
+            let ignore_overlaps_end =
+                ignore_range.start < mprotect_range.end && ignore_range.end >= mprotect_range.end;
             if ignore_overlaps_start {
                 mprotect_range.start = ignore_range.end.min(mprotect_range.end);
             } else if ignore_overlaps_end {

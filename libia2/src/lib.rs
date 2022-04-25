@@ -1,4 +1,4 @@
-#![feature(linkage)]
+use std::ffi::CString;
 
 /// Arguments passed to dl_iterate_phdr while searching for the segments to
 /// initialize for a given compartment key.
@@ -8,13 +8,6 @@ pub struct PhdrSearchArgs {
     pkey: i32,
     /// The address to search for while iterating through segments
     address: *const libc::c_void,
-}
-
-extern "C" {
-    #[linkage = "extern_weak"]
-    static __start_ia2_shared_data: *const u8;
-    #[linkage = "extern_weak"]
-    static __stop_ia2_shared_data: *const u8;
 }
 
 const PAGE_SIZE: usize = 4096;
@@ -28,7 +21,6 @@ pub unsafe extern "C" fn protect_pages(
     data: *mut libc::c_void,
 ) -> libc::c_int {
     let info = &*info;
-
     let phdr_args = &*(data as *const PhdrSearchArgs);
     let pkey = phdr_args.pkey;
     let address = phdr_args.address;
@@ -51,14 +43,38 @@ pub unsafe extern "C" fn protect_pages(
 
     struct AddressRange {
         start: *const u8,
-        end: *const u8,
+        stop: *const u8,
     }
 
-    // ia2_shared_data is the only section in the trusted compartment that we should ignore.
-    let ignore_range = AddressRange {
-        start: __start_ia2_shared_data,
-        end: __stop_ia2_shared_data,
-    };
+    impl AddressRange {
+        pub fn intersects(&self, other: &AddressRange) -> bool {
+            self.start < other.stop && self.stop > other.start
+        }
+        pub fn contains(&self, other: &AddressRange) -> bool {
+            self.start <= other.start && self.stop >= other.stop
+        }
+    }
+
+    fn get_address_range(lib: *mut libc::c_void, start: &str, end: &str) -> AddressRange {
+        let symbol_c = CString::new(start).unwrap();
+        let start;
+        unsafe {
+            start = libc::dlsym(lib, symbol_c.as_ptr()) as *const u8;
+        }
+        let symbol_c = CString::new(end).unwrap();
+        let stop;
+        unsafe {
+            stop = libc::dlsym(lib, symbol_c.as_ptr()) as *const u8;
+        }
+        AddressRange { start, stop }
+    }
+
+    let lib = libc::dlopen(info.dlpi_name, libc::RTLD_NOW);
+    let ignore_ranges: [AddressRange; 1] = [get_address_range(
+        lib,
+        "__start_ia2_shared_data",
+        "__stop_ia2_shared_data",
+    )];
 
     // Assign our secret protection key to every segment
     // in the current binary
@@ -80,13 +96,55 @@ pub unsafe extern "C" fn protect_pages(
         }
 
         let start = info.dlpi_addr + phdr.p_vaddr;
-        let end = start + phdr.p_memsz;
-        let mut mprotect_range = AddressRange {
-            start: start as *const u8,
-            end: end as *const u8,
-        };
+        let stop = (start + phdr.p_memsz) as *const u8;
+        let start = start as *const u8;
+        let mut mprotect_ranges = vec![AddressRange { start, stop }];
+        let mut result;
+
+        for ignore_range in &ignore_ranges {
+            result = Vec::new();
+            for mprotect_range in mprotect_ranges {
+                if mprotect_range.intersects(&ignore_range) {
+                    if ignore_range.contains(&mprotect_range) {
+                        continue;
+                    }
+                    if mprotect_range.contains(&ignore_range) {
+                        let start = mprotect_range.start;
+                        let stop = ignore_range.start;
+                        result.push(AddressRange { start, stop });
+                        let start = ignore_range.stop;
+                        let stop = mprotect_range.stop;
+                        result.push(AddressRange { start, stop });
+                    } else {
+                        if mprotect_range.start < ignore_range.stop
+                            && mprotect_range.stop >= ignore_range.stop
+                        {
+                            let start = ignore_range.stop;
+                            let stop = mprotect_range.stop;
+                            result.push(AddressRange { start, stop });
+                        } else if mprotect_range.start < ignore_range.start
+                            && mprotect_range.stop >= ignore_range.start
+                        {
+                            let start = mprotect_range.start;
+                            let stop = ignore_range.start;
+                            result.push(AddressRange { start, stop });
+                        }
+                    }
+                } else {
+                    result.push(mprotect_range);
+                }
+            }
+            mprotect_ranges = result;
+        }
+
+        for range in mprotect_ranges {
+            pkey_mprotect(range.start, range.stop, prot, pkey);
+        }
 
         fn pkey_mprotect(start: *const u8, end: *const u8, prot: i32, pkey: i32) {
+            if start == end {
+                return;
+            }
             assert!(
                 start.align_offset(PAGE_SIZE) == 0,
                 "Start of section at {:p} is not page-aligned",
@@ -105,28 +163,6 @@ pub unsafe extern "C" fn protect_pages(
                     libc::syscall(libc::SYS_pkey_mprotect, addr, len, prot, pkey);
                 }
             }
-        }
-        // If the ignore range splits the phdr in two non-zero subsegments, we need two calls to pkey_mprotect
-        let ignore_splits_phdr =
-            ignore_range.start > mprotect_range.start && ignore_range.end < mprotect_range.end;
-        if ignore_splits_phdr {
-            // protect region before ignored range
-            pkey_mprotect(mprotect_range.start, ignore_range.start, prot, pkey);
-
-            // protect region after ignored range
-            pkey_mprotect(ignore_range.end, mprotect_range.end, prot, pkey);
-        } else {
-            // If the ignore range overlaps the phdr we need to shift either the start or the end
-            let ignore_overlaps_start = ignore_range.end > mprotect_range.start
-                && ignore_range.start <= mprotect_range.start;
-            let ignore_overlaps_end =
-                ignore_range.start < mprotect_range.end && ignore_range.end >= mprotect_range.end;
-            if ignore_overlaps_start {
-                mprotect_range.start = ignore_range.end.min(mprotect_range.end);
-            } else if ignore_overlaps_end {
-                mprotect_range.end = ignore_range.start.max(mprotect_range.start);
-            }
-            pkey_mprotect(mprotect_range.start, mprotect_range.end, prot, pkey);
         }
     }
     // Return a non-zero value to stop iterating through phdrs

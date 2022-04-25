@@ -46,7 +46,9 @@ SECTIONS {
       output and the following ALIGN will have no effect.
     */
     ia2_shared_data : {
+        __start_ia2_shared_data = .;
         *(ia2_shared_data)
         . = ALIGN(4096);
+        __stop_ia2_shared_data = .;
     }
 } INSERT AFTER .bss;

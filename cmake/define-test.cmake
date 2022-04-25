@@ -72,6 +72,7 @@ function(define_test)
     endif()
 
     set(LINKER_SCRIPT ${libia2_BINARY_DIR}/padding.ld)
+    set(DYN_SYM ${libia2_BINARY_DIR}/dynsym.syms)
     add_executable(${MAIN} ${DEFINE_TEST_SRCS})
     if(LIBIA2_INSECURE)
         target_compile_definitions(${MAIN} PUBLIC LIBIA2_INSECURE=1)
@@ -80,7 +81,7 @@ function(define_test)
         "-Werror=incompatible-pointer-types"
         "-fPIC"
         ${DEFINE_TEST_COMPILE_OPTS})
-    target_link_options(${MAIN} PRIVATE "-Wl,-z,now" "-Wl,-T${LINKER_SCRIPT}")
+    target_link_options(${MAIN} PRIVATE "-Wl,-z,now" "-Wl,-T${LINKER_SCRIPT}" "-Wl,--dynamic-list=${DYN_SYM}")
     target_include_directories(${MAIN} BEFORE PRIVATE
         ${INCLUDE_DIR}
         # Add top-level include directory for segfault handler

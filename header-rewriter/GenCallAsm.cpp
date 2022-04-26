@@ -403,7 +403,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     add_comment_line(aw, "Load indirect call target and put it on the stack");
     add_raw_line(
         aw,
-        "\"movq \" XSTR(PASTE4(ty, _line_, __LINE__, _target_ptr)) \"@GOTPCREL(%rip), %r10\\n\"");
+        "\"movq \" XSTR(PASTE4(__ia2_, ty, _target_ptr_line_, __LINE__)) \"@GOTPCREL(%rip), %r10\\n\"");
     add_asm_line(aw, "movq (%r10), %r10");
     add_asm_line(aw, "pushq %r10");
   }

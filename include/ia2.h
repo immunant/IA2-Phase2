@@ -14,15 +14,11 @@
 
 #define XSTR(s) STR(s)
 #define STR(s) #s
-#define TOKENPASTE3_(x, y, z) x##y##z
-#define TOKENPASTE3(x, y, z) TOKENPASTE3_(x, y, z)
+#define PASTE3_(x, y, z) x##y##z
+#define PASTE3(x, y, z) PASTE3_(x, y, z)
 
-#define TOKENPASTE4_(w, x, y, z) w##x##y##z
-#define TOKENPASTE4(w, x, y, z) TOKENPASTE4_(w, x, y, z)
-
-#define UNIQUE(s) TOKENPASTE3(s, _line_, __LINE__)
-#define UNIQUE_IA2(s) TOKENPASTE4(__ia2_, s, _line_, __LINE__)
-#define UNIQUE_STR(s) XSTR(UNIQUE(s))
+#define PASTE4_(w, x, y, z) w##x##y##z
+#define PASTE4(w, x, y, z) PASTE4_(w, x, y, z)
 
 #ifdef LIBIA2_INSECURE
 #define INIT_COMPARTMENT(n) DECLARE_PADDING_SECTIONS
@@ -111,12 +107,26 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
 // immediately is the more ergonomic approach.
 #define IA2_CALL(target, ty, caller_pkey)                                      \
   ({                                                                           \
-    static struct IA2_fnptr_##ty##_inner_t *target_ptr __asm__(UNIQUE_STR(ty)) \
-        __attribute__((used));                                                 \
-    extern void *UNIQUE_IA2(ty);                                               \
-    target_ptr = target.ptr;                                                   \
+    /* Declare the wrapper for the function pointer. This will be defined in   \
+     * the following asm statement. */                                         \
+    extern struct IA2_fnptr_##ty *PASTE4(__ia2_, ty, _line_, __LINE__);        \
+    /* Since the function pointer we're calling may be on the stack, it        \
+     * might not have a fixed address. Instead of calling that pointer, we     \
+     * instead define a new pointer with a fixed address and initialize it     \
+     * with the first pointer. The new pointer's symbol isn't visible to ld,   \
+     * so its identifier (`target_ptr`) doesn't matter. We need to make it     \
+     * visible to the assembler though which requires the asm label. The       \
+     * assembler sees the name inside the asm label rather than the pointer's  \
+     * identifier. */                                                          \
+    static void *target_ptr __asm__(                                           \
+        XSTR(PASTE4(ty, _line_, __LINE__, _target_ptr)));                      \
+    /* Set the new function pointer to the target address */                   \
+    target_ptr = (void *)target.ptr;                                           \
+    /* Define the wrapper for the target function pointer */                   \
     __asm__(IA2_CALL_##ty(target, ty, caller_pkey, 0));                        \
-    (IA2_FNPTR_TYPE_##ty) & UNIQUE_IA2(ty);                                    \
+    /* Cast the address of the wrapper declared above to the function pointer  \
+     * type and return it */                                                   \
+    (IA2_FNPTR_TYPE_##ty)(&PASTE4(__ia2_, ty, _line_, __LINE__));              \
   })
 
 // Expands to a NULL pointer expression which can be coerced to any opaque

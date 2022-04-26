@@ -56,9 +56,9 @@ int main() {
   // These will be called from untrusted code but may access trusted compartment
   // 0
   IA2_DEFINE_WRAPPER(main_map, _ZTSPFiiE, 1);
-  simple_foreach_v1(s, IA2_WRAPPER_FN_SCOPE(main_map));
+  simple_foreach_v1(s, IA2_WRAPPER_FN_SCOPE(main_map, 1));
   simple_reset(s);
-  simple_foreach_v2(s, IA2_WRAPPER_FN_SCOPE(main_map));
+  simple_foreach_v2(s, IA2_WRAPPER_FN_SCOPE(main_map, 1));
   simple_destroy(s);
 
   // We need to check if exit_hook_fn is NULL since IA2_CALL always

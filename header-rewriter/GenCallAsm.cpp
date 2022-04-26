@@ -351,8 +351,14 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   } else if (as_macro) {
     // This is for IA2_DEFINE_WRAPPER
     add_asm_line(aw, ".text 1");
-    add_raw_line(aw, "\".global __ia2_\" #target \"\\n\"");
-    add_raw_line(aw, "\"__ia2_\" #target \":\\n\"");
+    add_asm_line(aw, llvm::formatv(".global __ia2_{0}_{1}_{2}",
+                                   asm_macro_expansion("target"),
+                                   asm_macro_expansion(caller_pkey),
+                                   asm_macro_expansion(target_pkey)));
+    add_asm_line(
+        aw, llvm::formatv("__ia2_{0}_{1}_{2}:", asm_macro_expansion("target"),
+                          asm_macro_expansion(caller_pkey),
+                          asm_macro_expansion(target_pkey)));
   } else {
     // This is for wrappers defined in the shims
     add_asm_line(aw, ".text");

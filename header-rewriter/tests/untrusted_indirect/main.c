@@ -60,11 +60,11 @@ int main(int argc, char **argv) {
     printf("0x%lx\n", apply_callback(1, 2));
 
     IA2_DEFINE_WRAPPER(pick_rhs, _ZTSPFmmmE, 1);
-    register_callback(IA2_WRAPPER_FN_SCOPE(pick_rhs));
+    register_callback(IA2_WRAPPER_FN_SCOPE(pick_rhs, 1));
     printf("0x%lx\n", apply_callback(3, 4));
 
     IA2_DEFINE_WRAPPER(leak_secret_address, _ZTSPFmmmE, 1);
-    register_callback(IA2_WRAPPER_FN_SCOPE(leak_secret_address));
+    register_callback(IA2_WRAPPER_FN_SCOPE(leak_secret_address, 1));
     printf("TRUSTED: oops we leaked the address of the secret\n");
     apply_callback(5, 6);
 

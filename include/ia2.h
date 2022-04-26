@@ -47,7 +47,7 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
   __attribute__((used)) typeof(target) target;                                 \
   /* Create an identifier to get the wrapper's address with                    \
    * IA2_WRAPPER/IA2_WRAPPER_FN_SCOPE */                                       \
-  extern struct IA2_fnptr_##ty##_inner_t __ia2_##target;                       \
+  extern struct IA2_fnptr_##ty##_inner_t __ia2_##target##_0_##target_pkey;     \
   /* Create an identifier to get the wrapper's type with                       \
    * IA2_WRAPPER/IA2_WRAPPER_FN_SCOPE */                                       \
   extern struct IA2_fnptr_##ty __ia2_##target##_wrapper;
@@ -67,15 +67,15 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
 // IA2_DEFINE_WRAPPER.
 //
 // This macro may only be used in the global scope.
-#define IA2_WRAPPER(target)                                                    \
-  { &__ia2_##target }
+#define IA2_WRAPPER(target, target_pkey)                                       \
+  { &__ia2_##target##_0_##target_pkey }
 
 // Expands to an opaque pointer expression for a wrapper defined by
 // IA2_DEFINE_WRAPPER.
 //
 // This macro may only be used inside functions.
-#define IA2_WRAPPER_FN_SCOPE(target)                                           \
-  (typeof(__ia2_##target##_wrapper)) { &__ia2_##target }
+#define IA2_WRAPPER_FN_SCOPE(target, target_pkey)                              \
+  (typeof(__ia2_##target##_wrapper)) { &__ia2_##target##_0_##target_pkey }
 
 // Defines a wrapper for the function `target` and expands to an opaque pointer
 // expression for the wrapper.
@@ -84,7 +84,7 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
 #define IA2_DEFINE_WRAPPER_FN_SCOPE(target, ty, target_pkey)                   \
   ({                                                                           \
     IA2_DEFINE_WRAPPER(target, ty, target_pkey);                               \
-    IA2_WRAPPER_FN_SCOPE(target);                                              \
+    IA2_WRAPPER_FN_SCOPE(target, target_pkey);                                 \
   })
 
 // Defines a wrapper for the opaque pointer `target` and expands to a function

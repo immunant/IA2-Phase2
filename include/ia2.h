@@ -115,7 +115,7 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
      * visible to the assembler though which requires the asm label. The       \
      * assembler sees the name inside the asm label rather than the pointer's  \
      * identifier. */                                                          \
-    static void *target_ptr __asm__(                                           \
+    __attribute__((used)) static void *target_ptr __asm__(                     \
         XSTR(PASTE4(__ia2_, ty, _target_ptr_line_, __LINE__)));                \
     /* Set the new function pointer to the target address */                   \
     target_ptr = (void *)target.ptr;                                           \

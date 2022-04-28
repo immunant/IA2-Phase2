@@ -56,16 +56,10 @@ pub unsafe extern "C" fn protect_pages(
     }
 
     fn get_address_range(lib: *mut libc::c_void, start: &str, end: &str) -> AddressRange {
-        let symbol_c = CString::new(start).unwrap();
-        let start;
-        unsafe {
-            start = libc::dlsym(lib, symbol_c.as_ptr()) as *const u8;
-        }
-        let symbol_c = CString::new(end).unwrap();
-        let stop;
-        unsafe {
-            stop = libc::dlsym(lib, symbol_c.as_ptr()) as *const u8;
-        }
+        let start = CString::new(start).expect("Unable to convert symbol name.");
+        let start = unsafe { libc::dlsym(lib, start.as_ptr()) as *const u8 };
+        let stop = CString::new(end).expect("Unable to convert symbol name.");
+        let stop = unsafe { libc::dlsym(lib, stop.as_ptr()) as *const u8 };
         AddressRange { start, stop }
     }
 

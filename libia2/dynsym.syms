@@ -1,0 +1,4 @@
+{
+    __start_ia2_shared_data;
+    __stop_ia2_shared_data;
+};

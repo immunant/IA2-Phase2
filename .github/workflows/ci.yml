@@ -20,12 +20,14 @@ jobs:
         uses: actions/checkout@v2
       - name: Build
         run: |
+          LLVM_DIR=`llvm-config --cmakedir`
+          Clang_DIR=`realpath $LLVM_DIR/../clang`
           mkdir build
           pushd build
           cmake ..                                                       \
             -DCMAKE_BUILD_TYPE=${{ matrix.build-type }}                  \
-            -DClang_DIR=/usr/lib/cmake/clang-13                          \
-            -DLLVM_DIR=/usr/lib/llvm-13/cmake                            \
+            -DClang_DIR=$Clang_DIR                                       \
+            -DLLVM_DIR=$LLVM_DIR                                         \
             -DLLVM_EXTERNAL_LIT=$HOME/.local/bin/lit                     \
             -G Ninja
           ninja

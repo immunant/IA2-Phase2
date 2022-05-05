@@ -502,7 +502,7 @@ fi
 if test -n "$NGX_PCH"; then
     ngx_cc="\$(CC) $ngx_compile_opt $ngx_pic_opt \$(CFLAGS) $ngx_use_pch \$(ALL_INCS)"
 else
-    ngx_cc="\$(CC) $ngx_compile_opt $ngx_pic_opt \$(CFLAGS) \$(ALL_INCS)"
+    ngx_cc="\$(CC) $ngx_compile_opt $ngx_pic_opt \$(CFLAGS) \$(ALL_INCS) \$(IA2_INC_DIR)"
     ngx_perl_cc="\$(CC) $ngx_compile_opt $ngx_pic_opt \$(NGX_PERL_CFLAGS)"
     ngx_perl_cc="$ngx_perl_cc -I \$(BUILD_DIR) \$(IA2_INC_DIR) \$(patsubst src/%,-I\$(BUILD_DIR)/main_shim_src/%,\$(ALL_INCS_REL_PATH))"
 fi
@@ -525,13 +525,14 @@ do
 
 END
 
+    echo "#include <ia2.h>"         >> $ngx_modules_c
     for mod in $ngx_module_modules
     do
         echo "extern ngx_module_t  $mod;"         >> $ngx_modules_c
     done
 
     echo                                          >> $ngx_modules_c
-    echo 'ngx_module_t *ngx_modules[] = {'        >> $ngx_modules_c
+    echo 'ngx_module_t *ngx_modules[] IA2_SHARED_DATA = {'        >> $ngx_modules_c
 
     for mod in $ngx_module_modules
     do
@@ -544,7 +545,7 @@ END
 
 END
 
-    echo 'char *ngx_module_names[] = {'           >> $ngx_modules_c
+    echo 'char *ngx_module_names[] IA2_SHARED_DATA = {'           >> $ngx_modules_c
 
     for mod in $ngx_module_modules
     do
@@ -557,7 +558,7 @@ END
 
 END
 
-    echo 'char *ngx_module_order[] = {'           >> $ngx_modules_c
+    echo 'char *ngx_module_order[] IA2_SHARED_DATA = {'           >> $ngx_modules_c
 
     for mod in $ngx_module_order
     do

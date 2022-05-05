@@ -69,7 +69,7 @@ IA2_DEFINE_WRAPPER(ngx_http_perl, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 2);
 IA2_DEFINE_WRAPPER(ngx_http_perl_set, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 2);
 IA2_DEFINE_WRAPPER(ngx_http_perl_sleep_handler, _ZTSPFvP18ngx_http_request_sE, 2);
 
-static ngx_command_t  ngx_http_perl_commands[] = {
+static ngx_command_t  ngx_http_perl_commands[] IA2_SHARED_DATA = {
 
     { ngx_string("perl_modules"),
       NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
@@ -108,7 +108,7 @@ IA2_DEFINE_WRAPPER(ngx_http_perl_init_main_conf, _ZTSPFPcP10ngx_conf_sPvE, 2);
 IA2_DEFINE_WRAPPER(ngx_http_perl_create_loc_conf, _ZTSPFPvP10ngx_conf_sE, 2);
 IA2_DEFINE_WRAPPER(ngx_http_perl_merge_loc_conf, _ZTSPFPcP10ngx_conf_sPvS2_E, 2);
 
-static ngx_http_module_t  ngx_http_perl_module_ctx = {
+static ngx_http_module_t  ngx_http_perl_module_ctx IA2_SHARED_DATA = {
     IA2_WRAPPER(ngx_http_perl_preconfiguration, 2),        /* preconfiguration */
     IA2_NULL_FNPTR,                                  /* postconfiguration */
 
@@ -125,7 +125,7 @@ static ngx_http_module_t  ngx_http_perl_module_ctx = {
 IA2_DEFINE_WRAPPER(ngx_http_perl_init_worker, _ZTSPFlP11ngx_cycle_sE, 2);
 IA2_DEFINE_WRAPPER(ngx_http_perl_exit, _ZTSPFvP11ngx_cycle_sE, 2);
 
-ngx_module_t  ngx_http_perl_module = {
+ngx_module_t  ngx_http_perl_module IA2_SHARED_DATA = {
     NGX_MODULE_V1,
     &ngx_http_perl_module_ctx,             /* module context */
     ngx_http_perl_commands,                /* module directives */
@@ -147,7 +147,7 @@ ngx_module_t  ngx_http_perl_module = {
 #define NGX_HTTP_PERL_SSI_ARG  1
 
 
-static ngx_http_ssi_param_t  ngx_http_perl_ssi_params[] = {
+static ngx_http_ssi_param_t  ngx_http_perl_ssi_params[] IA2_SHARED_DATA = {
     { ngx_string("sub"), NGX_HTTP_PERL_SSI_SUB, 1, 0 },
     { ngx_string("arg"), NGX_HTTP_PERL_SSI_ARG, 0, 1 },
     { ngx_null_string, 0, 0, 0 }
@@ -155,7 +155,7 @@ static ngx_http_ssi_param_t  ngx_http_perl_ssi_params[] = {
 
 IA2_DEFINE_WRAPPER(ngx_http_perl_ssi, _ZTSPFlP18ngx_http_request_sP18ngx_http_ssi_ctx_tPP9ngx_str_tE, 2);
 
-static ngx_http_ssi_command_t  ngx_http_perl_ssi_command = {
+static ngx_http_ssi_command_t  ngx_http_perl_ssi_command IA2_SHARED_DATA = {
     ngx_string("perl"), IA2_WRAPPER(ngx_http_perl_ssi, 2), ngx_http_perl_ssi_params, 0, 0, 1
 };
 

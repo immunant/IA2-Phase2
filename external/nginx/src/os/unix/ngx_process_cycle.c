@@ -30,7 +30,7 @@ static void ngx_cache_loader_process_handler(ngx_event_t *ev);
 
 ngx_uint_t    ngx_process;
 ngx_uint_t    ngx_worker;
-ngx_pid_t     ngx_pid;
+ngx_pid_t     ngx_pid IA2_SHARED_DATA;
 ngx_pid_t     ngx_parent;
 
 sig_atomic_t  ngx_reap;

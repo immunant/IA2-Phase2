@@ -69,12 +69,11 @@ ngx_module_t  ngx_errlog_module = {
 };
 
 
-static ngx_log_t        ngx_log;
-static ngx_open_file_t  ngx_log_file;
-ngx_uint_t              ngx_use_stderr = 1;
+static ngx_log_t        ngx_log IA2_SHARED_DATA;
+static ngx_open_file_t  ngx_log_file IA2_SHARED_DATA;
+ngx_uint_t              ngx_use_stderr IA2_SHARED_DATA = 1;
 
-
-static ngx_str_t err_levels[] = {
+static ngx_str_t err_levels[] IA2_SHARED_DATA = {
     ngx_null_string,
     ngx_string("emerg"),
     ngx_string("alert"),

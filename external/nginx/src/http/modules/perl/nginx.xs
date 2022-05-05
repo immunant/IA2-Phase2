@@ -27,6 +27,7 @@
     SvPOK_on(TARG);                                                           \
     sv_setpvn(TARG, (char *) p, len)
 
+IA2_SHARED_DATA ngx_chain_t   out;
 
 static ngx_int_t
 ngx_http_perl_sv2str(pTHX_ ngx_http_request_t *r, ngx_str_t *s, SV *sv)
@@ -69,7 +70,6 @@ static ngx_int_t
 ngx_http_perl_output(ngx_http_request_t *r, ngx_http_perl_ctx_t *ctx,
     ngx_buf_t *b)
 {
-    ngx_chain_t   out;
 #if (NGX_HTTP_SSI)
     ngx_chain_t  *cl;
 

@@ -153,6 +153,11 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
   NEW_SECTION(".fini_padding");                                                \
   NEW_SECTION(".rela.plt_padding");                                            \
   NEW_SECTION(".eh_frame_padding");                                            \
+  NEW_SECTION(".dynamic_padding");                                             \
+  NEW_SECTION(".gnu_hash_padding");                                            \
+  NEW_SECTION(".dynsym_padding");                                              \
+  NEW_SECTION(".dynstr_padding");                                              \
+  NEW_SECTION(".version_padding");                                             \
   NEW_SECTION(".bss_padding");
 
 // Initializes a compartment with protection key `n` when the ELF invoking this

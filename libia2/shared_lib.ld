@@ -35,7 +35,77 @@ SECTIONS {
     }
 } INSERT AFTER .eh_frame;
 
+SECTIONS {
+    . = ALIGN(4096);
+    __start_dynamic = .;
+} INSERT BEFORE .dynamic;
+
+SECTIONS {
+    .dynamic_padding : {
+        . = ALIGN(4096);
+        __stop_dynamic_padding = .;
+    }
+} INSERT AFTER .dynamic;
+
+SECTIONS {
+    . = ALIGN(4096);
+    __start_gnu_hash = .;
+} INSERT BEFORE .gnu.hash;
+
+SECTIONS {
+    .gnu.hash_padding : {
+        . = ALIGN(4096);
+        __stop_gnu_hash_padding = .;
+    }
+} INSERT AFTER .gnu.hash;
+
+SECTIONS {
+    . = ALIGN(4096);
+    __start_dynsym = .;
+} INSERT BEFORE .dynsym;
+
+SECTIONS {
+    .dynsym_padding : {
+        . = ALIGN(4096);
+        __stop_dynsym_padding = .;
+    }
+} INSERT AFTER .dynsym;
+
+SECTIONS {
+    . = ALIGN(4096);
+    __start_dynstr = .;
+} INSERT BEFORE .dynstr;
+
+SECTIONS {
+    .dynstr_padding : {
+        . = ALIGN(4096);
+        __stop_dynstr_padding = .;
+    }
+} INSERT AFTER .dynstr;
+
+SECTIONS {
+    . = ALIGN(4096);
+    __start_gnu_version = .;
+} INSERT BEFORE .gnu.version;
+
+SECTIONS {
+    .gnu_version_padding : {
+        . = ALIGN(4096);
+        __stop_gnu_version_padding = .;
+    }
+} INSERT AFTER .gnu.version;
+
 SECTIONS { . = ALIGN(4096); } INSERT BEFORE .init_array;
+SECTIONS {
+    .rodata_padding : {
+        . = ALIGN(4096);
+    }
+
+    ia2_shared_rodata : {
+        *(ia2_shared_rodata)
+        . = ALIGN(4096);
+    }
+} INSERT AFTER .rodata;
 SECTIONS {
     .bss_padding : {
         . = ALIGN(4096);

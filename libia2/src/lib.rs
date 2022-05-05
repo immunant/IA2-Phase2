@@ -64,14 +64,17 @@ pub unsafe extern "C" fn protect_pages(
     }
 
     let lib = libc::dlopen(info.dlpi_name, libc::RTLD_NOW);
-    let ignore_ranges: [AddressRange; 1] = [get_address_range(
-        lib,
-        "__start_ia2_shared_data",
-        "__stop_ia2_shared_data",
-    )];
+    let ignore_ranges: [AddressRange; 7] = [
+        get_address_range(lib, "__start_ia2_shared_data", "__stop_ia2_shared_data"),
+        get_address_range(lib, "__start_ia2_shared_rodata", "__stop_ia2_shared_rodata"),
+        get_address_range(lib, "__start_dynamic", "__stop_dynamic_padding"),
+        get_address_range(lib, "__start_gnu_hash", "__stop_gnu_hash_padding"),
+        get_address_range(lib, "__start_dynsym", "__stop_dynsym_padding"),
+        get_address_range(lib, "__start_dynstr", "__stop_dynstr_padding"),
+        get_address_range(lib, "__start_gnu_version", "__stop_gnu_version_padding"),
+    ];
 
-    // Assign our secret protection key to every segment
-    // in the current binary
+    let mut segments = Vec::new();
     for i in 0..info.dlpi_phnum {
         let phdr = &*info.dlpi_phdr.add(i.into());
         if phdr.p_type != libc::PT_LOAD && phdr.p_type != libc::PT_GNU_RELRO {
@@ -92,7 +95,14 @@ pub unsafe extern "C" fn protect_pages(
         let start = info.dlpi_addr + phdr.p_vaddr;
         let stop = (start + phdr.p_memsz) as *const u8;
         let start = start as *const u8;
-        let mut mprotect_ranges = vec![AddressRange { start, stop }];
+        segments.push((AddressRange { start, stop }, prot));
+    }
+
+    // Assign our secret protection key to every segment
+    // in the current binary
+    for segment in segments {
+        let mut mprotect_ranges = vec![segment.0];
+        let prot = segment.1;
         let mut result;
 
         for ignore_range in &ignore_ranges {

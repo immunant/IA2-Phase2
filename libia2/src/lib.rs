@@ -70,6 +70,8 @@ pub unsafe extern "C" fn protect_pages(
         "__stop_ia2_shared_data",
     )];
 
+    let mut protected_ranges = Vec::new();
+
     // Assign our secret protection key to every segment
     // in the current binary
     for i in 0..info.dlpi_phnum {
@@ -132,32 +134,35 @@ pub unsafe extern "C" fn protect_pages(
         }
 
         for range in mprotect_ranges {
-            pkey_mprotect(range.start, range.stop, prot, pkey);
+            protected_ranges.push((range, prot));
         }
+    }
+    fn pkey_mprotect(start: *const u8, end: *const u8, prot: i32, pkey: i32) {
+        if start == end {
+            return;
+        }
+        assert!(
+            start.align_offset(PAGE_SIZE) == 0,
+            "Start of section at {:p} is not page-aligned",
+            start
+        );
+        assert!(
+            end.align_offset(PAGE_SIZE) == 0,
+            "End of section at {:p} is not page-aligned",
+            end
+        );
 
-        fn pkey_mprotect(start: *const u8, end: *const u8, prot: i32, pkey: i32) {
-            if start == end {
-                return;
-            }
-            assert!(
-                start.align_offset(PAGE_SIZE) == 0,
-                "Start of section at {:p} is not page-aligned",
-                start
-            );
-            assert!(
-                end.align_offset(PAGE_SIZE) == 0,
-                "End of section at {:p} is not page-aligned",
-                end
-            );
-
-            let addr = start;
-            unsafe {
-                let len = end.offset_from(start);
-                if len > 0 {
-                    libc::syscall(libc::SYS_pkey_mprotect, addr, len, prot, pkey);
-                }
+        let addr = start;
+        unsafe {
+            let len = end.offset_from(start);
+            if len > 0 {
+                libc::syscall(libc::SYS_pkey_mprotect, addr, len, prot, pkey);
             }
         }
+    }
+
+    for (r, prot) in protected_ranges {
+        pkey_mprotect(r.start, r.stop, prot, pkey);
     }
     // Return a non-zero value to stop iterating through phdrs
     return 1;

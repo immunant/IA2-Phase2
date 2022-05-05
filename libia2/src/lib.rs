@@ -160,7 +160,8 @@ pub unsafe extern "C" fn protect_pages(
             }
         }
     }
-
+// After calling `pkey_mprotect` on the first phdr, we can't access `info->dlpi_phdr`
+// anymore since it's in the first phdr itself.
     for (r, prot) in protected_ranges {
         pkey_mprotect(r.start, r.stop, prot, pkey);
     }

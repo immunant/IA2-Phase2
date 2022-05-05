@@ -38,6 +38,7 @@ typedef struct {
 
 
 #define ngx_string(str)     { sizeof(str) - 1, (u_char *) str }
+#define ia2_shared_ngx_string(str)     { __ia2_sizeof_##str - 1, (u_char *)(void *)&str }
 #define ngx_null_string     { 0, NULL }
 #define ngx_str_set(str, text)                                               \
     (str)->len = sizeof(text) - 1; (str)->data = (u_char *) text

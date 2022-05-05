@@ -122,7 +122,7 @@ IA2_DECLARE_WRAPPER(ngx_conf_set_flag_slot, _ZTSPFPcP10ngx_conf_sP13ngx_command_
 IA2_DECLARE_WRAPPER(ngx_conf_set_size_slot, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
 IA2_DECLARE_WRAPPER(ngx_http_types_slot, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
 
-static ngx_command_t  ngx_http_ssi_filter_commands[] = {
+static ngx_command_t  ngx_http_ssi_filter_commands[] IA2_SHARED_DATA = {
 
     { ngx_string("ssi"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF
@@ -185,7 +185,7 @@ IA2_DEFINE_WRAPPER(ngx_http_ssi_init_main_conf, _ZTSPFPcP10ngx_conf_sPvE, 1);
 IA2_DEFINE_WRAPPER(ngx_http_ssi_create_loc_conf, _ZTSPFPvP10ngx_conf_sE, 1);
 IA2_DEFINE_WRAPPER(ngx_http_ssi_merge_loc_conf, _ZTSPFPcP10ngx_conf_sPvS2_E, 1);
 
-static ngx_http_module_t  ngx_http_ssi_filter_module_ctx = {
+static ngx_http_module_t  ngx_http_ssi_filter_module_ctx IA2_SHARED_DATA = {
     IA2_WRAPPER(ngx_http_ssi_preconfiguration, 1),         /* preconfiguration */
     IA2_WRAPPER(ngx_http_ssi_filter_init, 1),              /* postconfiguration */
 
@@ -200,7 +200,7 @@ static ngx_http_module_t  ngx_http_ssi_filter_module_ctx = {
 };
 
 
-ngx_module_t  ngx_http_ssi_filter_module = {
+ngx_module_t  ngx_http_ssi_filter_module IA2_SHARED_DATA = {
     NGX_MODULE_V1,
     &ngx_http_ssi_filter_module_ctx,       /* module context */
     ngx_http_ssi_filter_commands,          /* module directives */

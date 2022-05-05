@@ -50,8 +50,8 @@ ROOT_DIR = $NGX_OBJS/../../../
 IA2_INC_DIR = -I\$(ROOT_DIR)/include
 LIBIA2_DIR = \$(ROOT_DIR)/libia2/
 LIBIA2 = \$(LIBIA2_DIR)/target/release/libia2.so
-PAD_EXE = -Wl,-T\$(LIBIA2_DIR)/padding.ld
-PAD_LIB = -Wl,-T\$(LIBIA2_DIR)/shared_lib.ld
+IA2_EXE_LDFLAGS = -Wl,-T\$(LIBIA2_DIR)/padding.ld -Wl,-z,now -Wl,--dynamic-list=\$(LIBIA2_DIR)/dynsym.syms
+IA2_LIB_LDFLAGS = -Wl,-T\$(LIBIA2_DIR)/shared_lib.ld -Wl,-z,now
 
 END
 
@@ -237,7 +237,7 @@ build:	binary modules manpage
 binary:	$NGX_OBJS${ngx_dirsep}nginx$ngx_binext
 
 $NGX_OBJS${ngx_dirsep}nginx$ngx_binext:	$ngx_deps$ngx_spacer
-	\$(LINK) $ngx_long_start$ngx_binout$NGX_OBJS${ngx_dirsep}nginx$ngx_binext$ngx_long_cont$ngx_objs$ngx_libs$ngx_link$ngx_main_link \$(LIBIA2) \$(PAD_EXE)
+	\$(LINK) $ngx_long_start$ngx_binout$NGX_OBJS${ngx_dirsep}nginx$ngx_binext$ngx_long_cont$ngx_objs$ngx_libs$ngx_link$ngx_main_link \$(LIBIA2) \$(IA2_EXE_LDFLAGS)
 	$ngx_rcc
 $ngx_long_end
 
@@ -630,7 +630,7 @@ END
 modules:	$ngx_obj
 
 $ngx_obj:	$ngx_deps$ngx_spacer
-	\$(LINK) $ngx_long_start$ngx_binout$ngx_obj$ngx_long_cont$ngx_objs$ngx_libs$ngx_link$ngx_module_link \$(BUILD_DIR)/libmain_shim.so \$(LIBIA2) \$(PAD_LIB)
+	\$(LINK) $ngx_long_start$ngx_binout$ngx_obj$ngx_long_cont$ngx_objs$ngx_libs$ngx_link$ngx_module_link \$(BUILD_DIR)/libmain_shim.so \$(LIBIA2) \$(IA2_LIB_LDFLAGS)
 $ngx_long_end
 
 $ngx_modules_obj:	\$(CORE_DEPS)$ngx_cont$ngx_modules_c

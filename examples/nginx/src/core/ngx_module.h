@@ -216,6 +216,10 @@
     NGX_MODULE_UNSET_INDEX, NGX_MODULE_UNSET_INDEX,                           \
     NULL, 0, 0, nginx_version, NGX_MODULE_SIGNATURE
 
+#define IA2_NO_SIGNATURE_NGX_MODULE_V1                                        \
+    NGX_MODULE_UNSET_INDEX, NGX_MODULE_UNSET_INDEX,                           \
+    NULL, 0, 0, nginx_version
+
 #define NGX_MODULE_V1_PADDING  0, 0, 0, 0, 0, 0, 0, 0
 
 

@@ -291,12 +291,6 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     |     |aligned to 16 bytes assuming the wrapper's caller follows the SysV
     |     |ABI.
     +-----+
-    |fnptr|In indirect calls the wrprku before calling the wrapped function
-    |     |removes access to the target function pointer. Since the target
-    |     |pointer is in the caller we copy it to the target stack before
-    |     |changing pkru. TODO: Check if it's possible to remove this given that
-    |     |we use an intermediate PKRU.
-    +-----+
     |     |Space for the compartment's return value if it has class MEMORY. This
     |ret  |space is only allocated if the pointer to the caller's return value
     |space|memory is also placed on the compartment's stack.
@@ -396,13 +390,6 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   add_raw_line(aw, llvm::formatv("\"movq \" STACK({0}) \"(%rsp), %rsp\\n\"",
                                  target_pkey));
 
-  if (kind == WrapperKind::Indirect) {
-    add_comment_line(aw, "Load indirect call target and put it on the stack");
-    add_raw_line(aw, "\"movq \" UNIQUE_STR(#ty) \"@GOTPCREL(%rip), %r10\\n\"");
-    add_asm_line(aw, "movq (%r10), %r10");
-    add_asm_line(aw, "pushq %r10");
-  }
-
   // When returning via memory, the address of the return value is passed in
   // rdi. Since this memory belongs to the caller, we first allocate space for
   // the return value, then save a pointer to the caller's return value and set
@@ -481,6 +468,10 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     }
   }
 
+  if (kind == WrapperKind::Indirect) {
+    add_asm_line(aw, "movq \" UNIQUE_STR(#ty) \"@GOTPCREL(%rip), %r12");
+    add_asm_line(aw, "movq (%r12), %r12");
+  }
   // Change pkru to the compartment's value
   add_comment_line(aw, "Set PKRU to the compartment's value");
   // wrpkru requires zeroing rcx and rdx, but they may have arguments so use r10
@@ -494,10 +485,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   // Call wrapped function
   add_comment_line(aw, "Call wrapped function");
   if (kind == WrapperKind::Indirect) {
-    size_t fn_ptr_offset = compartment_stack_space + stack_alignment - 8;
-    add_comment_line(aw, "Load indirect call target from the stack");
-    add_asm_line(aw, "movq "s + std::to_string(fn_ptr_offset) + "(%rsp), %r10");
-    add_asm_line(aw, "call *%r10");
+    add_asm_line(aw, "call *%r12");
   } else if (as_macro) {
     add_raw_line(aw, "\"call \" #target \"\\n\"");
   } else {
@@ -548,6 +536,11 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   }
 
   // Switch back to the caller's stack
+  add_asm_line(aw, "movq ia2_stackptrs@GOTPCREL(%rip), %r12");
+  add_asm_line(aw,
+               llvm::formatv("leaq \" STACK({0}) \"(%r12), %r12", target_pkey));
+  add_asm_line(aw, "movq %rsp, (%r12)");
+
   add_comment_line(aw, "Switch back to the caller's stack");
   add_asm_line(aw, "movq ia2_stackptrs@GOTPCREL(%rip), %rsp");
   add_asm_line(aw,
@@ -569,14 +562,6 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   // before this call
   add_asm_line(aw, "call __libia2_scrub_registers");
 
-  // Once again use r10 and r11 as scratch registers
-  add_comment_line(aw, "Set PKRU to the caller's value");
-  add_asm_line(aw, "movq %rax, %r10");
-  add_asm_line(aw, "movq %rdx, %r11");
-  emit_wrpkru(aw, caller_pkey);
-  add_asm_line(aw, "movq %r10, %rax");
-  add_asm_line(aw, "movq %r11, %rdx");
-
   // pop return regs
   add_comment_line(aw, "Pop return regs");
   for (auto loc = return_locs.rbegin(); loc != return_locs.rend(); loc++) {
@@ -584,6 +569,13 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
       emit_reg_pop(aw, *loc);
     }
   }
+  // Once again use r10 and r11 as scratch registers
+  add_comment_line(aw, "Set PKRU to the caller's value");
+  add_asm_line(aw, "movq %rax, %r10");
+  add_asm_line(aw, "movq %rdx, %r11");
+  emit_wrpkru(aw, caller_pkey);
+  add_asm_line(aw, "movq %r10, %rax");
+  add_asm_line(aw, "movq %r11, %rdx");
 
   // Load registers that are preserved across function calls after switching
   // back to the caller's compartment's stack. This is on the caller's stack so

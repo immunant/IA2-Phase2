@@ -24,25 +24,16 @@ static uint32_t divide(uint32_t x, uint32_t y) {
     return x / y;
 }
 
-// This program has to redeclare the binary_op typedef with a different identifier because binary_op
-// describes opaque function pointers in the rewritten headers.
-typedef uint32_t(*bin_op)(uint32_t, uint32_t);
-
 void call_fn_ptr() {
     function_t f = get_function();
     printf("Got the function %s from the library\n", f.name);
-    binary_op wrapped_op = f.op;
-    // Note that this usage isn't idiomatic since we have to redeclare the
-    // function pointer type. This is fine for a test this simple, but it
-    // doesn't scale to large codebases.
-    bin_op op = IA2_CALL(wrapped_op, _ZTSPFjjjE, 1);
     uint32_t x = 987234;
     uint32_t y = 142151;
-    printf("%s(%d, %d) = %d\n", f.name, x, y, op(x, y));
-    op = multiply;
-    printf("mul(%d, %d) = %d\n", x, y, op(x, y));
-    op = divide;
-    printf("div(%d, %d) = %d\n", x, y, op(x, y));
+    printf("%s(%d, %d) = %d\n", f.name, x, y, IA2_CALL(f.op, _ZTSPFjjjE, 1)(x, y));
+    f.op = IA2_DEFINE_WRAPPER_FN_SCOPE(multiply, _ZTSPFjjjE, 1);
+    printf("mul(%d, %d) = %d\n", x, y, IA2_CALL(f.op, _ZTSPFjjjE, 1)(x, y));
+    f.op = IA2_DEFINE_WRAPPER_FN_SCOPE(divide, _ZTSPFjjjE, 1);
+    printf("div(%d, %d) = %d\n", x, y, IA2_CALL(f.op, _ZTSPFjjjE, 1)(x, y));
 }
 
 int main(int argc, char **argv) {
@@ -58,10 +49,8 @@ int main(int argc, char **argv) {
 
     // Test a that segfault occurs if the pointee tries to access memory it shouldn't
     function_t f = get_bad_function();
-    binary_op wrapped_op = f.op;
-    bin_op op = IA2_CALL(wrapped_op, _ZTSPFjjjE, 1);
 
     static uint32_t secret = 34;
     leak_secret_address(&secret);
-    op(0, 0);
+    IA2_CALL(f.op, _ZTSPFjjjE, 1)(0, 0);
 }

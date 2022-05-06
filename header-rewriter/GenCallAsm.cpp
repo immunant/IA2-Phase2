@@ -275,7 +275,6 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
       std::count_if(return_locs.begin(), return_locs.end(),
                     [](auto &x) { return x.is_stack(); });
   size_t stack_return_size = stack_return_count * 8;
-  size_t stack_return_padding = 16;
 
   /*
     Just before calling the wrapped function, its compartment's stack may
@@ -325,6 +324,15 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   // The return value takes up `stack_return_size + 1` eightbytes since we also
   // need to store a pointer to the previous return value memory. If the return
   // value doesn't use memory, this entire subexpression is zero.
+  size_t stack_return_align = 16;
+  size_t stack_return_padding = 0;
+  if (stack_return_size > 0) {
+    size_t effective_stack_return_size = stack_return_size + 8;
+    size_t unaligned =
+        (stack_arg_size + effective_stack_return_size) % stack_return_align;
+    stack_return_padding = unaligned != 0 ? stack_return_align - unaligned : 0;
+  }
+
   size_t compartment_stack_space =
       stack_arg_size + (stack_return_size > 0
                             ? 8 + stack_return_padding + stack_return_size
@@ -425,9 +433,9 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     add_asm_line(aw, "pushq %rdi");
     add_comment_line(aw, "Set rdi to the compartment's return value memory");
     add_asm_line(aw, "movq %rsp, %rdi");
-    // The new return value is 8 bytes above the bottom of the stack, but rdi
-    // need to be 16-byte aligned; round 8 up to 16 and add that to rdi
-    add_asm_line(aw, "addq $16, %rdi");
+    // The new return value is 8 bytes above the bottom of the stack so we need
+    // to add 8 to rdi
+    add_asm_line(aw, "addq $8, %rdi");
   }
 
   // Insert 8 bytes to align the stack to 16 bytes if necessary.
@@ -545,13 +553,15 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
 
     // After the pop rsp points to the memory for the return value on the
     // compartment's stack.
-    add_asm_line(aw, "addq $8, %rsp");
-
     add_comment_line(aw,
                      "Copy "s + std::to_string(stack_return_size) +
                          " bytes for the return value to the caller's stack");
     for (int i = 0; i < stack_return_size; i += 8) {
       add_asm_line(aw, "popq "s + std::to_string(i) + "(%rax)");
+    }
+
+    if (stack_return_padding > 0) {
+      add_asm_line(aw, "addq $8, %rsp");
     }
   }
 

@@ -133,7 +133,14 @@ std::vector<ParamLocation> return_locations(const CAbiSignature &func) {
 
 #define INDENT "    "
 
+struct StackEntry {
+  size_t size;
+  std::string reg;
+  std::string name;
+};
+
 struct AsmWriter {
+  std::vector<StackEntry> stack_items;
   std::stringstream ss;
   // An optional string to terminate every line with.
   std::string terminator;
@@ -163,8 +170,84 @@ static void add_comment_line(AsmWriter &aw, const std::string &s) {
   aw.ss << std::endl;
 }
 
-static void emit_reg_push(AsmWriter &aw, const ParamLocation &loc) {
+static void push_stack_marker(AsmWriter &aw, std::string name) {
+  aw.stack_items.push_back({0, {}, name});
+}
+
+static void pop_stack_marker(AsmWriter &aw, std::string name) {
+  assert(!aw.stack_items.empty());
+  auto item = aw.stack_items.back();
+  assert(item.name == name);
+  assert(item.size == 0);
+  aw.stack_items.pop_back();
+}
+
+static void push_stack_region(AsmWriter &aw, size_t size, std::string name) {
+  aw.stack_items.push_back({size, {}, name});
+  add_asm_line(aw, "subq $"s + std::to_string(size) + ", %rsp");
+}
+
+static void pop_partial_stack_region(AsmWriter &aw, size_t size,
+                                     std::string name) {
+  assert(!aw.stack_items.empty());
+  auto &item = aw.stack_items.back();
+  assert(item.name == name);
+  if (item.size > size) {
+    item.size -= size;
+  } else {
+    assert(item.size == size);
+    aw.stack_items.pop_back();
+  }
+  add_asm_line(aw, "addq $"s + std::to_string(size) + ", %rsp");
+}
+
+static void pop_stack_region(AsmWriter &aw, std::string name) {
+  assert(!aw.stack_items.empty());
+  auto item = aw.stack_items.back();
+  assert(item.name == name);
+  aw.stack_items.pop_back();
+  add_asm_line(aw, "addq $"s + std::to_string(item.size) + ", %rsp");
+}
+
+static size_t drop_stack_items(AsmWriter &aw, size_t count, std::string name) {
+  assert(aw.stack_items.size() >= count);
+  size_t total_size = 0;
+  for (int i = 0; i < count; i++) {
+    auto item = aw.stack_items.back();
+    assert(item.name == name);
+    aw.stack_items.pop_back();
+    total_size += item.size;
+  }
+  add_asm_line(aw, "addq $"s + std::to_string(total_size) + ", %rsp");
+  return total_size;
+}
+
+static void pop_value(AsmWriter &aw, size_t size, const std::string &what,
+                      std::string name) {
+  assert(!aw.stack_items.empty());
+  auto &item = aw.stack_items.back();
+  assert(item.name == name);
+  if (item.size > size) {
+    item.size -= size;
+  } else {
+    assert(item.size == size);
+    aw.stack_items.pop_back();
+  }
+  add_asm_line(aw, "popq "s + what);
+}
+
+static void push_value(AsmWriter &aw, size_t size, const std::string &what,
+                       std::string name) {
+  assert(size == 8);
+  aw.stack_items.push_back({size, {}, name});
+  add_asm_line(aw, "pushq " + what);
+}
+
+// Push the given register
+static void push_reg(AsmWriter &aw, const ParamLocation &loc) {
   assert(!loc.is_stack());
+  aw.stack_items.push_back({loc.size(), loc.as_str(), loc.as_str()});
+
   if (loc.is_xmm()) {
     add_asm_line(aw, "subq $16, %rsp");
     add_asm_line(aw, "movdqu %"s + loc.as_str() + ", (%rsp)");
@@ -173,8 +256,29 @@ static void emit_reg_push(AsmWriter &aw, const ParamLocation &loc) {
   }
 }
 
-static void emit_reg_pop(AsmWriter &aw, const ParamLocation &loc) {
+// Pop the top stack item, which should have been a push of the specified
+// register
+static void restore_reg(AsmWriter &aw, const ParamLocation &loc) {
+  assert(!aw.stack_items.empty());
+  auto item = aw.stack_items.back();
+  aw.stack_items.pop_back();
+  assert(item.reg == loc.as_str());
+  if (item.size != 8) {
+    add_asm_line(aw, "movdqu (%rsp), %"s + item.reg);
+    add_asm_line(aw, "addq $" + std::to_string(item.size) + ", %rsp");
+  } else {
+    add_asm_line(aw, "popq %"s + item.reg);
+  }
+}
+
+// Pop the top stack item into the specified register
+static void pop_reg(AsmWriter &aw, const ParamLocation &loc) {
   assert(!loc.is_stack());
+  assert(!aw.stack_items.empty());
+  auto item = aw.stack_items.back();
+  aw.stack_items.pop_back();
+  assert(item.size == loc.size());
+
   if (loc.is_xmm()) {
     add_asm_line(aw, "movdqu (%rsp), %"s + loc.as_str());
     add_asm_line(aw, "addq $16, %rsp");
@@ -381,7 +485,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   // the other compartment's stack. This is on the caller's stack so it's not in
   // the diagram above.
   for (auto &r : preserved_registers) {
-    add_asm_line(aw, "pushq %"s + r);
+    push_reg(aw, ParamLocation::Register(r));
   }
 
   // Change pkru to the intermediate value before copying args
@@ -413,7 +517,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
         aw,
         "\"movq \" XSTR(PASTE4(__ia2_, ty, _target_ptr_line_, __LINE__)) \"@GOTPCREL(%rip), %r10\\n\"");
     add_asm_line(aw, "movq (%r10), %r10");
-    add_asm_line(aw, "pushq %r10");
+    push_reg(aw, ParamLocation::Register("r10"));
   }
 
   // When returning via memory, the address of the return value is passed in
@@ -427,10 +531,12 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   if (stack_return_size > 0) {
     add_comment_line(
         aw, "Allocate space on the compartment's stack for the return value");
-    size_t padded_return_size = stack_return_size + stack_return_padding;
-    add_asm_line(aw, "subq $"s + std::to_string(padded_return_size) + ", %rsp");
+    if (stack_return_padding > 0) {
+      push_stack_region(aw, stack_return_padding, "return padding");
+    }
+    push_stack_region(aw, stack_return_size, "return region");
     add_comment_line(aw, "Save address of the caller's return value");
-    add_asm_line(aw, "pushq %rdi");
+    push_reg(aw, ParamLocation::Register("rdi"));
     add_comment_line(aw, "Set rdi to the compartment's return value memory");
     add_asm_line(aw, "movq %rsp, %rdi");
     // The new return value is 8 bytes above the bottom of the stack so we need
@@ -438,10 +544,10 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     add_asm_line(aw, "addq $8, %rdi");
   }
 
-  // Insert 8 bytes to align the stack to 16 bytes if necessary.
+  // Insert 8 bytes to align the stack to 8 (mod 16) bytes if necessary.
   if (stack_alignment != 0) {
     assert(stack_alignment == 8);
-    add_asm_line(aw, "subq $8, %rsp");
+    push_stack_region(aw, stack_alignment, "rsp align");
   }
 
   // Copy stack args to target stack
@@ -462,8 +568,8 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
           stack_arg_size + (preserved_registers.size() * 8);
       // The index into the caller's stack is backwards since pushq will copy to
       // the compartment's stack from the highest addresses to the lowest.
-      add_asm_line(aw,
-                   "pushq " + std::to_string(caller_stack_size - i) + "(%rax)");
+      push_value(aw, 8, std::to_string(caller_stack_size - i) + "(%rax)",
+                 "arg");
     }
   }
 
@@ -474,7 +580,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     add_comment_line(aw, "Save registers containing arguments");
     for (const auto &loc : param_locs) {
       if (!loc.is_stack()) {
-        emit_reg_push(aw, loc);
+        push_reg(aw, loc);
       }
     }
   }
@@ -490,7 +596,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     add_comment_line(aw, "Restore registers containing arguments");
     for (auto loc = param_locs.rbegin(); loc != param_locs.rend(); loc++) {
       if (!loc->is_stack()) {
-        emit_reg_pop(aw, *loc);
+        restore_reg(aw, *loc);
       }
     }
   }
@@ -533,14 +639,15 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   // Free stack space used for stack args on the target stack
   if (stack_arg_size > 0) {
     add_comment_line(aw, "Free stack space used for stack args");
-    add_asm_line(aw, "addq $"s + std::to_string(stack_arg_size) + ", %rsp");
+    size_t dropped_size = drop_stack_items(aw, stack_arg_size / 8, "arg");
+    assert(dropped_size == stack_arg_size);
   }
 
   // If we inserted 8 bytes to align the stack before calling the wrapped
   // function, free this space.
   if (stack_alignment != 0) {
     assert(stack_alignment == 8);
-    add_asm_line(aw, "addq $8, %rsp");
+    pop_stack_region(aw, "rsp align");
   }
 
   // Copy any stack returns to caller's stack
@@ -549,7 +656,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     // pointed to the caller's return value memory) onto the compartment's
     // stack. Now we pop it into rax which is where the address of the return
     // value must be on return.
-    add_asm_line(aw, "popq %rax");
+    pop_reg(aw, ParamLocation::Register("rax"));
 
     // After the pop rsp points to the memory for the return value on the
     // compartment's stack.
@@ -557,11 +664,11 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
                      "Copy "s + std::to_string(stack_return_size) +
                          " bytes for the return value to the caller's stack");
     for (int i = 0; i < stack_return_size; i += 8) {
-      add_asm_line(aw, "popq "s + std::to_string(i) + "(%rax)");
+      pop_value(aw, 8, std::to_string(i) + "(%rax)", "return region");
     }
 
     if (stack_return_padding > 0) {
-      add_asm_line(aw, "addq $8, %rsp");
+      pop_stack_region(aw, "return padding"); // pop the padding itself
     }
   }
 
@@ -577,7 +684,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   // before the return so it has no net effect on the caller's stack pointer.
   for (auto loc : return_locs) {
     if (!loc.is_stack()) {
-      emit_reg_push(aw, loc);
+      push_reg(aw, loc);
     }
   }
 
@@ -599,8 +706,14 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   add_comment_line(aw, "Pop return regs");
   for (auto loc = return_locs.rbegin(); loc != return_locs.rend(); loc++) {
     if (!loc->is_stack()) {
-      emit_reg_pop(aw, *loc);
+      pop_reg(aw, *loc);
     }
+  }
+
+  if (kind == WrapperKind::Indirect) {
+    // The indirect item is no longer on the stack here because
+    // it was not present when we saved the caller stack pointer
+    aw.stack_items.pop_back();
   }
 
   // Load registers that are preserved across function calls after switching
@@ -608,7 +721,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   // it's not in the diagram above.
   for (auto r = preserved_registers.rbegin(); r != preserved_registers.rend();
        r++) {
-    add_asm_line(aw, "popq %"s + *r);
+    restore_reg(aw, ParamLocation::Register(*r));
   }
 
   // Return to the caller

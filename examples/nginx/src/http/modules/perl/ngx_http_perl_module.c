@@ -617,7 +617,7 @@ ngx_http_perl_create_interpreter(ngx_conf_t *cf,
     perl = perl_alloc();
     if (perl == NULL) {
         // TODO: Handle variadics
-        //ngx_log_error(NGX_LOG_ALERT, cf->log, 0, "perl_alloc() failed");
+        ngx_log_error(NGX_LOG_ALERT, cf->log, 0, "perl_alloc() failed");
         return NULL;
     }
 
@@ -659,7 +659,7 @@ ngx_http_perl_create_interpreter(ngx_conf_t *cf,
 
     if (n != 0) {
         // TODO: Handle variadics
-        //ngx_log_error(NGX_LOG_ALERT, cf->log, 0, "perl_parse() failed: %d", n);
+        ngx_log_error(NGX_LOG_ALERT, cf->log, 0, "perl_parse() failed: %d", n);
         goto fail;
     }
 
@@ -668,9 +668,9 @@ ngx_http_perl_create_interpreter(ngx_conf_t *cf,
 
     if (ngx_strcmp(ver, NGINX_VERSION) != 0) {
         // TODO: Handle variadics
-        //ngx_log_error(NGX_LOG_ALERT, cf->log, 0,
-        //              "version " NGINX_VERSION " of nginx.pm is required, "
-        //              "but %s was found", ver);
+        ngx_log_error(NGX_LOG_ALERT, cf->log, 0,
+                      "version " NGINX_VERSION " of nginx.pm is required, "
+                      "but %s was found", ver);
         goto fail;
     }
 
@@ -715,9 +715,9 @@ ngx_http_perl_run_requires(pTHX_ ngx_array_t *requires, ngx_log_t *log)
             while (--len && (err[len] == CR || err[len] == LF)) { /* void */ }
 
             // TODO: Handle variadics
-            //ngx_log_error(NGX_LOG_EMERG, log, 0,
-            //              "require_pv(\"%s\") failed: \"%*s\"",
-            //              script[i].data, len + 1, err);
+            ngx_log_error(NGX_LOG_EMERG, log, 0,
+                          "require_pv(\"%s\") failed: \"%*s\"",
+                          script[i].data, len + 1, err);
 
             return NGX_ERROR;
         }
@@ -739,7 +739,7 @@ ngx_http_perl_call_handler(pTHX_ ngx_http_request_t *r,
     STRLEN             len, n_a;
     ngx_uint_t         i;
     // TODO: Handle variadics
-    //ngx_connection_t  *c;
+    ngx_connection_t  *c;
 
     dSP;
 
@@ -767,7 +767,7 @@ ngx_http_perl_call_handler(pTHX_ ngx_http_request_t *r,
     PUTBACK;
 
     // TODO: Handle variadics
-    //c = r->connection;
+    c = r->connection;
 
     n = call_sv(sub, G_EVAL);
 
@@ -818,8 +818,8 @@ ngx_http_perl_call_handler(pTHX_ ngx_http_request_t *r,
         while (--len && (err[len] == CR || err[len] == LF)) { /* void */ }
 
         // TODO: Handle variadics
-        //ngx_log_error(NGX_LOG_ERR, c->log, 0,
-        //              "call_sv(\"%V\") failed: \"%*s\"", handler, len + 1, err);
+        ngx_log_error(NGX_LOG_ERR, c->log, 0,
+                      "call_sv(\"%V\") failed: \"%*s\"", handler, len + 1, err);
 
         if (rv) {
             return NGX_ERROR;
@@ -836,8 +836,8 @@ ngx_http_perl_call_handler(pTHX_ ngx_http_request_t *r,
 
     if (n != 1) {
         // TODO: Handle variadics
-        //ngx_log_error(NGX_LOG_ALERT, c->log, 0,
-        //              "call_sv(\"%V\") returned %d results", handler, n);
+        ngx_log_error(NGX_LOG_ALERT, c->log, 0,
+                      "call_sv(\"%V\") returned %d results", handler, n);
         status = NGX_OK;
     }
 

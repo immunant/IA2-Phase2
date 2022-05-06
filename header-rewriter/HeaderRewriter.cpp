@@ -247,12 +247,13 @@ public:
     // remaining class of functions for which this holds is variadics; see:
     // https://github.com/immunant/IA2-Phase2/issues/18
     if (fn_decl->isVariadic()) {
-      if (!replace_decl(fn_decl, "", FileReplacements)) {
-        return;
-      } else {
-        llvm::errs() << "Warning: deleting variadic function "
-                     << fn_decl->getNameAsString() << '\n';
-      }
+      // TODO: This is only commented out to enable debugging
+      //if (!replace_decl(fn_decl, "", FileReplacements)) {
+      //  return;
+      //} else {
+      //  llvm::errs() << "Warning: deleting variadic function "
+      //               << fn_decl->getNameAsString() << '\n';
+      //}
       return;
     }
 

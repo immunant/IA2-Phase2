@@ -36,6 +36,18 @@ SECTIONS {
 
 SECTIONS { . = ALIGN(4096); } INSERT BEFORE .init_array;
 SECTIONS {
+    .rodata_padding : {
+        . = ALIGN(4096);
+    }
+
+    ia2_shared_rodata : {
+        __start_ia2_shared_rodata = .;
+        *(ia2_shared_rodata)
+        . = ALIGN(4096);
+        __stop_ia2_shared_rodata = .;
+    }
+} INSERT AFTER .rodata;
+SECTIONS {
     .bss_padding : {
         . = ALIGN(4096);
     }
@@ -48,6 +60,7 @@ SECTIONS {
     ia2_shared_data : {
         __start_ia2_shared_data = .;
         *(ia2_shared_data)
+        environ = .;
         . = ALIGN(4096);
         __stop_ia2_shared_data = .;
     }

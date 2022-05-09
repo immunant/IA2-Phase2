@@ -64,7 +64,7 @@ pub unsafe extern "C" fn protect_pages(
     }
 
     let lib = libc::dlopen(info.dlpi_name, libc::RTLD_NOW);
-    let ignore_ranges: [AddressRange; 7] = [
+    let ignore_ranges: [AddressRange; 8] = [
         get_address_range(lib, "__start_ia2_shared_data", "__stop_ia2_shared_data"),
         get_address_range(lib, "__start_ia2_shared_rodata", "__stop_ia2_shared_rodata"),
         get_address_range(lib, "__start_dynamic", "__stop_dynamic_padding"),
@@ -72,6 +72,7 @@ pub unsafe extern "C" fn protect_pages(
         get_address_range(lib, "__start_dynsym", "__stop_dynsym_padding"),
         get_address_range(lib, "__start_dynstr", "__stop_dynstr_padding"),
         get_address_range(lib, "__start_gnu_version", "__stop_gnu_version_padding"),
+        get_address_range(lib, "__start_interp", "__stop_interp_padding"),
     ];
 
     let mut segments = Vec::new();

@@ -13,7 +13,6 @@
   scripts, but it is the user's responsibility to ensure that any new loadable
   segments have their start and end page-aligned.
 */
-SECTIONS { . = ALIGN(4096); } INSERT BEFORE .interp;
 SECTIONS {
     .rela.plt_padding : {
         . = ALIGN(4096);
@@ -33,6 +32,78 @@ SECTIONS {
         . = ALIGN(4096);
     }
 } INSERT AFTER .eh_frame;
+
+SECTIONS {
+    . = ALIGN(4096);
+    __start_dynamic = .;
+} INSERT BEFORE .dynamic;
+
+SECTIONS {
+    .dynamic_padding : {
+        . = ALIGN(4096);
+        __stop_dynamic_padding = .;
+    }
+} INSERT AFTER .dynamic;
+
+SECTIONS {
+    . = ALIGN(4096);
+    __start_gnu_hash = .;
+} INSERT BEFORE .gnu.hash;
+
+SECTIONS {
+    .gnu.hash_padding : {
+        . = ALIGN(4096);
+        __stop_gnu_hash_padding = .;
+    }
+} INSERT AFTER .gnu.hash;
+
+SECTIONS {
+    . = ALIGN(4096);
+    __start_dynsym = .;
+} INSERT BEFORE .dynsym;
+
+SECTIONS {
+    .dynsym_padding : {
+        . = ALIGN(4096);
+        __stop_dynsym_padding = .;
+    }
+} INSERT AFTER .dynsym;
+
+SECTIONS {
+    . = ALIGN(4096);
+    __start_dynstr = .;
+} INSERT BEFORE .dynstr;
+
+SECTIONS {
+    .dynstr_padding : {
+        . = ALIGN(4096);
+        __stop_dynstr_padding = .;
+    }
+} INSERT AFTER .dynstr;
+
+SECTIONS {
+    . = ALIGN(4096);
+    __start_gnu_version = .;
+} INSERT BEFORE .gnu.version;
+
+SECTIONS {
+    .gnu_version_padding : {
+        . = ALIGN(4096);
+        __stop_gnu_version_padding = .;
+    }
+} INSERT AFTER .gnu.version;
+
+SECTIONS {
+    . = ALIGN(4096);
+    __start_interp = .;
+} INSERT BEFORE .interp;
+
+SECTIONS {
+    .interp_padding : {
+        . = ALIGN(4096);
+        __stop_interp_padding = .;
+    }
+} INSERT AFTER .interp;
 
 SECTIONS { . = ALIGN(4096); } INSERT BEFORE .init_array;
 SECTIONS {

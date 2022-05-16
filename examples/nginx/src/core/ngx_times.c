@@ -27,8 +27,8 @@ static ngx_uint_t        slot;
 static ngx_atomic_t      ngx_time_lock;
 
 volatile ngx_msec_t      ngx_current_msec;
-volatile ngx_time_t     *ngx_cached_time;
-volatile ngx_str_t       ngx_cached_err_log_time;
+volatile ngx_time_t     *ngx_cached_time IA2_SHARED_DATA;
+volatile ngx_str_t       ngx_cached_err_log_time IA2_SHARED_DATA;
 volatile ngx_str_t       ngx_cached_http_time;
 volatile ngx_str_t       ngx_cached_http_log_time;
 volatile ngx_str_t       ngx_cached_http_log_iso8601;
@@ -45,9 +45,9 @@ volatile ngx_str_t       ngx_cached_syslog_time;
 static ngx_int_t         cached_gmtoff;
 #endif
 
-static ngx_time_t        cached_time[NGX_TIME_SLOTS];
+static ngx_time_t        cached_time[NGX_TIME_SLOTS] IA2_SHARED_DATA;
 static u_char            cached_err_log_time[NGX_TIME_SLOTS]
-                                    [sizeof("1970/09/28 12:00:00")];
+                                    [sizeof("1970/09/28 12:00:00")] IA2_SHARED_DATA;
 static u_char            cached_http_time[NGX_TIME_SLOTS]
                                     [sizeof("Mon, 28 Sep 1970 06:00:00 GMT")];
 static u_char            cached_http_log_time[NGX_TIME_SLOTS]

@@ -35,6 +35,18 @@ SECTIONS {
 
 SECTIONS {
     . = ALIGN(4096);
+    __start_got = .;
+} INSERT BEFORE .got;
+
+SECTIONS {
+    .got_padding : {
+        . = ALIGN(4096);
+        __stop_got_padding = .;
+    }
+} INSERT AFTER .got;
+
+SECTIONS {
+    . = ALIGN(4096);
     __start_dynamic = .;
 } INSERT BEFORE .dynamic;
 

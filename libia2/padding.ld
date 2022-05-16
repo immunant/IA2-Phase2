@@ -126,6 +126,7 @@ SECTIONS {
     ia2_shared_rodata : {
         __start_ia2_shared_rodata = .;
         *(ia2_shared_rodata)
+        *ngx_string.o(.rodata)
         . = ALIGN(4096);
         __stop_ia2_shared_rodata = .;
     }

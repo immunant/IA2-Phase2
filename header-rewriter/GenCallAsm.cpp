@@ -326,21 +326,24 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   // value doesn't use memory, this entire subexpression is zero.
   size_t stack_return_align = 16;
   size_t stack_return_padding = 0;
+  size_t start_of_ret_space = 0;
+  if (kind == WrapperKind::Indirect) {
+    // Count the space for the function pointer if the call is indirect.
+    start_of_ret_space += 8;
+  }
+
   if (stack_return_size > 0) {
-    size_t effective_stack_return_size = stack_return_size + 8;
-    size_t unaligned =
-        (stack_arg_size + effective_stack_return_size) % stack_return_align;
+    // If we have a stack return, we also have to save the old ret ptr, which
+    // precedes the stack return itself.
+    start_of_ret_space += 8;
+
+    // See what unpadded alignment would be for the start of the stack return.
+    size_t unaligned = start_of_ret_space % stack_return_align;
     stack_return_padding = unaligned != 0 ? stack_return_align - unaligned : 0;
   }
 
-  size_t compartment_stack_space =
-      stack_arg_size + (stack_return_size > 0
-                            ? 8 + stack_return_padding + stack_return_size
-                            : 0);
-  if (kind == WrapperKind::Indirect) {
-    // Count the space for the function pointer if the call is indirect
-    compartment_stack_space += 8;
-  }
+  // Count room for for the ret align padding, return value, and our ret ptr.
+  size_t compartment_stack_space = start_of_ret_space + stack_return_size + stack_return_padding + stack_arg_size;
   // Compute what the stack alignment would be before calling the wrapped
   // function to check if we need to insert 8 bytes for alignment. We add 8
   // bytes to the compartment_stack_space since the frame is initially off by 8

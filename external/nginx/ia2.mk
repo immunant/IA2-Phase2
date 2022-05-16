@@ -10,7 +10,7 @@ HEADER_REWRITER ?= $(REPO_ROOT)/build/header-rewriter/ia2-header-rewriter
 BUILD_DIR ?= $(NGINX_ROOT)/build
 
 PERL_SCRIPT_DIR = $(BUILD_DIR)/perl/lib
-PERL_SCRIPT = $(NGINX_ROOT)/hello.pm
+PERL_SCRIPT = $(NGINX_ROOT)/src/http/modules/perl/hello.pm
 
 C_SYSTEM_INCLUDE = $(shell $(CC) -print-file-name=include)
 C_SYSTEM_INCLUDE_FIXED = $(shell $(CC) -print-file-name=include-fixed)
@@ -28,6 +28,8 @@ ia2_all: main_shim mod_shim_src
 main_shim_src:
 	rm -rf $(MAIN_SHIM_SRC)
 	cp -r $(NGINX_ROOT)/src/ $(MAIN_SHIM_SRC)
+	mkdir -p $(PERL_SCRIPT_DIR)
+	cp -r $(PERL_SCRIPT) $(PERL_SCRIPT_DIR)
 	$(HEADER_REWRITER) --compartment-pkey=1 \
 		$(MAIN_SHIM_SRC)/main_shim.c \
 		$(MAIN_SHIM_SRC)/core/ngx_config.h \

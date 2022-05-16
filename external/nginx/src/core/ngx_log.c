@@ -69,21 +69,29 @@ ngx_module_t  ngx_errlog_module = {
 };
 
 
-static ngx_log_t        ngx_log;
-static ngx_open_file_t  ngx_log_file;
-ngx_uint_t              ngx_use_stderr = 1;
+static ngx_log_t        ngx_log IA2_SHARED_DATA;
+static ngx_open_file_t  ngx_log_file IA2_SHARED_DATA;
+ngx_uint_t              ngx_use_stderr IA2_SHARED_DATA = 1;
 
+IA2_SHARED_STR(emerg, "emerg");
+IA2_SHARED_STR(alert, "alert");
+IA2_SHARED_STR(crit, "crit");
+IA2_SHARED_STR(error, "error");
+IA2_SHARED_STR(warn, "warn");
+IA2_SHARED_STR(notice, "notice");
+IA2_SHARED_STR(info, "info");
+IA2_SHARED_STR(debug, "debug");
 
-static ngx_str_t err_levels[] = {
+static ngx_str_t err_levels[] IA2_SHARED_DATA = {
     ngx_null_string,
-    ngx_string("emerg"),
-    ngx_string("alert"),
-    ngx_string("crit"),
-    ngx_string("error"),
-    ngx_string("warn"),
-    ngx_string("notice"),
-    ngx_string("info"),
-    ngx_string("debug")
+    ia2_shared_ngx_string(emerg),
+    ia2_shared_ngx_string(alert),
+    ia2_shared_ngx_string(crit),
+    ia2_shared_ngx_string(error),
+    ia2_shared_ngx_string(warn),
+    ia2_shared_ngx_string(notice),
+    ia2_shared_ngx_string(info),
+    ia2_shared_ngx_string(debug)
 };
 
 static const char *debug_levels[] = {
@@ -113,16 +121,18 @@ ngx_log_error_core(ngx_uint_t level, ngx_log_t *log, ngx_err_t err,
     ssize_t      n;
     ngx_uint_t   wrote_stderr, debug_connection;
     u_char       errstr[NGX_MAX_ERROR_STR];
+    IA2_SHARED_STR(fmt_str_1, " [%V] "); 
+    IA2_SHARED_STR(fmt_str_2, "%P#" NGX_TID_T_FMT ": "); 
 
     last = errstr + NGX_MAX_ERROR_STR;
 
     p = ngx_cpymem(errstr, ngx_cached_err_log_time.data,
                    ngx_cached_err_log_time.len);
 
-    p = ngx_slprintf(p, last, " [%V] ", &err_levels[level]);
+    p = ngx_slprintf(p, last, &fmt_str_1, &err_levels[level]);
 
     /* pid#tid */
-    p = ngx_slprintf(p, last, "%P#" NGX_TID_T_FMT ": ",
+    p = ngx_slprintf(p, last, &fmt_str_2,
                     ngx_log_pid, ngx_log_tid);
 
     if (log->connection) {
@@ -206,7 +216,8 @@ ngx_log_error_core(ngx_uint_t level, ngx_log_t *log, ngx_err_t err,
 
     msg -= (7 + err_levels[level].len + 3);
 
-    (void) ngx_sprintf(msg, "nginx: [%V] ", &err_levels[level]);
+    IA2_SHARED_STR(fmt_str, "nginx: [%V] "); 
+    (void) ngx_sprintf(msg, &fmt_str, &err_levels[level]);
 
     (void) ngx_write_console(ngx_stderr, msg, p - msg);
 }

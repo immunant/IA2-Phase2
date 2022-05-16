@@ -54,7 +54,7 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
 // `char name = s` in the global scope so `name` must be a unique identifier.
 #define IA2_SHARED_STR(name, s)                                                \
   extern char name __asm__("str" XSTR(name) XSTR(__LINE__));                   \
-  const size_t __ia2_sizeof_##name = sizeof(s);                                \
+  const size_t __ia2_sizeof_##name __attribute__((unused)) = sizeof(s);        \
   _IA2_DEFINE_SHARED_STR(name, s);
 
 // Defines a string literal which may be read from any compartment and expands

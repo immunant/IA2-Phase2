@@ -9,7 +9,7 @@ HEADER_REWRITER ?= $(REPO_ROOT)/build/header-rewriter/ia2-header-rewriter
 
 BUILD_DIR ?= $(NGINX_ROOT)/build
 
-PERL_SCRIPT_DIR = $(BUILD_DIR)/perl/lib
+PERL_SCRIPT_DIR = $(BUILD_DIR)/src/http/modules/perl
 PERL_SCRIPT = $(NGINX_ROOT)/src/http/modules/perl/hello.pm
 
 C_SYSTEM_INCLUDE = $(shell $(CC) -print-file-name=include)

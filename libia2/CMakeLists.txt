@@ -25,7 +25,7 @@ add_custom_target(libia2_linker_script
 add_custom_command(
     COMMAND cp ${CMAKE_CURRENT_SOURCE_DIR}/padding.ld .
     OUTPUT padding.ld
-    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/padding.ld
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/padding.ld ${CMAKE_CURRENT_SOURCE_DIR}/shared_lib.ld
 )
 
 add_custom_command(

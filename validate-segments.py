@@ -32,16 +32,21 @@ seg_sections = list(map(lambda x: x.split()[1:], seg_sections_lines))
 def offset_round(offset: str) -> bool:
 	return offset.endswith("000")
 
+fields = ["Type", "Offset", "VirtAddr", "PhysAddr", "Size"]
 for i, segment in enumerate(segments):
-	invalid = None
-	if not offset_round(segment[1]):
-		invalid = segment[1]
-	if not offset_round(segment[2]):
-		invalid = segment[2]
-	if not offset_round(segment[3]):
-		invalid = segment[3]
-	if (segment[0] == "LOAD" or "RELRO" in segment[0]) and invalid:
-		print(f"invalid segment {i} ({invalid} not aligned): {segment}")
+	# we only care about LOAD or RELRO segments
+	segment_needs_align = segment[0] == "LOAD" or "RELRO" in segment[0]
+	if not segment_needs_align:
+		continue
+
+	invalid_field_idx = None
+	for field_idx in range(1, 5):
+		if not offset_round(segment[field_idx]):
+			invalid_field_idx = i
+			break
+
+	if invalid_field_idx is not None:
+		print(f"invalid segment {i} ({fields[field_idx]} not aligned: {segment[field_idx]}): {segment}")
 		print(f"segment sections: {' '.join(seg_sections[i])}")
 		objdump_process = subprocess.run(["objdump", "-w", "--section-headers"] + args,
 			capture_output=True,

@@ -34,6 +34,12 @@ SECTIONS {
     }
 } INSERT AFTER .plt;
 
+SECTIONS {
+    .plt_sec_padding : {
+        . = ALIGN(4096);
+    }
+} INSERT AFTER .plt.sec;
+
 /*
   This section cannot be called .rela.plt_padding because starting a section
   name with .rela has special semantics for ld.lld

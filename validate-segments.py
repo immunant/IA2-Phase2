@@ -17,6 +17,9 @@ segment_begin = readelf_lines.index("Program Headers:") + 2
 segment_count = readelf_lines[segment_begin:].index("")
 segment_lines = readelf_lines[segment_begin:segment_begin + segment_count]
 
+# filter "interpreter" line
+segment_lines = filter(lambda line: not line.startswith("      "), segment_lines)
+
 segments = list(map(str.split, segment_lines))
 
 

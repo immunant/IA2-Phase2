@@ -36,6 +36,18 @@ jobs:
             -G Ninja
           ninja
           popd
+      - name: Validate segment alignments
+        run: |
+          pushd build
+          # check main
+          for i in $(find header-rewriter/tests/ | grep -E '\-main$'); do
+            ../validate-segments.py $i
+          done
+          # check wrappers that wrap main
+          for i in two_shared_ranges read_config two_keys_minimal; do
+            ../validate-segments.py header-rewriter/tests/$i/lib$i-original.so
+          done
+          popd
       - name: Check
         run: |
           pushd build

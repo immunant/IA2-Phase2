@@ -64,11 +64,32 @@ pub unsafe extern "C" fn protect_pages(
     }
 
     let lib = libc::dlopen(info.dlpi_name, libc::RTLD_NOW);
-    let ignore_ranges: [AddressRange; 1] = [get_address_range(
-        lib,
-        "__start_ia2_shared_data",
-        "__stop_ia2_shared_data",
-    )];
+    // The __start_* and __stop_* symbols don't necessarily correspond to the start and end of the
+    // sections, but the contents of the sections are contained entirely within these symbols
+    let ignore_sections: [&str; 1] = ["ia2_shared_data"];
+    let ignore_ranges = ignore_sections.map(|section| {
+        get_address_range(
+            lib,
+            &("__start_".to_string() + section),
+            &("__stop_".to_string() + section),
+        )
+    });
+
+    // Check that the ignored ranges are page-aligned and padded
+    for section in &ignore_sections {
+        let start_sym = "__start_".to_string() + section;
+        let stop_sym = "__stop_".to_string() + section;
+        assert!(
+            libc::dlsym(lib, start_sym.as_ptr().cast()).align_offset(PAGE_SIZE) == 0,
+            "Start of section {:?} is not page-aligned",
+            section
+        );
+        assert!(
+            libc::dlsym(lib, stop_sym.as_ptr().cast()).align_offset(PAGE_SIZE) == 0,
+            "End of section {:?} is not page-aligned",
+            section
+        );
+    }
 
     let mut protected_ranges = Vec::new();
 
@@ -137,31 +158,29 @@ pub unsafe extern "C" fn protect_pages(
             protected_ranges.push((range, prot));
         }
     }
-    fn pkey_mprotect(start: *const u8, end: *const u8, prot: i32, pkey: i32) {
+    unsafe fn pkey_mprotect(mut start: *const u8, mut end: *const u8, prot: i32, pkey: i32) {
         if start == end {
             return;
         }
-        assert!(
-            start.align_offset(PAGE_SIZE) == 0,
-            "Start of section at {:p} is not page-aligned",
-            start
-        );
-        assert!(
-            end.align_offset(PAGE_SIZE) == 0,
-            "End of section at {:p} is not page-aligned",
-            end
-        );
+        // We checked above that all ignored (i.e. shared) sections are page-aligned and padded, so
+        // we can safely move the start and end to page-boundaries
+        let start_offset = start.align_offset(PAGE_SIZE);
+        if start_offset != 0 {
+            start = start.add(start_offset).sub(PAGE_SIZE);
+        }
+        let end_offset = end.align_offset(PAGE_SIZE);
+        if end_offset != 0 {
+            end = end.add(end_offset);
+        }
 
         let addr = start;
-        unsafe {
-            let len = end.offset_from(start);
-            if len > 0 {
-                libc::syscall(libc::SYS_pkey_mprotect, addr, len, prot, pkey);
-            }
+        let len = end.offset_from(start);
+        if len > 0 {
+            libc::syscall(libc::SYS_pkey_mprotect, addr, len, prot, pkey);
         }
     }
-// After calling `pkey_mprotect` on the first phdr, we can't access `info->dlpi_phdr`
-// anymore since it's in the first phdr itself.
+    // After calling `pkey_mprotect` on the first phdr, we can't access `info->dlpi_phdr`
+    // anymore since it's in the first phdr itself.
     for (r, prot) in protected_ranges {
         pkey_mprotect(r.start, r.stop, prot, pkey);
     }

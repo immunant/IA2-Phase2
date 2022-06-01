@@ -113,13 +113,12 @@ gcc main.c libbar.so libbar_shim.so libmain_shim.so libia2.so -Wl,-z,now \
 libia2.so is located under `/$REPO_ROOT/libia2/target/release/` after building
 the crate with `cargo build --release`.
 
-Shared objects that are assigned a protection key must have their loadable
-segments page-aligned and padded. For the main binary `padding.ld` ensures this.
-If a library is assigned a protection key, the `shared_lib.ld` script must be
-used instead. These linker scripts may augment other linker scripts, but it is
-the user's responsibility to ensure any new loadable segments are aligned and
-padded. Failure to do this causes the runtime to terminate the program during
-initialization.
+Shared objects that are assigned a protection key must have their
+`ia2_shared_data` and `ia2_shared_rodata` sections page-aligned and padded, if
+they exist. The `padding.ld` script is used to ensure this. These linker scripts
+may augment other linker scripts, but it is the user's responsibility to ensure
+these sections are page-aligned and padded. Failure to do this causes the
+runtime to terminate the program during initialization.
 
 If direct calls occur in only one direction (e.g. libraries rarely call the main
 binary directly), only one shim is required. To wrap calls between shared

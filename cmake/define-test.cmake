@@ -81,7 +81,7 @@ function(define_test)
         "-Werror=incompatible-pointer-types"
         "-fPIC"
         ${DEFINE_TEST_COMPILE_OPTS})
-    target_link_options(${MAIN} PRIVATE "-Wl,-z,now" "-Wl,-T${LINKER_SCRIPT}" "-Wl,--dynamic-list=${DYN_SYM}")
+    target_link_options(${MAIN} PRIVATE "-Wl,--export-dynamic" "-Wl,-z,now" "-Wl,-T${LINKER_SCRIPT}" "-Wl,--dynamic-list=${DYN_SYM}")
     target_include_directories(${MAIN} BEFORE PRIVATE
         ${INCLUDE_DIR}
         # Add top-level include directory for segfault handler

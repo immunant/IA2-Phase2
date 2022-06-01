@@ -16,6 +16,7 @@ jobs:
       matrix:
         build-type: [Release, Debug]
         compiler: [clang, gcc]
+        linker: [lld, bfd]
     steps:
       - name: Check out code
         uses: actions/checkout@v2
@@ -28,6 +29,7 @@ jobs:
           cmake ..                                                       \
             -DCMAKE_BUILD_TYPE=${{ matrix.build-type }}                  \
             -DCMAKE_C_COMPILER=${{ matrix.compiler }}                    \
+            -DCMAKE_C_FLAGS="-fuse-ld=${{ matrix.linker }}"              \
             -DClang_DIR=$Clang_DIR                                       \
             -DLLVM_DIR=$LLVM_DIR                                         \
             -DLLVM_EXTERNAL_LIT=$HOME/.local/bin/lit                     \

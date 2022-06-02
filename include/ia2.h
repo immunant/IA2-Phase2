@@ -46,9 +46,9 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
 #define IA2_SHARED_RODATA __attribute__((section("ia2_shared_rodata")))
 
 #define _IA2_DEFINE_SHARED_STR(name, s)                                        \
-  __asm__(".section ia2_shared_rodata\n" \
-            ".equ str" XSTR(name) XSTR(__LINE__) ", .\n"\
-            ".asciz \"" s "\"\n" \
+  __asm__(".section ia2_shared_rodata, \"a\"\n"                                \
+            ".equ str" XSTR(name) XSTR(__LINE__) ", .\n"                       \
+            ".asciz \"" s "\"\n"                                               \
             ".previous")
 
 // Defines a string literal which may be read from any compartment.

@@ -66,7 +66,7 @@ pub unsafe extern "C" fn protect_pages(
     let lib = libc::dlopen(info.dlpi_name, libc::RTLD_NOW);
     // The __start_* and __stop_* symbols don't necessarily correspond to the start and end of the
     // sections, but the contents of the sections are contained entirely within these symbols
-    let ignore_sections: [&str; 1] = ["ia2_shared_data"];
+    let ignore_sections = ["ia2_shared_data", "ia2_shared_rodata"];
     let ignore_ranges = ignore_sections.map(|section| {
         get_address_range(
             lib,

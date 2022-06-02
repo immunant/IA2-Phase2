@@ -54,8 +54,10 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
 // Defines a string literal which may be read from any compartment.
 //
 // This macro may be used in the global scope or in a function. Use `&name` to
-// access the `char *` created by this macro. This is equivalent to defining
-// `char name = s` in the global scope so `name` must be a unique identifier.
+// access the `char *` created by this macro in the shared object that defined
+// it. This string may not be directly referenced by other shared objects. This
+// is equivalent to defining `static char name = s` in the global scope so
+// `name` must be a unique identifier in the translation unit.
 #define IA2_SHARED_STR(name, s)                                                \
   extern char name __asm__("str" XSTR(name) XSTR(__LINE__));                   \
   const size_t __ia2_sizeof_##name = sizeof(s);                                \
@@ -120,7 +122,7 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
 //
 // This macro may only be used inside functions.
 #define IA2_WRAPPER_FN_SCOPE(target, target_pkey)                              \
-  (typeof(__ia2_##target##_wrapper)) {  &__ia2_##target##_0_##target_pkey }
+  (typeof(__ia2_##target##_wrapper)) { &__ia2_##target##_0_##target_pkey }
 
 // Defines a wrapper for the function `target` and expands to an opaque pointer
 // expression for the wrapper.

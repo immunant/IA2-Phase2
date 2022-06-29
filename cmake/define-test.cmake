@@ -81,9 +81,17 @@ function(define_test)
     endif()
     target_compile_options(${MAIN} PRIVATE
         "-Werror=incompatible-pointer-types"
+        "-fsanitize=undefined"
         "-fPIC"
+        "-g"
         ${DEFINE_TEST_COMPILE_OPTS})
-    target_link_options(${MAIN} PRIVATE "-Wl,--export-dynamic" "-Wl,-z,now" "-Wl,-T${LINKER_SCRIPT}" "-Wl,--dynamic-list=${DYN_SYM}")
+    target_link_options(${MAIN} PRIVATE
+        # UBSAN requires passing this as both a compiler and linker flag
+        "-fsanitize=undefined"
+        "-Wl,--export-dynamic"
+        "-Wl,-z,now"
+        "-Wl,-T${LINKER_SCRIPT}"
+        "-Wl,--dynamic-list=${DYN_SYM}")
     target_include_directories(${MAIN} BEFORE PRIVATE
         ${INCLUDE_DIR}
         # Add top-level include directory for segfault handler

@@ -185,8 +185,7 @@ function(define_ia2_wrapper)
     target_link_options(${WRAPPER_TARGET} PRIVATE "-Wl,-z,now")
     target_link_libraries(${WRAPPER_TARGET}
         PRIVATE -Wl,--version-script,${CMAKE_CURRENT_BINARY_DIR}/${WRAPPER_SRC}.syms
-        PUBLIC ${WRAPPED_LIB}
-        INTERFACE ${IA2_LIB})
+        PUBLIC ${WRAPPED_LIB})
 
     # Add IA2 and wrapper include dirs
     target_include_directories(${WRAPPER_TARGET}

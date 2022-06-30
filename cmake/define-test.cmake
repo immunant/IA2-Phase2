@@ -97,6 +97,7 @@ function(define_test)
         # Add top-level include directory for segfault handler
         ${IA2_INCLUDE_DIR})
     target_link_libraries(${MAIN} PRIVATE
+        "dl"
         ${WRAPPERS})
     add_dependencies(check-ia2 ${MAIN})
 endfunction()

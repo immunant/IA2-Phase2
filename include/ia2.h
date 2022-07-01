@@ -383,7 +383,7 @@ static int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
   assert(info->dlpi_phnum <= NUM_PHDRS);
   // The latter halves of split program headers (if any) are stored starting at
   // segment_info[dlpi_phnum]. If a shared section doesn't exist, the unused
-  // `SegmentInfo` will have it's size field set to zero
+  // `SegmentInfo` will have its size field set to zero
   size_t extra_seg_info = info->dlpi_phnum;
 
   for (size_t i = 0; i < info->dlpi_phnum; i++) {

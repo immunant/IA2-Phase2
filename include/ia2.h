@@ -147,7 +147,7 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
 #define IA2_CALL(target, ty, caller_pkey)                                      \
   ({                                                                           \
     static struct IA2_fnptr_##ty##_inner_t *target_ptr __asm__(                \
-        UNIQUE_STR(#ty)) __attribute__((used));                                \
+        UNIQUE_STR(#ty)) __attribute__((used, section("ia2_shared_data")));    \
     static void *wrapper __asm__("__ia2_" UNIQUE_STR(#ty));                    \
     target_ptr = target.ptr;                                                   \
     __asm__(IA2_CALL_##ty(target, ty, caller_pkey, 0));                        \
@@ -235,7 +235,7 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
 #define STACK_14 "112"
 #define STACK_15 "120"
 
-#define STACK_SIZE (4 * 1024 * 1024)
+#define STACK_SIZE (16 * 1024 * 1024)
 
 #ifdef LIBIA2_INSECURE
 #define INIT_RUNTIME(n)                                                        \
@@ -250,6 +250,7 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
     if (!stack) {                                                              \
       exit(-1);                                                                \
     }                                                                          \
+    if (!i) return;                                                            \
     int res = pkey_mprotect(stack, STACK_SIZE, PROT_READ | PROT_WRITE, i);     \
     if (res == -1) {                                                           \
       printf("Failed to mprotect stack %d (%d)\n", i, errno);                  \

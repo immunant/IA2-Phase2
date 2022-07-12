@@ -71,9 +71,9 @@ static ngx_int_t ngx_http_add_addrs6(ngx_conf_t *cf, ngx_http_port_t *hport,
 ngx_uint_t   ngx_http_max_module;
 
 
-ngx_http_output_header_filter_pt  ngx_http_top_header_filter;
-ngx_http_output_body_filter_pt    ngx_http_top_body_filter;
-ngx_http_request_body_filter_pt   ngx_http_top_request_body_filter;
+ngx_http_output_header_filter_pt  ngx_http_top_header_filter IA2_SHARED_DATA;
+ngx_http_output_body_filter_pt    ngx_http_top_body_filter IA2_SHARED_DATA;
+ngx_http_request_body_filter_pt   ngx_http_top_request_body_filter IA2_SHARED_DATA;
 
 
 ngx_str_t  ngx_http_html_default_types[] = {
@@ -103,7 +103,7 @@ static ngx_core_module_t  ngx_http_module_ctx = {
 };
 
 
-ngx_module_t  ngx_http_module = {
+ngx_module_t  ngx_http_module IA2_SHARED_DATA = {
     NGX_MODULE_V1,
     &ngx_http_module_ctx,                  /* module context */
     ngx_http_commands,                     /* module directives */

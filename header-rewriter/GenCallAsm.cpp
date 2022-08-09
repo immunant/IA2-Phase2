@@ -370,8 +370,8 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   } else {
     // This is for wrappers defined in the shims
     add_asm_line(aw, ".text");
-    add_asm_line(aw, ".global __ia2_"s + name);
-    add_asm_line(aw, "__ia2_"s + name + ":");
+    add_asm_line(aw, ".global __wrap_"s + name);
+    add_asm_line(aw, "__wrap_"s + name + ":");
   }
 
   // Save registers that are preserved across function calls before switching to
@@ -506,7 +506,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   } else if (as_macro) {
     add_raw_line(aw, "\"call \" #target \"\\n\"");
   } else {
-    add_asm_line(aw, "call "s + name);
+    add_asm_line(aw, "call __real_"s + name);
   }
 
   // After calling the wrapped function, rax and rdx may contain a return value

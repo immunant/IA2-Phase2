@@ -10,7 +10,7 @@
 
 #include "scrub_registers.h"
 
-#define IA2_WRAP_FUNCTION(name) __asm__(".symver " #name ",__ia2_" #name "@IA2")
+#define IA2_WRAP_FUNCTION(name)
 
 #define XSTR(s) STR(s)
 #define STR(s) #s

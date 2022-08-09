@@ -170,7 +170,7 @@ struct FunctionWrapper {
         cAbiSig, fn_name, WrapperKind::Direct, std::to_string(PkeyValue));
 
     // Generate wrapper symbol definition, invoking call gates around call
-    this->name = "__ia2_" + fn_name;
+    this->name = fn_name;
     this->mangled_name = mangle_name(fn_decl);
     this->definition = llvm::formatv(
         "// {0}({1});\n"
@@ -514,25 +514,20 @@ static std::string generate_output_header(
 }
 
 static void
-emit_wrappers(llvm::raw_ostream &WrapperOut, llvm::raw_ostream &SymsOut,
+emit_wrappers(llvm::raw_ostream &WrapperOut, llvm::raw_ostream &ArgsOut,
               const std::vector<FunctionWrapper> &WrappedFunctions) {
   WrapperOut << "#include <ia2.h>\n"
              << "#ifndef CALLER_PKEY\n"
              << "#error CALLER_PKEY must be defined to compile this file\n"
              << "#endif\n";
 
-  SymsOut << "IA2 {\n"
-          << "  global:\n";
-
   for (const auto &wrapper : WrappedFunctions) {
     // Add the wrapper function definition to the wrapper file
     WrapperOut << wrapper.definition;
 
     // Add the wrapper to the list of symbols to redirect
-    SymsOut << "    " << wrapper.name << ";\n";
+    ArgsOut << "--wrap=" << wrapper.name << "\n";
   }
-
-  SymsOut << "};\n";
 }
 
 int main(int argc, const char **argv) {
@@ -607,13 +602,13 @@ int main(int argc, const char **argv) {
                    << "\n";
       return EC.value();
     }
-    llvm::raw_fd_ostream syms_out(WrapperOutputFilename + ".syms", EC);
+    llvm::raw_fd_ostream args_out(WrapperOutputFilename + ".args", EC);
     if (EC) {
-      llvm::errs() << "Error opening output syms file: " << EC.message()
+      llvm::errs() << "Error opening output arguments file: " << EC.message()
                    << "\n";
       return EC.value();
     }
-    emit_wrappers(wrapper_out, syms_out, decl_replacement.wrapped_functions());
+    emit_wrappers(wrapper_out, args_out, decl_replacement.wrapped_functions());
   }
 
   if (rc != EXIT_SUCCESS) {

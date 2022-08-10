@@ -1,7 +1,7 @@
 /*
 RUN: cp %s %t.h
 RUN: ia2-header-rewriter %t.c %t.h -- -I%resource_dir
-RUN: cat %t.h | sed 's/^.*CHECK.*$//' | FileCheck %s
+RUN: cat %t.c.args | FileCheck --check-prefix=LINKARGS %s
 RUN: %binary_dir/tests/global_fn_ptr/global_fn_ptr-main | diff %S/../Output/operations.out -
 */
 
@@ -9,7 +9,7 @@ RUN: %binary_dir/tests/global_fn_ptr/global_fn_ptr-main | diff %S/../Output/oper
 #include <stdlib.h>
 #include <stdint.h>
 
-// CHECK: IA2_WRAP_FUNCTION(call_operations);
+// LINKARGS: --wrap=call_operations
 void call_operations(void);
 
 // CHECK: typedef struct IA2_fnptr__ZTSPFjjjE WordFn;

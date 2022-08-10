@@ -1,7 +1,7 @@
 /*
 RUN: cp %s %t.h
 RUN: ia2-header-rewriter %T/wrapper.c %t.h -- -I%resource_dir
-RUN: cat %t.h | sed 's/^.*CHECK.*$//' | FileCheck %s
+RUN: cat %T/wrapper.c.args | FileCheck --check-prefix=LINKARGS %s
 RUN: %binary_dir/tests/trusted_direct/trusted_direct-main | diff %binary_dir/tests/trusted_direct/trusted_direct.out -
 RUN: %binary_dir/tests/trusted_direct/trusted_direct-main clean_exit | diff %source_dir/tests/trusted_direct/Output/trusted_direct.clean_exit.out -
 */
@@ -9,7 +9,7 @@ RUN: %binary_dir/tests/trusted_direct/trusted_direct-main clean_exit | diff %sou
 #include <stdint.h>
 #include <stdbool.h>
 
-// CHECK: IA2_WRAP_FUNCTION(print_message);
+// LINKARGS: --wrap=print_message
 void print_message(void);
 
 // This is exported to avoid an implicit decl error when the plugin tries to

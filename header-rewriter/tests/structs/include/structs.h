@@ -1,7 +1,7 @@
 /*
 RUN: cp %s %t.h
 RUN: ia2-header-rewriter %T/wrapper.c %t.h -- -I%resource_dir
-RUN: cat %t.h | sed 's/^.*CHECK.*$//' | FileCheck %s
+RUN: cat %T/wrapper.c.args | FileCheck --check-prefix=LINKARGS %s
 RUN: %binary_dir/tests/structs/structs-main | diff %binary_dir/tests/structs/structs.out -
 */
 #pragma once
@@ -127,104 +127,104 @@ struct s14 {
 	unsigned int field8;
 };
 
-// CHECK: IA2_WRAP_FUNCTION(get_s1);
+// LINKARGS: --wrap=get_s1
 struct s1 get_s1(void);
 
-// CHECK: IA2_WRAP_FUNCTION(cksum_s1);
+// LINKARGS: --wrap=cksum_s1
 int cksum_s1(struct s1);
 
-// CHECK: IA2_WRAP_FUNCTION(get_s2);
+// LINKARGS: --wrap=get_s2
 struct s2 get_s2(void);
 
-// CHECK: IA2_WRAP_FUNCTION(extract_s2);
+// LINKARGS: --wrap=extract_s2
 float extract_s2(struct s2);
 
-// CHECK: IA2_WRAP_FUNCTION(get_s3);
+// LINKARGS: --wrap=get_s3
 struct s3 get_s3(void);
 
-// CHECK: IA2_WRAP_FUNCTION(cksum_s3);
+// LINKARGS: --wrap=cksum_s3
 int cksum_s3(struct s3);
 
-// CHECK: IA2_WRAP_FUNCTION(inc_s3);
+// LINKARGS: --wrap=inc_s3
 struct s3 inc_s3(struct s3);
 
-// CHECK: IA2_WRAP_FUNCTION(get_s4);
+// LINKARGS: --wrap=get_s4
 struct s4 get_s4(void);
 
-// CHECK: IA2_WRAP_FUNCTION(cksum_s4);
+// LINKARGS: --wrap=cksum_s4
 float cksum_s4(struct s4);
 
-// CHECK: IA2_WRAP_FUNCTION(get_s5);
+// LINKARGS: --wrap=get_s5
 struct s5 get_s5(void);
 
-// CHECK: IA2_WRAP_FUNCTION(get_s5_int);
+// LINKARGS: --wrap=get_s5_int
 struct s5 get_s5_int(int);
 
-// CHECK: IA2_WRAP_FUNCTION(print_s5);
+// LINKARGS: --wrap=print_s5
 void print_s5(struct s5 );
 
-// CHECK: IA2_WRAP_FUNCTION(cksum_s5_f);
+// LINKARGS: --wrap=cksum_s5_f
 float cksum_s5_f(struct s5);
 
-// CHECK: IA2_WRAP_FUNCTION(cksum_s5_z);
+// LINKARGS: --wrap=cksum_s5_z
 size_t cksum_s5_z(struct s5);
 
-// CHECK: IA2_WRAP_FUNCTION(get_s6);
+// LINKARGS: --wrap=get_s6
 struct s6 get_s6(void);
 
-// CHECK: IA2_WRAP_FUNCTION(cksum_s6);
+// LINKARGS: --wrap=cksum_s6
 size_t cksum_s6(struct s6);
 
-// CHECK: IA2_WRAP_FUNCTION(inc_s6);
+// LINKARGS: --wrap=inc_s6
 struct s6 inc_s6(struct s6);
 
-// CHECK: IA2_WRAP_FUNCTION(mix_s6);
+// LINKARGS: --wrap=mix_s6
 struct s6 mix_s6(struct s6 s1, struct s6 s2);
 
-// CHECK: IA2_WRAP_FUNCTION(get_s7);
+// LINKARGS: --wrap=get_s7
 struct s7 get_s7(void);
 
-// CHECK: IA2_WRAP_FUNCTION(cksum_s7);
+// LINKARGS: --wrap=cksum_s7
 unsigned int cksum_s7(struct s7);
 
-// CHECK: IA2_WRAP_FUNCTION(get_s8);
+// LINKARGS: --wrap=get_s8
 struct s8 get_s8(void);
 
-// CHECK: IA2_WRAP_FUNCTION(cksum_s8);
+// LINKARGS: --wrap=cksum_s8
 size_t cksum_s8(struct s8);
 
-// CHECK: IA2_WRAP_FUNCTION(get_s9);
+// LINKARGS: --wrap=get_s9
 struct s9 get_s9(void);
 
-// CHECK: IA2_WRAP_FUNCTION(cksum_s9);
+// LINKARGS: --wrap=cksum_s9
 __int128 cksum_s9(struct s9);
 
-// CHECK: IA2_WRAP_FUNCTION(get_s10);
+// LINKARGS: --wrap=get_s10
 struct s10 get_s10(void);
 
-// CHECK: IA2_WRAP_FUNCTION(cksum_s10);
+// LINKARGS: --wrap=cksum_s10
 __int128 cksum_s10(struct s10);
 
-// CHECK: IA2_WRAP_FUNCTION(get_s11);
+// LINKARGS: --wrap=get_s11
 struct s11 get_s11(void);
 
-// CHECK: IA2_WRAP_FUNCTION(cksum_s11);
+// LINKARGS: --wrap=cksum_s11
 unsigned int cksum_s11(struct s11);
 
-// CHECK: IA2_WRAP_FUNCTION(get_s12);
+// LINKARGS: --wrap=get_s12
 struct s12 get_s12(void);
 
-// CHECK: IA2_WRAP_FUNCTION(cksum_s12);
+// LINKARGS: --wrap=cksum_s12
 unsigned int cksum_s12(struct s12);
 
-// CHECK: IA2_WRAP_FUNCTION(get_s13);
+// LINKARGS: --wrap=get_s13
 struct s13 get_s13(void);
 
-// CHECK: IA2_WRAP_FUNCTION(cksum_s13);
+// LINKARGS: --wrap=cksum_s13
 unsigned int cksum_s13(struct s13);
 
-// CHECK: IA2_WRAP_FUNCTION(get_s14);
+// LINKARGS: --wrap=get_s14
 struct s14 get_s14(void);
 
-// CHECK: IA2_WRAP_FUNCTION(cksum_s14);
+// LINKARGS: --wrap=cksum_s14
 unsigned int cksum_s14(struct s14);

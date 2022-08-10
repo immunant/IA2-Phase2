@@ -263,21 +263,6 @@ public:
       InitializedHeaders.push_back(header_ref);
     }
 
-    // Insert a symbol versioning attribute prior to the function's decl
-    // to redirect it to the wrapper
-    auto fn_name = fn_decl->getNameInfo().getAsString();
-    std::string wrapper_macro = "IA2_WRAP_FUNCTION(" + fn_name + ");\n";
-    clang::SourceLocation expansion_loc =
-        Result.SourceManager->getExpansionLoc(fn_decl->getBeginLoc());
-    Replacement decl_replacement{*Result.SourceManager, expansion_loc, 0,
-                                 wrapper_macro};
-
-    auto err = FileReplacements[header_name].add(decl_replacement);
-    if (err) {
-      llvm::errs() << "Error adding replacement: " << err << '\n';
-      return;
-    }
-
     // Generate a wrapper for this function
     WrappedFunctions.push_back(FunctionWrapper(fn_decl));
   }

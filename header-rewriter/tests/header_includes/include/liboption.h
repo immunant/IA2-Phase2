@@ -2,8 +2,8 @@
 #include "types.h"
 #include "impl.h"
 
-// CHECK: IA2_WRAP_FUNCTION(Some);
+// LINKARGS: --wrap=Some
 Option Some(int x);
 
-// CHECK: IA2_WRAP_FUNCTION(None);
+// LINKARGS: --wrap=None
 Option None();

@@ -10,8 +10,6 @@
 
 #include "scrub_registers.h"
 
-#define IA2_WRAP_FUNCTION(name)
-
 #define XSTR(s) STR(s)
 #define STR(s) #s
 #define PASTE3_(x, y, z) x##y##z

@@ -1,7 +1,7 @@
 /*
 RUN: cp %s %t.h
 RUN: ia2-header-rewriter %t.c %t.h -- -I%resource_dir
-RUN: cat %t.h | sed 's/^.*CHECK.*$//' | FileCheck %s
+RUN: cat %t.c.args | FileCheck --check-prefix=LINKARGS %s
 RUN: %binary_dir/tests/minimal/minimal-main | diff %S/../Output/minimal.out -
 RUN: readelf -lW %binary_dir/tests/minimal/minimal-main | FileCheck --check-prefix=SEGMENTS %s
 */
@@ -13,13 +13,13 @@ RUN: readelf -lW %binary_dir/tests/minimal/minimal-main | FileCheck --check-pref
 #pragma once
 
 // This function does nothing
-// CHECK: IA2_WRAP_FUNCTION(foo);
+// LINKARGS: --wrap=foo
 void foo();
 
 // This returns an integer
-// CHECK: IA2_WRAP_FUNCTION(return_val);
+// LINKARGS: --wrap=return_val
 int return_val();
 
 // This takes an integer
-// CHECK: IA2_WRAP_FUNCTION(arg1);
+// LINKARGS: --wrap=arg1
 void arg1(int x);

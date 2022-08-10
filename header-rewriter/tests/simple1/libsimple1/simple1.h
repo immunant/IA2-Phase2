@@ -1,7 +1,7 @@
 /*
 RUN: cp %s %t.h
 RUN: ia2-header-rewriter --output-header %T/simple1_ia2.h %T/wrapper.c %t.h -- -I%resource_dir
-RUN: cat %t.h | sed 's/^.*CHECK.*$//' | FileCheck %s
+RUN: cat %T/wrapper.c.args | FileCheck --check-prefix=LINKARGS %s
 */
 #pragma once
 
@@ -17,14 +17,14 @@ struct SimpleCallbacks {
 // CHECK: typedef struct IA2_fnptr__ZTSPFiiE SimpleMapFn;
 typedef int (*SimpleMapFn)(int);
 
-// CHECK: IA2_WRAP_FUNCTION(simple_new);
+// LINKARGS: --wrap=simple_new
 struct Simple *simple_new(struct SimpleCallbacks);
-// CHECK: IA2_WRAP_FUNCTION(simple_reset);
+// LINKARGS: --wrap=simple_reset
 void simple_reset(struct Simple*);
-// CHECK: IA2_WRAP_FUNCTION(simple_destroy);
+// LINKARGS: --wrap=simple_destroy
 void simple_destroy(struct Simple*);
-// CHECK: IA2_WRAP_FUNCTION(simple_foreach_v1);
+// LINKARGS: --wrap=simple_foreach_v1
 void simple_foreach_v1(struct Simple*, int (*)(int));
-// CHECK: IA2_WRAP_FUNCTION(simple_foreach_v2);
+// LINKARGS: --wrap=simple_foreach_v2
 void simple_foreach_v2(struct Simple*, SimpleMapFn);
 

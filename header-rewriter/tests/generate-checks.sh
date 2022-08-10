@@ -24,7 +24,7 @@ include_path=$2 # where the .head and .typedef-checks files live
 output_path=$3 # the lit-ready header to write
 name=$(basename $header_path)
 func_checks=$(for function in $(list_functions $header_path); do
-	echo "// CHECK: IA2_WRAP_FUNCTION($function);"
+	echo "// LINKARGS: --wrap=$function"
 done)
 truncate -s 0 "$output_path"
 cat "$include_path/${name}.head" >> "$output_path"

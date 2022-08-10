@@ -1,7 +1,7 @@
 /*
 RUN: cp %s %t.h
 RUN: ia2-header-rewriter --omit-wrappers %t.c %t.h -- -I%resource_dir
-RUN: cat %t.h | sed 's/^.*CHECK.*$//' | FileCheck %s
+RUN: sh -c "[ ! -e %t.c.args ]"
 */
 
 #pragma once
@@ -16,11 +16,11 @@ typedef struct {
 } HoldsWordFn;
 
 // We aren't emitting wrappers, so this function should not get wrapped
-// CHECK-NOT: IA2_WRAP_FUNCTION(not_wrapped)
+// LINKARGS-NOT: --wrap=not_wrapped
 // CHECK: void not_wrapped();
 void not_wrapped();
 
 // This function shouldn't get removed or wrapped
-// CHECK-NOT: IA2_WRAP_FUNCTION(untouched_variadics)
+// LINKARGS-NOT: --wrap=untouched_variadics
 // CHECK: void untouched_variadics(int a, ...);
 void untouched_variadics(int a, ...);

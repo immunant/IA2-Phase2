@@ -2,23 +2,23 @@
 RUN: sh -c "for hdr in avformat.h avio.h; do %ia2_generate_checks $(pkg-config --variable includedir libavformat)/libavformat/$hdr %S/include %T/$hdr; done"
 RUN: ia2-header-rewriter --output-header %T/fn_ptr_ia2_avformat.h %T/wrapper.c %T/avformat.h %T/avio.h -- -I%resource_dir -I%ia2_include
 
-RUN: cat %T/avformat.h | sed 's/^.*CHECK.*$//' | FileCheck %T/avformat.h
-RUN: cat %T/avio.h | sed 's/^.*CHECK.*$//' | FileCheck %T/avio.h
+RUN: cat %T/wrapper.c.args | FileCheck --check-prefix=LINKARGS %T/avformat.h
+RUN: cat %T/wrapper.c.args | FileCheck --check-prefix=LINKARGS %T/avio.h
 
 # libavutil
 RUN: sh -c "for hdr in dict.h version.h macros.h common.h attributes.h mem.h avutil.h rational.h mathematics.h intfloat.h error.h log.h pixfmt.h; do %ia2_generate_checks $(pkg-config --variable includedir libavutil)/libavutil/$hdr %S/include %T/$hdr; done"
 RUN: ia2-header-rewriter --output-header %T/fn_ptr_ia2_avutil.h %T/wrapper.c %T/dict.h %T/version.h %T/macros.h %T/common.h %T/attributes.h %T/mem.h %T/avutil.h %T/rational.h %T/mathematics.h %T/intfloat.h %T/error.h %T/log.h %T/pixfmt.h -- -I%resource_dir -I%ia2_include
 
-RUN: cat %T/dict.h | sed 's/^.*CHECK.*$//' | FileCheck %T/dict.h
+RUN: cat %T/wrapper.c.args | FileCheck --check-prefix=LINKARGS %T/dict.h
 # version.h has only #defines, so it doesn't have anything we would CHECK
 # macros.h has only #defines, so it doesn't have anything we would CHECK
-RUN: cat %T/common.h | sed 's/^.*CHECK.*$//' | FileCheck %T/common.h
+RUN: cat %T/wrapper.c.args | FileCheck --check-prefix=LINKARGS %T/common.h
 # attributes.h has only #defines, so it doesn't have anything we would CHECK
-RUN: cat %T/mem.h | sed 's/^.*CHECK.*$//' | FileCheck %T/mem.h
-RUN: cat %T/avutil.h | sed 's/^.*CHECK.*$//' | FileCheck %T/avutil.h
-RUN: cat %T/rational.h | sed 's/^.*CHECK.*$//' | FileCheck %T/rational.h
-RUN: cat %T/mathematics.h | sed 's/^.*CHECK.*$//' | FileCheck %T/mathematics.h
+RUN: cat %T/wrapper.c.args | FileCheck --check-prefix=LINKARGS %T/mem.h
+RUN: cat %T/wrapper.c.args | FileCheck --check-prefix=LINKARGS %T/avutil.h
+RUN: cat %T/wrapper.c.args | FileCheck --check-prefix=LINKARGS %T/rational.h
+RUN: cat %T/wrapper.c.args | FileCheck --check-prefix=LINKARGS %T/mathematics.h
 # intfloat.h has only #defines and "static inline" functions, so it doesn't have anything we would CHECK for now
-RUN: cat %T/error.h | sed 's/^.*CHECK.*$//' | FileCheck %T/error.h
-RUN: cat %T/log.h | sed 's/^.*CHECK.*$//' | FileCheck %T/log.h
+RUN: cat %T/wrapper.c.args | FileCheck --check-prefix=LINKARGS %T/error.h
+RUN: cat %T/wrapper.c.args | FileCheck --check-prefix=LINKARGS %T/log.h
 # pixfmt.h has only #defines and enums, so it doesn't have anything we would CHECK

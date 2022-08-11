@@ -506,7 +506,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   } else if (as_macro) {
     add_raw_line(aw, "\"call \" #target \"\\n\"");
   } else {
-    add_asm_line(aw, "call __real_"s + name);
+    add_asm_line(aw, "call "s + name);
   }
 
   // After calling the wrapped function, rax and rdx may contain a return value

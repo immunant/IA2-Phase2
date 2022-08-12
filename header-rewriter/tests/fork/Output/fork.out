@@ -1,6 +1,10 @@
 in child
 data in library: 900
-data is 30
+main data is 30
+in lib, about to call fnptr; lib data: 900
+main data is 30
 in parent
 data in library: 900
-data is 30
+main data is 30
+in lib, about to call fnptr; lib data: 900
+main data is 30

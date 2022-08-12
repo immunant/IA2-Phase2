@@ -7,6 +7,11 @@ RUN: %binary_dir/tests/fork/fork-main | diff %S/../Output/fork.out -
 
 #pragma once
 
+typedef void (*Fn)(void);
+
 // This function does nothing, but should get wrapped
-// CHECK: IA2_WRAP_FUNCTION(foo);
-void foo();
+// CHECK: IA2_WRAP_FUNCTION(library_foo);
+void library_foo();
+
+// CHECK: IA2_WRAP_FUNCTION(library_call_fn);
+void library_call_fn(Fn what);

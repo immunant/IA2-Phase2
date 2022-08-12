@@ -1,5 +1,8 @@
 #include "library.h"
 #include <ia2.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/wait.h>
 
 INIT_RUNTIME(1);
 INIT_COMPARTMENT(1);
@@ -18,7 +21,8 @@ int main() {
       printf("fork() failed: %s\n", strerror(errno));
       exit(1);
     }
-    wait(pid);
+    int status;
+    waitpid(pid, &status, 0);
     printf("in parent\n");
     foo();
   }

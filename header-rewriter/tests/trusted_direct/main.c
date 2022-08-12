@@ -1,6 +1,8 @@
+#include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+
 #include <ia2.h>
 #include "plugin.h"
 #define IA2_DEFINE_TEST_HANDLER
@@ -18,7 +20,7 @@ uint32_t secret = 0x09431233;
 bool clean_exit IA2_SHARED_DATA = false;
 
 void print_message(void) {
-    printf("%s: the secret 0x%lx is defined in the main binary\n", __func__, secret);
+    printf("%s: the secret 0x%" PRIx32 " is defined in the main binary\n", __func__, secret);
 }
 
 int main(int argc, char **argv) {

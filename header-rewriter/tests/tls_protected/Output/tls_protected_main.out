@@ -1,0 +1,3 @@
+main: main secret is deadbeef
+library: lib secret is 1eaf1e55
+CHECK_VIOLATION: seg faulted as expected

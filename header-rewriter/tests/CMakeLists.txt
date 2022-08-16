@@ -1,8 +1,5 @@
 enable_testing()
 
-include("../../cmake/define-ia2-wrapper.cmake")
-include("../../cmake/define-test.cmake")
-
 configure_lit_site_cfg(
   ${CMAKE_CURRENT_SOURCE_DIR}/lit.site.cfg.py.in
   ${CMAKE_CURRENT_BINARY_DIR}/lit.site.cfg.py

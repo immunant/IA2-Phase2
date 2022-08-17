@@ -2,6 +2,7 @@
 #include "GenCallAsm.h"
 #include "TypeOps.h"
 #include "clang/AST/AST.h"
+#include "clang/AST/Type.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "clang/ASTMatchers/ASTMatchers.h"
 #include "clang/Basic/FileManager.h"
@@ -117,7 +118,7 @@ struct FunctionWrapper {
     auto fn_name = fn_decl->getNameInfo().getAsString();
 
     auto ret_type = fn_decl->getReturnType();
-    if (ret_type->isFunctionPointerType()) {
+    if (ret_type->isFunctionPointerType() && !ret_type->getAs<clang::TypedefType>()) {
       auto &sm = fn_decl->getASTContext().getSourceManager();
       llvm::errs() << "Function that returns a non-typedefed function pointer"
                       " is not supported, location:"

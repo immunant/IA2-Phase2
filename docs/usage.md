@@ -126,6 +126,13 @@ If direct calls occur in only one direction (e.g. libraries rarely call the main
 binary directly), only one shim is required. To wrap calls between two shared
 libraries in different compartments, the process is the same.
 
+We currently cannot wrap variadic (varargs) functions correctly. To switch
+stacks in that case, we would need to know how many arguments need to be passed
+on the stack, and that requires application-specific knowledge (see #18 for
+details). We emit a warning for variadic functions in processed headers, but we
+preserve the function declaration as-is. This will result in calls to that
+function not switching compartments and running with the caller's permission.
+
 ## Indirect calls
 
 Cross-compartment indirect calls go through call gate wrappers defined by macros

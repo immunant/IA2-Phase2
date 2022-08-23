@@ -252,14 +252,6 @@ public:
     }
     clang::FileEntryRef header_ref = *header_ref_result;
 
-    // Add ia2.h and the output header to the header being rewritten
-    if (!isInitialized(header_ref)) {
-      if (addHeaderImport(header_name, OutputHeader)) {
-        return;
-      }
-      InitializedHeaders.push_back(header_ref);
-    }
-
     // Generate a wrapper for this function
     WrappedFunctions.push_back(FunctionWrapper(fn_decl));
   }
@@ -271,8 +263,6 @@ public:
 
 private:
   std::map<std::string, Replacements> &FileReplacements;
-  // Headers that have included the IA2 header
-  std::vector<clang::FileEntryRef> InitializedHeaders;
   // The wrappers for functions that have been wrapped so far.
   std::vector<FunctionWrapper> WrappedFunctions;
 
@@ -293,28 +283,6 @@ private:
     }
     return std::find(FunctionAllowlist.begin(), FunctionAllowlist.end(),
                      fn_decl->getName().str()) != FunctionAllowlist.end();
-  }
-
-  bool isInitialized(clang::FileEntryRef InputHeader) {
-    return std::find(InitializedHeaders.begin(), InitializedHeaders.end(),
-                     InputHeader) != InitializedHeaders.end();
-  }
-
-  bool addHeaderImport(llvm::StringRef Filename,
-                       llvm::cl::opt<std::string> &OutputHeader) {
-    std::string include = "#include <ia2.h>\n";
-    if (!OutputHeader.empty()) {
-      auto include_output_header =
-          llvm::formatv("#include \"{0}\"\n", OutputHeader);
-      include.append(include_output_header);
-    }
-    auto err = FileReplacements[Filename.str()].add(
-        Replacement(Filename, 0, 0, include));
-    if (err) {
-      llvm::errs() << "Error adding ia2 header import: " << err << '\n';
-      return true;
-    }
-    return false;
   }
 };
 
@@ -438,6 +406,27 @@ public:
 
         m_function_info.insert({mangled_type, fi});
       }
+      // Get a reference to the header file so we can ensure we add our headers
+      // to its imports only the first time we modify it
+      auto header_ref_result =
+          Result.SourceManager->getFileManager().getFileRef(header_name);
+      if (auto err = header_ref_result.takeError()) {
+        llvm::errs() << "Error getting FileEntryRef for '" << header_name
+                     << "' ("
+                     << old_decl->getLocation().printToString(
+                            *Result.SourceManager)
+                     << "): " << err << '\n';
+        return;
+      }
+
+      clang::FileEntryRef header_ref = *header_ref_result;
+      // Add ia2.h and the output header to the header being rewritten
+      if (!isInitialized(header_ref)) {
+        if (addHeaderImport(header_name, OutputHeader)) {
+          return;
+        }
+        InitializedHeaders.push_back(header_ref);
+      }
     }
   }
 
@@ -448,6 +437,30 @@ public:
 private:
   std::map<std::string, FunctionInfo> m_function_info;
   std::map<std::string, Replacements> &FileReplacements;
+  // Headers that have included the IA2 header
+  std::vector<clang::FileEntryRef> InitializedHeaders;
+
+  bool isInitialized(clang::FileEntryRef InputHeader) {
+    return std::find(InitializedHeaders.begin(), InitializedHeaders.end(),
+                     InputHeader) != InitializedHeaders.end();
+  }
+
+  bool addHeaderImport(llvm::StringRef Filename,
+                       llvm::cl::opt<std::string> &OutputHeader) {
+    std::string include = "#include <ia2.h>\n";
+    if (!OutputHeader.empty()) {
+      auto include_output_header =
+          llvm::formatv("#include \"{0}\"\n", OutputHeader);
+      include.append(include_output_header);
+    }
+    auto err = FileReplacements[Filename.str()].add(
+        Replacement(Filename, 0, 0, include));
+    if (err) {
+      llvm::errs() << "Error adding ia2 header import: " << err << '\n';
+      return true;
+    }
+    return false;
+  }
 };
 
 static std::string generate_output_header(

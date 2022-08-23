@@ -286,8 +286,15 @@ struct PhdrSearchArgs {
   const void *address;
 };
 
-// The number of ELF sections that may be ignored by protect_pages
-#define NUM_IGNORED_SECTIONS 2
+static const char *ignored_sections[][2] = {
+    {"__start_ia2_shared_data", "__stop_ia2_shared_data"},
+    {"__start_ia2_shared_rodata", "__stop_ia2_shared_rodata"},
+};
+#define IGNORED_SECTION_COUNT (sizeof(ignored_sections) / sizeof(ignored_sections[0]))
+
+// The number of ranges that may be ignored by protect_pages, includes an extra
+// slot for the DYNAMIC section
+#define NUM_IGNORED_RANGES IGNORED_SECTION_COUNT + 1
 // The number of program headers to allocate space for in protect_pages. This is
 // only an estimate of the maximum value of dlpi_phnum below.
 #define NUM_PHDRS 20
@@ -327,20 +334,17 @@ static int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
   if (!this_compartment) {
     return 0;
   }
-  const char *ignored_sections[NUM_IGNORED_SECTIONS][2] = {
-      {"__start_ia2_shared_data", "__stop_ia2_shared_data"},
-      {"__start_ia2_shared_rodata", "__stop_ia2_shared_rodata"},
-  };
   struct AddressRange {
     uint64_t start;
     uint64_t end;
   };
-  struct AddressRange ignored_ranges[NUM_IGNORED_SECTIONS];
+  struct AddressRange ignored_ranges[NUM_IGNORED_RANGES] = {0};
   void *lib = dlopen(info->dlpi_name, RTLD_NOW);
   if (!lib) {
     exit(-1);
   }
-  for (size_t i = 0; i < NUM_IGNORED_SECTIONS; i++) {
+
+  for (size_t i = 0; i < IGNORED_SECTION_COUNT; i++) {
     // Clear any potential old error conditions
     dlerror();
     ignored_ranges[i].start = (uint64_t)dlsym(lib, ignored_sections[i][0]);
@@ -371,7 +375,7 @@ static int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
   // Allocate one SegmentInfo per program header plus 2 extra in case
   // ia2_shared_data or ia2_shared_rodata have non-zero size and split their
   // corresponding segments.
-  struct SegmentInfo segment_info[NUM_PHDRS + NUM_IGNORED_SECTIONS] = {0};
+  struct SegmentInfo segment_info[NUM_PHDRS + NUM_IGNORED_RANGES] = {0};
 
   // TODO: We avoid dynamically allocating space for each of the `dlpi_phnum`
   // the SegmentInfo structs for simplicity. NUM_PHDRS is only an estimate, so
@@ -383,6 +387,19 @@ static int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
   // segment_info[dlpi_phnum]. If a shared section doesn't exist, the unused
   // `SegmentInfo` will have its size field set to zero
   size_t extra_seg_info = info->dlpi_phnum;
+
+  // Add the ignored range for the DYNAMIC section. If the library is built with
+  // relro this section should be part of the relro region, so it at least won't
+  // be trivially writable without an mprotect call.
+  for (size_t i = 0; i < info->dlpi_phnum; i++) {
+    Elf64_Phdr phdr = info->dlpi_phdr[i];
+    if (phdr.p_type == PT_DYNAMIC) {
+      struct AddressRange *dynamic_range = &ignored_ranges[NUM_IGNORED_RANGES - 1];
+      dynamic_range->start = (info->dlpi_addr + phdr.p_vaddr) & ~0xFFFUL;
+      dynamic_range->end =
+          (dynamic_range->start + phdr.p_memsz + 0xFFFUL) & ~0xFFFUL;
+    }
+  }
 
   for (size_t i = 0; i < info->dlpi_phnum; i++) {
     Elf64_Phdr phdr = info->dlpi_phdr[i];
@@ -403,7 +420,7 @@ static int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
     Elf64_Addr stop = (start + phdr.p_memsz + 0xFFFUL) & ~0xFFFUL;
     // TODO: This logic assumes that each segment may only be split by one
     // shared section
-    for (size_t j = 0; j < NUM_IGNORED_SECTIONS; j++) {
+    for (size_t j = 0; j < NUM_IGNORED_RANGES; j++) {
       if ((ignored_ranges[j].start <= start) &&
           (ignored_ranges[j].end >= start)) {
         start = ignored_ranges[j].end;
@@ -426,7 +443,7 @@ static int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
     segment_info[i].size = len;
     segment_info[i].prot = prot;
   }
-  for (size_t i = 0; i < info->dlpi_phnum + NUM_IGNORED_SECTIONS; i++) {
+  for (size_t i = 0; i < info->dlpi_phnum + NUM_IGNORED_RANGES; i++) {
     // Check if any of the extra entries weren't used
     if (segment_info[i].size != 0) {
       int mprotect_err =

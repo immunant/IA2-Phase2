@@ -294,7 +294,7 @@ static const char *ignored_sections[][2] = {
 
 // The number of ranges that may be ignored by protect_pages, includes an extra
 // slot for the DYNAMIC section
-#define NUM_IGNORED_RANGES IGNORED_SECTION_COUNT + 1
+#define NUM_IGNORED_RANGES (IGNORED_SECTION_COUNT + 1)
 // The number of program headers to allocate space for in protect_pages. This is
 // only an estimate of the maximum value of dlpi_phnum below.
 #define NUM_PHDRS 20

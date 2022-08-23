@@ -134,11 +134,11 @@ exported headers define all function pointer types which it may receive from or
 send to another compartment. With this assumption the rewriter has an
 `--output-header` option which generates a header with the indirect wrapper
 macros. The rewritten exported headers will include the output header by its
-full path, so using the indirect wrappers should not require adding any new
+full path, so using the indirect wrappers does not require adding any new
 includes.
 
-Let's again consider a main binary with pkey 1 and a library with the untrusted
-pkey. This time the library exports `ptr.h` with the following
+Let's again consider a main binary with pkey 1 and a library with untrusted pkey
+0. This time the library exports `ptr.h` with the following
 
 ```
 typedef int(*Fn)(int);
@@ -150,16 +150,38 @@ Running the rewriter on `ptr.h` will change `Fn` from a typedef for a function
 pointer to a typedef for an opaque struct. The output header will then have the
 macros needed to manually wrap function pointers in the main binary's source.
 Function pointers that will be sent to another compartment or are visible to the
-library (e.g. global variable) must be wrapped as follows. Failure to manually
+library (e.g. global variables) must be wrapped as follows. Failure to manually
 wrap all cross-compartment function pointers or using the incorrect mangled type
 name, will give a warning when compiling the main binary. This should be
 converted to a hard-error with `-Werror=incompatible-pointer-types`.
 
+To send a function pointer to another compartment, you must first define a wrapper with
+
+```
+IA2_DEFINE(target_fn, mangled_fnptr_type, target_pkey);
+```
+
+This creates a wrapper to call `target_fn` and transition from untrusted pkey 0
+to `target_pkey`. `mangled_fnptr_type` is the mangled function pointer type
+which can be found by looking at the definition of `Fn` in the rewritten
+`ptr.h`. The mangled function pointer type may also be found in the errors shown
+when attempting to compile the source with the rewritten headers, though this
+depends on the compiler and how the function pointer is used.
+
+The wrapper may then be referenced (and passed to a function) with
+```
+IA2_WRAPPER(target_fn, target_pkey)
+```
+
 ```
 // main.c
-// ptr.h includes ia2.h which defines the IA2_* macros and the output header
-// which defines the mangled type macros (i.e. _ZTSPFiiE).
+#include <ia2.h>
+// The rewritten ptr.h includes ia2.h for the IA2_* macros. It also includes the
+// output header which defines the mangled type macros (i.e. _ZTSPFiiE).
 #include "ptr.h"
+
+INIT_RUNTIME(1);
+INIT_COMPARTMENT(1);
 
 // This creates an opaque struct set to NULL.
 Fn uninit = IA2_NULL_FNPTR(_ZTSPFiiE);
@@ -170,28 +192,32 @@ int main() {
     // With the modified ptr.h this will fail to compile.
     // set_fn_ptr(incr);
 
-    // This defines a wrapper to call `incr` with pkey 1.
+    // This defines a wrapper to call `incr` and change the PKRU from the
+    // untrusted pkey to pkey 1.
     IA2_DEFINE_WRAPPER(incr, _ZTSPFiiE, 1);
 
-    // If this wrapper was already defined in another source file, you must
-    // declare it as follows to avoid multiple definition linker errors
+    // If the wrapper was already defined in another source file, you must
+    // instead declare it to avoid multiple definition linker errors
     // IA2_DECLARE_WRAPPER(incr, _ZTSPFiiE, 1);
 
-    // This passes the wrapper defined on the previous line as an argument to
-    // set_fn_ptr
+    // This passes the wrapper defined/declared on the previous line as an
+    // argument to set_fn_ptr
     set_fn_ptr(IA2_WRAPPER(incr, 1));
 
-    // Alternatively in a function's scope, IA2_DEFINE_WRAPPER_FN_SCOPE may be
-    // used as follows to define a wrapper in a statement expression that
-    // expands to a pointer to the wrapper. This and the other IA2_*_FN_SCOPE
-    // macros may be used to minimize the number of changes/mangled type names
-    // needed.
+    // Alternatively IA2_DEFINE_WRAPPER_FN_SCOPE may be used as follows to both
+    // define a wrapper and get a pointer to it. This reduces the number of
+    // changes that need to be made, but may only be used in functions.
     // set_fn_ptr(IA2_DEFINE_WRAPPER_FN_SCOPE(incr, _ZTSPFiiE, 1));
 }
 ```
 
 To call a function pointer received from another compartment use
-`IA2_CALL` to create a function pointer from an opaque struct.
+```
+IA2_CALL(target_fn, mangled_fnptr_type, caller_pkey)(args)
+```
+
+This creates a wrapper to call `target_fn` and transition from `caller_pkey` to
+untrusted pkey 0.
 
 ```
 // main.c
@@ -202,16 +228,25 @@ int main() {
     // This will fail to compile with modified ptr.h
     // decr();
 
-    // The NULL check must be done with IA2_FNPTR_UNWRAPPER because it always
-    // returns a non-null pointer.
     if (!IA2_FNPTR_IS_NULL(decr)) {
-        // This turns the opaque struct into a function pointer that
-        // adds call gates to `decr`. This function pointer must be called
-        // immediately.
-        IA2_CALL(decr, _ZTSPFiiE, 0, UNTRUSTED)();
+        // This defines a wrapper to call decr and change the PKRU from pkey 1
+        // to the untrusted pkey. The function pointer that this expands to must
+        // be called immediately after invoking the macro.
+        IA2_CALL(decr, _ZTSPFiiE, 1)();
     }
 }
 ```
+
+In both these examples since one side is using untrusted pkey 0 (the library),
+function pointers only need to be wrapped on the side with the trusted pkey.
+However, we currently assume that trusted compartments all mutually distrust
+each other. This means that to send function pointers between compartments with
+two different trusted pkeys, function pointers need to be wrapped on both sides.
+
+Also as shown above, ia2.h contains additional `IA2_*` macros for added
+flexibility. In particular the IA2_*_FN_SCOPE macros are generally more
+ergonomic, but may not be used in the global scope. See the documentation in
+ia2.h for more info.
 
 ## Shared headers
 

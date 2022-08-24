@@ -14,7 +14,7 @@ set(IA2_TEST_DEPENDS ia2-header-rewriter)
 
 add_lit_testsuite(check-ia2 "Running the IA2 tests"
   ${CMAKE_CURRENT_BINARY_DIR}
-  DEPENDS ${IA2_TEST_DEPENDS}
+  DEPENDS ${IA2_TEST_DEPENDS} partition-alloc
   )
 set_target_properties(check-ia2 PROPERTIES FOLDER "tests")
 

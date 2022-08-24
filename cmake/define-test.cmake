@@ -37,7 +37,8 @@ function(define_shared_lib)
     target_link_options(${LIBNAME} PRIVATE "-Wl,-z,now"
         ${SHARED_LIB_LINK_OPTS})
     target_link_libraries(${LIBNAME} PRIVATE
-        ${SHARED_LIB_LINK_LIBS})
+        ${SHARED_LIB_LINK_LIBS}
+        partition-alloc)
     target_link_libraries(${LIBNAME} PRIVATE
         libia2)
 endfunction()
@@ -99,6 +100,7 @@ function(define_test)
     target_link_libraries(${MAIN} PRIVATE
         "dl"
         libia2
-        ${WRAPPERS})
+        ${WRAPPERS}
+        partition-alloc)
     add_dependencies(check-ia2 ${MAIN})
 endfunction()

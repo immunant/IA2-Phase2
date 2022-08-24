@@ -9,7 +9,7 @@
 /cmake-build-release
 
 # ignore likely build dirs
-[Bb]uild*/
+/[Bb]uild*/
 
 # CMake artefacts
 CMakeLists.txt.user

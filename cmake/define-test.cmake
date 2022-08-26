@@ -30,6 +30,7 @@ function(define_shared_lib)
     if(LIBIA2_INSECURE)
         target_compile_definitions(${LIBNAME} PUBLIC LIBIA2_INSECURE=1)
     endif()
+    target_compile_definitions(${LIBNAME} PRIVATE _GNU_SOURCE)
     target_compile_options(${LIBNAME} PRIVATE "-fPIC")
     target_include_directories(${LIBNAME} BEFORE PRIVATE
         ${INCLUDE_DIR}
@@ -79,6 +80,7 @@ function(define_test)
     if(LIBIA2_INSECURE)
         target_compile_definitions(${MAIN} PUBLIC LIBIA2_INSECURE=1)
     endif()
+    target_compile_definitions(${MAIN} PRIVATE _GNU_SOURCE)
     target_compile_options(${MAIN} PRIVATE
         "-Werror=incompatible-pointer-types"
         "-fsanitize=undefined"

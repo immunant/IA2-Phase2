@@ -163,10 +163,9 @@ function(define_ia2_wrapper)
           ${REWRITTEN_HEADERS}
           --
           -fgnuc-version=6
-          -D_GNU_SOURCE
+          -I ${REWRITTEN_HEADER_DIR}
           -isystem ${C_SYSTEM_INCLUDE}
           -isystem ${C_SYSTEM_INCLUDE_FIXED}
-          -I ${IA2_INCLUDE_DIR}
         DEPENDS ${HEADER_SRCS} ia2-header-rewriter
         VERBATIM)
 

@@ -179,6 +179,7 @@ function(define_ia2_wrapper)
     if(LIBIA2_INSECURE)
         target_compile_definitions(${WRAPPER_TARGET} PUBLIC LIBIA2_INSECURE=1)
     endif()
+    target_compile_definitions(${WRAPPER_TARGET} PRIVATE _GNU_SOURCE)
     target_compile_options(${WRAPPER_TARGET} PRIVATE
         "-Wno-deprecated-declarations"
         ${DEFINE_CALLER_PKEY})

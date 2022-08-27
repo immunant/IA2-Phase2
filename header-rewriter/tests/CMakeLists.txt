@@ -11,7 +11,6 @@ configure_lit_site_cfg(
   )
 
 set(IA2_TEST_DEPENDS ia2-header-rewriter)
-set(IA2_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/../include/)
 
 add_lit_testsuite(check-ia2 "Running the IA2 tests"
   ${CMAKE_CURRENT_BINARY_DIR}

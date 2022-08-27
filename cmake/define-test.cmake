@@ -33,13 +33,13 @@ function(define_shared_lib)
     target_compile_definitions(${LIBNAME} PRIVATE _GNU_SOURCE)
     target_compile_options(${LIBNAME} PRIVATE "-fPIC")
     target_include_directories(${LIBNAME} BEFORE PRIVATE
-        ${INCLUDE_DIR}
-        # Add top-level include directory for segfault handler
-        ${IA2_INCLUDE_DIR})
+        ${INCLUDE_DIR})
     target_link_options(${LIBNAME} PRIVATE "-Wl,-z,now"
         ${SHARED_LIB_LINK_OPTS})
     target_link_libraries(${LIBNAME} PRIVATE
         ${SHARED_LIB_LINK_LIBS})
+    target_link_libraries(${LIBNAME} PRIVATE
+        libia2)
 endfunction()
 
 
@@ -95,11 +95,10 @@ function(define_test)
         "-Wl,-T${LINKER_SCRIPT}"
         "-Wl,--dynamic-list=${DYN_SYM}")
     target_include_directories(${MAIN} BEFORE PRIVATE
-        ${INCLUDE_DIR}
-        # Add top-level include directory for segfault handler
-        ${IA2_INCLUDE_DIR})
+        ${INCLUDE_DIR})
     target_link_libraries(${MAIN} PRIVATE
         "dl"
+        libia2
         ${WRAPPERS})
     add_dependencies(check-ia2 ${MAIN})
 endfunction()

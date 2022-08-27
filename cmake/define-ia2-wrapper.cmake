@@ -190,11 +190,10 @@ function(define_ia2_wrapper)
 
     # Add IA2 and wrapper include dirs
     target_include_directories(${WRAPPER_TARGET}
-        BEFORE PUBLIC ${IA2_INCLUDE_DIR}
         INTERFACE ${REWRITTEN_HEADER_DIR}
     )
 
-    add_dependencies(${WRAPPER_TARGET} libia2)
+    target_link_libraries(${WRAPPER_TARGET} PRIVATE libia2)
 
     return()
 endfunction()

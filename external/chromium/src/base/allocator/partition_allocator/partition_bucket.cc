@@ -36,6 +36,9 @@
 #include "base/allocator/partition_allocator/tagging.h"
 #include "build/build_config.h"
 
+#include <sys/mman.h>
+#include <ia2_get_pkey.h>
+
 namespace partition_alloc::internal {
 
 namespace {
@@ -167,6 +170,18 @@ uintptr_t ReserveMemoryFromGigaCage(pool_handle pool,
 #endif
 
   PA_DCHECK(!(reserved_address % kSuperPageSize));
+
+  // TODO: This call to ia2_get_pkey will always return a pkey between 1 and 15. For shared
+  // allocations (i.e. pkey 0) we currently use the glibc allocator. Ideally we should propagate the
+  // allocator's pkey down to this function when allocations trigger calls to it so we can use the
+  // same allocator for shared and private allocations.
+  size_t pkey = ::ia2_get_pkey();
+  int rc = pkey_mprotect((void *)reserved_address, requested_size, PROT_READ | PROT_WRITE, pkey);
+  if (rc != 0) {
+      printf("Compartment %d failed to pkey_mprotect reserved heap memory (%d)", pkey, rc);
+      exit(-1);
+  }
+
   return reserved_address;
 }
 

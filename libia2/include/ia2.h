@@ -1,4 +1,9 @@
 #pragma once
+
+#ifndef _GNU_SOURCE
+#error This header requires _GNU_SOURCE to be defined for the declaration of struct dl_phdr_info. Please add -D_GNU_SOURCE to your compilation flags.
+#endif
+
 #include <assert.h>
 #include <errno.h>
 #include <link.h>

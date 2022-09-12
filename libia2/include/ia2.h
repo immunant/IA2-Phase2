@@ -217,6 +217,7 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
     if (!stack) {                                                              \
       exit(-1);                                                                \
     }                                                                          \
+    if (!i) return;                                                            \
     int res = pkey_mprotect(stack, STACK_SIZE, PROT_READ | PROT_WRITE, i);     \
     if (res == -1) {                                                           \
       printf("Failed to mprotect stack %d (%d)\n", i, errno);                  \

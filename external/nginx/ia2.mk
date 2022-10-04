@@ -14,7 +14,7 @@ PERL_SCRIPT = $(NGINX_ROOT)/src/http/modules/perl/hello.pm
 
 C_SYSTEM_INCLUDE = $(shell $(CC) -print-file-name=include)
 C_SYSTEM_INCLUDE_FIXED = $(shell $(CC) -print-file-name=include-fixed)
-PERL_SYSTEM_INCLUDE = /usr/lib/x86_64-linux-gnu/perl/5.30.0/CORE
+PERL_SYSTEM_INCLUDE = $(shell perl -MConfig -e 'print $$Config{archlib}')/CORE
 
 # This directory is for the main binary's shim which the module must link
 # against.

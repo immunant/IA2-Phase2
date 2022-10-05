@@ -19,7 +19,7 @@ define_ia2_wrapper(
 # Build the plugin lib
 define_shared_lib(
     SRCS plugin.c
-    LINK_OPTS "-Wl,-T${libia2_BINARY_DIR}/padding.ld"
+    LINK_OPTS "-Wl,-T${libia2_BINARY_DIR}/padding_lib.ld"
     INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR}/
 )
 

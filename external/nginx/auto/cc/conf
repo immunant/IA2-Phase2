@@ -6,7 +6,7 @@
 LINK="\$(CC)"
 
 MAIN_LINK=
-MODULE_LINK="-shared"
+MODULE_LINK="-shared -Wl,@$NGX_OBJS/main_shim_src/main_shim.c.args"
 
 ngx_include_opt="-I "
 ngx_compile_opt="-c"

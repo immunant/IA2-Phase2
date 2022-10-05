@@ -89,7 +89,8 @@ if [ "$NGX_SYSTEM" = "Darwin" ]; then
 fi
 
 # stop on warning
-CFLAGS="$CFLAGS -Werror"
+# TODO(nginx-rewrite): uncomment this
+# CFLAGS="$CFLAGS -Werror"
 
 # debug
 CFLAGS="$CFLAGS -g"

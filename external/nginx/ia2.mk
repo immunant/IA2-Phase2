@@ -2,7 +2,7 @@ NGINX_ROOT = $(dir $(abspath $(lastword ($MAKEFILE_LIST))))
 
 # The root of the IA2-Phase2 repo
 REPO_ROOT = $(abspath $(NGINX_ROOT)/../..)
-IA2_INC = $(REPO_ROOT)/include/
+IA2_INC = $(REPO_ROOT)/libia2/include/
 IA2_LIB = $(REPO_ROOT)/libia2/
 
 HEADER_REWRITER ?= $(REPO_ROOT)/build/header-rewriter/ia2-header-rewriter
@@ -14,6 +14,7 @@ PERL_SCRIPT = $(NGINX_ROOT)/src/http/modules/perl/hello.pm
 
 C_SYSTEM_INCLUDE = $(shell $(CC) -print-file-name=include)
 C_SYSTEM_INCLUDE_FIXED = $(shell $(CC) -print-file-name=include-fixed)
+PERL_SYSTEM_INCLUDE = /usr/lib/x86_64-linux-gnu/perl/5.30.0/CORE
 
 # This directory is for the main binary's shim which the module must link
 # against.
@@ -35,7 +36,6 @@ main_shim_src:
 		$(MAIN_SHIM_SRC)/core/ngx_config.h \
 		$(MAIN_SHIM_SRC)/core/ngx_core.h \
 		$(MAIN_SHIM_SRC)/http/ngx_http.h \
-		--shared-headers \
 		$(MAIN_SHIM_SRC)/http/modules/perl/ngx_http_perl_module.h \
 		--output-header \
 		$(MAIN_SHIM_SRC)/main_shim_fn_ptr.h \
@@ -51,10 +51,13 @@ main_shim_src:
 		-I $(BUILD_DIR) \
 		-isystem $(C_SYSTEM_INCLUDE) \
 		-isystem $(C_SYSTEM_INCLUDE_FIXED) \
+		-isystem $(PERL_SYSTEM_INCLUDE)
 
+#TODO(nginx-rebase): make sure we're passing .args to the right place
 main_shim: main_shim_src
 	gcc -shared $(MAIN_SHIM_SRC)/main_shim.c -Wl,-z,now \
-		-Wl,--version-script,$(MAIN_SHIM_SRC)/main_shim.c.syms \
+	    -Wl,-soname,libmain_shim.so \
+		-D_GNU_SOURCE \
 		-DCALLER_PKEY=2 -I $(IA2_INC) \
 		-o $(BUILD_DIR)/libmain_shim.so
 

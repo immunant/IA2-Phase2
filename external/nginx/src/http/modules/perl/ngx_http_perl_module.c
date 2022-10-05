@@ -67,6 +67,7 @@ static void ngx_http_perl_exit(ngx_cycle_t *cycle);
 IA2_DEFINE_WRAPPER(ngx_conf_set_str_array_slot, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 2);
 IA2_DEFINE_WRAPPER(ngx_http_perl, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 2);
 IA2_DEFINE_WRAPPER(ngx_http_perl_set, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 2);
+IA2_DEFINE_WRAPPER(ngx_http_perl_sleep_handler, _ZTSPFvP18ngx_http_request_sE, 2);
 
 IA2_SHARED_STR(perl_modules_str, "perl_modules");
 IA2_SHARED_STR(perl_require_str, "perl_require");

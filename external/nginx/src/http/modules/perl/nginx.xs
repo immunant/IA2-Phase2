@@ -27,6 +27,7 @@
     SvPOK_on(TARG);                                                           \
     sv_setpvn(TARG, (char *) p, len)
 
+IA2_SHARED_DATA ngx_chain_t   out;
 
 static ngx_int_t
 ngx_http_perl_sv2str(pTHX_ ngx_http_request_t *r, ngx_str_t *s, SV *sv)
@@ -69,7 +70,6 @@ static ngx_int_t
 ngx_http_perl_output(ngx_http_request_t *r, ngx_http_perl_ctx_t *ctx,
     ngx_buf_t *b)
 {
-    ngx_chain_t   out;
 #if (NGX_HTTP_SSI)
     ngx_chain_t  *cl;
 
@@ -440,7 +440,7 @@ has_request_body(r, next)
         r->request_body_file_log_level = 0;
     }
 
-    rc = ngx_http_read_client_request_body(r, ngx_http_perl_handle_request);
+    rc = ngx_http_read_client_request_body(r, IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_perl_handle_request, _ZTSPFvP18ngx_http_request_sE, 2));
 
     if (rc >= NGX_HTTP_SPECIAL_RESPONSE) {
         ctx->error = 1;
@@ -1169,7 +1169,7 @@ sleep(r, sleep, next)
     r->connection->write->delayed = 1;
     ngx_add_timer(r->connection->write, sleep);
 
-    r->write_event_handler = ngx_http_perl_sleep_handler;
+    r->write_event_handler = IA2_DECLARE_WRAPPER_FN_SCOPE(ngx_http_perl_sleep_handler, _ZTSPFvP18ngx_http_request_sE, 2);
     r->main->count++;
 
 

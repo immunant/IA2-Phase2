@@ -2,7 +2,9 @@ cmake_minimum_required(VERSION 3.12)
 project(IA2HeaderRewriter)
 
 find_package(LLVM REQUIRED CONFIG)
+message(STATUS "Found LLVM: ${LLVM_DIR} (found version \"${LLVM_PACKAGE_VERSION}\")")
 find_package(Clang REQUIRED CONFIG)
+message(STATUS "Found Clang: ${Clang_DIR}")
 
 # We use the lit CMake functions from LLVM
 list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")

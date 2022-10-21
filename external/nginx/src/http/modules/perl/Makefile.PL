@@ -19,8 +19,8 @@ WriteMakefile(
     ABSTRACT_FROM     => 'nginx.pm',     # retrieve abstract from module
     AUTHOR            => 'Igor Sysoev',
 
-    CC                => "clang-12",
-    LD                => "clang-12",
+    CC                => "clang",
+    LD                => "clang",
     CCFLAGS           => "$ENV{NGX_PM_CFLAGS}",
     OPTIMIZE          => '-O',
 

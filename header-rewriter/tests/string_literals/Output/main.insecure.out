@@ -1,6 +1,0 @@
-main: checking if the main secret string is safe
-read_main_strings: this is the main binary's shared string
-
-read_main_strings: this is the main binary's secret string
-
-CHECK_VIOLATION: did not seg fault as expected

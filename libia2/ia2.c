@@ -10,8 +10,13 @@ static const char *shared_sections[][2] = {
     {"__start_ia2_shared_rodata", "__stop_ia2_shared_rodata"},
 };
 
-// The number of ELF sections that may be shared by protect_pages
-#define NUM_SHARED_RANGES (sizeof(shared_sections) / sizeof(shared_sections[0]))
+// The number of special ELF sections that may be shared by protect_pages
+#define NUM_SHARED_SECTIONS                                                    \
+  (sizeof(shared_sections) / sizeof(shared_sections[0]))
+
+// Reserve one extra shared range for the entire read-only segment that we are
+// also sharing, in addition to the special-cased sections above.
+#define NUM_SHARED_RANGES (NUM_SHARED_SECTIONS + 1)
 
 // The number of program headers to allocate space for in protect_pages. This is
 // only an estimate of the maximum value of dlpi_phnum below.
@@ -72,8 +77,10 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
     exit(-1);
 
   struct AddressRange shared_ranges[NUM_SHARED_RANGES] = {0};
-  struct AddressRange *cur_range = &shared_ranges[0];
-  for (size_t i = 0; i < NUM_SHARED_RANGES; i++) {
+  size_t shared_range_count = 0;
+  for (size_t i = 0; i < NUM_SHARED_SECTIONS; i++) {
+    struct AddressRange *cur_range = &shared_ranges[shared_range_count];
+
     // Clear any potential old error conditions
     dlerror();
 
@@ -110,7 +117,20 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
       exit(-1);
     }
 
-    cur_range++;
+    shared_range_count++;
+  }
+
+  // Find the RELRO section, if any
+  for (size_t i = 0; i < info->dlpi_phnum; i++) {
+    Elf64_Phdr phdr = info->dlpi_phdr[i];
+    if (phdr.p_type != PT_GNU_RELRO)
+      continue;
+
+    struct AddressRange *relro_range = &shared_ranges[shared_range_count++];
+    relro_range->start = (info->dlpi_addr + phdr.p_vaddr) & ~0xFFFUL;
+    relro_range->end = (relro_range->start + phdr.p_memsz + 0xFFFUL) & ~0xFFFUL;
+
+    break;
   }
 
   // TODO: We avoid dynamically allocating space for each of the `dlpi_phnum`
@@ -132,49 +152,52 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
 
   for (size_t i = 0; i < info->dlpi_phnum; i++) {
     Elf64_Phdr phdr = info->dlpi_phdr[i];
-    if ((phdr.p_type != PT_LOAD) && (phdr.p_type != PT_GNU_RELRO)) {
+    if ((phdr.p_type != PT_LOAD)) {
       continue;
     }
 
-    int prot = segment_flags_to_access_flags(phdr.p_flags);
+    if ((phdr.p_flags & PF_W) == 0) {
+      // We don't need to protect any read-only memory that was mapped in from
+      // the object file. This data is not assumed to be secret and can be
+      // shared by default.
+      continue;
+    }
+
+    int access_flags = segment_flags_to_access_flags(phdr.p_flags);
 
     Elf64_Addr start = (info->dlpi_addr + phdr.p_vaddr) & ~0xFFFUL;
-    Elf64_Addr stop = (start + phdr.p_memsz + 0xFFFUL) & ~0xFFFUL;
-    // TODO: This logic assumes that each segment may only be split by one
-    // shared section
-    for (size_t j = 0; j < NUM_SHARED_RANGES; j++) {
-      if ((shared_ranges[j].start <= start) &&
-          (shared_ranges[j].end >= start)) {
-        start = shared_ranges[j].end;
-      } else if ((shared_ranges[j].end >= stop) &&
-                 (shared_ranges[j].start <= stop)) {
-        stop = shared_ranges[j].start;
-      } else if ((shared_ranges[j].end <= stop) &&
-                 (shared_ranges[j].start >= start)) {
-        size_t len = stop - shared_ranges[j].end;
-        segment_info[extra_seg_info].addr = shared_ranges[j].end;
-        segment_info[extra_seg_info].size = len;
-        segment_info[extra_seg_info].prot = prot;
+    Elf64_Addr seg_end = (start + phdr.p_memsz + 0xFFFUL) & ~0xFFFUL;
+    while (start < seg_end) {
+      Elf64_Addr cur_end = seg_end;
 
-        stop = shared_ranges[j].start;
-        extra_seg_info += 1;
+      // Adjust start and cur_end to bound the first region between start and
+      // seg_end that does not overlap with a shared range
+      for (size_t j = 0; j < shared_range_count; j++) {
+        // Look for a shared range overlapping the start of the current range
+        // and remove the overlapping portion.
+        if (shared_ranges[j].start <= start && shared_ranges[j].end > start) {
+          start = shared_ranges[j].end;
+        }
+
+        // Look for a shared range overlapping any of the rest of the current
+        // range, and trim the end of the current range to the start of that
+        // shared range.
+        if (shared_ranges[j].start > start &&
+            shared_ranges[j].start < cur_end) {
+          cur_end = shared_ranges[j].start;
+        }
       }
-    }
-    size_t len = stop - start;
-    segment_info[i].addr = start;
-    segment_info[i].size = len;
-    segment_info[i].prot = prot;
-  }
 
-  for (size_t i = 0; i < info->dlpi_phnum + NUM_SHARED_RANGES; i++) {
-    // Check if any of the extra entries weren't used
-    if (segment_info[i].size != 0) {
-      int mprotect_err =
-          pkey_mprotect((void *)segment_info[i].addr, segment_info[i].size,
-                        segment_info[i].prot, search_args->pkey);
-      if (mprotect_err != 0) {
-        printf("pkey_mprotect failed: %s\n", strerror(errno));
-        exit(-1);
+      if (cur_end > start) {
+        int mprotect_err = pkey_mprotect((void *)start, cur_end - start,
+                                         access_flags, search_args->pkey);
+        if (mprotect_err != 0) {
+          printf("pkey_mprotect failed: %s\n", strerror(errno));
+          exit(-1);
+        }
+
+        // Look for the next non-overlapping region
+        start = cur_end;
       }
     }
   }

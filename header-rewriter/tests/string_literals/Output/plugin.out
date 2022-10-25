@@ -1,4 +1,0 @@
-main: checking if the plugin secret string is safe
-main: this is the plugin's shared string
-
-CHECK_VIOLATION: seg faulted as expected

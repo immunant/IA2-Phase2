@@ -71,28 +71,46 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
   if (!lib)
     exit(-1);
 
-  struct AddressRange shared_ranges[NUM_SHARED_RANGES];
+  struct AddressRange shared_ranges[NUM_SHARED_RANGES] = {0};
+  struct AddressRange *cur_range = &shared_ranges[0];
   for (size_t i = 0; i < NUM_SHARED_RANGES; i++) {
     // Clear any potential old error conditions
     dlerror();
-    shared_ranges[i].start = (uint64_t)dlsym(lib, shared_sections[i][0]);
-    uint64_t aligned_start = shared_ranges[i].start & ~0xFFFUL;
-    if (aligned_start != shared_ranges[i].start) {
+
+    cur_range->start = (uint64_t)dlsym(lib, shared_sections[i][0]);
+    if (!cur_range->start) {
+      // We didn't find the start symbol for this shared section. Either the
+      // user didn't mark any shared global data or we didn't link with the
+      // correct linker script. We can't distinguish these cases here and the
+      // first shouldn't be an error, so let's continue.
+      continue;
+    }
+    uint64_t aligned_start = cur_range->start & ~0xFFFUL;
+    if (aligned_start != cur_range->start) {
       printf("Start of section %s is not page-aligned\n",
              shared_sections[i][0]);
       exit(-1);
     }
-    if (dlerror())
-      exit(-1);
 
-    shared_ranges[i].end = (uint64_t)dlsym(lib, shared_sections[i][1]);
-    uint64_t aligned_end = (shared_ranges[i].end + 0xFFFUL) & ~0xFFFUL;
-    if (aligned_end != shared_ranges[i].end) {
+    cur_range->end = (uint64_t)dlsym(lib, shared_sections[i][1]);
+    char *dl_err = dlerror();
+    if (dl_err) {
+      printf("Could not find end symbol of shared section %s: %s\n",
+             shared_sections[i][1], dl_err);
+      exit(-1);
+    }
+    if (!cur_range->end) {
+      printf("End symbol of shared section %s was unexpectedly NULL\n",
+             shared_sections[i][1]);
+      exit(-1);
+    }
+    uint64_t aligned_end = (cur_range->end + 0xFFFUL) & ~0xFFFUL;
+    if (aligned_end != cur_range->end) {
       printf("End of section %s is not page-aligned\n", shared_sections[i][1]);
       exit(-1);
     }
-    if (dlerror())
-      exit(-1);
+
+    cur_range++;
   }
 
   // TODO: We avoid dynamically allocating space for each of the `dlpi_phnum`

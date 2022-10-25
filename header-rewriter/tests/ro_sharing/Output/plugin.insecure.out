@@ -1,0 +1,5 @@
+main: this is the plugin's string
+
+main: 0x730283
+main: 0x8294671
+CHECK_VIOLATION: did not seg fault as expected

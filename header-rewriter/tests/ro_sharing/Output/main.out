@@ -1,0 +1,4 @@
+read_main_string: this is the main binary's string
+
+read_main_uint: 0x9431233
+CHECK_VIOLATION: seg faulted as expected

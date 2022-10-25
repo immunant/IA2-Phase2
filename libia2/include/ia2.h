@@ -1,9 +1,5 @@
 #pragma once
 
-#ifndef _GNU_SOURCE
-#error This header requires _GNU_SOURCE to be defined for the declaration of struct dl_phdr_info. Please add -D_GNU_SOURCE to your compilation flags.
-#endif
-
 #include <assert.h>
 #include <errno.h>
 #include <link.h>
@@ -31,9 +27,19 @@
 #define IA2_WRPKRU "wrpkru"
 #endif
 
-// The callback passed to dl_iterate_phdr in the constructor inserted by
-// INIT_COMPARTMENT to pkey_mprotect the pages corresponding to the
-// compartment's loaded segments.
+/// Protect pages in the given shared object
+///
+/// \param info dynamic linker information for the current object
+/// \param size size of \p info in bytes
+/// \param data pointer to a PhdrSearchArgs structure
+///
+/// The callback passed to dl_iterate_phdr in the constructor inserted by
+/// INIT_COMPARTMENT to pkey_mprotect the pages corresponding to the
+/// compartment's loaded segments.
+///
+/// Iterates over shared objects until an object containing the address \p
+/// data->address is found. Protect the pages in that object according to the
+/// information in the search arguments.
 int protect_pages(struct dl_phdr_info *info, size_t size, void *data);
 
 // The data argument each time dl_iterate_phdr calls protect_pages
@@ -43,12 +49,6 @@ struct PhdrSearchArgs {
   // The address to search for while iterating through segments
   const void *address;
 };
-
-// The number of ELF sections that may be ignored by protect_pages
-#define NUM_IGNORED_SECTIONS 2
-// The number of program headers to allocate space for in protect_pages. This is
-// only an estimate of the maximum value of dlpi_phnum below.
-#define NUM_PHDRS 20
 
 // This emits the 5 bytes correponding to the movl $PKRU, %eax instruction
 asm(".macro mov_pkru_eax pkey\n"

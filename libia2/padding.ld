@@ -10,9 +10,9 @@
    __start_$SECTION and before __stop_$SECTION.
 */
 SECTIONS {
-    ia2_shared_rodata ALIGN(4096): {
-        __start_ia2_shared_rodata = .;
-        *(ia2_shared_rodata)
+    ia2_shared_data ALIGN(4096): {
+        __start_ia2_shared_data = .;
+        *(ia2_shared_data)
         /*
            This weird alignment expression is required so that the section will
            get elided if empty. ld.bfd special-cases this syntax to mean this,
@@ -20,15 +20,6 @@ SECTIONS {
            binutils commit 9d12f64cdc6540b75938097d7f4ab460bb346528
         */
         . = ALIGN(. != 0 ? 4096 : 1);
-        __stop_ia2_shared_rodata = .;
-    }
-} INSERT AFTER .rodata;
-
-SECTIONS {
-    ia2_shared_data ALIGN(4096): {
-        __start_ia2_shared_data = .;
-        *(ia2_shared_data)
-        . = ALIGN(. != 0 ? 4096 : 1); /* Elide the section if empty */
         __stop_ia2_shared_data = .;
     }
 } INSERT AFTER .data;

@@ -66,45 +66,6 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
 // compartments.
 #define IA2_SHARED_DATA __attribute__((section("ia2_shared_data")))
 
-// Attribute for read-only variables that can be accessed from any untrusted
-// compartments.
-#define IA2_SHARED_RODATA __attribute__((section("ia2_shared_rodata")))
-
-#define _IA2_DEFINE_SHARED_STR(name, s)                                        \
-  __asm__(".section ia2_shared_rodata, \"a\"\n"                                \
-            ".equ str" XSTR(name) XSTR(__LINE__) ", .\n"                       \
-            ".asciz \"" s "\"\n"                                               \
-            ".previous")
-
-// Defines a string literal which may be read from any compartment.
-//
-// This macro may be used in the global scope or in a function. Use `&name` to
-// access the `char *` created by this macro in the shared object that defined
-// it. This string may not be directly referenced by other shared objects. This
-// is equivalent to defining `static char name = s` in the global scope so
-// `name` must be a unique identifier in the translation unit.
-#define IA2_SHARED_STR(name, s)                                                \
-  extern char name __asm__("str" XSTR(name) XSTR(__LINE__));                   \
-  const size_t __ia2_sizeof_##name = sizeof(s);                                \
-  _IA2_DEFINE_SHARED_STR(name, s);
-
-// Defines a string literal which may be read from any compartment and expands
-// to a `char *` pointing to the string literal.
-//
-// This macro may only be used in functions.
-#define IA2_SHARED_STR_FN_SCOPE(s)                                             \
-  ({                                                                           \
-    /* The following identifier doesn't matter since the assembler only sees   \
-     * the name in its asm label which should be unique. Since the string      \
-     * literal may contain characters which the assembler doesn't accept in    \
-     * symbol names (e.g. ',', '>', '[') we can't use `s` to generate this     \
-     * unique name and instead resort to just appending "str" to the line      \
-     * number. */                                                              \
-    static char str __asm__("str" XSTR(__LINE__));                             \
-    _IA2_DEFINE_SHARED_STR(, s);                                               \
-    &str;                                                                      \
-  })
-
 // Declares a wrapper for the function `target`.
 //
 // The wrapper expects caller pkey 0 and uses the given target_pkey. This macro

@@ -114,9 +114,17 @@ gcc main.c libbar.so libbar_shim.so libmain_shim.so -Wl,-z,now \
     -I $IA2_INCLUDE_DIR -fPIC -Wl,-rpath=. -Wl,-T/$REPO_ROOT/libia2/padding.ld
 ```
 
-Shared objects that are assigned one a trusted protection key must have certain
+All read-only and relro sections loaded from objects on disk will be shared with
+all compartments. Binaries on disk are not considered secret, and tampering with
+read-only sections is prohibited (TODO: syscall filtering). Relro sections are
+read-only after the dynamic linker has applied relocations to the section, and
+we do not consider address space layout (and therefore relocation contents) to
+be secret. This means that secret data such as keys MUST NOT be embedded in a
+binary, e.g. as a string literal.
+
+Shared objects that are assigned a protection key must have certain
 sections page-aligned and padded. This includes `ia2_shared_data`,
-`ia2_shared_rodata`, `.dynamic` and other sections that must be accessible from
+`.dynamic`, and other sections that must be accessible from
 to any compartment. The `padding.ld` linker script ensures this. This linker
 script may augment other linker scripts, but it is the user's responsibility to
 ensure these shared sections are page-aligned and padded. Failure to do this

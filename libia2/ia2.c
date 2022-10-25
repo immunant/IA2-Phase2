@@ -7,7 +7,6 @@
 
 static const char *shared_sections[][2] = {
     {"__start_ia2_shared_data", "__stop_ia2_shared_data"},
-    {"__start_ia2_shared_rodata", "__stop_ia2_shared_rodata"},
 };
 
 // The number of special ELF sections that may be shared by protect_pages

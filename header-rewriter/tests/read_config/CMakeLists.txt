@@ -20,7 +20,7 @@ define_shared_lib(
     SRCS plugin.c
     INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR}/main_shim
     LINK_LIBS read_config-main-wrapper
-    LINK_OPTS "-Wl,-T${libia2_BINARY_DIR}/padding_lib.ld"
+    LINK_OPTS "-Wl,-T${libia2_BINARY_DIR}/padding.ld"
 )
 
 define_test(

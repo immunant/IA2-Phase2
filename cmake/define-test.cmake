@@ -74,7 +74,7 @@ function(define_test)
         set(INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR})
     endif()
 
-    set(LINKER_SCRIPT ${libia2_BINARY_DIR}/padding_lib.ld)
+    set(LINKER_SCRIPT ${libia2_BINARY_DIR}/padding.ld)
     set(DYN_SYM ${libia2_BINARY_DIR}/dynsym.syms)
     add_executable(${MAIN} ${DEFINE_TEST_SRCS})
     if(LIBIA2_INSECURE)

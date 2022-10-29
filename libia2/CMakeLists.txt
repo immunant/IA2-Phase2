@@ -9,5 +9,4 @@ target_include_directories(libia2 PUBLIC include)
 target_compile_definitions(libia2 PRIVATE _GNU_SOURCE)
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/padding.ld ${CMAKE_CURRENT_BINARY_DIR}/)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/padding_lib.ld ${CMAKE_CURRENT_BINARY_DIR}/)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/dynsym.syms ${CMAKE_CURRENT_BINARY_DIR}/)

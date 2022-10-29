@@ -51,7 +51,7 @@ IA2_INC_DIR = -I\$(ROOT_DIR)/libia2/include
 LIBIA2_DIR = \$(ROOT_DIR)/build/libia2/
 LIBIA2 = \$(LIBIA2_DIR)/libia2.so
 IA2_EXE_LDFLAGS = -Wl,-T\$(LIBIA2_DIR)/padding.ld -Wl,-z,relro,-z,now -Wl,--dynamic-list=\$(LIBIA2_DIR)/dynsym.syms -Wl,-rpath=\$(LIBIA2_DIR)
-IA2_LIB_LDFLAGS = -Wl,-T\$(LIBIA2_DIR)/padding_lib.ld -Wl,-z,relro,-z,now -Wl,--dynamic-list=\$(LIBIA2_DIR)/dynsym.syms -Wl,-rpath=\$(LIBIA2_DIR)
+IA2_LIB_LDFLAGS = -Wl,-T\$(LIBIA2_DIR)/padding.ld -Wl,-z,relro,-z,now -Wl,--dynamic-list=\$(LIBIA2_DIR)/dynsym.syms -Wl,-rpath=\$(LIBIA2_DIR)
 BUILD_RPATH = -Wl,-rpath=\$(BUILD_DIR)
 
 END

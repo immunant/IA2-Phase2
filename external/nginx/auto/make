@@ -546,16 +546,11 @@ END
 
 END
 
-    for mod in $ngx_module_modules
-    do
-        echo "    IA2_SHARED_STR(str_$mod, \"$mod\");"                      >> $ngx_modules_c
-    done
-
     echo 'char *ngx_module_names[] IA2_SHARED_DATA = {'           >> $ngx_modules_c
 
     for mod in $ngx_module_modules
     do
-        echo "    &str_$mod,"                      >> $ngx_modules_c
+        echo "    \"$mod\","                      >> $ngx_modules_c
     done
 
     cat << END                                    >> $ngx_modules_c
@@ -564,16 +559,11 @@ END
 
 END
 
-    for mod in $ngx_module_order
-    do
-        echo "    IA2_SHARED_STR(str_$mod, \"$mod\");"                      >> $ngx_modules_c
-    done
-
     echo 'char *ngx_module_order[] IA2_SHARED_DATA = {'           >> $ngx_modules_c
 
     for mod in $ngx_module_order
     do
-        echo "    &str_$mod,"                      >> $ngx_modules_c
+        echo "    \"$mod\","                      >> $ngx_modules_c
     done
 
     cat << END                                    >> $ngx_modules_c

@@ -83,6 +83,9 @@ void print_mpk_message(int sig) {
       msg = early_fault_msg;
     }
     write(1, msg, strlen(msg));
+    if (!expect_fault) {
+      _exit(-1);
+    }
   }
   _exit(0);
 }

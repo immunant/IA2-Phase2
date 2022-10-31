@@ -11,7 +11,7 @@
 */
 SECTIONS {
     ia2_shared_data ALIGN(4096): {
-        __start_ia2_shared_data = .;
+        HIDDEN(__start_ia2_shared_data = .);
         *(ia2_shared_data)
         /*
            This weird alignment expression is required so that the section will
@@ -20,6 +20,6 @@ SECTIONS {
            binutils commit 9d12f64cdc6540b75938097d7f4ab460bb346528
         */
         . = ALIGN(. != 0 ? 4096 : 1);
-        __stop_ia2_shared_data = .;
+        HIDDEN(__stop_ia2_shared_data = .);
     }
 } INSERT AFTER .data;

@@ -2,11 +2,21 @@
 #define _GNU_SOURCE
 #endif
 #include <link.h>
+#include <stdint.h>
 
 #include "ia2.h"
 
-static const char *shared_sections[][2] = {
-    {"__start_ia2_shared_data", "__stop_ia2_shared_data"},
+#ifndef IA2_INIT_COMPARTMENT
+#error IA2_INIT_COMPARTMENT must be defined before including ia2.c
+#endif
+
+extern char __start_ia2_shared_data __attribute__((weak));
+extern char __stop_ia2_shared_data __attribute__((weak));
+
+// This array MUST be in a read-only (.data.rel.ro) section.
+// TODO: Check this in the resulting binary
+static const char * const shared_sections[][3] = {
+    {&__start_ia2_shared_data, &__stop_ia2_shared_data, "ia2_shared_data"},
 };
 
 // The number of special ELF sections that may be shared by protect_pages
@@ -58,32 +68,36 @@ static int segment_flags_to_access_flags(Elf64_Word flags) {
          ((flags & PF_R) != 0 ? PROT_READ : 0);
 }
 
-int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
-  if (!data || !info) {
+/// Protect pages in the given shared object
+///
+/// \param info dynamic linker information for the current object
+/// \param size size of \p info in bytes
+/// \param data pointer to a PhdrSearchArgs structure
+///
+/// The callback passed to dl_iterate_phdr in the constructor inserted by
+/// INIT_COMPARTMENT to pkey_mprotect the pages corresponding to the
+/// compartment's loaded segments.
+///
+/// Iterates over shared objects until an object containing the address \p
+/// data->address is found. Protect the pages in that object according to the
+/// information in the search arguments.
+static int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
+  if (!info) {
     printf("Passed invalid args to dl_iterate_phdr callback\n");
     exit(-1);
   }
 
-  struct PhdrSearchArgs *search_args = (struct PhdrSearchArgs *)data;
-  Elf64_Addr address = (Elf64_Addr)search_args->address;
-  if (!in_loaded_segment(info, address)) {
+  if (!in_loaded_segment(info, (Elf64_Addr)&protect_pages)) {
     // Continue iterating to check the next object
     return 0;
   }
-
-  void *lib = dlopen(info->dlpi_name, RTLD_NOW);
-  if (!lib)
-    exit(-1);
 
   struct AddressRange shared_ranges[NUM_SHARED_RANGES] = {0};
   size_t shared_range_count = 0;
   for (size_t i = 0; i < NUM_SHARED_SECTIONS; i++) {
     struct AddressRange *cur_range = &shared_ranges[shared_range_count];
 
-    // Clear any potential old error conditions
-    dlerror();
-
-    cur_range->start = (uint64_t)dlsym(lib, shared_sections[i][0]);
+    cur_range->start = (uintptr_t)shared_sections[i][0];
     if (!cur_range->start) {
       // We didn't find the start symbol for this shared section. Either the
       // user didn't mark any shared global data or we didn't link with the
@@ -94,25 +108,19 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
     uint64_t aligned_start = cur_range->start & ~0xFFFUL;
     if (aligned_start != cur_range->start) {
       printf("Start of section %s is not page-aligned\n",
-             shared_sections[i][0]);
+             shared_sections[i][2]);
       exit(-1);
     }
 
-    cur_range->end = (uint64_t)dlsym(lib, shared_sections[i][1]);
-    char *dl_err = dlerror();
-    if (dl_err) {
-      printf("Could not find end symbol of shared section %s: %s\n",
-             shared_sections[i][1], dl_err);
-      exit(-1);
-    }
+    cur_range->end = (uintptr_t)shared_sections[i][1];
     if (!cur_range->end) {
       printf("End symbol of shared section %s was unexpectedly NULL\n",
-             shared_sections[i][1]);
+             shared_sections[i][2]);
       exit(-1);
     }
     uint64_t aligned_end = (cur_range->end + 0xFFFUL) & ~0xFFFUL;
     if (aligned_end != cur_range->end) {
-      printf("End of section %s is not page-aligned\n", shared_sections[i][1]);
+      printf("End of section %s is not page-aligned\n", shared_sections[i][2]);
       exit(-1);
     }
 
@@ -189,7 +197,7 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
 
       if (cur_end > start) {
         int mprotect_err = pkey_mprotect((void *)start, cur_end - start,
-                                         access_flags, search_args->pkey);
+                                         access_flags, IA2_INIT_COMPARTMENT);
         if (mprotect_err != 0) {
           printf("pkey_mprotect failed: %s\n", strerror(errno));
           exit(-1);
@@ -203,4 +211,15 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
 
   // Do not continue, we found the right object
   return 1;
+}
+
+extern int ia2_n_pkeys_to_alloc;
+void ensure_pkeys_allocated(int *n_to_alloc);
+
+// Initializes a compartment with protection key `IA2_INIT_COMPARTMENT` when the
+// ELF that included this file is loaded. The compartment includes all segments
+// in the current ELF except the `ia2_shared_data` section, if one exists.
+__attribute__((constructor)) static void init_pkey_ctor() {
+  ensure_pkeys_allocated(&ia2_n_pkeys_to_alloc);
+  dl_iterate_phdr(protect_pages, NULL);
 }

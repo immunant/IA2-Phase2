@@ -20,35 +20,10 @@
 #define PASTE4(w, x, y, z) PASTE4_(w, x, y, z)
 
 #ifdef LIBIA2_INSECURE
-#define INIT_COMPARTMENT(n)
 #define IA2_WRPKRU
 #else
-#define INIT_COMPARTMENT(n) _INIT_COMPARTMENT(n)
 #define IA2_WRPKRU "wrpkru"
 #endif
-
-/// Protect pages in the given shared object
-///
-/// \param info dynamic linker information for the current object
-/// \param size size of \p info in bytes
-/// \param data pointer to a PhdrSearchArgs structure
-///
-/// The callback passed to dl_iterate_phdr in the constructor inserted by
-/// INIT_COMPARTMENT to pkey_mprotect the pages corresponding to the
-/// compartment's loaded segments.
-///
-/// Iterates over shared objects until an object containing the address \p
-/// data->address is found. Protect the pages in that object according to the
-/// information in the search arguments.
-int protect_pages(struct dl_phdr_info *info, size_t size, void *data);
-
-// The data argument each time dl_iterate_phdr calls protect_pages
-struct PhdrSearchArgs {
-  // The compartment pkey to use when the segments are found
-  int32_t pkey;
-  // The address to search for while iterating through segments
-  const void *address;
-};
 
 // This emits the 5 bytes correponding to the movl $PKRU, %eax instruction
 asm(".macro mov_pkru_eax pkey\n"
@@ -166,22 +141,6 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
 // Checks if an opaque pointer is null
 #define IA2_FNPTR_IS_NULL(target) (target.ptr == NULL)
 
-// Initializes a compartment with protection key `n` when the ELF invoking this
-// macro is loaded. This must only be called once for each key. The compartment
-// includes all segments in the ELF except the `ia2_shared_data` section, if one
-// exists.
-#define _INIT_COMPARTMENT(n)                                                   \
-  extern int ia2_n_pkeys_to_alloc;                                             \
-  void ensure_pkeys_allocated(int *n_to_alloc);                                \
-  __attribute__((constructor)) static void init_pkey_ctor() {                  \
-    ensure_pkeys_allocated(&ia2_n_pkeys_to_alloc);                             \
-    struct PhdrSearchArgs args = {                                             \
-        .pkey = n,                                                             \
-        .address = &init_pkey_ctor,                                            \
-    };                                                                         \
-    dl_iterate_phdr(protect_pages, &args);                                     \
-  }
-
 // TODO: Find a better way to compute these offsets for ia2_untrusted_stackptr.
 #define STACK(n) _STACK(n)
 #define _STACK(n) STACK_##n
@@ -260,3 +219,10 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
       ia2_stackptrs[i] = stack_start + STACK_SIZE - 8;                         \
     }                                                                          \
   }
+
+
+#ifdef IA2_INIT_COMPARTMENT
+#ifndef LIBIA2_INSECURE
+#include "../ia2.c"
+#endif
+#endif

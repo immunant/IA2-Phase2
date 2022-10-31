@@ -1,5 +1,7 @@
-#include "plugin.h"
+#define IA2_INIT_COMPARTMENT 1
 #include <ia2.h>
+
+#include "plugin.h"
 #include <stdio.h>
 #include <string.h>
 // TODO: Add the `#include output_header.h` to shared headers since they may
@@ -19,7 +21,6 @@
 */
 
 INIT_RUNTIME(2);
-INIT_COMPARTMENT(1);
 
 // The first 5 entries are plugin options and the rest are builtin
 #define PLUGIN_ENTRIES 5

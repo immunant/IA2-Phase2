@@ -4,13 +4,14 @@ RUN: ia2-header-rewriter %T/wrapper.c liboption.h types.h -- -I. -I%resource_dir
 RUN: cat %T/wrapper.c.args | FileCheck --check-prefix=LINKARGS %S/include/liboption.h
 RUN: cat %T/wrapper.c.args | FileCheck --check-prefix=LINKARGS %S/include/impl.h
 */
+#define IA2_INIT_COMPARTMENT 1
+#include <ia2.h>
+
 #include "liboption.h"
 #include "types.h"
 #include <stdio.h>
-#include <ia2.h>
 
 INIT_RUNTIME(1);
-INIT_COMPARTMENT(1);
 
 int main() {
     Option x = Some(3);

@@ -1,14 +1,14 @@
+#define IA2_INIT_COMPARTMENT 1
+#include <ia2.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-
-#include <ia2.h>
 
 #include "hooks.h"
 #include "simple1.h"
 
 INIT_RUNTIME(1);
-INIT_COMPARTMENT(1);
 
 // libsimple1 checks if the function pointer is NULL. To initialize this to a
 // function defined in this binary, we'd need to define a wrapper with

@@ -1,8 +1,9 @@
-#include "library.h"
+#define IA2_INIT_COMPARTMENT 1
 #include <ia2.h>
 
+#include "library.h"
+
 INIT_RUNTIME(1);
-INIT_COMPARTMENT(1);
 
 int data_in_main = 30;
 

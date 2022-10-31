@@ -1,6 +1,8 @@
+#define IA2_INIT_COMPARTMENT 1
+#include <ia2.h>
+
 #include <stdio.h>
 #include "rand_op.h"
-#include <ia2.h>
 #define IA2_DEFINE_TEST_HANDLER
 #include "test_fault_handler.h"
 
@@ -10,7 +12,6 @@
 */
 
 INIT_RUNTIME(1);
-INIT_COMPARTMENT(1);
 
 bool clean_exit IA2_SHARED_DATA = false;
 

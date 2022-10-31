@@ -1,10 +1,11 @@
+#define IA2_INIT_COMPARTMENT 1
+#include <ia2.h>
+
 #include <stdint.h>
 #include <assert.h>
-#include <ia2.h>
 #include "access_shared.h"
 
 INIT_RUNTIME(1);
-INIT_COMPARTMENT(1);
 
 uint8_t shared_val[4097] IA2_SHARED_DATA = { 0 };
 

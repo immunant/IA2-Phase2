@@ -1,10 +1,11 @@
-#include "test_fault_handler.h"
+
+#define IA2_INIT_COMPARTMENT 2
 #include <ia2.h>
+
+#include "test_fault_handler.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-
-INIT_COMPARTMENT(2);
 
 // All string literals should be in .rodata
 const char *plugin_str = "this is the plugin's string\n";

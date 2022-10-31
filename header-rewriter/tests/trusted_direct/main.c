@@ -1,9 +1,11 @@
+#define IA2_INIT_COMPARTMENT 1
+#include <ia2.h>
+
 #include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
-#include <ia2.h>
 #include "plugin.h"
 #define IA2_DEFINE_TEST_HANDLER
 #include "test_fault_handler.h"
@@ -13,7 +15,6 @@
 // passed in. Otherwise the program exits cleanly.
 
 INIT_RUNTIME(1);
-INIT_COMPARTMENT(1);
 
 uint32_t secret = 0x09431233;
 

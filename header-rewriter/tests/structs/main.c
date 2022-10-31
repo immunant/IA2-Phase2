@@ -1,6 +1,8 @@
+#define IA2_INIT_COMPARTMENT 1
+#include <ia2.h>
+
 #include <stdio.h>
 #include "structs.h"
-#include <ia2.h>
 #include <math.h>
 #include <assert.h>
 
@@ -10,7 +12,6 @@
 */
 
 INIT_RUNTIME(1);
-INIT_COMPARTMENT(1);
 
 #define check_close_float(name, val) { printf("%s(s) = %.4f (expected %.4f)\n", #name, name(s), val); }
 #define check_field_float(name, val) { printf("s.%s = %.4f (expected %.4f)\n", #name, s.name, val); }

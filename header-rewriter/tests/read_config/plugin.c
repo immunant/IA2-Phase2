@@ -1,10 +1,10 @@
+#define IA2_INIT_COMPARTMENT 2
+#include <ia2.h>
+
 #include "core.h"
 #include "plugin.h"
-#include <ia2.h>
 #include <stdio.h>
 #include <string.h>
-
-INIT_COMPARTMENT(2);
 
 // A custom parsing function for a type defined by the plugin
 static void parse_tuple(char *opt, void *out);

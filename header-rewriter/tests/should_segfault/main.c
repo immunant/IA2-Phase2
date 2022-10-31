@@ -1,13 +1,14 @@
+#define IA2_INIT_COMPARTMENT 1
+#include <ia2.h>
+
 #include <stdio.h>
 #include <unistd.h>
 #include <stdint.h>
 #include <print_secret.h>
-#include <ia2.h>
 #define IA2_DEFINE_TEST_HANDLER
 #include "test_fault_handler.h"
 
 INIT_RUNTIME(1);
-INIT_COMPARTMENT(1);
 
 uint32_t secret = 0xdeadbeef;
 

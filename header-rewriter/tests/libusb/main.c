@@ -16,16 +16,16 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
+#define IA2_INIT_COMPARTMENT 1
+#include <ia2.h>
 
 #include <stdio.h>
 #include <stdint.h>
-#include <ia2.h>
 
 #include "libusb.h"
 #include "usb-1.0_fn_ptr_ia2.h"
 
 INIT_RUNTIME(1);
-INIT_COMPARTMENT(1);
 
 static void print_devs(libusb_device **devs)
 {

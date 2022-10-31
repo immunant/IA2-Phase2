@@ -1,9 +1,9 @@
-#include <stdio.h>
+#define IA2_INIT_COMPARTMENT 2
 #include <ia2.h>
+
+#include <stdio.h>
 #include "exported_fn.h"
 #include "test_fault_handler.h"
-
-INIT_COMPARTMENT(2);
 
 uint32_t plugin_secret = 0x78341244;
 uint32_t plugin_shared IA2_SHARED_DATA = 0x415ea635;

@@ -1,3 +1,6 @@
+#define IA2_INIT_COMPARTMENT 1
+#include <ia2.h>
+
 #include <stdio.h>
 #include <stdint.h>
 #include "foo.h"
@@ -6,7 +9,6 @@
 #include "test_fault_handler.h"
 
 INIT_RUNTIME(1);
-INIT_COMPARTMENT(1);
 
 /*
     This program tests that a trusted binary can pass function pointers to an untrusted shared

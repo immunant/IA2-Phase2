@@ -26,16 +26,17 @@
  * @example metadata.c
  */
 
+#define IA2_INIT_COMPARTMENT 1
+#include <ia2.h>
+
 #include <stdio.h>
 
 #include <libavformat/avformat.h>
 #include <libavutil/dict.h>
 #include <libavutil/common.h>
 #include "libavutil/mem.h"
-#include <ia2.h>
 
 INIT_RUNTIME(1);
-INIT_COMPARTMENT(1);
 
 int main (int argc, char **argv)
 {

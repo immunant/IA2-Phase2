@@ -166,7 +166,8 @@ esac
 
 
 # stop on warning
-CFLAGS="$CFLAGS -Werror"
+# TODO(nginx-rewrite): uncomment this again
+# CFLAGS="$CFLAGS -Werror"
 
 # debug
 CFLAGS="$CFLAGS -g"

@@ -44,6 +44,14 @@ ngx_incs=`echo $CORE_INCS $NGX_OBJS $HTTP_INCS $MAIL_INCS $STREAM_INCS\
 cat << END                                                    >> $NGX_MAKEFILE
 
 ALL_INCS = $ngx_include_opt$ngx_incs
+ALL_INCS_REL_PATH = $CORE_INCS $HTTP_INCS $MAIL_INCS $STREAM_INCS
+BUILD_DIR = $NGX_OBJS
+ROOT_DIR = $NGX_OBJS/../../../
+IA2_INC_DIR = -I\$(ROOT_DIR)/libia2/include
+LIBIA2_DIR = \$(ROOT_DIR)/build/libia2/
+LIBIA2 = \$(LIBIA2_DIR)/libia2.so
+IA2_LDFLAGS = -Wl,-T\$(LIBIA2_DIR)/padding.ld -Wl,-z,relro,-z,now -Wl,--dynamic-list=\$(LIBIA2_DIR)/dynsym.syms -Wl,-rpath=\$(LIBIA2_DIR)
+BUILD_RPATH = -Wl,-rpath=\$(BUILD_DIR)
 
 END
 
@@ -229,7 +237,7 @@ build:	binary modules manpage
 binary:	$NGX_OBJS${ngx_dirsep}nginx$ngx_binext
 
 $NGX_OBJS${ngx_dirsep}nginx$ngx_binext:	$ngx_deps$ngx_spacer
-	\$(LINK) $ngx_long_start$ngx_binout$NGX_OBJS${ngx_dirsep}nginx$ngx_binext$ngx_long_cont$ngx_objs$ngx_libs$ngx_link$ngx_main_link
+	\$(LINK) $ngx_long_start$ngx_binout$NGX_OBJS${ngx_dirsep}nginx$ngx_binext$ngx_long_cont$ngx_objs$ngx_libs$ngx_link$ngx_main_link \$(LIBIA2) \$(IA2_LDFLAGS)
 	$ngx_rcc
 $ngx_long_end
 
@@ -242,7 +250,7 @@ END
 if test -n "$NGX_PCH"; then
     ngx_cc="\$(CC) $ngx_compile_opt \$(CFLAGS) $ngx_use_pch \$(ALL_INCS)"
 else
-    ngx_cc="\$(CC) $ngx_compile_opt \$(CFLAGS) \$(CORE_INCS)"
+    ngx_cc="\$(CC) $ngx_compile_opt \$(CFLAGS) -I \$(BUILD_DIR) \$(IA2_INC_DIR) \$(patsubst src/%,-I\$(BUILD_DIR)/mod_shim_src/%,\$(ALL_INCS_REL_PATH))"
 fi
 
 cat << END                                                    >> $NGX_MAKEFILE
@@ -267,7 +275,7 @@ do
     cat << END                                                >> $NGX_MAKEFILE
 
 $ngx_obj:	\$(CORE_DEPS)$ngx_cont$ngx_src
-	$ngx_cc$ngx_tab$ngx_objout$ngx_obj$ngx_tab$ngx_src$NGX_AUX
+	$ngx_cc$ngx_tab$ngx_objout$ngx_obj$ngx_tab\$(IA2_INC_DIR)$ngx_tab$ngx_src$NGX_AUX
 
 END
 
@@ -281,7 +289,7 @@ if [ $HTTP = YES ]; then
     if test -n "$NGX_PCH"; then
         ngx_cc="\$(CC) $ngx_compile_opt \$(CFLAGS) $ngx_use_pch \$(ALL_INCS)"
     else
-        ngx_cc="\$(CC) $ngx_compile_opt \$(CFLAGS) \$(CORE_INCS) \$(HTTP_INCS)"
+        ngx_cc="\$(CC) $ngx_compile_opt \$(CFLAGS) \$(patsubst src/%,\$(BUILD_DIR)/mod_shim_src/%,\$(CORE_INCS)) \$(patsubst src/%,\$(BUILD_DIR)/mod_shim_src/%,\$(HTTP_INCS))"
         ngx_perl_cc="\$(CC) $ngx_compile_opt \$(NGX_PERL_CFLAGS)"
         ngx_perl_cc="$ngx_perl_cc \$(CORE_INCS) \$(HTTP_INCS)"
     fi
@@ -300,7 +308,7 @@ if [ $HTTP = YES ]; then
             cat << END                                        >> $NGX_MAKEFILE
 
 $ngx_obj:	\$(CORE_DEPS) \$(HTTP_DEPS)$ngx_cont$ngx_src
-	$ngx_perl_cc$ngx_tab$ngx_objout$ngx_obj$ngx_tab$ngx_src$NGX_AUX
+	$ngx_perl_cc$ngx_tab$ngx_objout$ngx_obj$ngx_tab\$(IA2_INC_DIR)$ngx_tab$ngx_src$NGX_AUX
 
 END
         else
@@ -308,7 +316,7 @@ END
             cat << END                                        >> $NGX_MAKEFILE
 
 $ngx_obj:	\$(CORE_DEPS) \$(HTTP_DEPS)$ngx_cont$ngx_src
-	$ngx_cc$ngx_tab$ngx_objout$ngx_obj$ngx_tab$ngx_src$NGX_AUX
+	$ngx_cc$ngx_tab$ngx_objout$ngx_obj$ngx_tab\$(IA2_INC_DIR)$ngx_tab$ngx_src$NGX_AUX
 
 END
 
@@ -496,7 +504,7 @@ if test -n "$NGX_PCH"; then
 else
     ngx_cc="\$(CC) $ngx_compile_opt $ngx_pic_opt \$(CFLAGS) \$(ALL_INCS)"
     ngx_perl_cc="\$(CC) $ngx_compile_opt $ngx_pic_opt \$(NGX_PERL_CFLAGS)"
-    ngx_perl_cc="$ngx_perl_cc \$(ALL_INCS)"
+    ngx_perl_cc="$ngx_perl_cc -I \$(BUILD_DIR) \$(IA2_INC_DIR) \$(patsubst src/%,-I\$(BUILD_DIR)/main_shim_src/%,\$(ALL_INCS_REL_PATH))"
 fi
 
 for ngx_module in $DYNAMIC_MODULES
@@ -622,7 +630,7 @@ END
 modules:	$ngx_obj
 
 $ngx_obj:	$ngx_deps$ngx_spacer
-	\$(LINK) $ngx_long_start$ngx_binout$ngx_obj$ngx_long_cont$ngx_objs$ngx_libs$ngx_link$ngx_module_link
+	\$(LINK) $ngx_long_start$ngx_binout$ngx_obj$ngx_long_cont$ngx_objs$ngx_libs$ngx_link$ngx_module_link \$(BUILD_DIR)/libmain_shim.so \$(LIBIA2) \$(IA2_LDFLAGS) \$(BUILD_RPATH)
 $ngx_long_end
 
 $ngx_modules_obj:	\$(CORE_DEPS)$ngx_cont$ngx_modules_c

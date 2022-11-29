@@ -198,7 +198,10 @@ done
 
 cat << END >> Makefile
 
-build:
+ia2_shims:
+	\$(MAKE) -f ia2.mk
+
+build: ia2_shims
 	\$(MAKE) -f $NGX_MAKEFILE
 
 install:

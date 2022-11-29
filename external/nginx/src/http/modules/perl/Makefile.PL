@@ -5,6 +5,12 @@
 use 5.006001;
 use ExtUtils::MakeMaker;
 
+$fixed_include = $ENV{NGX_INCS};
+$fixed_include =~ s/src/main_shim_src/gm;
+# for ia2.h
+$fixed_include .= " ../../../libia2/include";
+$BUILD_DIR = "../../../..";
+
 WriteMakefile(
     NAME              => 'nginx',
     VERSION_FROM      => 'nginx.pm',     # finds $VERSION
@@ -16,11 +22,11 @@ WriteMakefile(
     CCFLAGS           => "$ENV{NGX_PM_CFLAGS}",
     OPTIMIZE          => '-O',
 
-    LDDLFLAGS         => "$ENV{NGX_PM_LDFLAGS}",
+    LDDLFLAGS         => "$ENV{NGX_PM_LDFLAGS} -L${BUILD_DIR} ${BUILD_DIR}/libmain_shim.so -Wl,-z,now -Wl,-rpath=${BUILD_DIR} -Wl,\@${BUILD_DIR}/main_shim_src/main_shim.c.args",
 
     INC               => join(" ", map {
-                             m#^/# ? "-I $_" : "-I ../../../../../$_"
-                         } (split /\s+/, $ENV{NGX_INCS})),
+                             m#^/# ? "-I $_" : "-I ../../../../$_"
+                         } (split /\s+/, $fixed_include)),
 
     depend => {
         'nginx.c'     => join(" ", map {

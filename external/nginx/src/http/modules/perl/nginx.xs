@@ -440,7 +440,7 @@ has_request_body(r, next)
         r->request_body_file_log_level = 0;
     }
 
-    rc = ngx_http_read_client_request_body(r, ngx_http_perl_handle_request);
+    rc = ngx_http_read_client_request_body(r, IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_perl_handle_request, _ZTSPFvP18ngx_http_request_sE, 2));
 
     if (rc >= NGX_HTTP_SPECIAL_RESPONSE) {
         ctx->error = 1;
@@ -1169,7 +1169,7 @@ sleep(r, sleep, next)
     r->connection->write->delayed = 1;
     ngx_add_timer(r->connection->write, sleep);
 
-    r->write_event_handler = ngx_http_perl_sleep_handler;
+    r->write_event_handler = IA2_DECLARE_WRAPPER_FN_SCOPE(ngx_http_perl_sleep_handler, _ZTSPFvP18ngx_http_request_sE, 2);
     r->main->count++;
 
 

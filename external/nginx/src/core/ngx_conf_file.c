@@ -15,12 +15,13 @@ static ngx_int_t ngx_conf_handler(ngx_conf_t *cf, ngx_int_t last);
 static ngx_int_t ngx_conf_read_token(ngx_conf_t *cf);
 static void ngx_conf_flush_files(ngx_cycle_t *cycle);
 
+IA2_DEFINE_WRAPPER(ngx_conf_include, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
 
 static ngx_command_t  ngx_conf_commands[] = {
 
     { ngx_string("include"),
       NGX_ANY_CONF|NGX_CONF_TAKE1,
-      ngx_conf_include,
+      IA2_WRAPPER(ngx_conf_include, 1),
       0,
       0,
       NULL },
@@ -28,19 +29,20 @@ static ngx_command_t  ngx_conf_commands[] = {
       ngx_null_command
 };
 
+IA2_DEFINE_WRAPPER(ngx_conf_flush_files, _ZTSPFvP11ngx_cycle_sE, 1);
 
 ngx_module_t  ngx_conf_module = {
     NGX_MODULE_V1,
     NULL,                                  /* module context */
     ngx_conf_commands,                     /* module directives */
     NGX_CONF_MODULE,                       /* module type */
-    NULL,                                  /* init master */
-    NULL,                                  /* init module */
-    NULL,                                  /* init process */
-    NULL,                                  /* init thread */
-    NULL,                                  /* exit thread */
-    ngx_conf_flush_files,                  /* exit process */
-    NULL,                                  /* exit master */
+    IA2_NULL_FNPTR,                                  /* init master */
+    IA2_NULL_FNPTR,                                  /* init module */
+    IA2_NULL_FNPTR,                                  /* init process */
+    IA2_NULL_FNPTR,                                  /* init thread */
+    IA2_NULL_FNPTR,                                  /* exit thread */
+    IA2_WRAPPER(ngx_conf_flush_files, 1),                  /* exit process */
+    IA2_NULL_FNPTR,                                  /* exit master */
     NGX_MODULE_V1_PADDING
 };
 
@@ -289,7 +291,7 @@ ngx_conf_parse(ngx_conf_t *cf, ngx_str_t *filename)
 
         /* rc == NGX_OK || rc == NGX_CONF_BLOCK_START */
 
-        if (cf->handler) {
+        if (!IA2_FNPTR_IS_NULL(cf->handler)) {
 
             /*
              * the custom handler, i.e., that is used in the http's
@@ -301,7 +303,7 @@ ngx_conf_parse(ngx_conf_t *cf, ngx_str_t *filename)
                 goto failed;
             }
 
-            rv = (*cf->handler)(cf, NULL, cf->handler_conf);
+            rv = IA2_CALL(cf->handler, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1)(cf, NULL, cf->handler_conf);
             if (rv == NGX_CONF_OK) {
                 continue;
             }
@@ -460,7 +462,7 @@ ngx_conf_handler(ngx_conf_t *cf, ngx_int_t last)
                 }
             }
 
-            rv = cmd->set(cf, cmd, conf);
+            rv = IA2_CALL(cmd->set, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1)(cf, cmd, conf);
 
             if (rv == NGX_CONF_OK) {
                 return NGX_OK;
@@ -951,7 +953,7 @@ ngx_conf_open_file(ngx_cycle_t *cycle, ngx_str_t *name)
         file->name = *name;
     }
 
-    file->flush = NULL;
+    IA2_NULL_FNPTR_FN_SCOPE(file->flush);
     file->data = NULL;
 
     return file;
@@ -981,8 +983,8 @@ ngx_conf_flush_files(ngx_cycle_t *cycle)
             i = 0;
         }
 
-        if (file[i].flush) {
-            file[i].flush(&file[i], cycle->log);
+        if (!IA2_FNPTR_IS_NULL(file[i].flush)) {
+            IA2_CALL(file[i].flush, _ZTSPFvP15ngx_open_file_sP9ngx_log_sE, 1)(&file[i], cycle->log);
         }
     }
 }
@@ -1055,7 +1057,7 @@ ngx_conf_set_flag_slot(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     if (cmd->post) {
         post = cmd->post;
-        return post->post_handler(cf, post, fp);
+        return IA2_CALL(post->post_handler, _ZTSPFPcP10ngx_conf_sPvS2_E, 1)(cf, post, fp);
     }
 
     return NGX_CONF_OK;
@@ -1082,7 +1084,7 @@ ngx_conf_set_str_slot(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     if (cmd->post) {
         post = cmd->post;
-        return post->post_handler(cf, post, field);
+        return IA2_CALL(post->post_handler, _ZTSPFPcP10ngx_conf_sPvS2_E, 1)(cf, post, field);
     }
 
     return NGX_CONF_OK;
@@ -1118,7 +1120,7 @@ ngx_conf_set_str_array_slot(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     if (cmd->post) {
         post = cmd->post;
-        return post->post_handler(cf, post, s);
+        return IA2_CALL(post->post_handler, _ZTSPFPcP10ngx_conf_sPvS2_E, 1)(cf, post, s);
     }
 
     return NGX_CONF_OK;
@@ -1156,7 +1158,7 @@ ngx_conf_set_keyval_slot(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     if (cmd->post) {
         post = cmd->post;
-        return post->post_handler(cf, post, kv);
+        return IA2_CALL(post->post_handler, _ZTSPFPcP10ngx_conf_sPvS2_E, 1)(cf, post, kv);
     }
 
     return NGX_CONF_OK;
@@ -1187,7 +1189,7 @@ ngx_conf_set_num_slot(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     if (cmd->post) {
         post = cmd->post;
-        return post->post_handler(cf, post, np);
+        return IA2_CALL(post->post_handler, _ZTSPFPcP10ngx_conf_sPvS2_E, 1)(cf, post, np);
     }
 
     return NGX_CONF_OK;
@@ -1218,7 +1220,7 @@ ngx_conf_set_size_slot(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     if (cmd->post) {
         post = cmd->post;
-        return post->post_handler(cf, post, sp);
+        return IA2_CALL(post->post_handler, _ZTSPFPcP10ngx_conf_sPvS2_E, 1)(cf, post, sp);
     }
 
     return NGX_CONF_OK;
@@ -1249,7 +1251,7 @@ ngx_conf_set_off_slot(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     if (cmd->post) {
         post = cmd->post;
-        return post->post_handler(cf, post, op);
+        return IA2_CALL(post->post_handler, _ZTSPFPcP10ngx_conf_sPvS2_E, 1)(cf, post, op);
     }
 
     return NGX_CONF_OK;
@@ -1280,7 +1282,7 @@ ngx_conf_set_msec_slot(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     if (cmd->post) {
         post = cmd->post;
-        return post->post_handler(cf, post, msp);
+        return IA2_CALL(post->post_handler, _ZTSPFPcP10ngx_conf_sPvS2_E, 1)(cf, post, msp);
     }
 
     return NGX_CONF_OK;
@@ -1311,7 +1313,7 @@ ngx_conf_set_sec_slot(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     if (cmd->post) {
         post = cmd->post;
-        return post->post_handler(cf, post, sp);
+        return IA2_CALL(post->post_handler, _ZTSPFPcP10ngx_conf_sPvS2_E, 1)(cf, post, sp);
     }
 
     return NGX_CONF_OK;

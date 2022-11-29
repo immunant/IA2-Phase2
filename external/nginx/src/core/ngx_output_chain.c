@@ -58,7 +58,7 @@ ngx_output_chain(ngx_output_chain_ctx_t *ctx, ngx_chain_t *in)
          */
 
         if (in == NULL) {
-            return ctx->output_filter(ctx->filter_ctx, in);
+            return IA2_CALL(ctx->output_filter, _ZTSPFlPvP11ngx_chain_sE, 1)(ctx->filter_ctx, in);
         }
 
         if (in->next == NULL
@@ -67,7 +67,7 @@ ngx_output_chain(ngx_output_chain_ctx_t *ctx, ngx_chain_t *in)
 #endif
             && ngx_output_chain_as_is(ctx, in->buf))
         {
-            return ctx->output_filter(ctx->filter_ctx, in);
+            return IA2_CALL(ctx->output_filter, _ZTSPFlPvP11ngx_chain_sE, 1)(ctx->filter_ctx, in);
         }
     }
 
@@ -227,7 +227,7 @@ ngx_output_chain(ngx_output_chain_ctx_t *ctx, ngx_chain_t *in)
             return last;
         }
 
-        last = ctx->output_filter(ctx->filter_ctx, out);
+        last = IA2_CALL(ctx->output_filter, _ZTSPFlPvP11ngx_chain_sE, 1)(ctx->filter_ctx, out);
 
         if (last == NGX_ERROR || last == NGX_DONE) {
             return last;
@@ -771,7 +771,7 @@ ngx_chain_writer(void *data, ngx_chain_t *in)
         return NGX_OK;
     }
 
-    chain = c->send_chain(c, ctx->out, ctx->limit);
+    chain = IA2_CALL(c->send_chain, _ZTSPFP11ngx_chain_sP16ngx_connection_sS0_lE, 1)(c, ctx->out, ctx->limit);
 
     ngx_log_debug1(NGX_LOG_DEBUG_CORE, c->log, 0,
                    "chain writer out: %p", chain);

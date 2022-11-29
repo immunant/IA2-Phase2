@@ -45,7 +45,7 @@ struct ngx_rbtree_s {
     ngx_rbtree_sentinel_init(s);                                              \
     (tree)->root = s;                                                         \
     (tree)->sentinel = s;                                                     \
-    (tree)->insert = i
+    (tree)->insert = IA2_DECLARE_WRAPPER_FN_SCOPE(i, _ZTSPFvP17ngx_rbtree_node_sS0_S0_E, 1)
 
 #define ngx_rbtree_data(node, type, link)                                     \
     (type *) ((u_char *) (node) - offsetof(type, link))

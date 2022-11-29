@@ -31,7 +31,7 @@ ngx_event_process_posted(ngx_cycle_t *cycle, ngx_queue_t *posted)
 
         ngx_delete_posted_event(ev);
 
-        ev->handler(ev);
+        IA2_CALL(ev->handler, _ZTSPFvP11ngx_event_sE, 1)(ev);
     }
 }
 

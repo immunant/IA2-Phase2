@@ -27,11 +27,13 @@ static char *ngx_conf_split_clients_block(ngx_conf_t *cf, ngx_command_t *cmd,
 static char *ngx_http_split_clients(ngx_conf_t *cf, ngx_command_t *dummy,
     void *conf);
 
+IA2_DEFINE_WRAPPER(ngx_conf_split_clients_block, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+
 static ngx_command_t  ngx_http_split_clients_commands[] = {
 
     { ngx_string("split_clients"),
       NGX_HTTP_MAIN_CONF|NGX_CONF_BLOCK|NGX_CONF_TAKE2,
-      ngx_conf_split_clients_block,
+      IA2_WRAPPER(ngx_conf_split_clients_block, 1),
       NGX_HTTP_MAIN_CONF_OFFSET,
       0,
       NULL },
@@ -41,17 +43,17 @@ static ngx_command_t  ngx_http_split_clients_commands[] = {
 
 
 static ngx_http_module_t  ngx_http_split_clients_module_ctx = {
-    NULL,                                  /* preconfiguration */
-    NULL,                                  /* postconfiguration */
+    IA2_NULL_FNPTR,                                  /* preconfiguration */
+    IA2_NULL_FNPTR,                                  /* postconfiguration */
 
-    NULL,                                  /* create main configuration */
-    NULL,                                  /* init main configuration */
+    IA2_NULL_FNPTR,                                  /* create main configuration */
+    IA2_NULL_FNPTR,                                  /* init main configuration */
 
-    NULL,                                  /* create server configuration */
-    NULL,                                  /* merge server configuration */
+    IA2_NULL_FNPTR,                                  /* create server configuration */
+    IA2_NULL_FNPTR,                                  /* merge server configuration */
 
-    NULL,                                  /* create location configuration */
-    NULL                                   /* merge location configuration */
+    IA2_NULL_FNPTR,                                  /* create location configuration */
+    IA2_NULL_FNPTR                                   /* merge location configuration */
 };
 
 
@@ -60,13 +62,13 @@ ngx_module_t  ngx_http_split_clients_module = {
     &ngx_http_split_clients_module_ctx,    /* module context */
     ngx_http_split_clients_commands,       /* module directives */
     NGX_HTTP_MODULE,                       /* module type */
-    NULL,                                  /* init master */
-    NULL,                                  /* init module */
-    NULL,                                  /* init process */
-    NULL,                                  /* init thread */
-    NULL,                                  /* exit thread */
-    NULL,                                  /* exit process */
-    NULL,                                  /* exit master */
+    IA2_NULL_FNPTR,                                  /* init master */
+    IA2_NULL_FNPTR,                                  /* init module */
+    IA2_NULL_FNPTR,                                  /* init process */
+    IA2_NULL_FNPTR,                                  /* init thread */
+    IA2_NULL_FNPTR,                                  /* exit thread */
+    IA2_NULL_FNPTR,                                  /* exit process */
+    IA2_NULL_FNPTR,                                  /* exit master */
     NGX_MODULE_V1_PADDING
 };
 
@@ -153,7 +155,7 @@ ngx_conf_split_clients_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         return NGX_CONF_ERROR;
     }
 
-    var->get_handler = ngx_http_split_clients_variable;
+    var->get_handler = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_split_clients_variable, _ZTSPFlP18ngx_http_request_sP20ngx_variable_value_tmE, 1);
     var->data = (uintptr_t) ctx;
 
     if (ngx_array_init(&ctx->parts, cf->pool, 2,
@@ -165,7 +167,7 @@ ngx_conf_split_clients_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     save = *cf;
     cf->ctx = ctx;
-    cf->handler = ngx_http_split_clients;
+    cf->handler = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_split_clients, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
     cf->handler_conf = conf;
 
     rv = ngx_conf_parse(cf, NULL);

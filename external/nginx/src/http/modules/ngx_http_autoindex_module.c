@@ -84,32 +84,35 @@ static ngx_conf_enum_t  ngx_http_autoindex_format[] = {
 };
 
 
+IA2_DECLARE_WRAPPER(ngx_conf_set_flag_slot, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+IA2_DECLARE_WRAPPER(ngx_conf_set_enum_slot, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+
 static ngx_command_t  ngx_http_autoindex_commands[] = {
 
     { ngx_string("autoindex"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_FLAG,
-      ngx_conf_set_flag_slot,
+      IA2_WRAPPER(ngx_conf_set_flag_slot, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_autoindex_loc_conf_t, enable),
       NULL },
 
     { ngx_string("autoindex_format"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_enum_slot,
+      IA2_WRAPPER(ngx_conf_set_enum_slot, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_autoindex_loc_conf_t, format),
       &ngx_http_autoindex_format },
 
     { ngx_string("autoindex_localtime"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_FLAG,
-      ngx_conf_set_flag_slot,
+      IA2_WRAPPER(ngx_conf_set_flag_slot, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_autoindex_loc_conf_t, localtime),
       NULL },
 
     { ngx_string("autoindex_exact_size"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_FLAG,
-      ngx_conf_set_flag_slot,
+      IA2_WRAPPER(ngx_conf_set_flag_slot, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_autoindex_loc_conf_t, exact_size),
       NULL },
@@ -118,18 +121,22 @@ static ngx_command_t  ngx_http_autoindex_commands[] = {
 };
 
 
+IA2_DEFINE_WRAPPER(ngx_http_autoindex_init, _ZTSPFlP10ngx_conf_sE, 1);
+IA2_DEFINE_WRAPPER(ngx_http_autoindex_create_loc_conf, _ZTSPFPvP10ngx_conf_sE, 1);
+IA2_DEFINE_WRAPPER(ngx_http_autoindex_merge_loc_conf, _ZTSPFPcP10ngx_conf_sPvS2_E, 1);
+
 static ngx_http_module_t  ngx_http_autoindex_module_ctx = {
-    NULL,                                  /* preconfiguration */
-    ngx_http_autoindex_init,               /* postconfiguration */
+    IA2_NULL_FNPTR,                                  /* preconfiguration */
+    IA2_WRAPPER(ngx_http_autoindex_init, 1),               /* postconfiguration */
 
-    NULL,                                  /* create main configuration */
-    NULL,                                  /* init main configuration */
+    IA2_NULL_FNPTR,                                  /* create main configuration */
+    IA2_NULL_FNPTR,                                  /* init main configuration */
 
-    NULL,                                  /* create server configuration */
-    NULL,                                  /* merge server configuration */
+    IA2_NULL_FNPTR,                                  /* create server configuration */
+    IA2_NULL_FNPTR,                                  /* merge server configuration */
 
-    ngx_http_autoindex_create_loc_conf,    /* create location configuration */
-    ngx_http_autoindex_merge_loc_conf      /* merge location configuration */
+    IA2_WRAPPER(ngx_http_autoindex_create_loc_conf, 1),    /* create location configuration */
+    IA2_WRAPPER(ngx_http_autoindex_merge_loc_conf, 1)      /* merge location configuration */
 };
 
 
@@ -138,13 +145,13 @@ ngx_module_t  ngx_http_autoindex_module = {
     &ngx_http_autoindex_module_ctx,        /* module context */
     ngx_http_autoindex_commands,           /* module directives */
     NGX_HTTP_MODULE,                       /* module type */
-    NULL,                                  /* init master */
-    NULL,                                  /* init module */
-    NULL,                                  /* init process */
-    NULL,                                  /* init thread */
-    NULL,                                  /* exit thread */
-    NULL,                                  /* exit process */
-    NULL,                                  /* exit master */
+    IA2_NULL_FNPTR,                                  /* init master */
+    IA2_NULL_FNPTR,                                  /* init module */
+    IA2_NULL_FNPTR,                                  /* init process */
+    IA2_NULL_FNPTR,                                  /* init thread */
+    IA2_NULL_FNPTR,                                  /* exit thread */
+    IA2_NULL_FNPTR,                                  /* exit process */
+    IA2_NULL_FNPTR,                                  /* exit master */
     NGX_MODULE_V1_PADDING
 };
 
@@ -1066,7 +1073,7 @@ ngx_http_autoindex_init(ngx_conf_t *cf)
         return NGX_ERROR;
     }
 
-    *h = ngx_http_autoindex_handler;
+    *h = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_autoindex_handler, _ZTSPFlP18ngx_http_request_sE, 1);
 
     return NGX_OK;
 }

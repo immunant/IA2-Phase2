@@ -78,12 +78,13 @@ ngx_atomic_t         *ngx_stat_waiting = &ngx_stat_waiting0;
 #endif
 
 
+IA2_DEFINE_WRAPPER(ngx_events_block, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
 
 static ngx_command_t  ngx_events_commands[] = {
 
     { ngx_string("events"),
       NGX_MAIN_CONF|NGX_CONF_BLOCK|NGX_CONF_NOARGS,
-      ngx_events_block,
+      IA2_WRAPPER(ngx_events_block, 1),
       0,
       0,
       NULL },
@@ -91,11 +92,12 @@ static ngx_command_t  ngx_events_commands[] = {
       ngx_null_command
 };
 
+IA2_DEFINE_WRAPPER(ngx_event_init_conf, _ZTSPFPcP11ngx_cycle_sPvE, 1);
 
 static ngx_core_module_t  ngx_events_module_ctx = {
     ngx_string("events"),
-    NULL,
-    ngx_event_init_conf
+    IA2_NULL_FNPTR,
+    IA2_WRAPPER(ngx_event_init_conf, 1)
 };
 
 
@@ -104,60 +106,65 @@ ngx_module_t  ngx_events_module = {
     &ngx_events_module_ctx,                /* module context */
     ngx_events_commands,                   /* module directives */
     NGX_CORE_MODULE,                       /* module type */
-    NULL,                                  /* init master */
-    NULL,                                  /* init module */
-    NULL,                                  /* init process */
-    NULL,                                  /* init thread */
-    NULL,                                  /* exit thread */
-    NULL,                                  /* exit process */
-    NULL,                                  /* exit master */
+    IA2_NULL_FNPTR,                                  /* init master */
+    IA2_NULL_FNPTR,                                  /* init module */
+    IA2_NULL_FNPTR,                                  /* init process */
+    IA2_NULL_FNPTR,                                  /* init thread */
+    IA2_NULL_FNPTR,                                  /* exit thread */
+    IA2_NULL_FNPTR,                                  /* exit process */
+    IA2_NULL_FNPTR,                                  /* exit master */
     NGX_MODULE_V1_PADDING
 };
 
 
 static ngx_str_t  event_core_name = ngx_string("event_core");
 
+IA2_DEFINE_WRAPPER(ngx_event_connections, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+IA2_DEFINE_WRAPPER(ngx_event_use, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+IA2_DEFINE_WRAPPER(ngx_event_debug_connection, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+IA2_DECLARE_WRAPPER(ngx_conf_set_msec_slot,_ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+IA2_DECLARE_WRAPPER(ngx_conf_set_flag_slot,_ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
 
 static ngx_command_t  ngx_event_core_commands[] = {
 
     { ngx_string("worker_connections"),
       NGX_EVENT_CONF|NGX_CONF_TAKE1,
-      ngx_event_connections,
+      IA2_WRAPPER(ngx_event_connections, 1),
       0,
       0,
       NULL },
 
     { ngx_string("use"),
       NGX_EVENT_CONF|NGX_CONF_TAKE1,
-      ngx_event_use,
+      IA2_WRAPPER(ngx_event_use, 1),
       0,
       0,
       NULL },
 
     { ngx_string("multi_accept"),
       NGX_EVENT_CONF|NGX_CONF_FLAG,
-      ngx_conf_set_flag_slot,
+      IA2_WRAPPER(ngx_conf_set_flag_slot, 1),
       0,
       offsetof(ngx_event_conf_t, multi_accept),
       NULL },
 
     { ngx_string("accept_mutex"),
       NGX_EVENT_CONF|NGX_CONF_FLAG,
-      ngx_conf_set_flag_slot,
+      IA2_WRAPPER(ngx_conf_set_flag_slot, 1),
       0,
       offsetof(ngx_event_conf_t, accept_mutex),
       NULL },
 
     { ngx_string("accept_mutex_delay"),
       NGX_EVENT_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_msec_slot,
+      IA2_WRAPPER(ngx_conf_set_msec_slot, 1),
       0,
       offsetof(ngx_event_conf_t, accept_mutex_delay),
       NULL },
 
     { ngx_string("debug_connection"),
       NGX_EVENT_CONF|NGX_CONF_TAKE1,
-      ngx_event_debug_connection,
+      IA2_WRAPPER(ngx_event_debug_connection, 1),
       0,
       0,
       NULL },
@@ -165,28 +172,33 @@ static ngx_command_t  ngx_event_core_commands[] = {
       ngx_null_command
 };
 
+IA2_DEFINE_WRAPPER(ngx_event_core_create_conf, _ZTSPFPvP11ngx_cycle_sE, 1);
+IA2_DEFINE_WRAPPER(ngx_event_core_init_conf, _ZTSPFPcP11ngx_cycle_sPvE, 1);
 
 static ngx_event_module_t  ngx_event_core_module_ctx = {
     &event_core_name,
-    ngx_event_core_create_conf,            /* create configuration */
-    ngx_event_core_init_conf,              /* init configuration */
+    IA2_WRAPPER(ngx_event_core_create_conf, 1),            /* create configuration */
+    IA2_WRAPPER(ngx_event_core_init_conf, 1),              /* init configuration */
 
-    { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL }
+    { IA2_NULL_FNPTR, IA2_NULL_FNPTR, IA2_NULL_FNPTR, IA2_NULL_FNPTR, IA2_NULL_FNPTR,
+      IA2_NULL_FNPTR, IA2_NULL_FNPTR, IA2_NULL_FNPTR, IA2_NULL_FNPTR, IA2_NULL_FNPTR }
 };
 
+IA2_DEFINE_WRAPPER(ngx_event_module_init, _ZTSPFlP11ngx_cycle_sE, 1);
+IA2_DEFINE_WRAPPER(ngx_event_process_init, _ZTSPFlP11ngx_cycle_sE, 1);
 
 ngx_module_t  ngx_event_core_module = {
     NGX_MODULE_V1,
     &ngx_event_core_module_ctx,            /* module context */
     ngx_event_core_commands,               /* module directives */
     NGX_EVENT_MODULE,                      /* module type */
-    NULL,                                  /* init master */
-    ngx_event_module_init,                 /* init module */
-    ngx_event_process_init,                /* init process */
-    NULL,                                  /* init thread */
-    NULL,                                  /* exit thread */
-    NULL,                                  /* exit process */
-    NULL,                                  /* exit master */
+    IA2_NULL_FNPTR,                                  /* init master */
+    IA2_WRAPPER(ngx_event_module_init, 1),                 /* init module */
+    IA2_WRAPPER(ngx_event_process_init, 1),                /* init process */
+    IA2_NULL_FNPTR,                                  /* init thread */
+    IA2_NULL_FNPTR,                                  /* exit thread */
+    IA2_NULL_FNPTR,                                  /* exit process */
+    IA2_NULL_FNPTR,                                  /* exit master */
     NGX_MODULE_V1_PADDING
 };
 
@@ -245,7 +257,7 @@ ngx_process_events_and_timers(ngx_cycle_t *cycle)
 
     delta = ngx_current_msec;
 
-    (void) ngx_process_events(cycle, timer, flags);
+    (void) IA2_CALL(ngx_process_events, _ZTSPFlP11ngx_cycle_smmE, 1)(cycle, timer, flags);
 
     delta = ngx_current_msec - delta;
 
@@ -666,7 +678,7 @@ ngx_event_process_init(ngx_cycle_t *cycle)
 
         module = cycle->modules[m]->ctx;
 
-        if (module->actions.init(cycle, ngx_timer_resolution) != NGX_OK) {
+        if (IA2_CALL(module->actions.init, _ZTSPFlP11ngx_cycle_smE, 1)(cycle, ngx_timer_resolution) != NGX_OK) {
             /* fatal */
             exit(2);
         }
@@ -867,9 +879,10 @@ ngx_event_process_init(ngx_cycle_t *cycle)
         }
 
 #else
-
-        rev->handler = (c->type == SOCK_STREAM) ? ngx_event_accept
-                                                : ngx_event_recvmsg;
+        IA2_DEFINE_WRAPPER(ngx_event_accept, _ZTSPFvP11ngx_event_sE, 1);
+        IA2_DEFINE_WRAPPER(ngx_event_recvmsg, _ZTSPFvP11ngx_event_sE, 1);
+        rev->handler = (c->type == SOCK_STREAM) ? IA2_WRAPPER_FN_SCOPE(ngx_event_accept, 1)
+                                                : IA2_WRAPPER_FN_SCOPE(ngx_event_recvmsg, 1);
 
 #if (NGX_HAVE_REUSEPORT)
 
@@ -988,9 +1001,9 @@ ngx_events_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
         m = cf->cycle->modules[i]->ctx;
 
-        if (m->create_conf) {
+        if (!IA2_FNPTR_IS_NULL(m->create_conf)) {
             (*ctx)[cf->cycle->modules[i]->ctx_index] =
-                                                     m->create_conf(cf->cycle);
+                                                     IA2_CALL(m->create_conf, _ZTSPFPvP11ngx_cycle_sE, 1)(cf->cycle);
             if ((*ctx)[cf->cycle->modules[i]->ctx_index] == NULL) {
                 return NGX_CONF_ERROR;
             }
@@ -1017,8 +1030,8 @@ ngx_events_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
         m = cf->cycle->modules[i]->ctx;
 
-        if (m->init_conf) {
-            rv = m->init_conf(cf->cycle,
+        if (!IA2_FNPTR_IS_NULL(m->init_conf)) {
+            rv = IA2_CALL(m->init_conf, _ZTSPFPcP11ngx_cycle_sPvE, 1)(cf->cycle,
                               (*ctx)[cf->cycle->modules[i]->ctx_index]);
             if (rv != NGX_CONF_OK) {
                 return rv;

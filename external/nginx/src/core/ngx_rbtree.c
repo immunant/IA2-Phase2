@@ -41,7 +41,7 @@ ngx_rbtree_insert(ngx_rbtree_t *tree, ngx_rbtree_node_t *node)
         return;
     }
 
-    tree->insert(*root, node, sentinel);
+    IA2_CALL(tree->insert, _ZTSPFvP17ngx_rbtree_node_sS0_S0_E, 1)(*root, node, sentinel);
 
     /* re-balance tree */
 

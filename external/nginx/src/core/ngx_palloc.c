@@ -51,10 +51,10 @@ ngx_destroy_pool(ngx_pool_t *pool)
     ngx_pool_cleanup_t  *c;
 
     for (c = pool->cleanup; c; c = c->next) {
-        if (c->handler) {
+        if (!IA2_FNPTR_IS_NULL(c->handler)) {
             ngx_log_debug1(NGX_LOG_DEBUG_ALLOC, pool->log, 0,
                            "run cleanup: %p", c);
-            c->handler(c->data);
+            IA2_CALL(c->handler, _ZTSPFvPvE, 1)(c->data);
         }
     }
 
@@ -328,7 +328,7 @@ ngx_pool_cleanup_add(ngx_pool_t *p, size_t size)
         c->data = NULL;
     }
 
-    c->handler = NULL;
+    IA2_NULL_FNPTR_FN_SCOPE(c->handler);
     c->next = p->cleanup;
 
     p->cleanup = c;
@@ -346,13 +346,15 @@ ngx_pool_run_cleanup_file(ngx_pool_t *p, ngx_fd_t fd)
     ngx_pool_cleanup_file_t  *cf;
 
     for (c = p->cleanup; c; c = c->next) {
-        if (c->handler == ngx_pool_cleanup_file) {
+        // TODO: This comparison will never be true. Add a way to get the target
+        // function.
+        if (IA2_WRAPPER_ADDR(c->handler) == ngx_pool_cleanup_file) {
 
             cf = c->data;
 
             if (cf->fd == fd) {
-                c->handler(cf);
-                c->handler = NULL;
+                IA2_CALL(c->handler, _ZTSPFvPvE, 1)(cf);
+                IA2_NULL_FNPTR_FN_SCOPE(c->handler);
                 return;
             }
         }

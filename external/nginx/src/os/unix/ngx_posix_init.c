@@ -18,15 +18,22 @@ ngx_uint_t  ngx_tcp_nodelay_and_tcp_nopush;
 
 struct rlimit  rlmt;
 
+IA2_DEFINE_WRAPPER(ngx_unix_recv, _ZTSPFlP16ngx_connection_sPhmE, 1);
+IA2_DEFINE_WRAPPER(ngx_readv_chain, _ZTSPFlP16ngx_connection_sP11ngx_chain_slE, 1);
+IA2_DEFINE_WRAPPER(ngx_udp_unix_recv, _ZTSPFlP16ngx_connection_sPhmE, 1);
+IA2_DEFINE_WRAPPER(ngx_unix_send, _ZTSPFlP16ngx_connection_sPhmE, 1);
+IA2_DEFINE_WRAPPER(ngx_udp_unix_send, _ZTSPFlP16ngx_connection_sPhmE, 1);
+IA2_DEFINE_WRAPPER(ngx_udp_unix_sendmsg_chain, _ZTSPFP11ngx_chain_sP16ngx_connection_sS0_lE, 1);
+IA2_DEFINE_WRAPPER(ngx_writev_chain, _ZTSPFP11ngx_chain_sP16ngx_connection_sS0_lE, 1);
 
 ngx_os_io_t ngx_os_io = {
-    ngx_unix_recv,
-    ngx_readv_chain,
-    ngx_udp_unix_recv,
-    ngx_unix_send,
-    ngx_udp_unix_send,
-    ngx_udp_unix_sendmsg_chain,
-    ngx_writev_chain,
+    IA2_WRAPPER(ngx_unix_recv, 1),
+    IA2_WRAPPER(ngx_readv_chain, 1),
+    IA2_WRAPPER(ngx_udp_unix_recv, 1),
+    IA2_WRAPPER(ngx_unix_send, 1),
+    IA2_WRAPPER(ngx_udp_unix_send, 1),
+    IA2_WRAPPER(ngx_udp_unix_sendmsg_chain, 1),
+    IA2_WRAPPER(ngx_writev_chain, 1),
     0
 };
 

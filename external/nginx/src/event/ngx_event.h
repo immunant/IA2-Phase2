@@ -400,10 +400,13 @@ extern ngx_uint_t            ngx_use_epoll_rdhup;
 #define ngx_process_events   ngx_event_actions.process_events
 #define ngx_done_events      ngx_event_actions.done
 
-#define ngx_add_event        ngx_event_actions.add
-#define ngx_del_event        ngx_event_actions.del
-#define ngx_add_conn         ngx_event_actions.add_conn
-#define ngx_del_conn         ngx_event_actions.del_conn
+// IA2_FNPTR_UNWRAPPER will always be a non-null function pointer, but wrapping these function
+// pointer expressions here is safe because we've replaced comparisons against NULL with
+// IA2_FNPTR_IS_NULL(ngx_event_actions.f)
+#define ngx_add_event        IA2_CALL(ngx_event_actions.add, _ZTSPFlP11ngx_event_slmE, 1)
+#define ngx_del_event        IA2_CALL(ngx_event_actions.del, _ZTSPFlP11ngx_event_slmE, 1)
+#define ngx_add_conn         IA2_CALL(ngx_event_actions.add_conn, _ZTSPFlP16ngx_connection_sE, 1)
+#define ngx_del_conn         IA2_CALL(ngx_event_actions.del_conn, _ZTSPFlP16ngx_connection_smE, 1)
 
 #define ngx_notify           ngx_event_actions.notify
 

@@ -50,25 +50,28 @@ static int ngx_libc_cdecl ngx_http_cmp_referer_wildcards(const void *one,
     const void *two);
 
 
+IA2_DEFINE_WRAPPER(ngx_http_valid_referers, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+IA2_DECLARE_WRAPPER(ngx_conf_set_num_slot, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+
 static ngx_command_t  ngx_http_referer_commands[] = {
 
     { ngx_string("valid_referers"),
       NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_1MORE,
-      ngx_http_valid_referers,
+      IA2_WRAPPER(ngx_http_valid_referers, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       NULL },
 
     { ngx_string("referer_hash_max_size"),
       NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_num_slot,
+      IA2_WRAPPER(ngx_conf_set_num_slot, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_referer_conf_t, referer_hash_max_size),
       NULL },
 
     { ngx_string("referer_hash_bucket_size"),
       NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_num_slot,
+      IA2_WRAPPER(ngx_conf_set_num_slot, 1),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_referer_conf_t, referer_hash_bucket_size),
       NULL },
@@ -77,18 +80,22 @@ static ngx_command_t  ngx_http_referer_commands[] = {
 };
 
 
+IA2_DEFINE_WRAPPER(ngx_http_referer_add_variables, _ZTSPFlP10ngx_conf_sE, 1);
+IA2_DEFINE_WRAPPER(ngx_http_referer_create_conf, _ZTSPFPvP10ngx_conf_sE, 1);
+IA2_DEFINE_WRAPPER(ngx_http_referer_merge_conf, _ZTSPFPcP10ngx_conf_sPvS2_E, 1);
+
 static ngx_http_module_t  ngx_http_referer_module_ctx = {
-    ngx_http_referer_add_variables,        /* preconfiguration */
-    NULL,                                  /* postconfiguration */
+    IA2_WRAPPER(ngx_http_referer_add_variables, 1),        /* preconfiguration */
+    IA2_NULL_FNPTR,                                  /* postconfiguration */
 
-    NULL,                                  /* create main configuration */
-    NULL,                                  /* init main configuration */
+    IA2_NULL_FNPTR,                                  /* create main configuration */
+    IA2_NULL_FNPTR,                                  /* init main configuration */
 
-    NULL,                                  /* create server configuration */
-    NULL,                                  /* merge server configuration */
+    IA2_NULL_FNPTR,                                  /* create server configuration */
+    IA2_NULL_FNPTR,                                  /* merge server configuration */
 
-    ngx_http_referer_create_conf,          /* create location configuration */
-    ngx_http_referer_merge_conf            /* merge location configuration */
+    IA2_WRAPPER(ngx_http_referer_create_conf, 1),          /* create location configuration */
+    IA2_WRAPPER(ngx_http_referer_merge_conf, 1)            /* merge location configuration */
 };
 
 
@@ -97,13 +104,13 @@ ngx_module_t  ngx_http_referer_module = {
     &ngx_http_referer_module_ctx,          /* module context */
     ngx_http_referer_commands,             /* module directives */
     NGX_HTTP_MODULE,                       /* module type */
-    NULL,                                  /* init master */
-    NULL,                                  /* init module */
-    NULL,                                  /* init process */
-    NULL,                                  /* init thread */
-    NULL,                                  /* exit thread */
-    NULL,                                  /* exit process */
-    NULL,                                  /* exit master */
+    IA2_NULL_FNPTR,                                  /* init master */
+    IA2_NULL_FNPTR,                                  /* init module */
+    IA2_NULL_FNPTR,                                  /* init process */
+    IA2_NULL_FNPTR,                                  /* init thread */
+    IA2_NULL_FNPTR,                                  /* exit thread */
+    IA2_NULL_FNPTR,                                  /* exit process */
+    IA2_NULL_FNPTR,                                  /* exit master */
     NGX_MODULE_V1_PADDING
 };
 
@@ -278,7 +285,7 @@ ngx_http_referer_add_variables(ngx_conf_t *cf)
         return NGX_ERROR;
     }
 
-    var->get_handler = ngx_http_referer_variable;
+    var->get_handler = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_http_referer_variable, _ZTSPFlP18ngx_http_request_sP20ngx_variable_value_tmE, 1);
 
     return NGX_OK;
 }
@@ -391,7 +398,7 @@ ngx_http_referer_merge_conf(ngx_conf_t *cf, void *parent, void *child)
     conf->referer_hash_bucket_size = ngx_align(conf->referer_hash_bucket_size,
                                                ngx_cacheline_size);
 
-    hash.key = ngx_hash_key_lc;
+    hash.key = IA2_DECLARE_WRAPPER_FN_SCOPE(ngx_hash_key_lc, _ZTSPFmPhmE, 1);
     hash.max_size = conf->referer_hash_max_size;
     hash.bucket_size = conf->referer_hash_bucket_size;
     hash.name = "referer_hash";

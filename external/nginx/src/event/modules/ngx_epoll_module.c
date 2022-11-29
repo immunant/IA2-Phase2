@@ -156,18 +156,20 @@ ngx_uint_t                  ngx_use_epoll_rdhup;
 
 static ngx_str_t      epoll_name = ngx_string("epoll");
 
+IA2_DECLARE_WRAPPER(ngx_conf_set_num_slot, _ZTSPFPcP10ngx_conf_sP13ngx_command_sPvE, 1);
+
 static ngx_command_t  ngx_epoll_commands[] = {
 
     { ngx_string("epoll_events"),
       NGX_EVENT_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_num_slot,
+      IA2_WRAPPER(ngx_conf_set_num_slot, 1),
       0,
       offsetof(ngx_epoll_conf_t, events),
       NULL },
 
     { ngx_string("worker_aio_requests"),
       NGX_EVENT_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_num_slot,
+      IA2_WRAPPER(ngx_conf_set_num_slot, 1),
       0,
       offsetof(ngx_epoll_conf_t, aio_requests),
       NULL },
@@ -175,27 +177,38 @@ static ngx_command_t  ngx_epoll_commands[] = {
       ngx_null_command
 };
 
+IA2_DEFINE_WRAPPER(ngx_epoll_create_conf, _ZTSPFPvP11ngx_cycle_sE, 1);
+IA2_DEFINE_WRAPPER(ngx_epoll_init_conf, _ZTSPFPcP11ngx_cycle_sPvE, 1);
+IA2_DEFINE_WRAPPER(ngx_epoll_add_connection, _ZTSPFlP16ngx_connection_sE, 1);
+IA2_DEFINE_WRAPPER(ngx_epoll_del_connection, _ZTSPFlP16ngx_connection_smE, 1);
+IA2_DEFINE_WRAPPER(ngx_epoll_add_event, _ZTSPFlP11ngx_event_slmE, 1);
+IA2_DEFINE_WRAPPER(ngx_epoll_del_event, _ZTSPFlP11ngx_event_slmE, 1);
+
+IA2_DEFINE_WRAPPER(ngx_epoll_notify, _ZTSPFlPFvP11ngx_event_sEE, 1);
+IA2_DEFINE_WRAPPER(ngx_epoll_process_events, _ZTSPFlP11ngx_cycle_smmE, 1);
+IA2_DEFINE_WRAPPER(ngx_epoll_init, _ZTSPFlP11ngx_cycle_smE, 1);
+IA2_DEFINE_WRAPPER(ngx_epoll_done, _ZTSPFvP11ngx_cycle_sE, 1);
 
 static ngx_event_module_t  ngx_epoll_module_ctx = {
     &epoll_name,
-    ngx_epoll_create_conf,               /* create configuration */
-    ngx_epoll_init_conf,                 /* init configuration */
+    IA2_WRAPPER(ngx_epoll_create_conf, 1),               /* create configuration */
+    IA2_WRAPPER(ngx_epoll_init_conf, 1),                 /* init configuration */
 
     {
-        ngx_epoll_add_event,             /* add an event */
-        ngx_epoll_del_event,             /* delete an event */
-        ngx_epoll_add_event,             /* enable an event */
-        ngx_epoll_del_event,             /* disable an event */
-        ngx_epoll_add_connection,        /* add an connection */
-        ngx_epoll_del_connection,        /* delete an connection */
+        IA2_WRAPPER(ngx_epoll_add_event, 1),             /* add an event */
+        IA2_WRAPPER(ngx_epoll_del_event, 1),             /* delete an event */
+        IA2_WRAPPER(ngx_epoll_add_event, 1),             /* enable an event */
+        IA2_WRAPPER(ngx_epoll_del_event, 1),             /* disable an event */
+        IA2_WRAPPER(ngx_epoll_add_connection, 1),        /* add an connection */
+        IA2_WRAPPER(ngx_epoll_del_connection, 1),        /* delete an connection */
 #if (NGX_HAVE_EVENTFD)
-        ngx_epoll_notify,                /* trigger a notify */
+        IA2_WRAPPER(ngx_epoll_notify, 1),                /* trigger a notify */
 #else
-        NULL,                            /* trigger a notify */
+        IA2_NULL_FNPTR,                            /* trigger a notify */
 #endif
-        ngx_epoll_process_events,        /* process the events */
-        ngx_epoll_init,                  /* init the events */
-        ngx_epoll_done,                  /* done the events */
+        IA2_WRAPPER(ngx_epoll_process_events, 1),        /* process the events */
+        IA2_WRAPPER(ngx_epoll_init, 1),                  /* init the events */
+        IA2_WRAPPER(ngx_epoll_done, 1),                  /* done the events */
     }
 };
 
@@ -204,13 +217,13 @@ ngx_module_t  ngx_epoll_module = {
     &ngx_epoll_module_ctx,               /* module context */
     ngx_epoll_commands,                  /* module directives */
     NGX_EVENT_MODULE,                    /* module type */
-    NULL,                                /* init master */
-    NULL,                                /* init module */
-    NULL,                                /* init process */
-    NULL,                                /* init thread */
-    NULL,                                /* exit thread */
-    NULL,                                /* exit process */
-    NULL,                                /* exit master */
+    IA2_NULL_FNPTR,                                /* init master */
+    IA2_NULL_FNPTR,                                /* init module */
+    IA2_NULL_FNPTR,                                /* init process */
+    IA2_NULL_FNPTR,                                /* init thread */
+    IA2_NULL_FNPTR,                                /* exit thread */
+    IA2_NULL_FNPTR,                                /* exit process */
+    IA2_NULL_FNPTR,                                /* exit master */
     NGX_MODULE_V1_PADDING
 };
 
@@ -337,7 +350,7 @@ ngx_epoll_init(ngx_cycle_t *cycle, ngx_msec_t timer)
 
 #if (NGX_HAVE_EVENTFD)
         if (ngx_epoll_notify_init(cycle->log) != NGX_OK) {
-            ngx_epoll_module_ctx.actions.notify = NULL;
+            IA2_NULL_FNPTR_FN_SCOPE(ngx_epoll_module_ctx.actions.notify);
         }
 #endif
 
@@ -401,7 +414,7 @@ ngx_epoll_notify_init(ngx_log_t *log)
     ngx_log_debug1(NGX_LOG_DEBUG_EVENT, log, 0,
                    "notify eventfd: %d", notify_fd);
 
-    notify_event.handler = ngx_epoll_notify_handler;
+    notify_event.handler = IA2_DEFINE_WRAPPER_FN_SCOPE(ngx_epoll_notify_handler, _ZTSPFvP11ngx_event_sE, 1);
     notify_event.log = log;
     notify_event.active = 1;
 
@@ -452,8 +465,9 @@ ngx_epoll_notify_handler(ngx_event_t *ev)
         }
     }
 
-    handler = ev->data;
-    handler(ev);
+    // TODO: This is questionable
+    IA2_ASSIGN_FN_SCOPE(handler, ev->data);
+    IA2_CALL(handler, _ZTSPFvP11ngx_event_sE, 1)(ev);
 }
 
 #endif
@@ -766,7 +780,7 @@ ngx_epoll_notify(ngx_event_handler_pt handler)
 {
     static uint64_t inc = 1;
 
-    notify_event.data = handler;
+    notify_event.data = IA2_WRAPPER_ADDR(handler);
 
     if ((size_t) write(notify_fd, &inc, sizeof(uint64_t)) != sizeof(uint64_t)) {
         ngx_log_error(NGX_LOG_ALERT, notify_event.log, ngx_errno,
@@ -898,7 +912,7 @@ ngx_epoll_process_events(ngx_cycle_t *cycle, ngx_msec_t timer, ngx_uint_t flags)
                 ngx_post_event(rev, queue);
 
             } else {
-                rev->handler(rev);
+                IA2_CALL(rev->handler, _ZTSPFvP11ngx_event_sE, 1)(rev);
             }
         }
 
@@ -927,7 +941,7 @@ ngx_epoll_process_events(ngx_cycle_t *cycle, ngx_msec_t timer, ngx_uint_t flags)
                 ngx_post_event(wev, &ngx_posted_events);
 
             } else {
-                wev->handler(wev);
+                IA2_CALL(wev->handler, _ZTSPFvP11ngx_event_sE, 1)(wev);
             }
         }
     }

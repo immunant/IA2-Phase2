@@ -12,19 +12,27 @@
 u_char  ngx_linux_kern_ostype[50];
 u_char  ngx_linux_kern_osrelease[50];
 
+IA2_DECLARE_WRAPPER(ngx_unix_recv, _ZTSPFlP16ngx_connection_sPhmE, 1);
+IA2_DECLARE_WRAPPER(ngx_readv_chain, _ZTSPFlP16ngx_connection_sP11ngx_chain_slE, 1);
+IA2_DECLARE_WRAPPER(ngx_udp_unix_recv, _ZTSPFlP16ngx_connection_sPhmE, 1);
+IA2_DECLARE_WRAPPER(ngx_unix_send, _ZTSPFlP16ngx_connection_sPhmE, 1);
+IA2_DECLARE_WRAPPER(ngx_udp_unix_send, _ZTSPFlP16ngx_connection_sPhmE, 1);
+IA2_DECLARE_WRAPPER(ngx_udp_unix_sendmsg_chain, _ZTSPFP11ngx_chain_sP16ngx_connection_sS0_lE, 1);
+IA2_DEFINE_WRAPPER(ngx_linux_sendfile_chain, _ZTSPFP11ngx_chain_sP16ngx_connection_sS0_lE, 1);
+IA2_DECLARE_WRAPPER(ngx_writev_chain, _ZTSPFP11ngx_chain_sP16ngx_connection_sS0_lE, 1);
 
 static ngx_os_io_t ngx_linux_io = {
-    ngx_unix_recv,
-    ngx_readv_chain,
-    ngx_udp_unix_recv,
-    ngx_unix_send,
-    ngx_udp_unix_send,
-    ngx_udp_unix_sendmsg_chain,
+    IA2_WRAPPER(ngx_unix_recv, 1),
+    IA2_WRAPPER(ngx_readv_chain, 1),
+    IA2_WRAPPER(ngx_udp_unix_recv, 1),
+    IA2_WRAPPER(ngx_unix_send, 1),
+    IA2_WRAPPER(ngx_udp_unix_send, 1),
+    IA2_WRAPPER(ngx_udp_unix_sendmsg_chain, 1),
 #if (NGX_HAVE_SENDFILE)
-    ngx_linux_sendfile_chain,
+    IA2_WRAPPER(ngx_linux_sendfile_chain, 1),
     NGX_IO_SENDFILE
 #else
-    ngx_writev_chain,
+    IA2_WRAPPER(ngx_writev_chain, 1),
     0
 #endif
 };

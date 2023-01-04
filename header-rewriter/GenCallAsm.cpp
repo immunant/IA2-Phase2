@@ -183,10 +183,6 @@ static void emit_reg_pop(AsmWriter &aw, const ParamLocation &loc) {
   }
 }
 
-// Adapt a macro parameter (for indirect calls) or a macro into a context
-// suitable for interpolation into the string literals for asm(), expanding it
-// in the process. This involves closing/reopening the asm string and
-// stringifying the macro.
 static std::string asm_macro_expansion(const std::string &macro) {
   return llvm::formatv("\" XSTR({0}) \"", macro);
 }
@@ -241,28 +237,14 @@ static std::string sig_string(const CAbiSignature &sig,
 }
 
 std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
-                             WrapperKind kind, const std::string &target_pkey,
-                             bool as_macro) {
-  // Indirect wrappers and manually defined direct wrappers are always generated
-  // as macros
-  as_macro = as_macro || (kind == WrapperKind::Indirect);
+                             WrapperKind kind, const std::string &caller_pkey,
+                             const std::string &target_pkey, bool as_macro) {
   std::string terminator = {};
   // Code generated as a macro needs to terminate each line with '\'
   if (as_macro) {
     terminator = "\\"s;
   }
   AsmWriter aw = {.ss = {}, .terminator = terminator};
-
-  std::string caller_pkey;
-  if (as_macro) {
-    // caller_pkey is the macro param defining the caller's pkey in the
-    // IA2_FNPTR_* macros
-    caller_pkey = "caller_pkey";
-  } else {
-    // The CALLER_PKEY macro must be defined to compile the wrapper source files
-    // that this is written to. Failure to define it gives a preprocessor error.
-    caller_pkey = "CALLER_PKEY";
-  }
 
   auto param_locs = param_locations(sig);
   size_t stack_arg_count = std::count_if(param_locs.begin(), param_locs.end(),
@@ -321,7 +303,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   size_t stack_return_align = 16;
   size_t stack_return_padding = 0;
   size_t start_of_ret_space = 0;
-  if (kind == WrapperKind::Indirect) {
+  if (kind == WrapperKind::ReceivedPointer) {
     // Count the space for the function pointer if the call is indirect.
     start_of_ret_space += 8;
   }
@@ -337,7 +319,8 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   }
 
   // Count room for for the ret align padding, return value, and our ret ptr.
-  size_t compartment_stack_space = start_of_ret_space + stack_return_size + stack_return_padding + stack_arg_size;
+  size_t compartment_stack_space = start_of_ret_space + stack_return_size +
+                                   stack_return_padding + stack_arg_size;
   // Compute what the stack alignment would be before calling the wrapped
   // function to check if we need to insert 8 bytes for alignment. We add 8
   // bytes to the compartment_stack_space since the frame is initially off by 8
@@ -345,31 +328,13 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   size_t stack_alignment = (compartment_stack_space + 8) % 16;
 
   add_comment_line(aw, "Wrapper for "s + sig_string(sig, name) + ":");
+  add_asm_line(aw, ".text");
   // Define the wrapper symbol
-  if (kind == WrapperKind::Indirect) {
-    // This is for IA2_CALL
-    // Jump to a subsection of .text to avoid inlining this wrapper function in
-    // the function that invoked the macro for indirect wrappers
-    add_asm_line(aw, ".text 1");
-    // Set the wrapper's symbol to the current location counter
-    // We use .equ rather than defining a label since clang has issues with
-    // expanding macros into asm string literals.
-    add_raw_line(
-        aw, "\".equ \" XSTR(PASTE4(__ia2_, ty, _line_, __LINE__)) \", .\\n\"");
-  } else if (as_macro) {
-    // This is for IA2_DEFINE_WRAPPER
-    add_asm_line(aw, ".text 1");
-    add_asm_line(aw, llvm::formatv(".global __ia2_{0}_{1}_{2}",
-                                   asm_macro_expansion("target"),
-                                   asm_macro_expansion(caller_pkey),
-                                   asm_macro_expansion(target_pkey)));
-    add_asm_line(
-        aw, llvm::formatv(".equ __ia2_{0}_{1}_{2}, . ", asm_macro_expansion("target"),
-                          asm_macro_expansion(caller_pkey),
-                          asm_macro_expansion(target_pkey)));
+  if ((kind == WrapperKind::ReceivedPointer) ||
+      (kind == WrapperKind::SentPointer)) {
+    add_asm_line(aw, ".global __ia2_"s + name);
+    add_asm_line(aw, "__ia2_"s + name + ":");
   } else {
-    // This is for wrappers defined in the shims
-    add_asm_line(aw, ".text");
     add_asm_line(aw, ".global __wrap_"s + name);
     add_asm_line(aw, "__wrap_"s + name + ":");
   }
@@ -483,10 +448,8 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     }
   }
 
-  if (kind == WrapperKind::Indirect) {
-    add_asm_line(
-        aw,
-        "movq \" XSTR(PASTE4(__ia2_, ty, _target_ptr_line_, __LINE__)) \"@GOTPCREL(%rip), %r12");
+  if (kind == WrapperKind::ReceivedPointer) {
+    add_asm_line(aw, "movq ia2_fn_ptr@GOTPCREL(%rip), %r12");
     add_asm_line(aw, "movq (%r12), %r12");
   }
   // Change pkru to the compartment's value
@@ -501,10 +464,10 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
 
   // Call wrapped function
   add_comment_line(aw, "Call wrapped function");
-  if (kind == WrapperKind::Indirect) {
+  if (kind == WrapperKind::ReceivedPointer) {
     add_asm_line(aw, "call *%r12");
   } else if (as_macro) {
-    add_raw_line(aw, "\"call \" #target \"\\n\"");
+    add_raw_line(aw, "\"call "s + name + "\\n\"");
   } else {
     add_asm_line(aw, "call "s + name);
   }

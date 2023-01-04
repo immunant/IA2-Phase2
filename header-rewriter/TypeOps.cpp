@@ -10,7 +10,7 @@
 const std::string kTypePlaceHolder = "$$$IA2_PLACEHOLDER$$$";
 
 // Prefix we prepend to each rewritten function pointer type
-const std::string kFnPtrTypePrefix = "struct IA2_fnptr_";
+const std::string kFnPtrTypePrefix = "IA2_fnptr_";
 
 // Convert a QualType to a string.
 std::string type_string(const clang::QualType &ty) {

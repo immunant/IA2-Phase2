@@ -34,6 +34,8 @@ void call_fn_ptr() {
     printf("mul(%d, %d) = %d\n", x, y, (f.op)(x, y));
     f.op = divide;
     printf("div(%d, %d) = %d\n", x, y, (f.op)(x, y));
+    f.op = sub;
+    printf("sub(%d, %d) = %d\n", x, y, (f.op)(x, y));
 }
 
 int main(int argc, char **argv) {

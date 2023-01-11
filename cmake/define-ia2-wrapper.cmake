@@ -14,10 +14,7 @@ execute_process(COMMAND ${CMAKE_C_COMPILER} -print-file-name=include-fixed
 # files and private headers are those that are used internally (i.e. require
 # context to be parsed. see issue #4).
 #
-# HEADERS - Public headers to rewrite
-# PRIVATE_HEADERS - Private headers to rewrite. These are not passed directly to
-#                   the rewriter (see issue #4) and are only used to get the
-#                   rewritten headers dependencies correct.
+# SRCS
 # USE_SYSTEM_HEADERS - Use headers for library installed on the system
 # WRAP_MAIN - Creates a shim for the main binary and changes the default target
 #             name.
@@ -25,22 +22,18 @@ execute_process(COMMAND ${CMAKE_C_COMPILER} -print-file-name=include-fixed
 #           ${TEST_NAME}-main-wrapper.
 # WRAPPED_LIB - Target name for library to wrap.Defaults to ${TEST_NAME}-original or
 #               ${TEST_NAME}-main.
-# OUTPUT_HEADER - Header for IA2's type-specific function pointer macros.
-#                 Defaults to ${WRAPPED_LIB}_fn_ptr_ia2.h.
 # INCLUDE_DIR - Added to search path in rewriter invocation. Defaults to
 #               SRC_DIR/include.
 # OUTPUT_DIR - Output directory relative to BIN_DIR to create and use for
 #              rewritten headers. Defaults to BIN_DIR.
-# COMPARTMENT_PKEY - Optional protection key for wrapped library, if any.
-# CALLER_PKEY - Protection key for the wrapper's caller. Set to `UNTRUSTED` if
-#               caller is untrusted. This is required.
-# SHARED_HEADERS - Headers which are only needed for types.
+# CALLER_PKEY - Optional protection key for wrapper's caller. This is required
+# TARGET_PKEY - Protection key for the wrapper's target, if any.
 function(define_ia2_wrapper)
     # Parse options
-    set(options USE_SYSTEM_HEADERS WRAP_MAIN)
-    set(oneValueArgs WRAPPER WRAPPED_LIB OUTPUT_HEADER INCLUDE_DIR OUTPUT_DIR
-        COMPARTMENT_PKEY CALLER_PKEY)
-    set(multiValueArgs HEADERS PRIVATE_HEADERS SHARED_HEADERS EXTRA_REWRITER_ARGS)
+    set(options WRAP_MAIN)
+    set(oneValueArgs WRAPPER WRAPPED_LIB INCLUDE_DIR OUTPUT_DIR
+        CALLER_PKEY TARGET_PKEY)
+    set(multiValueArgs SRCS EXTRA_REWRITER_ARGS)
     cmake_parse_arguments(DEFINE_IA2_WRAPPER "${options}" "${oneValueArgs}"
                           "${multiValueArgs}" ${ARGN} )
 
@@ -60,14 +53,8 @@ function(define_ia2_wrapper)
     else()
         set(WRAPPED_LIB ${TEST_NAME}-original)
     endif()
-    set(HEADERS ${DEFINE_IA2_WRAPPER_HEADERS})
-    set(PRIVATE_HEADERS ${DEFINE_IA2_WRAPPER_PRIVATE_HEADERS})
+    set(SRCS ${DEFINE_IA2_WRAPPER_SRCS})
     set(EXTRA_REWRITER_ARGS ${DEFINE_IA2_WRAPPER_EXTRA_REWRITER_ARGS})
-    if(DEFINED DEFINE_IA2_WRAPPER_OUTPUT_HEADER)
-        set(OUTPUT_HEADER ${DEFINE_IA2_WRAPPER_OUTPUT_HEADER})
-    else()
-        set(OUTPUT_HEADER "${WRAPPED_LIB}_fn_ptr_ia2.h")
-    endif()
     if(DEFINED DEFINE_IA2_WRAPPER_INCLUDE_DIR)
         set(INCLUDE_DIR ${DEFINE_IA2_WRAPPER_INCLUDE_DIR})
     else()
@@ -79,97 +66,59 @@ function(define_ia2_wrapper)
             set(INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
         endif()
     endif()
-    if(DEFINED DEFINE_IA2_WRAPPER_COMPARTMENT_PKEY)
-        set(COMPARTMENT_PKEY_OPTION
-            "--compartment-pkey=${DEFINE_IA2_WRAPPER_COMPARTMENT_PKEY}")
-    endif()
+
     if(DEFINED DEFINE_IA2_WRAPPER_CALLER_PKEY)
-        set(DEFINE_CALLER_PKEY "-DCALLER_PKEY=${DEFINE_IA2_WRAPPER_CALLER_PKEY}")
+        set(CALLER_PKEY_OPTION "--compartment-pkey=${DEFINE_IA2_WRAPPER_CALLER_PKEY}")
     else()
         message(FATAL_ERROR
-            "CALLER_PKEY (0-14) must be defined to build a wrapper. \
-            Set to `UNTRUSTED` if the caller compartment is untrusted")
+            "CALLER_PKEY (0-15) must be defined to build a wrapper")
     endif()
+
+    if(DEFINED DEFINE_IA2_WRAPPER_TARGET_PKEY)
+        set(TARGET_PKEY ${DEFINE_IA2_WRAPPER_TARGET_PKEY})
+    else()
+        set(TARGET_PKEY "0")
+    endif()
+    set(DEFINE_TARGET_PKEY "-DTARGET_PKEY=${TARGET_PKEY}")
+
     if(DEFINED DEFINE_IA2_WRAPPER_OUTPUT_DIR)
         set(OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/${DEFINE_IA2_WRAPPER_OUTPUT_DIR})
     else()
         set(OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR})
     endif()
-    if(DEFINED DEFINE_IA2_WRAPPER_SHARED_HEADERS)
-        set(SHARED_HEADERS "--shared-headers=${DEFINE_IA2_WRAPPER_SHARED_HEADERS}")
-    endif()
 
-    # Collect headers
-    set(ORIGINAL_HEADER_DIR ${INCLUDE_DIR})
-    set(REWRITTEN_HEADER_DIR ${OUTPUT_DIR})
+    set(ORIGINAL_SRCS ${SRCS})
+    set(REWRITTEN_SRCS ${SRCS})
+    list(TRANSFORM ORIGINAL_SRCS PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/)
+    list(TRANSFORM REWRITTEN_SRCS PREPEND ${CMAKE_CURRENT_BINARY_DIR}/)
 
-    if(${DEFINE_IA2_WRAPPER_USE_SYSTEM_HEADERS})
-        # Grab system headers
-        set(COPIED_HEADERS)
+    set(REWRITER_INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR}/${WRAPPED_LIB}_shim/)
 
-        foreach(SYSTEM_HEADER ${HEADERS})
-            # Make path absolute
-            if(NOT IS_ABSOLUTE ${SYSTEM_HEADER})
-                set(SYSTEM_HEADER ${INCLUDE_DIR}/${SYSTEM_HEADER})
-            endif()
-
-            # Copy the header to build dir under `system` subdir
-            get_filename_component(HEADER_NAME ${SYSTEM_HEADER} NAME)
-            set(COPIED_HEADER ${REWRITTEN_HEADER_DIR}/system/${HEADER_NAME})
-            add_custom_command(
-                OUTPUT ${COPIED_HEADER}
-                COMMAND mkdir -p ${REWRITTEN_HEADER_DIR}
-                COMMAND cp ${SYSTEM_HEADER} ${COPIED_HEADER}
-                DEPENDS ${SYSTEM_HEADER}
-            )
-
-            # Build list absolute paths of input headers
-            list(APPEND COPIED_HEADERS ${COPIED_HEADER})
-            # Build list of absolute paths of mutated outputs from rewriter
-            list(APPEND REWRITTEN_HEADERS ${REWRITTEN_HEADER_DIR}/${HEADER_NAME})
-        endforeach()
-
-        set(HEADER_SRCS ${COPIED_HEADERS} ${PRIVATE_HEADERS})
-
-        # Recursively copy just these headers to run the rewriter on
-        set(HEADER_SRC_DIRS ${COPIED_HEADERS} ${PRIVATE_HEADERS})
-    else()
-        # Build absolute paths of mutated outputs from rewriter
-        set(REWRITTEN_HEADERS ${HEADERS})
-        list(TRANSFORM REWRITTEN_HEADERS PREPEND ${REWRITTEN_HEADER_DIR}/)
-
-        # Build absolute paths of header inputs
-        set(HEADER_SRCS ${HEADERS} ${PRIVATE_HEADERS})
-        list(TRANSFORM HEADER_SRCS PREPEND ${ORIGINAL_HEADER_DIR}/)
-
-        # Glob dirs to copy to generate not-yet-mutated outputs
-        file(GLOB HEADER_SRC_DIRS ${ORIGINAL_HEADER_DIR}/*)
-    endif()
-
-    set(WRAPPER_SRC ${WRAPPED_LIB}_wrapper.c)
-
+    set(WRAPPER_PREFIX ${WRAPPED_LIB}-shim)
+    set(WRAPPER_SRC ${WRAPPER_PREFIX}.c)
+    set(OUTPUT_HEADER ${CMAKE_CURRENT_BINARY_DIR}/${WRAPPER_PREFIX}.h)
+    get_target_property(IA2_INCLUDE_DIR libia2 INCLUDE_DIRECTORIES)
     # Run the header rewriter
     add_custom_command(
-        OUTPUT ${REWRITTEN_HEADERS} ${WRAPPER_SRC}
-        # Copy headers to their REWRITTEN_HEADERS locations
-        COMMAND cp -r ${HEADER_SRC_DIRS} ${REWRITTEN_HEADER_DIR}
-        # Run the rewriter itself, mutating the headers
+        OUTPUT ${REWRITTEN_SRCS} ${WRAPPER_SRC} ${OUTPUT_HEADER}
+        # Copy sources to their REWRITTEN_SRCS locations
+        COMMAND cp -r ${ORIGINAL_SRCS} ${CMAKE_CURRENT_BINARY_DIR}/
+        COMMAND cp -r ${INCLUDE_DIR} ${REWRITER_INCLUDE_DIR}
+        # Run the rewriter itself, mutating the sources
         COMMAND ia2-header-rewriter
-          --output-header ${REWRITTEN_HEADER_DIR}/${OUTPUT_HEADER}
-          ${EXTRA_REWRITER_ARGS}
-          ${SHARED_HEADERS}
-          ${COMPARTMENT_PKEY_OPTION}
-          ${CMAKE_CURRENT_BINARY_DIR}/${WRAPPER_SRC}
-          ${REWRITTEN_HEADERS}
+          ${CALLER_PKEY_OPTION}
+          --output-filename=${CMAKE_CURRENT_BINARY_DIR}/${WRAPPER_PREFIX}
+          ${REWRITTEN_SRCS}
           --
-          -fgnuc-version=6
-          -I ${REWRITTEN_HEADER_DIR}
+          -I ${REWRITER_INCLUDE_DIR}
+          -I ${IA2_INCLUDE_DIR}
           -isystem ${C_SYSTEM_INCLUDE}
           -isystem ${C_SYSTEM_INCLUDE_FIXED}
-        DEPENDS ${HEADER_SRCS} ia2-header-rewriter
+          -D_GNU_SOURCE
+        DEPENDS ${ORIGINAL_SRCS} ia2-header-rewriter
         VERBATIM)
 
-    # If we're producing a wrapper for the main binary we don't need to link
+    # If we're producing a wrapper to call the main binary we don't need to link
     # against any library
     if(DEFINE_IA2_WRAPPER_WRAP_MAIN)
         unset(WRAPPED_LIB)
@@ -182,15 +131,16 @@ function(define_ia2_wrapper)
     target_compile_definitions(${WRAPPER_TARGET} PRIVATE _GNU_SOURCE)
     target_compile_options(${WRAPPER_TARGET} PRIVATE
         "-Wno-deprecated-declarations"
-        ${DEFINE_CALLER_PKEY})
+        ${DEFINE_TARGET_PKEY}
+        INTERFACE "-include" ${OUTPUT_HEADER})
     target_link_options(${WRAPPER_TARGET} PRIVATE "-Wl,-z,now")
     target_link_libraries(${WRAPPER_TARGET}
-        INTERFACE -Wl,@${CMAKE_CURRENT_BINARY_DIR}/${WRAPPER_SRC}.args
+        INTERFACE -Wl,@${CMAKE_CURRENT_BINARY_DIR}/${WRAPPER_PREFIX}.args
         PUBLIC ${WRAPPED_LIB})
 
     # Add IA2 and wrapper include dirs
     target_include_directories(${WRAPPER_TARGET}
-        INTERFACE ${REWRITTEN_HEADER_DIR}
+        INTERFACE ${REWRITER_INCLUDE_DIR}
     )
 
     target_link_libraries(${WRAPPER_TARGET} PRIVATE libia2)

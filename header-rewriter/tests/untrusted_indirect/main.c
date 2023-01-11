@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdint.h>
+#include <ia2.h>
 #include "foo.h"
-#include "untrusted_indirect-original_fn_ptr_ia2.h"
 #define IA2_DEFINE_TEST_HANDLER
 #include "test_fault_handler.h"
 
@@ -59,12 +59,10 @@ int main(int argc, char **argv) {
     printf("TRUSTED: the secret is 0x%lx\n", secret);
     printf("0x%lx\n", apply_callback(1, 2));
 
-    IA2_DEFINE_WRAPPER(pick_rhs, _ZTSPFmmmE, 1);
-    register_callback(IA2_WRAPPER_FN_SCOPE(pick_rhs, 1));
+    register_callback(pick_rhs);
     printf("0x%lx\n", apply_callback(3, 4));
 
-    IA2_DEFINE_WRAPPER(leak_secret_address, _ZTSPFmmmE, 1);
-    register_callback(IA2_WRAPPER_FN_SCOPE(leak_secret_address, 1));
+    register_callback(leak_secret_address);
     printf("TRUSTED: oops we leaked the address of the secret\n");
     apply_callback(5, 6);
 

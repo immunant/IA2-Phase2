@@ -2,7 +2,7 @@
 define_ia2_wrapper(
     WRAPPER wrapper
     WRAPPED_LIB original
-    HEADERS minimal.h
+    SRCS main.c
     CALLER_PKEY 1
 )
 

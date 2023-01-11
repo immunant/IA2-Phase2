@@ -10,7 +10,7 @@ define_shared_lib(
 )
 
 define_ia2_wrapper(
-    HEADERS foo.h
+    SRCS main.c
     CALLER_PKEY 1
 )
 

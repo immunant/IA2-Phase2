@@ -29,11 +29,11 @@ void call_fn_ptr() {
     printf("Got the function %s from the library\n", f.name);
     uint32_t x = 987234;
     uint32_t y = 142151;
-    printf("%s(%d, %d) = %d\n", f.name, x, y, IA2_CALL(f.op, _ZTSPFjjjE, 1)(x, y));
-    f.op = IA2_DEFINE_WRAPPER_FN_SCOPE(multiply, _ZTSPFjjjE, 1);
-    printf("mul(%d, %d) = %d\n", x, y, IA2_CALL(f.op, _ZTSPFjjjE, 1)(x, y));
-    f.op = IA2_DEFINE_WRAPPER_FN_SCOPE(divide, _ZTSPFjjjE, 1);
-    printf("div(%d, %d) = %d\n", x, y, IA2_CALL(f.op, _ZTSPFjjjE, 1)(x, y));
+    printf("%s(%d, %d) = %d\n", f.name, x, y, (f.op)(x, y));
+    f.op = multiply;
+    printf("mul(%d, %d) = %d\n", x, y, (f.op)(x, y));
+    f.op = divide;
+    printf("div(%d, %d) = %d\n", x, y, (f.op)(x, y));
 }
 
 int main(int argc, char **argv) {
@@ -52,5 +52,5 @@ int main(int argc, char **argv) {
 
     static uint32_t secret = 34;
     leak_secret_address(&secret);
-    IA2_CALL(f.op, _ZTSPFjjjE, 1)(0, 0);
+    (f.op)(0, 0);
 }

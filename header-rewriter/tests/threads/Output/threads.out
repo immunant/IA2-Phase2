@@ -1,0 +1,16 @@
+main-module main pkru=55555550
+CHECK: library pkru fffffffc
+CHECK-NEXT: main-module main pkru=fffffff0
+CHECK-DAG: library pkru fffffffc
+tid 2 ptr=0x1
+CHECK-DAG: main-module thread pkru=fffffff0
+CHECK-DAG: data in library: 900
+CHECK-DAG: main data is 30
+CHECK-DAG: in lib, about to call fnptr; lib data: 900
+CHECK-DAG: library pkru fffffffc
+tid 3 ptr=0x2
+CHECK-DAG: main-module thread pkru=fffffff0
+CHECK-DAG: main data is 30
+ptr is 0x1, formatting int: 000010cd
+CHECK-DAG: library pkru fffffffc
+ptr is 0x2, formatting int: 000010ce

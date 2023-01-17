@@ -45,7 +45,7 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        clang-version: [10, 11, 12, 13]
+        clang-version: [10, 11, 12, 13, 14, 15]
     steps:
       - name: Provision build environment
         run: |
@@ -63,7 +63,7 @@ jobs:
         run: |
           sudo apt install -y wget
           wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key|sudo apt-key add -
-          sudo add-apt-repository "deb http://apt.llvm.org/focal/ llvm-toolchain-focal-13 main"
+          sudo add-apt-repository "deb http://apt.llvm.org/focal/ llvm-toolchain-focal-${{ matrix.clang-version }} main"
           sudo apt install -y clang-${{ matrix.clang-version }} \
             libclang-${{ matrix.clang-version }}-dev
       - name: Check out code

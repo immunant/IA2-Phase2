@@ -2,6 +2,10 @@
 #include "clang/AST/AST.h"
 #include "clang/AST/RecordLayout.h"
 #include "clang/Basic/CodeGenOptions.h"
+#if LLVM_VERSION_MAJOR >= 15
+#include "clang/Basic/FileManager.h"
+#include "clang/Basic/FileSystemOptions.h"
+#endif
 #include "clang/CodeGen/CGFunctionInfo.h"
 #include "clang/CodeGen/CodeGenABITypes.h"
 #include "clang/CodeGen/ModuleBuilder.h"
@@ -233,12 +237,23 @@ CAbiSignature determineAbiForDecl(const clang::FunctionDecl &fnDecl) {
   // just `clang::CodeGen::CodeGenModule& cgm` could be passed in.
   // doing so would add the precondition that the clang::AstContext of
   // the passed fnDecl matches that of the passed CGM's CodeGenerator.
+#if LLVM_VERSION_MAJOR >= 15
+  clang::FileSystemOptions fso{"."};
+  clang::FileManager fm(fso);
+  llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> vfs =
+      &fm.getVirtualFileSystem();
+#endif
+
   clang::HeaderSearchOptions hso;
   clang::PreprocessorOptions ppo;
   clang::CodeGenOptions cgo;
   llvm::LLVMContext llvmCtx;
-  clang::CodeGenerator *codeGenerator = CreateLLVMCodeGen(
-      astContext.getDiagnostics(), llvm::StringRef(), hso, ppo, cgo, llvmCtx);
+  clang::CodeGenerator *codeGenerator =
+      CreateLLVMCodeGen(astContext.getDiagnostics(), llvm::StringRef(),
+#if LLVM_VERSION_MAJOR >= 15
+                        vfs,
+#endif
+                        hso, ppo, cgo, llvmCtx);
 
   codeGenerator->Initialize(astContext);
   clang::CodeGen::CodeGenModule &cgm = codeGenerator->CGM();
@@ -264,12 +279,23 @@ CAbiSignature determineAbiForProtoType(const clang::FunctionProtoType &fpt,
   // FIXME: This is copied verbatim from determineAbiForDecl and could be
   // factored out. This depends on what we do with PR #78 so I'm leaving it as
   // is for now.
+#if LLVM_VERSION_MAJOR >= 15
+  clang::FileSystemOptions fso{"."};
+  clang::FileManager fm(fso);
+  llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> vfs =
+      &fm.getVirtualFileSystem();
+#endif
+
   clang::HeaderSearchOptions hso;
   clang::PreprocessorOptions ppo;
   clang::CodeGenOptions cgo;
   llvm::LLVMContext llvmCtx;
-  clang::CodeGenerator *codeGenerator = CreateLLVMCodeGen(
-      astContext.getDiagnostics(), llvm::StringRef(), hso, ppo, cgo, llvmCtx);
+  clang::CodeGenerator *codeGenerator =
+      CreateLLVMCodeGen(astContext.getDiagnostics(), llvm::StringRef(),
+#if LLVM_VERSION_MAJOR >= 15
+                        vfs,
+#endif
+                        hso, ppo, cgo, llvmCtx);
 
   codeGenerator->Initialize(astContext);
   clang::CodeGen::CodeGenModule &cgm = codeGenerator->CGM();

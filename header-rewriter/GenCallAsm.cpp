@@ -241,8 +241,8 @@ static std::string sig_string(const CAbiSignature &sig,
 }
 
 std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
-                             WrapperKind kind, const std::string &target_pkey,
-                             bool as_macro) {
+                             WrapperKind kind, const std::string &caller_pkey,
+                             const std::string &target_pkey, bool as_macro) {
   // Indirect wrappers and manually defined direct wrappers are always generated
   // as macros
   as_macro = as_macro || (kind == WrapperKind::Indirect);
@@ -252,17 +252,6 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     terminator = "\\"s;
   }
   AsmWriter aw = {.ss = {}, .terminator = terminator};
-
-  std::string caller_pkey;
-  if (as_macro) {
-    // caller_pkey is the macro param defining the caller's pkey in the
-    // IA2_FNPTR_* macros
-    caller_pkey = "caller_pkey";
-  } else {
-    // The CALLER_PKEY macro must be defined to compile the wrapper source files
-    // that this is written to. Failure to define it gives a preprocessor error.
-    caller_pkey = "CALLER_PKEY";
-  }
 
   auto param_locs = param_locations(sig);
   size_t stack_arg_count = std::count_if(param_locs.begin(), param_locs.end(),

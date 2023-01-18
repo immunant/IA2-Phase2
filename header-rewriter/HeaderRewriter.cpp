@@ -495,8 +495,8 @@ static std::string generate_output_header(
        << "(target, caller_pkey, target_pkey) \\\n";
     // This argument must be a valid asm identifier for direct calls
     auto direct_wrapper =
-        emit_asm_wrapper(fi.sig, "target"s, WrapperKind::Direct, "caller_pkey"s,
-                         "target_pkey"s, true /* as_macro */);
+        emit_asm_wrapper(fi.sig, "target"s, WrapperKind::Pointer,
+                         "caller_pkey"s, "target_pkey"s, true /* as_macro */);
     os << direct_wrapper << "\n";
 
     // IA2_CALL_* takes an opaque pointer and returns a function
@@ -505,8 +505,8 @@ static std::string generate_output_header(
        << "(target, ty, caller_pkey, target_pkey) \\\n";
     // target_pkey is the macro param defining the callee's pkey
     auto wrapper_from_untrusted =
-        emit_asm_wrapper(fi.sig, fi.new_type, WrapperKind::Indirect,
-                         "caller_pkey"s, "target_pkey"s);
+        emit_asm_wrapper(fi.sig, fi.new_type, WrapperKind::IndirectCallsite,
+                         "caller_pkey"s, "target_pkey"s, true /* as_macro */);
     os << wrapper_from_untrusted << "\n";
   }
 

@@ -243,9 +243,6 @@ static std::string sig_string(const CAbiSignature &sig,
 std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
                              WrapperKind kind, const std::string &caller_pkey,
                              const std::string &target_pkey, bool as_macro) {
-  // Indirect wrappers and manually defined direct wrappers are always generated
-  // as macros
-  as_macro = as_macro || (kind == WrapperKind::Indirect);
   std::string terminator = {};
   // Code generated as a macro needs to terminate each line with '\'
   if (as_macro) {
@@ -310,7 +307,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   size_t stack_return_align = 16;
   size_t stack_return_padding = 0;
   size_t start_of_ret_space = 0;
-  if (kind == WrapperKind::Indirect) {
+  if (kind == WrapperKind::IndirectCallsite) {
     // Count the space for the function pointer if the call is indirect.
     start_of_ret_space += 8;
   }
@@ -336,7 +333,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
 
   add_comment_line(aw, "Wrapper for "s + sig_string(sig, name) + ":");
   // Define the wrapper symbol
-  if (kind == WrapperKind::Indirect) {
+  if (kind == WrapperKind::IndirectCallsite) {
     // This is for IA2_CALL
     // Jump to a subsection of .text to avoid inlining this wrapper function in
     // the function that invoked the macro for indirect wrappers
@@ -346,7 +343,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     // expanding macros into asm string literals.
     add_raw_line(
         aw, "\".equ \" XSTR(PASTE4(__ia2_, ty, _line_, __LINE__)) \", .\\n\"");
-  } else if (as_macro) {
+  } else if (kind == WrapperKind::Pointer) {
     // This is for IA2_DEFINE_WRAPPER
     add_asm_line(aw, ".text 1");
     add_asm_line(aw, llvm::formatv(".global __ia2_{0}_{1}_{2}",
@@ -358,6 +355,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
                                    asm_macro_expansion(caller_pkey),
                                    asm_macro_expansion(target_pkey)));
   } else {
+    assert(kind == WrapperKind::Direct);
     // This is for wrappers defined in the shims
     add_asm_line(aw, ".text");
     add_asm_line(aw, ".global __wrap_"s + name);
@@ -473,7 +471,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     }
   }
 
-  if (kind == WrapperKind::Indirect) {
+  if (kind == WrapperKind::IndirectCallsite) {
     add_asm_line(
         aw,
         "movq \" XSTR(PASTE4(__ia2_, ty, _target_ptr_line_, __LINE__)) \"@GOTPCREL(%rip), %r12");
@@ -491,11 +489,12 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
 
   // Call wrapped function
   add_comment_line(aw, "Call wrapped function");
-  if (kind == WrapperKind::Indirect) {
+  if (kind == WrapperKind::IndirectCallsite) {
     add_asm_line(aw, "call *%r12");
-  } else if (as_macro) {
+  } else if (kind == WrapperKind::Pointer) {
     add_raw_line(aw, "\"call \" #target \"\\n\"");
   } else {
+    assert(kind == WrapperKind::Direct);
     add_asm_line(aw, "call "s + name);
   }
 

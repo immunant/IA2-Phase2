@@ -5,8 +5,10 @@
 enum class WrapperKind {
   // Direct call to another compartment
   Direct,
+  // Indirect call through a pointer sent to another compartment
+  Pointer,
   // Indirect call through a pointer received from another compartment
-  Indirect,
+  IndirectCallsite,
 };
 
 // Generates a wrapper for a function named \p name with the signature \p sig.

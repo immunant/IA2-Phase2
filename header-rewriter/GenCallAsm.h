@@ -21,5 +21,6 @@ enum class WrapperKind {
 // \p as_macro determines if the wrappers for direct calls is emitted as a
 // macro. Indirect calls are unconditionally emitted as macros.
 std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
-                             WrapperKind kind, const std::string &callee_pkey,
+                             WrapperKind kind, const std::string &caller_pkey,
+                             const std::string &target_pkey,
                              bool as_macro = false);

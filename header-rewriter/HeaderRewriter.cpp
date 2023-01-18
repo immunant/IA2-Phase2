@@ -168,8 +168,11 @@ struct FunctionWrapper {
     // Default to 0 if --compartment-pkey is not passed
     auto PkeyValue =
         (CompartmentPkey.getNumOccurrences() == 0) ? 0 : CompartmentPkey;
-    std::string asm_wrapper = emit_asm_wrapper(
-        cAbiSig, fn_name, WrapperKind::Direct, std::to_string(PkeyValue));
+    // The CALLER_PKEY macro must be defined to compile the wrapper source files
+    // that this is written to. Failure to define it gives a preprocessor error.
+    std::string asm_wrapper =
+        emit_asm_wrapper(cAbiSig, fn_name, WrapperKind::Direct, "CALLER_PKEY"s,
+                         std::to_string(PkeyValue));
 
     // Generate wrapper symbol definition, invoking call gates around call
     this->name = fn_name;
@@ -492,8 +495,8 @@ static std::string generate_output_header(
        << "(target, caller_pkey, target_pkey) \\\n";
     // This argument must be a valid asm identifier for direct calls
     auto direct_wrapper =
-        emit_asm_wrapper(fi.sig, "target"s, WrapperKind::Direct, "target_pkey"s,
-                         true /* as_macro */);
+        emit_asm_wrapper(fi.sig, "target"s, WrapperKind::Direct, "caller_pkey"s,
+                         "target_pkey"s, true /* as_macro */);
     os << direct_wrapper << "\n";
 
     // IA2_CALL_* takes an opaque pointer and returns a function
@@ -501,8 +504,9 @@ static std::string generate_output_header(
     os << "#define IA2_CALL_" << mangled_type
        << "(target, ty, caller_pkey, target_pkey) \\\n";
     // target_pkey is the macro param defining the callee's pkey
-    auto wrapper_from_untrusted = emit_asm_wrapper(
-        fi.sig, fi.new_type, WrapperKind::Indirect, "target_pkey"s);
+    auto wrapper_from_untrusted =
+        emit_asm_wrapper(fi.sig, fi.new_type, WrapperKind::Indirect,
+                         "caller_pkey"s, "target_pkey"s);
     os << wrapper_from_untrusted << "\n";
   }
 

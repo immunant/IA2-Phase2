@@ -337,7 +337,8 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   }
 
   // Count room for for the ret align padding, return value, and our ret ptr.
-  size_t compartment_stack_space = start_of_ret_space + stack_return_size + stack_return_padding + stack_arg_size;
+  size_t compartment_stack_space = start_of_ret_space + stack_return_size +
+                                   stack_return_padding + stack_arg_size;
   // Compute what the stack alignment would be before calling the wrapped
   // function to check if we need to insert 8 bytes for alignment. We add 8
   // bytes to the compartment_stack_space since the frame is initially off by 8
@@ -363,10 +364,10 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
                                    asm_macro_expansion("target"),
                                    asm_macro_expansion(caller_pkey),
                                    asm_macro_expansion(target_pkey)));
-    add_asm_line(
-        aw, llvm::formatv(".equ __ia2_{0}_{1}_{2}, . ", asm_macro_expansion("target"),
-                          asm_macro_expansion(caller_pkey),
-                          asm_macro_expansion(target_pkey)));
+    add_asm_line(aw, llvm::formatv(".equ __ia2_{0}_{1}_{2}, . ",
+                                   asm_macro_expansion("target"),
+                                   asm_macro_expansion(caller_pkey),
+                                   asm_macro_expansion(target_pkey)));
   } else {
     // This is for wrappers defined in the shims
     add_asm_line(aw, ".text");

@@ -118,7 +118,8 @@ struct FunctionWrapper {
     auto fn_name = fn_decl->getNameInfo().getAsString();
 
     auto ret_type = fn_decl->getReturnType();
-    if (ret_type->isFunctionPointerType() && !ret_type->getAs<clang::TypedefType>()) {
+    if (ret_type->isFunctionPointerType() &&
+        !ret_type->getAs<clang::TypedefType>()) {
       auto &sm = fn_decl->getASTContext().getSourceManager();
       llvm::errs() << "Function that returns a non-typedefed function pointer"
                       " is not supported, location:"

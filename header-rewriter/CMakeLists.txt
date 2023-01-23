@@ -16,7 +16,7 @@ include_directories(${CLANG_INCLUDE_DIRS} ${LLVM_INCLUDE_DIRS})
 add_executable(ia2-header-rewriter
     DetermineAbi.cpp
     GenCallAsm.cpp
-    HeaderRewriter.cpp
+    SourceRewriter.cpp
     TypeOps.cpp
     )
 

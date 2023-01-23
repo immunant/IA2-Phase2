@@ -22,7 +22,8 @@ enum class WrapperKind {
 // which must be valid to pass to the `PKRU` macro in ia2.h.
 // \p as_macro determines if the wrappers for direct calls is emitted as a
 // macro. Indirect calls are unconditionally emitted as macros.
-std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
-                             WrapperKind kind, const std::string &caller_pkey,
-                             const std::string &target_pkey,
+std::string emit_asm_wrapper(const CAbiSignature &sig,
+                             const std::string &wrapper_name,
+                             const std::string *target_name, WrapperKind kind,
+                             int caller_pkey, int target_pkey,
                              bool as_macro = false);

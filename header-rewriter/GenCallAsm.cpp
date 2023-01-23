@@ -183,36 +183,27 @@ static void emit_reg_pop(AsmWriter &aw, const ParamLocation &loc) {
   }
 }
 
-// Adapt a macro parameter (for indirect calls) or a macro into a context
-// suitable for interpolation into the string literals for asm(), expanding it
-// in the process. This involves closing/reopening the asm string and
-// stringifying the macro.
-static std::string asm_macro_expansion(const std::string &macro) {
-  return llvm::formatv("\" XSTR({0}) \"", macro);
+static int stack_offset(int pkey) { return pkey * 8; }
+
+// Emit code to set the PKRU. Clobbers eax, ecx and edx.
+// \p pkey is a std::string of an assembly literal without a $ prefix.
+static void emit_wrpkru(AsmWriter &aw, int pkey) {
+  uint32_t pkru = ~((0b11 << (2 * pkey)) | 0b11);
+  // wrpkru requires zeroing ecx and edx
+  add_asm_line(aw, "xorl %ecx, %ecx");
+  add_asm_line(aw, "xorl %edx, %edx");
+  add_asm_line(aw, llvm::formatv("movl ${0:x8}, %eax", pkru));
+  add_raw_line(aw, "IA2_WRPKRU \"\\n\"");
 }
 
 // Emit code to set the PKRU. Clobbers eax, ecx and edx.
 // \p pkey is a std::string of an assembly literal without a $ prefix.
-static void emit_wrpkru(AsmWriter &aw, const std::string &pkey) {
+static void emit_mixed_wrpkru(AsmWriter &aw, int pkey0, int pkey1) {
+  uint32_t pkru = ~((0b11 << (2 * pkey0)) | (0b11 << (2 * pkey1)) | 0b11);
   // wrpkru requires zeroing ecx and edx
   add_asm_line(aw, "xorl %ecx, %ecx");
   add_asm_line(aw, "xorl %edx, %edx");
-  add_asm_line(aw,
-               llvm::formatv("mov_pkru_eax {0}", asm_macro_expansion(pkey)));
-  add_raw_line(aw, "IA2_WRPKRU \"\\n\"");
-}
-
-// Emit code to set the PKRU to a mixed value allowing access to data protected
-// by either pkey0 or pkey1. Clobbers eax, ecx and edx.
-// \p pkey0 and \p pkey1 are std::strings of assembly literals without $ prefix.
-static void emit_mixed_wrpkru(AsmWriter &aw, const std::string &pkey0,
-                              const std::string &pkey1) {
-  // wrpkru requires zeroing ecx and edx
-  add_asm_line(aw, "xorl %ecx, %ecx");
-  add_asm_line(aw, "xorl %edx, %edx");
-  add_asm_line(aw, llvm::formatv("mov_mixed_pkru_eax {0}, {1}",
-                                 asm_macro_expansion(pkey0),
-                                 asm_macro_expansion(pkey1)));
+  add_asm_line(aw, llvm::formatv("movl ${0:x8}, %eax", pkru));
   add_raw_line(aw, "IA2_WRPKRU \"\\n\"");
 }
 
@@ -229,9 +220,14 @@ static void append_arg_kinds(std::stringstream &ss,
 }
 
 static std::string sig_string(const CAbiSignature &sig,
-                              const std::string &name) {
+                              const std::string *name) {
   std::stringstream ss = {};
-  ss << name << "(";
+  if (name == nullptr) {
+    ss << "indirect call"
+       << "(";
+  } else {
+    ss << *name << "(";
+  }
   append_arg_kinds(ss, sig.args);
   ss << ")";
   if (!sig.ret.empty()) {
@@ -241,9 +237,11 @@ static std::string sig_string(const CAbiSignature &sig,
   return ss.str();
 }
 
-std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
-                             WrapperKind kind, const std::string &caller_pkey,
-                             const std::string &target_pkey, bool as_macro) {
+std::string emit_asm_wrapper(const CAbiSignature &sig,
+                             const std::string &wrapper_name,
+                             const std::string *target_name, WrapperKind kind,
+                             int caller_pkey, int target_pkey, bool as_macro) {
+
   std::string terminator = {};
   // Code generated as a macro needs to terminate each line with '\'
   if (as_macro) {
@@ -332,36 +330,12 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   // bytes.
   size_t stack_alignment = (compartment_stack_space + 8) % 16;
 
-  add_comment_line(aw, "Wrapper for "s + sig_string(sig, name) + ":");
-  // Define the wrapper symbol
-  if (kind == WrapperKind::IndirectCallsite) {
-    // This is for IA2_CALL
-    // Jump to a subsection of .text to avoid inlining this wrapper function in
-    // the function that invoked the macro for indirect wrappers
-    add_asm_line(aw, ".text 1");
-    // Set the wrapper's symbol to the current location counter
-    // We use .equ rather than defining a label since clang has issues with
-    // expanding macros into asm string literals.
-    add_raw_line(
-        aw, "\".equ \" XSTR(PASTE4(__ia2_, ty, _line_, __LINE__)) \", .\\n\"");
-  } else if (kind == WrapperKind::Pointer) {
-    // This is for IA2_DEFINE_WRAPPER
-    add_asm_line(aw, ".text 1");
-    add_asm_line(aw, llvm::formatv(".global __ia2_{0}_{1}_{2}",
-                                   asm_macro_expansion("target"),
-                                   asm_macro_expansion(caller_pkey),
-                                   asm_macro_expansion(target_pkey)));
-    add_asm_line(aw, llvm::formatv(".equ __ia2_{0}_{1}_{2}, . ",
-                                   asm_macro_expansion("target"),
-                                   asm_macro_expansion(caller_pkey),
-                                   asm_macro_expansion(target_pkey)));
-  } else {
-    assert(kind == WrapperKind::Direct);
-    // This is for wrappers defined in the shims
-    add_asm_line(aw, ".text");
-    add_asm_line(aw, ".global __wrap_"s + name);
-    add_asm_line(aw, "__wrap_"s + name + ":");
+  add_comment_line(aw, "Wrapper for "s + sig_string(sig, target_name) + ":");
+  add_asm_line(aw, ".text");
+  if (!as_macro) {
+    add_asm_line(aw, ".global "s + wrapper_name);
   }
+  add_asm_line(aw, wrapper_name + ":");
 
   // Save the old frame pointer and set the frame pointer for the call gate
   add_asm_line(aw, "pushq %rbp");
@@ -386,15 +360,15 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   // Save caller stack pointer
   add_comment_line(aw, "Save caller stack pointer");
   add_asm_line(aw, "movq ia2_stackptrs@GOTPCREL(%rip), %rax");
-  add_asm_line(aw,
-               llvm::formatv("leaq \" STACK({0}) \"(%rax), %rax", caller_pkey));
+  add_asm_line(
+      aw, llvm::formatv("leaq {0}(%rax), %rax", stack_offset(caller_pkey)));
   add_asm_line(aw, "movq %rsp, (%rax)");
 
   // Switch to target stack
   add_comment_line(aw, "Switch to target stack");
   add_asm_line(aw, "movq ia2_stackptrs@GOTPCREL(%rip), %rsp");
-  add_raw_line(aw, llvm::formatv("\"movq \" STACK({0}) \"(%rsp), %rsp\\n\"",
-                                 target_pkey));
+  add_asm_line(
+      aw, llvm::formatv("movq {0}(%rsp), %rsp", stack_offset(target_pkey)));
 
   // When returning via memory, the address of the return value is passed in
   // rdi. Since this memory belongs to the caller, we first allocate space for
@@ -432,7 +406,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
         aw, "Copy stack arguments from the caller's stack to the compartment");
     add_asm_line(aw, "movq ia2_stackptrs@GOTPCREL(%rip), %rax");
     add_asm_line(
-        aw, llvm::formatv("movq \" STACK({0}) \"(%rax), %rax", caller_pkey));
+        aw, llvm::formatv("movq {0}(%rax), %rax", stack_offset(caller_pkey)));
     // This is effectively a memcpy of size `stack_arg_size` from the caller's
     // stack to the compartment's
     for (int i = 0; i < stack_arg_size; i += 8) {
@@ -476,9 +450,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   }
 
   if (kind == WrapperKind::IndirectCallsite) {
-    add_asm_line(
-        aw,
-        "movq \" XSTR(PASTE4(__ia2_, ty, _target_ptr_line_, __LINE__)) \"@GOTPCREL(%rip), %r12");
+    add_asm_line(aw, "movq ia2_fn_ptr@GOTPCREL(%rip), %r12");
     add_asm_line(aw, "movq (%r12), %r12");
   }
   // Change pkru to the compartment's value
@@ -493,13 +465,11 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
 
   // Call wrapped function
   add_comment_line(aw, "Call wrapped function");
-  if (kind == WrapperKind::IndirectCallsite) {
+  if (target_name == nullptr) {
+    assert(kind == WrapperKind::IndirectCallsite);
     add_asm_line(aw, "call *%r12");
-  } else if (kind == WrapperKind::Pointer) {
-    add_raw_line(aw, "\"call \" #target \"\\n\"");
   } else {
-    assert(kind == WrapperKind::Direct);
-    add_asm_line(aw, "call "s + name);
+    add_asm_line(aw, "call "s + *target_name);
   }
 
   // After calling the wrapped function, rax and rdx may contain a return value
@@ -551,14 +521,14 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
 
   // Switch back to the caller's stack
   add_asm_line(aw, "movq ia2_stackptrs@GOTPCREL(%rip), %r12");
-  add_asm_line(aw,
-               llvm::formatv("leaq \" STACK({0}) \"(%r12), %r12", target_pkey));
+  add_asm_line(
+      aw, llvm::formatv("leaq {0}(%r12), %r12", stack_offset(target_pkey)));
   add_asm_line(aw, "movq %rsp, (%r12)");
 
   add_comment_line(aw, "Switch back to the caller's stack");
   add_asm_line(aw, "movq ia2_stackptrs@GOTPCREL(%rip), %rsp");
-  add_asm_line(aw,
-               llvm::formatv("movq \" STACK({0}) \"(%rsp), %rsp", caller_pkey));
+  add_asm_line(
+      aw, llvm::formatv("movq {0}(%rsp), %rsp", stack_offset(caller_pkey)));
 
   add_comment_line(
       aw, "Push return regs to caller's stack before scrubbing registers");

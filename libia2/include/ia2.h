@@ -9,22 +9,10 @@
 #include <string.h>
 #include <sys/mman.h>
 
-#include "scrub_registers.h"
-
-#define XSTR(s) STR(s)
-#define STR(s) #s
-#define PASTE3_(x, y, z) x##y##z
-#define PASTE3(x, y, z) PASTE3_(x, y, z)
-
-#define PASTE4_(w, x, y, z) w##x##y##z
-#define PASTE4(w, x, y, z) PASTE4_(w, x, y, z)
-
 #ifdef LIBIA2_INSECURE
 #define INIT_COMPARTMENT(n)
-#define IA2_WRPKRU
 #else
 #define INIT_COMPARTMENT(n) _INIT_COMPARTMENT(n)
-#define IA2_WRPKRU "wrpkru"
 #endif
 
 /// Protect pages in the given shared object
@@ -50,121 +38,9 @@ struct PhdrSearchArgs {
   const void *address;
 };
 
-// This emits the 5 bytes correponding to the movl $PKRU, %eax instruction
-asm(".macro mov_pkru_eax pkey\n"
-    ".byte 0xb8\n"
-    ".long ~((3 << (2 * \\pkey)) | 3)\n"
-    ".endm");
-
-// This emits the 5 bytes correponding to the movl $PKRU, %eax instruction
-asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
-    ".byte 0xb8\n"
-    ".long ~((3 << (2 * \\pkey0)) | (3 << (2 * \\pkey1)) | 3)\n"
-    ".endm");
-
 // Attribute for read-write variables that can be accessed from any untrusted
 // compartments.
 #define IA2_SHARED_DATA __attribute__((section("ia2_shared_data")))
-
-// Declares a wrapper for the function `target`.
-//
-// The wrapper expects caller pkey 0 and uses the given target_pkey. This macro
-// may be used both in a function and in the global scope. Use
-// IA2_WRAPPER(target) or IA2_WRAPPER_FN_SCOPE(target) to get the wrapper as an
-// opaque pointer type.
-#define IA2_DECLARE_WRAPPER(target, ty, target_pkey)                           \
-  /* We should redeclare the target function with the used attribute. However, \
-   * this doesn't work in clang, so instead we define a pointer and initialize \
-   * it to the targetfunction. This pointer is unused, but we mark it as used  \
-   * to allow compiling with Wno-unused-variable. */                           \
-  __attribute__((used)) static void *target##_ptr = target;                    \
-  /* Create an identifier to get the wrapper's address with                    \
-   * IA2_WRAPPER/IA2_WRAPPER_FN_SCOPE */                                       \
-  extern struct IA2_fnptr_##ty##_inner_t __ia2_##target##_0_##target_pkey;     \
-  /* Create an identifier to get the wrapper's type with                       \
-   * IA2_WRAPPER/IA2_WRAPPER_FN_SCOPE */                                       \
-  extern struct IA2_fnptr_##ty __ia2_##target##_wrapper;
-
-// Defines a wrapper for the function `target`.
-//
-// The wrapper expects caller pkey 0 and uses the given target_pkey. This macro
-// may be used both in a function and in the global scope. Use
-// IA2_WRAPPER(target) or IA2_WRAPPER_FN_SCOPE(target) to get the wrapper as an
-// opaque pointer type.
-#define IA2_DEFINE_WRAPPER(target, ty, target_pkey)                            \
-  /* Define the wrapper in asm */                                              \
-  __asm__(IA2_DEFINE_WRAPPER_##ty(target, 0, target_pkey));                    \
-  IA2_DECLARE_WRAPPER(target, ty, target_pkey)
-
-// Expands to an opaque pointer expression for a wrapper defined by
-// IA2_DEFINE_WRAPPER.
-//
-// This macro may only be used in the global scope.
-#define IA2_WRAPPER(target, target_pkey)                                       \
-  { &__ia2_##target##_0_##target_pkey }
-
-// Expands to an opaque pointer expression for a wrapper defined by
-// IA2_DEFINE_WRAPPER.
-//
-// This macro may only be used inside functions.
-#define IA2_WRAPPER_FN_SCOPE(target, target_pkey)                              \
-  (typeof(__ia2_##target##_wrapper)) { &__ia2_##target##_0_##target_pkey }
-
-// Defines a wrapper for the function `target` and expands to an opaque pointer
-// expression for the wrapper.
-//
-// This macro may only be used inside functions.
-#define IA2_DEFINE_WRAPPER_FN_SCOPE(target, ty, target_pkey)                   \
-  ({                                                                           \
-    IA2_DEFINE_WRAPPER(target, ty, target_pkey);                               \
-    IA2_WRAPPER_FN_SCOPE(target, target_pkey);                                 \
-  })
-
-// Defines a wrapper for the opaque pointer `target` and expands to a function
-// pointer expression for this wrapper.
-//
-// The wrapper expects the given caller_pkey and uses target pkey 0. This macro
-// may only be used inside functions. The resulting function pointer expression
-// may be assigned an identifier or called immediately. Since the rewritten
-// headers replace function pointer types with opaque pointer types, calling it
-// immediately is the more ergonomic approach.
-#define IA2_CALL(target, ty, caller_pkey)                                      \
-  ({                                                                           \
-    /* Declare the wrapper for the function pointer. This will be defined in   \
-     * the following asm statement. */                                         \
-    extern struct IA2_fnptr_##ty *PASTE4(__ia2_, ty, _line_, __LINE__);        \
-    /* Since the function pointer we're calling may be on the stack, it        \
-     * might not have a fixed address. Instead of calling that pointer, we     \
-     * instead define a new pointer with a fixed address and initialize it     \
-     * with the first pointer. The new pointer's symbol isn't visible to ld,   \
-     * so its identifier (`target_ptr`) doesn't matter. We need to make it     \
-     * visible to the assembler though which requires the asm label. The       \
-     * assembler sees the name inside the asm label rather than the pointer's  \
-     * identifier. */                                                          \
-    __attribute__((used)) static void *target_ptr __asm__(                     \
-        XSTR(PASTE4(__ia2_, ty, _target_ptr_line_, __LINE__)));                \
-    /* Set the new function pointer to the target address */                   \
-    target_ptr = (void *)target.ptr;                                           \
-    /* Define the wrapper for the target function pointer */                   \
-    __asm__(IA2_CALL_##ty(target, ty, caller_pkey, 0));                        \
-    /* Cast the address of the wrapper declared above to the function pointer  \
-     * type and return it */                                                   \
-    (IA2_FNPTR_TYPE_##ty)(&PASTE4(__ia2_, ty, _line_, __LINE__));              \
-  })
-
-// Expands to a NULL pointer expression which can be coerced to any opaque
-// pointer type.
-//
-// This macro may only be used in the global scope.
-#define IA2_NULL_FNPTR                                                         \
-  { (void *)NULL }
-
-// Sets the given opaque pointer to NULL.
-#define IA2_NULL_FNPTR_FN_SCOPE(ptr)                                           \
-  ptr = (typeof(ptr)) { (void *)NULL }
-
-// Checks if an opaque pointer is null
-#define IA2_FNPTR_IS_NULL(target) (target.ptr == NULL)
 
 // Initializes a compartment with protection key `n` when the ELF invoking this
 // macro is loaded. This must only be called once for each key. The compartment
@@ -181,26 +57,6 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
     };                                                                         \
     dl_iterate_phdr(protect_pages, &args);                                     \
   }
-
-// TODO: Find a better way to compute these offsets for ia2_untrusted_stackptr.
-#define STACK(n) _STACK(n)
-#define _STACK(n) STACK_##n
-#define STACK_0 "0"
-#define STACK_1 "8"
-#define STACK_2 "16"
-#define STACK_3 "24"
-#define STACK_4 "32"
-#define STACK_5 "40"
-#define STACK_6 "48"
-#define STACK_7 "56"
-#define STACK_8 "64"
-#define STACK_9 "72"
-#define STACK_10 "80"
-#define STACK_11 "88"
-#define STACK_12 "96"
-#define STACK_13 "104"
-#define STACK_14 "112"
-#define STACK_15 "120"
 
 #define STACK_SIZE (4 * 1024 * 1024)
 

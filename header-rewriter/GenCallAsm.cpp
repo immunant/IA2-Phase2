@@ -202,8 +202,9 @@ static void emit_wrpkru(AsmWriter &aw, const std::string &pkey) {
   add_raw_line(aw, "IA2_WRPKRU \"\\n\"");
 }
 
-// Emit code to set the PKRU. Clobbers eax, ecx and edx.
-// \p pkey is a std::string of an assembly literal without a $ prefix.
+// Emit code to set the PKRU to a mixed value allowing access to data protected
+// by either pkey0 or pkey1. Clobbers eax, ecx and edx.
+// \p pkey0 and \p pkey1 are std::strings of assembly literals without $ prefix.
 static void emit_mixed_wrpkru(AsmWriter &aw, const std::string &pkey0,
                               const std::string &pkey1) {
   // wrpkru requires zeroing ecx and edx

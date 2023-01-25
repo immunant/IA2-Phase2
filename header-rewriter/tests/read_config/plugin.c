@@ -17,31 +17,37 @@ static struct cfg_opt opts[6] IA2_SHARED_DATA = {
     {
         "name",
         str,
+        // REWRITER: IA2_FN(parse_str),
         parse_str,
     },
     {
         "num_options",
         u32,
+        // REWRITER: IA2_FN(parse_u32),
         parse_u32,
     },
     {
         "debug_mode",
         boolean,
+        // REWRITER: IA2_FN(parse_bool),
         parse_bool,
     },
     {
         "magic_val",
         other,
+        // REWRITER: IA2_FN(parse_tuple),
         parse_tuple,
     },
     {
         "some_flag",
         boolean,
+        // REWRITER: IA2_FN(parse_bool),
         parse_bool,
     },
     {
         "random_seed",
         u32,
+        // REWRITER: IA2_FN(parse_u32),
         parse_u32,
     },
 };

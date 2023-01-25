@@ -12,16 +12,19 @@ static struct cfg_opt opts[3] = {
     {
         "name",
         str,
+        // REWRITER: IA2_FN(parse_str),
         parse_str,
     },
     {
         "num_options",
         u32,
+        // REWRITER: IA2_FN(parse_u32),
         parse_u32,
     },
     {
         "array",
         other,
+        // REWRITER: IA2_FN(parse_array),
         parse_array,
     },
 };

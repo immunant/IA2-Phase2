@@ -42,7 +42,9 @@ int main() {
   // These will be called from untrusted code but may access trusted compartment
   // 0
   struct SimpleCallbacks scb = {
+      // REWRITER: .read_cb = IA2_FN(main_read),
       .read_cb = main_read,
+      // REWRITER: .write_cb = IA2_FN(main_write),
       .write_cb = main_write,
   };
 
@@ -55,8 +57,10 @@ int main() {
   srand(time(NULL));
   // These will be called from untrusted code but may access trusted compartment
   // 0
+  // REWRITER: simple_foreach_v1(s, IA2_FN(main_map));
   simple_foreach_v1(s, main_map);
   simple_reset(s);
+  // REWRITER: simple_foreach_v2(s, IA2_FN(main_map));
   simple_foreach_v2(s, main_map);
   simple_destroy(s);
 
@@ -68,6 +72,7 @@ int main() {
     // untrusted since libsimple1 sets the value of exit_hook_fn. If
     // exit_hook_fn were to point to a function defined in this binary, it must
     // be a wrapped function with an untrusted caller and callee with pkey 0.
+    // REWRITER: IA2_CALL(exit_hook_fn, 0, 1)();
     exit_hook_fn();
   }
 

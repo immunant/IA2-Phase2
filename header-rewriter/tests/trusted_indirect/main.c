@@ -30,10 +30,15 @@ void call_fn_ptr() {
     uint32_t x = 987234;
     uint32_t y = 142151;
     // This calls `f.op` with and without parentheses to ensure the rewriter handles both
+    // REWRITER: printf("%s(%d, %d) = %d\n", f.name, x, y, IA2_CALL(f.op)(x, y));
     printf("%s(%d, %d) = %d\n", f.name, x, y, f.op(x, y));
+    // REWRITER: f.op = IA2_FN(multiply);
     f.op = multiply;
+    // REWRITER: printf("mul(%d, %d) = %d\n", x, y, IA2_CALL(f.op)(x, y));
     printf("mul(%d, %d) = %d\n", x, y, (f.op)(x, y));
+    // REWRITER: f.op = IA2_FN(divide);
     f.op = divide;
+    // REWRITER: printf("div(%d, %d) = %d\n", x, y, IA2_CALL(f.op)(x, y));
     printf("div(%d, %d) = %d\n", x, y, f.op(x, y));
 }
 
@@ -53,5 +58,6 @@ int main(int argc, char **argv) {
 
     static uint32_t secret = 34;
     leak_secret_address(&secret);
+    // REWRITER: IA2_CALL(f.op, 0, 1)(0, 0);
     (f.op)(0, 0);
 }

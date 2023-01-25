@@ -16,6 +16,7 @@ struct Simple {
 
 struct Simple *simple_new(struct SimpleCallbacks scb) {
   if (!did_set_exit_hook) {
+    // REWRITER: set_exit_hook(IA2_FN(simple_exit_hook));
     set_exit_hook(simple_exit_hook);
     did_set_exit_hook = true;
     printf("New exit hook fn: %p\n", get_exit_hook());

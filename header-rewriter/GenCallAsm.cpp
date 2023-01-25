@@ -47,10 +47,10 @@ const std::array<const char *, 2> int_ret_reg_order = {"rax", "rdx"};
 
 const std::array<const char *, 3> cabi_arg_kind_names = {"int", "float", "mem"};
 
-// rsp and rbp are also preserved registers, but we handle them separately from these
-// since they're the stack and frame pointers
-const std::array<const char *, 5> preserved_registers = {"rbx", "r12",
-                                                         "r13", "r14", "r15"};
+// rsp and rbp are also preserved registers, but we handle them separately from
+// these since they're the stack and frame pointers
+const std::array<const char *, 5> preserved_registers = {"rbx", "r12", "r13",
+                                                         "r14", "r15"};
 
 /// Compute abi locations for parameters of a C-abi function, given its sequence
 /// of argument kinds.
@@ -214,6 +214,56 @@ static void emit_mixed_wrpkru(AsmWriter &aw, const std::string &pkey0,
                                  asm_macro_expansion(pkey0),
                                  asm_macro_expansion(pkey1)));
   add_raw_line(aw, "IA2_WRPKRU \"\\n\"");
+}
+
+static void emit_load_pkey(AsmWriter &aw, const std::string &pkey,
+                           const std::string &reg) {
+  add_asm_line(aw, llvm::formatv("mov $\" XSTR({0}) \", %{1}", pkey, reg));
+}
+
+// Emit code to load the address of a compartment's stack from ia2_stackptr_##n.
+// \p fs_offset_reg is a register name (sans % prefix) that will be used to
+// store the offset of the stack pointer from %fs.
+//
+// Returns an expression that can be prefixed with % to use the stack pointer as
+// an instruction operand:
+//
+//   movq %{retval}, %rsp
+//
+// or:
+//
+//   movq %rsp, %{retval}
+static std::string emit_load_sp_offset(AsmWriter &aw, const std::string &pkey,
+                                       const std::string &fs_offset_reg) {
+  add_asm_line(
+      aw, llvm::formatv("mov ia2_stackptr_\" XSTR({0}) \"@GOTTPOFF(%rip), %{1}",
+                        pkey, fs_offset_reg));
+  return "fs:(%"s + fs_offset_reg + ")"s;
+}
+
+// Emit code to switch stacks, using ia2_stackptr_##{old,new}_pkey as storage
+// for the old and new stack pointer.
+// \p compartment_offset_reg is a register name (sans % prefix) that will be
+// clobbered.
+static void emit_switch_stacks(AsmWriter &aw, const std::string &old_pkey,
+                               const std::string &new_pkey,
+                               const std::string &compartment_offset_reg) {
+  add_comment_line(
+      aw,
+      llvm::formatv("Compute location to save old stack pointer (using {0})",
+                    compartment_offset_reg));
+  std::string expr = emit_load_sp_offset(aw, old_pkey, compartment_offset_reg);
+  add_comment_line(aw, "Write the old stack pointer to memory");
+  add_asm_line(aw, llvm::formatv("movq %rsp, %{0}", expr));
+
+  // After saving the old sp, we switch stacks by loading the new one
+  add_comment_line(
+      aw,
+      llvm::formatv("Compute location to load new stack pointer (using {0})",
+                    compartment_offset_reg));
+  expr = emit_load_sp_offset(aw, new_pkey, compartment_offset_reg);
+  add_comment_line(aw, "Read the new stack pointer from memory");
+  add_asm_line(aw, llvm::formatv("movq %{0}, %rsp", expr));
 }
 
 static void append_arg_kinds(std::stringstream &ss,
@@ -383,18 +433,8 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   add_asm_line(aw, "movq %r10, %rcx");
   add_asm_line(aw, "movq %r11, %rdx");
 
-  // Save caller stack pointer
-  add_comment_line(aw, "Save caller stack pointer");
-  add_asm_line(aw, "movq ia2_stackptrs@GOTPCREL(%rip), %rax");
-  add_asm_line(aw,
-               llvm::formatv("leaq \" STACK({0}) \"(%rax), %rax", caller_pkey));
-  add_asm_line(aw, "movq %rsp, (%rax)");
-
-  // Switch to target stack
-  add_comment_line(aw, "Switch to target stack");
-  add_asm_line(aw, "movq ia2_stackptrs@GOTPCREL(%rip), %rsp");
-  add_raw_line(aw, llvm::formatv("\"movq \" STACK({0}) \"(%rsp), %rsp\\n\"",
-                                 target_pkey));
+  // Switch stacks to the target stack
+  emit_switch_stacks(aw, caller_pkey, target_pkey, "r11"s);
 
   // When returning via memory, the address of the return value is passed in
   // rdi. Since this memory belongs to the caller, we first allocate space for
@@ -430,14 +470,15 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     // compartment's stack.
     add_comment_line(
         aw, "Copy stack arguments from the caller's stack to the compartment");
-    add_asm_line(aw, "movq ia2_stackptrs@GOTPCREL(%rip), %rax");
-    add_asm_line(
-        aw, llvm::formatv("movq \" STACK({0}) \"(%rax), %rax", caller_pkey));
+    // Load addr of top of caller compartment's stack into rax, clobbering r12
+    std::string expr = emit_load_sp_offset(aw, caller_pkey, "r12"s);
+    add_asm_line(aw, "movq %" + expr + ", %rax");
     // This is effectively a memcpy of size `stack_arg_size` from the caller's
     // stack to the compartment's
     for (int i = 0; i < stack_arg_size; i += 8) {
       // We must take the preserved registers we pushed on the caller's stack
-      // into account (including rbp) when determining the location of the stack args
+      // into account (including rbp) when determining the location of the stack
+      // args
       size_t caller_stack_size =
           stack_arg_size + ((preserved_registers.size() + 1) * 8);
       // The index into the caller's stack is backwards since pushq will copy to
@@ -550,15 +591,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
   }
 
   // Switch back to the caller's stack
-  add_asm_line(aw, "movq ia2_stackptrs@GOTPCREL(%rip), %r12");
-  add_asm_line(aw,
-               llvm::formatv("leaq \" STACK({0}) \"(%r12), %r12", target_pkey));
-  add_asm_line(aw, "movq %rsp, (%r12)");
-
-  add_comment_line(aw, "Switch back to the caller's stack");
-  add_asm_line(aw, "movq ia2_stackptrs@GOTPCREL(%rip), %rsp");
-  add_asm_line(aw,
-               llvm::formatv("movq \" STACK({0}) \"(%rsp), %rsp", caller_pkey));
+  emit_switch_stacks(aw, target_pkey, caller_pkey, "r11"s);
 
   add_comment_line(
       aw, "Push return regs to caller's stack before scrubbing registers");

@@ -107,7 +107,7 @@ int main(int arcg, char **argv) {
     // This function pointer may come from the plugin, so drop from pkey 1 to
     // pkey 0 before calling it. If the function is in the built-in module,
     // it'll have a wrapper from pkey 0 to pkey 1.
-    IA2_CALL(opt->parse, _ZTSPFvPcPvE, 1)(delim + 1, &shared_entry.value);
+    (opt->parse)(delim + 1, &shared_entry.value);
     // Copy the value from the shared entry to the main binary's stack.
     entries[idx].value = shared_entry.value;
     idx++;

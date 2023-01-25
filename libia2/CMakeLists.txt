@@ -1,8 +1,14 @@
 cmake_minimum_required(VERSION 3.12)
 project(libia2)
 
-add_library(libia2 ia2.c)
+add_library(libia2 ia2.c threads.c)
 target_compile_options(libia2 PRIVATE "-fPIC")
+
+target_link_options(libia2
+    INTERFACE
+        "-pthread"
+        "-Wl,--wrap=pthread_create"
+)
 
 target_include_directories(libia2 PUBLIC include)
 target_compile_definitions(libia2 PRIVATE _GNU_SOURCE)

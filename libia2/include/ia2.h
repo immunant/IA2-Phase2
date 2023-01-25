@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <unistd.h>
 
 #include "scrub_registers.h"
 
@@ -174,13 +175,14 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
 // includes all segments in the ELF except the `ia2_shared_data` section, if one
 // exists.
 #define _INIT_COMPARTMENT(n)                                                   \
+  __thread void *ia2_stackptr_##n __attribute__((used));                       \
   extern int ia2_n_pkeys_to_alloc;                                             \
   void ensure_pkeys_allocated(int *n_to_alloc);                                \
-  __attribute__((constructor)) static void init_pkey_ctor() {                  \
+  __attribute__((constructor)) static void init_pkey_##n##_ctor() {            \
     ensure_pkeys_allocated(&ia2_n_pkeys_to_alloc);                             \
     struct PhdrSearchArgs args = {                                             \
         .pkey = n,                                                             \
-        .address = &init_pkey_ctor,                                            \
+        .address = &init_pkey_##n##_ctor,                                      \
     };                                                                         \
     dl_iterate_phdr(protect_pages, &args);                                     \
   }
@@ -188,29 +190,11 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
 // Obtain a string corresponding to errno in a threadsafe fashion.
 #define errno_s (strerror_l(errno, uselocale((locale_t)0)))
 
-// TODO: Find a better way to compute these offsets for ia2_untrusted_stackptr.
-#define STACK(n) _STACK(n)
-#define _STACK(n) STACK_##n
-#define STACK_0 "0"
-#define STACK_1 "8"
-#define STACK_2 "16"
-#define STACK_3 "24"
-#define STACK_4 "32"
-#define STACK_5 "40"
-#define STACK_6 "48"
-#define STACK_7 "56"
-#define STACK_8 "64"
-#define STACK_9 "72"
-#define STACK_10 "80"
-#define STACK_11 "88"
-#define STACK_12 "96"
-#define STACK_13 "104"
-#define STACK_14 "112"
-#define STACK_15 "120"
-
 #define STACK_SIZE (4 * 1024 * 1024)
 
 #define PAGE_SIZE 4096
+#define PTRS_PER_PAGE (PAGE_SIZE / sizeof(void *))
+#define IA2_MAX_THREADS (PTRS_PER_PAGE)
 
 #ifdef LIBIA2_INSECURE
 #define pkey_mprotect insecure_pkey_mprotect
@@ -226,25 +210,54 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
   INIT_RUNTIME_COMMON(n)
 #endif
 
+/* Allocate and protect the stack for this thread's i'th compartment. */
+
+/* I'm worried about interference from other threads if sensitive */
+/* locals in this code (namely old_pkru) get spilled to the */
+/* stack. We probably need to write this in assembly. */
+#define ALLOCATE_COMPARTMENT_STACK(i)                                          \
+  {                                                                            \
+    extern __thread void *ia2_stackptr_##i;                                    \
+    /*assert(&ia2_stackptr_##i != NULL);*/                                     \
+    char *stack = allocate_stack(i);                                           \
+                                                                               \
+    /* Each stack frame start + 8 is initially 16-byte aligned. */             \
+    char *stack_ptr_value = stack + STACK_SIZE - 8;                            \
+                                                                               \
+    /* We must change the pkru to write the stack pointer because each */      \
+    /* stack pointer is part of the compartment whose stack it points to. */   \
+                                                                               \
+    /* Save the current pkru. */                                               \
+    uint32_t old_pkru = 0;                                                     \
+    __asm__ volatile(IA2_RDPKRU : "=a"(old_pkru) : "a"(0), "d"(0), "c"(0));    \
+    /* Switch to the compartment's pkru to access its stack pointer. */        \
+    uint32_t new_pkru = ~((3 << (2 * i)) | 3);                                 \
+    __asm__ volatile(IA2_WRPKRU : : "a"(new_pkru), "d"(0), "c"(0));            \
+    /* Forbid overwriting an existing stack. */                                \
+    if (ia2_stackptr_##i != NULL) {                                            \
+      printf(                                                                  \
+          "compartment %zd in thread %zd tried to allocate existing stack\n",  \
+          i, gettid());                                                        \
+      exit(1);                                                                 \
+    }                                                                          \
+    /* Write the stack pointer. */                                             \
+    ia2_stackptr_##i = stack_ptr_value;                                        \
+    /* Restore the old pkru. */                                                \
+    __asm__(IA2_WRPKRU : : "a"(old_pkru), "d"(0), "c"(0));                     \
+  }
+
 #define INIT_RUNTIME_COMMON(n)                                                 \
-  /* Protect a stack with the ith pkey. */                                     \
-  static void protect_stack(int i, char *stack) {                              \
-    if (!stack) {                                                              \
+  /* Allocate a fixed-size stack and protect it with the ith pkey. */          \
+  char *allocate_stack(int i) {                                                \
+    char *stack = (char *)mmap(NULL, STACK_SIZE, PROT_READ | PROT_WRITE,       \
+                               MAP_PRIVATE | MAP_ANON, -1, 0);                 \
+    if (stack == MAP_FAILED) {                                                 \
+      printf("Failed to allocate stack %d (%s)\n", i, errno_s);                \
       exit(-1);                                                                \
     }                                                                          \
     int res = pkey_mprotect(stack, STACK_SIZE, PROT_READ | PROT_WRITE, i);     \
     if (res == -1) {                                                           \
       printf("Failed to mprotect stack %d (%s)\n", i, errno_s);                \
-      exit(-1);                                                                \
-    }                                                                          \
-  }                                                                            \
-                                                                               \
-  /* Allocate a fixed-size stack. */                                           \
-  static char *allocate_stack(int i) {                                         \
-    char *stack = (char *)mmap(NULL, STACK_SIZE, PROT_READ | PROT_WRITE,       \
-                               MAP_PRIVATE | MAP_ANON, -1, 0);                 \
-    if (stack == MAP_FAILED) {                                                 \
-      printf("Failed to allocate stack %d (%s)\n", i, errno_s);                \
       exit(-1);                                                                \
     }                                                                          \
     return stack;                                                              \
@@ -268,13 +281,47 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
       *n_to_alloc = 0;                                                         \
     }                                                                          \
   }                                                                            \
-  char *ia2_stackptrs[n + 1] IA2_SHARED_DATA;                                  \
-  __attribute__((constructor)) static void init_stacks() {                     \
-    ensure_pkeys_allocated(&ia2_n_pkeys_to_alloc);                             \
-    for (int i = 0; i < n + 1; i++) {                                          \
-      char *stack_start = allocate_stack(i);                                   \
-      protect_stack(i, stack_start);                                           \
-      /* Each stack frame start + 8 is initially 16-byte aligned. */           \
-      ia2_stackptrs[i] = stack_start + STACK_SIZE - 8;                         \
+                                                                               \
+  __attribute__((weak)) void init_stacks(void) {                               \
+    switch (n) {                                                               \
+    case 15:                                                                   \
+      ALLOCATE_COMPARTMENT_STACK(15)                                           \
+    case 14:                                                                   \
+      ALLOCATE_COMPARTMENT_STACK(14)                                           \
+    case 13:                                                                   \
+      ALLOCATE_COMPARTMENT_STACK(13)                                           \
+    case 12:                                                                   \
+      ALLOCATE_COMPARTMENT_STACK(12)                                           \
+    case 11:                                                                   \
+      ALLOCATE_COMPARTMENT_STACK(11)                                           \
+    case 10:                                                                   \
+      ALLOCATE_COMPARTMENT_STACK(10)                                           \
+    case 9:                                                                    \
+      ALLOCATE_COMPARTMENT_STACK(9)                                            \
+    case 8:                                                                    \
+      ALLOCATE_COMPARTMENT_STACK(8)                                            \
+    case 7:                                                                    \
+      ALLOCATE_COMPARTMENT_STACK(7)                                            \
+    case 6:                                                                    \
+      ALLOCATE_COMPARTMENT_STACK(6)                                            \
+    case 5:                                                                    \
+      ALLOCATE_COMPARTMENT_STACK(5)                                            \
+    case 4:                                                                    \
+      ALLOCATE_COMPARTMENT_STACK(4)                                            \
+    case 3:                                                                    \
+      ALLOCATE_COMPARTMENT_STACK(3)                                            \
+    case 2:                                                                    \
+      ALLOCATE_COMPARTMENT_STACK(2)                                            \
+    case 1:                                                                    \
+      ALLOCATE_COMPARTMENT_STACK(1)                                            \
+    case 0:                                                                    \
+      ALLOCATE_COMPARTMENT_STACK(0)                                            \
     }                                                                          \
+  }                                                                            \
+                                                                               \
+  __attribute__((constructor)) static void ia2_init(void) {                    \
+    /* Set up global resources. */                                             \
+    ensure_pkeys_allocated(&ia2_n_pkeys_to_alloc);                             \
+    /* Initialize stacks for the main thread/ */                               \
+    init_stacks();                                                             \
   }

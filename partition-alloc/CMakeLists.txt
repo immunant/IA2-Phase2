@@ -57,6 +57,8 @@ add_library(partition-alloc SHARED
     src/allocator_shim.cc
     ${PA_SRCS})
 
+target_link_libraries(partition-alloc libia2)
+
 if(LIBIA2_INSECURE)
     target_compile_definitions(partition-alloc PUBLIC LIBIA2_INSECURE=1)
 endif()

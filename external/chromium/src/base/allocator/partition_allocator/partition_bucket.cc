@@ -42,7 +42,7 @@
 #endif  // BUILDFLAG(STARSCAN)
 
 #include <sys/mman.h>
-#include <ia2_get_pkey.h>
+#include <ia2.h>
 
 namespace partition_alloc::internal {
 

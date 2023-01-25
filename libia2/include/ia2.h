@@ -100,6 +100,12 @@ static uint32_t ia2_get_pkru() {
 #define IA2_IGNORE_FIELD(decl) decl
 
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+size_t ia2_get_pkey();
+
 /// Protect pages in the given shared object
 ///
 /// \param info dynamic linker information for the current object
@@ -310,3 +316,7 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
     protect_tls();                                                             \
     init_stacks();                                                             \
   }
+
+#ifdef __cplusplus
+}
+#endif

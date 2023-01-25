@@ -19,6 +19,8 @@ add_lit_testsuite(check-ia2 "Running the IA2 tests"
   )
 set_target_properties(check-ia2 PROPERTIES FOLDER "tests")
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 # Set up 'check' alias
 add_custom_target(check)
 add_dependencies(check check-ia2)

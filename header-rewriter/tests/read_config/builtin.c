@@ -8,29 +8,21 @@
 
 static void parse_array(char *opt, void *out);
 
-// The indirect callsite in main.c drops the target function to pkey 0, but
-// `parse_str` calls strcpy through the main binary's PLT. This means we need to
-// wrap parse_str to ensure it's called with pkey 1. The same goes for parse_u32
-// and parse_array.
-IA2_DEFINE_WRAPPER(parse_str, _ZTSPFvPcPvE, 1);
-IA2_DEFINE_WRAPPER(parse_u32, _ZTSPFvPcPvE, 1);
-IA2_DEFINE_WRAPPER(parse_array, _ZTSPFvPcPvE, 1);
-
 static struct cfg_opt opts[3] = {
     {
         "name",
         str,
-        IA2_WRAPPER(parse_str, 1),
+        parse_str,
     },
     {
         "num_options",
         u32,
-        IA2_WRAPPER(parse_u32, 1),
+        parse_u32,
     },
     {
         "array",
         other,
-        IA2_WRAPPER(parse_array, 1),
+        parse_array,
     },
 };
 

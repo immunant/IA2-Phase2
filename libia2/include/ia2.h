@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <link.h>
+#include <locale.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -182,6 +183,9 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
     dl_iterate_phdr(protect_pages, &args);                                     \
   }
 
+// Obtain a string corresponding to errno in a threadsafe fashion.
+#define errno_s (strerror_l(errno, uselocale((locale_t)0)))
+
 // TODO: Find a better way to compute these offsets for ia2_untrusted_stackptr.
 #define STACK(n) _STACK(n)
 #define _STACK(n) STACK_##n
@@ -219,7 +223,7 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
     }                                                                          \
     int res = pkey_mprotect(stack, STACK_SIZE, PROT_READ | PROT_WRITE, i);     \
     if (res == -1) {                                                           \
-      printf("Failed to mprotect stack %d (%d)\n", i, errno);                  \
+      printf("Failed to mprotect stack %d (%s)\n", i, errno_s);                \
       exit(-1);                                                                \
     }                                                                          \
   }                                                                            \
@@ -232,7 +236,7 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
     char *stack = (char *)mmap(NULL, STACK_SIZE, PROT_READ | PROT_WRITE,       \
                                MAP_PRIVATE | MAP_ANON, -1, 0);                 \
     if (stack == MAP_FAILED) {                                                 \
-      printf("Failed to allocate stack %d (%d)\n", i, errno);                  \
+      printf("Failed to allocate stack %d (%s)\n", i, errno_s);                \
       exit(-1);                                                                \
     }                                                                          \
     return stack;                                                              \
@@ -243,8 +247,8 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
       for (int pkey = 1; pkey <= *n_to_alloc; pkey++) {                        \
         int allocated = pkey_alloc(0, 0);                                      \
         if (allocated < 0) {                                                   \
-          printf("Failed to allocate protection key %d: %s\n", pkey,           \
-                 strerror(errno));                                             \
+          printf("Failed to allocate protection key %d (%s)\n", pkey,          \
+                 errno_s);                                                     \
           exit(-1);                                                            \
         }                                                                      \
         if (allocated != pkey) {                                               \

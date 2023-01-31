@@ -52,6 +52,11 @@ static Filename get_filename(const clang::SourceLocation loc,
   return sm.getFilename(sm.getSpellingLoc(loc)).str();
 }
 
+static Pkey get_file_pkey(const clang::SourceManager &sm) {
+  return file_pkeys.at(
+      sm.getFileEntryForID(sm.getMainFileID())->getName().str());
+}
+
 static bool ignore_file(const Filename &filename) {
   auto file = llvm::StringRef(filename);
   return file.startswith("/usr/") || file.endswith("ia2.h") ||
@@ -162,6 +167,10 @@ public:
     const auto &sm = *result.SourceManager;
     auto &ctxt = *result.Context;
 
+    if (get_file_pkey(sm) == 0) {
+      return;
+    }
+
     Filename file_name = get_filename(old_decl->getLocation(), sm);
     if (ignore_file(file_name)) {
       return;
@@ -244,6 +253,10 @@ public:
     assert(result.SourceManager != nullptr);
     auto &sm = *result.SourceManager;
 
+    if (get_file_pkey(sm) == 0) {
+      return;
+    }
+
     std::string new_expr = "{ NULL }";
     // If the matcher found an assignment add the type of the LHS variable to
     // new_expr
@@ -300,6 +313,10 @@ public:
 
     assert(result.Context != nullptr);
     auto &ctxt = *result.Context;
+
+    if (get_file_pkey(sm) == 0) {
+      return;
+    }
 
     clang::SourceLocation loc = fn_ptr_call->getExprLoc();
     if (ignore_file(get_filename(loc, sm))) {
@@ -389,6 +406,10 @@ public:
 
     assert(result.Context != nullptr);
     auto &ctxt = *result.Context;
+
+    if (get_file_pkey(sm) == 0) {
+      return;
+    }
 
     clang::SourceLocation loc = fn_ptr_expr->getExprLoc();
     if (ignore_file(get_filename(loc, sm))) {
@@ -620,15 +641,7 @@ int main(int argc, const char **argv) {
    * ptr. Otherwise it sets ia2_fn_ptr to the opaque struct's value then calls
    * an indirect call gate depending on the opaque struct's type.
    */
-  header_out
-      << "#define IA2_CALL(opaque, id, pkey) IA2_CALL_PKEY##pkey(opaque, id)\n";
-  header_out
-      << "#define IA2_CALL_PKEY0(opaque, id) ((IA2_TYPE_##id)opaque.ptr)\n";
-  for (int i = 1; i < num_pkeys; i++) {
-    header_out << "#define IA2_CALL_PKEY" << i
-               << "(opaque, id) IA2_CALL_PKEYN(opaque, id, " << i << ")\n";
-  }
-  header_out << "#define IA2_CALL_PKEYN(opaque, id, pkey) ({ \\\n";
+  header_out << "#define IA2_CALL(opaque, id, pkey) ({ \\\n";
   header_out << "  ia2_fn_ptr = opaque.ptr; \\\n";
   header_out
       << "  (IA2_TYPE_##id)__ia2_indirect_callgate_##id##_pkey_##pkey; \\\n";
@@ -720,13 +733,15 @@ int main(int argc, const char **argv) {
     // TODO: These wrapper go from pkey 0 to the target pkey so if the target
     // also has pkey 0 then it just needs call the original function
     Pkey target_pkey = fn_decl_pass.fn_pkeys[fn_name];
-    CAbiSignature c_abi_sig = fn_decl_pass.abi_signatures[fn_name];
-    std::string asm_wrapper =
-        emit_asm_wrapper(c_abi_sig, wrapper_name, &fn_name,
-                         WrapperKind::Pointer, 0, target_pkey);
-    wrapper_out << "asm(\n";
-    wrapper_out << asm_wrapper;
-    wrapper_out << ");\n";
+    if (target_pkey != 0) {
+      CAbiSignature c_abi_sig = fn_decl_pass.abi_signatures[fn_name];
+      std::string asm_wrapper =
+          emit_asm_wrapper(c_abi_sig, wrapper_name, &fn_name,
+                           WrapperKind::Pointer, 0, target_pkey);
+      wrapper_out << "asm(\n";
+      wrapper_out << asm_wrapper;
+      wrapper_out << ");\n";
+    }
   }
 
   // Define wrappers for pointers to static functions (also those referenced by
@@ -745,19 +760,21 @@ int main(int argc, const char **argv) {
       // TODO: These wrapper go from pkey 0 to the target pkey so if the target
       // also has pkey 0 then it just needs call the original function
       Pkey target_pkey = fn_decl_pass.fn_pkeys[fn_name];
-      CAbiSignature c_abi_sig = fn_decl_pass.abi_signatures[fn_name];
+      if (target_pkey != 0) {
+        CAbiSignature c_abi_sig = fn_decl_pass.abi_signatures[fn_name];
 
-      std::string asm_wrapper = emit_asm_wrapper(
-          c_abi_sig, wrapper_name, &fn_name, WrapperKind::Pointer, 0,
-          target_pkey, true /* as_macro */);
-      static_wrappers += "#define IA2_DEFINE_WRAPPER_"s + fn_name + " \\\n";
-      static_wrappers += "asm(\\\n";
-      static_wrappers += asm_wrapper;
-      static_wrappers += ");\n";
+        std::string asm_wrapper = emit_asm_wrapper(
+            c_abi_sig, wrapper_name, &fn_name, WrapperKind::Pointer, 0,
+            target_pkey, true /* as_macro */);
+        static_wrappers += "#define IA2_DEFINE_WRAPPER_"s + fn_name + " \\\n";
+        static_wrappers += "asm(\\\n";
+        static_wrappers += asm_wrapper;
+        static_wrappers += ");\n";
 
-      header_out << "extern " << opaque << " " << wrapper_name << ";\n";
+        header_out << "extern " << opaque << " " << wrapper_name << ";\n";
 
-      source_file << "IA2_DEFINE_WRAPPER_" << fn_name << "\n";
+        source_file << "IA2_DEFINE_WRAPPER_" << fn_name << "\n";
+      }
     }
   }
   header_out << static_wrappers.c_str();

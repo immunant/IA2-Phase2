@@ -211,13 +211,13 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
 #ifdef LIBIA2_INSECURE
 #define INIT_RUNTIME(n)                                                        \
   int ia2_n_pkeys_to_alloc = 0;                                                \
-  void protect_stack(int i, char *stack) {}                                    \
+  static void protect_stack(int i, char *stack) {}                             \
   INIT_RUNTIME_COMMON(n)
 #else
 #define INIT_RUNTIME(n)                                                        \
   int ia2_n_pkeys_to_alloc = n;                                                \
   /* Protect a stack with the ith pkey. */                                     \
-  void protect_stack(int i, char *stack) {                                     \
+  static void protect_stack(int i, char *stack) {                              \
     if (!stack) {                                                              \
       exit(-1);                                                                \
     }                                                                          \
@@ -232,7 +232,7 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
 
 #define INIT_RUNTIME_COMMON(n)                                                 \
   /* Allocate a fixed-size stack. */                                           \
-  char *allocate_stack(int i) {                                                \
+  static char *allocate_stack(int i) {                                         \
     char *stack = (char *)mmap(NULL, STACK_SIZE, PROT_READ | PROT_WRITE,       \
                                MAP_PRIVATE | MAP_ANON, -1, 0);                 \
     if (stack == MAP_FAILED) {                                                 \

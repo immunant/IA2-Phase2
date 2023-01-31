@@ -220,6 +220,7 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
     int res = pkey_mprotect(stack, STACK_SIZE, PROT_READ | PROT_WRITE, i);     \
     if (res == -1) {                                                           \
       printf("Failed to mprotect stack %d (%d)\n", i, errno);                  \
+      exit(-1);                                                                \
     }                                                                          \
   }                                                                            \
   INIT_RUNTIME_COMMON(n)
@@ -241,6 +242,11 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
     if (*n_to_alloc != 0) {                                                    \
       for (int pkey = 1; pkey <= *n_to_alloc; pkey++) {                        \
         int allocated = pkey_alloc(0, 0);                                      \
+        if (allocated < 0) {                                                   \
+          printf("Failed to allocate protection key %d: %s\n", pkey,           \
+                 strerror(errno));                                             \
+          exit(-1);                                                            \
+        }                                                                      \
         if (allocated != pkey) {                                               \
           printf(                                                              \
               "Failed to allocate protection keys in the expected order\n");   \

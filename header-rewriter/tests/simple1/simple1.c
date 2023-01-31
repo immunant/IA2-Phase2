@@ -39,13 +39,13 @@ void simple_destroy(struct Simple *s) { free(s); }
 
 void simple_foreach_v1(struct Simple *s, int (*map_fn)(int)) {
   for (;;) {
-    int value = (*s->scb.read_cb)(s->state);
+    int value = s->scb.read_cb(s->state);
     if (value == 0) {
       break;
     }
 
-    value = (*map_fn)(value);
-    (*s->scb.write_cb)(value);
+    value = map_fn(value);
+    (s->scb.write_cb)(value);
 
     s->state++;
   }

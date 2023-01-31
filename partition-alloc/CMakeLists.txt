@@ -68,7 +68,13 @@ target_include_directories(partition-alloc
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${EXTERNAL_DIR}/chromium/src)
 
-target_compile_options(partition-alloc PRIVATE "-fPIC" "-std=c++17")
+target_compile_options(partition-alloc
+	PRIVATE
+		"-fPIC"
+		"-std=c++17"
+		"-Wno-invalid-offsetof"
+		"-Wno-return-type"
+)
 target_link_options(partition-alloc
     INTERFACE
         "-Wl,--wrap=malloc"
@@ -76,4 +82,5 @@ target_link_options(partition-alloc
         "-Wl,--wrap=realloc"
         "-Wl,--wrap=free"
     PRIVATE
-        "-Wl,-z,now")
+        "-Wl,-z,now"
+)

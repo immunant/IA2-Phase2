@@ -209,13 +209,20 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
 #define STACK_SIZE (4 * 1024 * 1024)
 
 #ifdef LIBIA2_INSECURE
+#define pkey_mprotect insecure_pkey_mprotect
+static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
+  return 0;
+}
 #define INIT_RUNTIME(n)                                                        \
   int ia2_n_pkeys_to_alloc = 0;                                                \
-  static void protect_stack(int i, char *stack) {}                             \
   INIT_RUNTIME_COMMON(n)
 #else
 #define INIT_RUNTIME(n)                                                        \
   int ia2_n_pkeys_to_alloc = n;                                                \
+  INIT_RUNTIME_COMMON(n)
+#endif
+
+#define INIT_RUNTIME_COMMON(n)                                                 \
   /* Protect a stack with the ith pkey. */                                     \
   static void protect_stack(int i, char *stack) {                              \
     if (!stack) {                                                              \
@@ -227,10 +234,7 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
       exit(-1);                                                                \
     }                                                                          \
   }                                                                            \
-  INIT_RUNTIME_COMMON(n)
-#endif
-
-#define INIT_RUNTIME_COMMON(n)                                                 \
+                                                                               \
   /* Allocate a fixed-size stack. */                                           \
   static char *allocate_stack(int i) {                                         \
     char *stack = (char *)mmap(NULL, STACK_SIZE, PROT_READ | PROT_WRITE,       \

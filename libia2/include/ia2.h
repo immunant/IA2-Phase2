@@ -22,10 +22,12 @@
 
 #ifdef LIBIA2_INSECURE
 #define INIT_COMPARTMENT(n)
-#define IA2_WRPKRU
+#define IA2_WRPKRU ""
+#define IA2_RDPKRU ""
 #else
 #define INIT_COMPARTMENT(n) _INIT_COMPARTMENT(n)
 #define IA2_WRPKRU "wrpkru"
+#define IA2_RDPKRU "rdpkru"
 #endif
 
 /// Protect pages in the given shared object

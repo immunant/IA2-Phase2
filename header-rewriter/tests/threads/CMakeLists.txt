@@ -1,3 +1,10 @@
+if(LIBIA2_INSECURE)
+    set(STDOUT_REF ${CMAKE_CURRENT_SOURCE_DIR}/Output/threads.insecure.out)
+else()
+    set(STDOUT_REF ${CMAKE_CURRENT_SOURCE_DIR}/Output/threads.out)
+endif()
+configure_file(${STDOUT_REF} ${CMAKE_CURRENT_BINARY_DIR}/threads.out)
+
 # Build the wrapper lib
 define_ia2_wrapper(
     WRAPPER threads_wrapper

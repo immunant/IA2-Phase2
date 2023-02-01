@@ -2,3 +2,4 @@ BasedOnStyle: LLVM
 
 AlwaysBreakBeforeMultilineStrings: true
 BreakStringLiterals: false
+CommentPragmas: '^RUN: '

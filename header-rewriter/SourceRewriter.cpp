@@ -52,15 +52,25 @@ static Filename get_filename(const clang::SourceLocation loc,
   return sm.getFilename(sm.getSpellingLoc(loc)).str();
 }
 
+static bool in_macro_expansion(const clang::SourceLocation loc,
+                               const clang::SourceManager &sm) {
+  return sm.getExpansionLoc(loc) != sm.getSpellingLoc(loc);
+}
+
 static Pkey get_file_pkey(const clang::SourceManager &sm) {
-  return file_pkeys.at(
-      sm.getFileEntryForID(sm.getMainFileID())->getName().str());
+  auto filename = sm.getFileEntryForID(sm.getMainFileID())->getName().str();
+  try {
+    return file_pkeys.at(filename);
+  } catch (std::out_of_range const &exc) {
+    llvm::errs() << "Source file " << filename.c_str()
+                 << " has no entry with -DPKEY in compile_commands.json\n";
+    assert(0);
+  }
 }
 
 static bool ignore_file(const Filename &filename) {
-  auto file = llvm::StringRef(filename);
-  return file.startswith("/usr/") || file.endswith("ia2.h") ||
-         file.endswith("test_fault_handler.h");
+  return filename.starts_with("/usr/") || filename.ends_with("ia2.h") ||
+         filename.ends_with("test_fault_handler.h") || filename == "";
 }
 
 static std::string append_name_if_nonempty(const std::string &new_type,
@@ -171,7 +181,8 @@ public:
       return;
     }
 
-    Filename file_name = get_filename(old_decl->getLocation(), sm);
+    auto loc = old_decl->getLocation();
+    Filename file_name = get_filename(loc, sm);
     if (ignore_file(file_name)) {
       return;
     }
@@ -198,6 +209,14 @@ public:
     std::string new_decl = generate_decl(new_type, name);
 
     fn_ptr_types.insert(new_type);
+
+    // This check must come after inserting new_type into fn_ptr_types but
+    // before the Replacement is added
+    if (in_macro_expansion(loc, sm)) {
+      llvm::errs() << "FnPtrTypes pass matched a macro expansion in "
+                   << file_name << " which must be rewritten manually\n";
+      return;
+    }
 
     // Replace the old decl with the new one. Make sure to include any macro
     // expansions in the SourceRange being replaced
@@ -257,6 +276,14 @@ public:
       return;
     }
 
+    clang::SourceLocation loc = null_fn_ptr->getExprLoc();
+    Filename filename = sm.getFilename(sm.getExpansionLoc(loc)).str();
+    if (in_macro_expansion(loc, sm)) {
+      llvm::errs() << "FnPtrNull pass matched a macro expansion in " << filename
+                   << " which must be manually rewritten\n";
+      return;
+    }
+
     std::string new_expr = "{ NULL }";
     // If the matcher found an assignment add the type of the LHS variable to
     // new_expr
@@ -264,8 +291,6 @@ public:
       new_expr = "("s + lhs_ptr->getType().getAsString() + ") { NULL }";
     }
 
-    clang::SourceLocation loc = null_fn_ptr->getExprLoc();
-    Filename filename = sm.getFilename(sm.getExpansionLoc(loc)).str();
     clang::CharSourceRange expansion_range = sm.getExpansionRange(loc);
     Replacement r{sm, expansion_range, new_expr};
     auto err = file_replacements[filename].add(r);
@@ -319,7 +344,11 @@ public:
     }
 
     clang::SourceLocation loc = fn_ptr_call->getExprLoc();
-    if (ignore_file(get_filename(loc, sm))) {
+    Filename filename = get_filename(loc, sm);
+    if (ignore_file(filename)) {
+      return;
+    }
+    if (in_macro_expansion(loc, sm)) {
       return;
     }
 
@@ -337,6 +366,14 @@ public:
                     ->getAsAdjusted<clang::FunctionProtoType>();
     fn_ptr_abi_sig[expr_ty_str] = determineAbiForProtoType(*fpt, ctxt);
 
+    // This check must come after modifying the maps in this pass but before the
+    // Replacement is added
+    if (in_macro_expansion(loc, sm)) {
+      llvm::errs() << "FnPtrCall pass matched a macro expansion in " << filename
+                   << " which must be manually rewritten\n";
+      return;
+    }
+
     // getTokenRange is required to replace the entire callee expression
     auto char_range =
         clang::CharSourceRange::getTokenRange(fn_ptr_call->getSourceRange());
@@ -352,7 +389,6 @@ public:
     std::string new_expr =
         "IA2_CALL("s + old_expr.str() + ", " + fn_ptr_id + ", " + pkey + ")";
 
-    Filename filename = sm.getFilename(sm.getExpansionLoc(loc)).str();
     Replacement r{sm, char_range, new_expr};
     auto err = file_replacements[filename].add(r);
     if (err) {
@@ -444,6 +480,14 @@ public:
       return;
     }
 
+    // This check must come after modifying the maps in this pass but before the
+    // Replacement is added
+    if (in_macro_expansion(loc, sm)) {
+      llvm::errs() << "FnPtrExpr pass matched a macro expansion in " << filename
+                   << " which must be manually rewritten\n";
+      return;
+    }
+
     clang::CharSourceRange expansion_range = sm.getExpansionRange(loc);
     Replacement r{sm, expansion_range, new_expr};
     auto err = file_replacements[filename].add(r);
@@ -499,6 +543,12 @@ public:
 
     // Ignore declarations in libc and libia2 headers
     if (ignore_file(get_filename(fn_node->getLocation(), sm))) {
+      return;
+    }
+
+    // Calls to compiler builtins produce an inline declaration that should
+    // not be wrapped; we also don't want to wrap explicit decls of builtins
+    if (fn_node->getBuiltinID() != 0) {
       return;
     }
 
@@ -558,11 +608,6 @@ int main(int argc, const char **argv) {
 
   std::set<Pkey> pkeys_used;
   for (auto s : options_parser.getSourcePathList()) {
-    // Make a copy of each original input sources
-    std::ifstream src(s, std::ios::binary);
-    std::ofstream dst(s + ".orig", std::ios::binary);
-    dst << src.rdbuf();
-
     // Get the compile commands for each input source
     std::vector<CompileCommand> comp_cmds =
         comp_db.getCompileCommands(llvm::StringRef(s));
@@ -581,7 +626,15 @@ int main(int argc, const char **argv) {
                                     cc_cmd.CommandLine.end(), is_pkey_define);
 
     // All files must be compiled with -DPKEY=N
-    assert(pkey_define != cc_cmd.CommandLine.end());
+    if (pkey_define == cc_cmd.CommandLine.end()) {
+      llvm::errs() << cc_cmd.Filename.c_str()
+                   << " was not compiled with -DPKEY=\n";
+      for (const auto &flag : cc_cmd.CommandLine) {
+        llvm::errs() << flag.c_str() << " ";
+      }
+      llvm::errs() << '\n';
+      return -1;
+    }
 
     // Using sizeof - 1 avoids counting the null terminator in PKEY_DEFINE
     Pkey pkey = std::stoi(pkey_define->substr(sizeof(PKEY_DEFINE) - 1));
@@ -595,10 +648,23 @@ int main(int argc, const char **argv) {
   size_t num_pkeys = pkeys_used.size();
   assert(num_pkeys < MAX_PKEYS);
 
-  // Ensure only the lowest pkeys are used
-  assert(*std::min_element(pkeys_used.begin(), pkeys_used.end()) == 0);
-  assert(*std::max_element(pkeys_used.begin(), pkeys_used.end()) ==
-         num_pkeys - 1);
+  // Ensure only the lowest pkeys are used. The two allowed configurations for N
+  // pkeys are pkeys 0 to N - 1 or 1 to N.
+  Pkey min_pkey = *std::min_element(pkeys_used.begin(), pkeys_used.end());
+  Pkey max_pkey = *std::max_element(pkeys_used.begin(), pkeys_used.end());
+  bool config_0 = (min_pkey == 0) && (max_pkey == num_pkeys - 1);
+  bool config_1 = (min_pkey == 1) && (max_pkey == num_pkeys);
+  assert(config_0 || config_1);
+  if (min_pkey == 1) {
+    num_pkeys += 1;
+  }
+
+  for (auto s : options_parser.getSourcePathList()) {
+    // Make a copy of each original input sources
+    std::ifstream src(s, std::ios::binary);
+    std::ofstream dst(s + ".orig", std::ios::binary);
+    dst << src.rdbuf();
+  }
 
   /* Create the wrapper source and function pointer header */
   std::error_code EC;
@@ -659,10 +725,18 @@ int main(int argc, const char **argv) {
    * so we don't need to generate them for caller_pkey = 0. When IA2_CALL has
    * caller pkey = 0, it just becomes a cast that calls the fn ptr.
    */
+  std::cout << "Generating indirect callsite wrappers\n";
   std::string wrapper_decls;
   for (int caller_pkey = 1; caller_pkey < num_pkeys; caller_pkey++) {
     for (const auto &[ty, id] : ptr_call_pass.fn_ptr_ids) {
-      CAbiSignature c_abi_sig = ptr_call_pass.fn_ptr_abi_sig.at(ty);
+      CAbiSignature c_abi_sig;
+      try {
+        c_abi_sig = ptr_call_pass.fn_ptr_abi_sig.at(ty);
+      } catch (std::out_of_range const &exc) {
+        llvm::errs() << "Opaque struct " << ty.c_str()
+                     << " not found by FnPtrCall pass\n";
+        assert(0);
+      }
       std::string wrapper_name = "__ia2_indirect_callgate_"s +
                                  std::to_string(id) + "_pkey_" +
                                  std::to_string(caller_pkey);
@@ -679,6 +753,7 @@ int main(int argc, const char **argv) {
   }
   header_out << wrapper_decls.c_str();
 
+  std::cout << "Generating opaque function pointer types\n";
   // Define opaque struct types for function pointers e.g.
   // struct IA2_fnptr__ZTSFiiE { char *ptr; };
   for (const auto &opaque : ptr_types_pass.fn_ptr_types) {
@@ -690,6 +765,7 @@ int main(int argc, const char **argv) {
   // Define the pointer read by indirect call gates
   wrapper_out << "void *ia2_fn_ptr;\n";
 
+  std::cout << "Generating direct call gate wrappers\n";
   // Create wrappers for direct calls. These wrappers are inserted by ld --wrap
   // so the wrapper name cannot be changed.
   llvm::raw_fd_ostream *ld_args_out[MAX_PKEYS] = {};
@@ -702,14 +778,29 @@ int main(int argc, const char **argv) {
                         fn_decl_pass.defined_fns[caller_pkey].end(),
                         std::inserter(undefined_fns, undefined_fns.begin()));
     for (const auto &fn_name : undefined_fns) {
-      CAbiSignature c_abi_sig = fn_decl_pass.abi_signatures.at(fn_name);
+      CAbiSignature c_abi_sig;
+      try {
+        c_abi_sig = fn_decl_pass.abi_signatures.at(fn_name);
+      } catch (std::out_of_range const &exc) {
+        llvm::errs() << "C ABI signature for function " << fn_name.c_str()
+                     << " not found by FnDecl pass\n";
+        assert(0);
+      }
       // TODO: Add the option to append "_from_PKEY" to the wrapper name and use
       // objcopy --redefine-syms to support calling a function from multiple
       // compartments
       std::string wrapper_name = "__wrap_"s + fn_name;
-      std::string asm_wrapper = emit_asm_wrapper(
-          c_abi_sig, wrapper_name, &fn_name, WrapperKind::Direct, caller_pkey,
-          fn_decl_pass.fn_pkeys.at(fn_name));
+      Pkey target_pkey;
+      try {
+        target_pkey = fn_decl_pass.fn_pkeys.at(fn_name);
+      } catch (std::out_of_range const &exc) {
+        llvm::errs() << "Pkey for function " << fn_name.c_str()
+                     << " not found by FnDecl pass\n";
+        assert(0);
+      }
+      std::string asm_wrapper =
+          emit_asm_wrapper(c_abi_sig, wrapper_name, &fn_name,
+                           WrapperKind::Direct, caller_pkey, target_pkey);
       wrapper_out << "asm(\n";
       wrapper_out << asm_wrapper;
       wrapper_out << ");\n";
@@ -718,6 +809,7 @@ int main(int argc, const char **argv) {
     }
   }
 
+  std::cout << "Generating function pointer wrappers\n";
   // Define wrappers for function pointers (i.e. those referenced by IA2_FN)
   for (const auto &[fn_name, opaque] : ptr_expr_pass.addr_taken_fns) {
     /*
@@ -744,6 +836,7 @@ int main(int argc, const char **argv) {
     }
   }
 
+  std::cout << "Generating function pointer wrappers for static functions\n";
   // Define wrappers for pointers to static functions (also those referenced by
   // IA2_FN)
   std::string static_wrappers;

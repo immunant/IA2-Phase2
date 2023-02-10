@@ -795,9 +795,10 @@ int main(int argc, const char **argv) {
       try {
         target_pkey = fn_decl_pass.fn_pkeys.at(fn_name);
       } catch (std::out_of_range const &exc) {
-        llvm::errs() << "Pkey for function " << fn_name.c_str()
-                     << " not found by FnDecl pass\n";
-        assert(0);
+        llvm::errs() << "Assuming pkey for function " << fn_name.c_str()
+                     << " is same as the caller (" << caller_pkey
+                     << ") since its definition was not found by FnDecl pass\n";
+        continue;
       }
       std::string asm_wrapper =
           emit_asm_wrapper(c_abi_sig, wrapper_name, &fn_name,

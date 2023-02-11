@@ -348,9 +348,6 @@ public:
     if (ignore_file(filename)) {
       return;
     }
-    if (in_macro_expansion(loc, sm)) {
-      return;
-    }
 
     // Check if the function pointer type already has an ID
     auto expr_ty = fn_ptr_call->getType()->getCanonicalTypeInternal();
@@ -727,6 +724,7 @@ int main(int argc, const char **argv) {
    */
   std::cout << "Generating indirect callsite wrappers\n";
   std::string wrapper_decls;
+  std::set<int> type_id_macros_generated = {};
   for (int caller_pkey = 1; caller_pkey < num_pkeys; caller_pkey++) {
     for (const auto &[ty, id] : ptr_call_pass.fn_ptr_ids) {
       CAbiSignature c_abi_sig;
@@ -747,8 +745,11 @@ int main(int argc, const char **argv) {
       wrapper_out << asm_wrapper;
       wrapper_out << ");\n";
 
-      header_out << "#define IA2_TYPE_"s << id << " " << ty << "\n";
-      wrapper_decls += "char *" + wrapper_name + ";\n";
+      if (!type_id_macros_generated.contains(id)) {
+        header_out << "#define IA2_TYPE_"s << id << " " << ty << "\n";
+        type_id_macros_generated.insert(id);
+      }
+      wrapper_decls += "extern char *" + wrapper_name + ";\n";
     }
   }
   header_out << wrapper_decls.c_str();

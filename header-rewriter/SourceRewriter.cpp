@@ -213,8 +213,15 @@ public:
     // This check must come after inserting new_type into fn_ptr_types but
     // before the Replacement is added
     if (in_macro_expansion(loc, sm)) {
-      llvm::errs() << "FnPtrTypes pass matched a macro expansion in "
-                   << file_name << " which must be rewritten manually\n";
+      auto expansion_file = sm.getFilename(sm.getExpansionLoc(loc)).str();
+      auto expansion_line = sm.getExpansionLineNumber(loc);
+      auto spelling_line = sm.getSpellingLineNumber(loc);
+      llvm::errs() << "FnPtrTypes: " << expansion_file << ":" << expansion_line
+                   << " ";
+      if (expansion_line != spelling_line) {
+        llvm::errs() << file_name << ":" << spelling_line << " ";
+      }
+      llvm::errs() << "must be rewritten manually\n";
       return;
     }
 
@@ -278,11 +285,6 @@ public:
 
     clang::SourceLocation loc = null_fn_ptr->getExprLoc();
     Filename filename = sm.getFilename(sm.getExpansionLoc(loc)).str();
-    if (in_macro_expansion(loc, sm)) {
-      llvm::errs() << "FnPtrNull pass matched a macro expansion in " << filename
-                   << " which must be manually rewritten\n";
-      return;
-    }
 
     std::string new_expr = "{ NULL }";
     // If the matcher found an assignment add the type of the LHS variable to
@@ -366,8 +368,15 @@ public:
     // This check must come after modifying the maps in this pass but before the
     // Replacement is added
     if (in_macro_expansion(loc, sm)) {
-      llvm::errs() << "FnPtrCall pass matched a macro expansion in " << filename
-                   << " which must be manually rewritten\n";
+      auto expansion_file = sm.getFilename(sm.getExpansionLoc(loc)).str();
+      auto expansion_line = sm.getExpansionLineNumber(loc);
+      auto spelling_line = sm.getSpellingLineNumber(loc);
+      llvm::errs() << "FnPtrCall: " << expansion_file << ":" << expansion_line
+                   << " ";
+      if (spelling_line != expansion_line) {
+        llvm::errs() << filename << ":" << spelling_line << " ";
+      }
+      llvm::errs() << "must be rewritten manually\n";
       return;
     }
 
@@ -480,8 +489,15 @@ public:
     // This check must come after modifying the maps in this pass but before the
     // Replacement is added
     if (in_macro_expansion(loc, sm)) {
-      llvm::errs() << "FnPtrExpr pass matched a macro expansion in " << filename
-                   << " which must be manually rewritten\n";
+      auto expansion_file = sm.getFilename(sm.getExpansionLoc(loc)).str();
+      auto expansion_line = sm.getExpansionLineNumber(loc);
+      auto spelling_line = sm.getSpellingLineNumber(loc);
+      llvm::errs() << "FnPtrExpr: " << expansion_file << ":" << expansion_line
+                   << " ";
+      if (spelling_line != expansion_line) {
+        llvm::errs() << filename << ":" << spelling_line << " ";
+      }
+      llvm::errs() << "must be rewritten manually\n";
       return;
     }
 

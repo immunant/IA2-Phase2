@@ -103,4 +103,33 @@ function(define_test)
         ${WRAPPERS}
         partition-alloc)
     add_dependencies(check-ia2 ${MAIN})
+
+    # Find libc. We cannot simply do `find_library(LIBC c REQUIRED)` because
+    # `libc.so` itself is a linker script with glibc, while we need the path of
+    # the actual ELF shared object itself so we can patch its program headers.
+    list(APPEND LIBC_PATHS /lib/libc.so.6 /lib64/libc.so.6 /lib/x86_64-linux-gnu/libc.so.6)
+    foreach(CANDIDATE in ${LIBC_PATHS})
+        if (EXISTS ${CANDIDATE})
+            set(LIBC_PATH ${CANDIDATE})
+        endif()
+    endforeach()
+    if(NOT DEFINED LIBC_PATH)
+        string(REPLACE ";" "\t" PATHS "${LIBC_PATHS}")
+        message(FATAL_ERROR
+            "Could not find libc.so.6 in:\n${PATHS}\n")
+    endif()
+
+    # Generate libc with padded TLS segment
+    add_custom_command(
+        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/libc.so.6
+        COMMAND cp ${LIBC_PATH} ${CMAKE_CURRENT_BINARY_DIR}/libc.so.6
+        COMMAND pad-tls --allow-no-tls ${CMAKE_CURRENT_BINARY_DIR}/libc.so.6
+        DEPENDS pad-tls
+        COMMENT "Padding TLS segment of libc"
+    )
+
+    add_custom_target(${TEST_NAME}-libc DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/libc.so.6")
+
+    # Use libc in wrapper
+    add_dependencies(${MAIN} ${TEST_NAME}-libc)
 endfunction()

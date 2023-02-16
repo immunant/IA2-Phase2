@@ -1,12 +1,16 @@
 #include "library.h"
 #include "test_fault_handler.h"
+#include <ia2.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 
+INIT_COMPARTMENT(2);
+
 thread_local uint32_t lib_secret = 0x1eaf1e55;
 
 void lib_print_main_secret() {
+  printf("library: accessing main secret at %p\n", &main_secret);
   printf("library: main secret is %x\n", CHECK_VIOLATION(main_secret));
 }
 

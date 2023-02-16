@@ -8,7 +8,7 @@
 #include "test_fault_handler.h"
 #include <threads.h>
 
-INIT_RUNTIME(1);
+INIT_RUNTIME(2);
 INIT_COMPARTMENT(1);
 
 thread_local uint32_t main_secret = 0xdeadbeef;

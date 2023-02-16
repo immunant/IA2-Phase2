@@ -132,6 +132,33 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
     break;
   }
 
+  /* protect TLS segment */
+  for (size_t i = 0; i < info->dlpi_phnum; i++) {
+    Elf64_Phdr phdr = info->dlpi_phdr[i];
+    if (phdr.p_type != PT_TLS) {
+      continue;
+    }
+
+    void *start = info->dlpi_tls_data;
+    size_t len = phdr.p_memsz;
+
+    void *start_round_down = (void *)((uint64_t)start & ~0xFFFUL);
+    uint64_t start_moved = (uint64_t)start & 0xFFFUL;
+    // p_memsz is 0x1000 more than the size of what we actually need to protect
+    size_t len_round_up = (phdr.p_memsz + start_moved) & ~0xFFFUL;
+    if (len_round_up == 0) {
+      const char *libname = basename(info->dlpi_name);
+      printf("TLS segment of %s is not padded\n", libname);
+      exit(-1);
+    }
+    int mprotect_err = pkey_mprotect(start_round_down, len_round_up,
+                                     PROT_READ | PROT_WRITE, search_args->pkey);
+    if (mprotect_err != 0) {
+      printf("pkey_mprotect failed: %s\n", strerror(errno));
+      exit(-1);
+    }
+  }
+
   // TODO: We avoid dynamically allocating space for each of the `dlpi_phnum`
   // the SegmentInfo structs for simplicity. MAX_NUM_PHDRS is only an estimate,
   // so if this assert fails we should increment it. Once we test partition

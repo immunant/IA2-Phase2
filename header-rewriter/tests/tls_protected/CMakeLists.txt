@@ -13,6 +13,7 @@ set(HEADERS library.h)
 # Build the wrapper lib
 define_ia2_wrapper(
     HEADERS ${HEADERS}
+    COMPARTMENT_PKEY 2
     CALLER_PKEY 1
 )
 

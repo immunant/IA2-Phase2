@@ -10,16 +10,23 @@ configure_file(${LIB_STDOUT_REF} ${CMAKE_CURRENT_BINARY_DIR})
 
 set(HEADERS library.h)
 
-# Build the wrapper lib
+# Build the wrapped lib
+define_shared_lib(
+    SRCS library.c
+)
+
+# Pad the wrapped lib
+add_tls_padded_library(
+    LIB tls_protected-original
+    OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/padded"
+)
+
+# Build the wrapper
 define_ia2_wrapper(
     HEADERS ${HEADERS}
     COMPARTMENT_PKEY 2
     CALLER_PKEY 1
-)
-
-# Build the wrapped lib
-define_shared_lib(
-    SRCS library.c
+    WRAPPED_LIB tls_protected-original-padded
 )
 
 # Build the test

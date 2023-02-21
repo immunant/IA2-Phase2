@@ -1,9 +1,8 @@
 /*
 RUN: cp %s %t.h
 RUN: ia2-header-rewriter %T/wrapper.c %t.h -- -I%resource_dir
-RUN: cat %t.h | sed 's/^.*CHECK.*$//' | FileCheck %s
-RUN: %binary_dir/tests/tls_protected/tls_protected-main | diff %binary_dir/tests/tls_protected/tls_protected_main.out -
-RUN: %binary_dir/tests/tls_protected/tls_protected-main print_lib_secret | diff %binary_dir/tests/tls_protected/tls_protected_lib.out -
+RUN: %binary_dir/tests/tls_protected/tls_protected-main | FileCheck --dump-input=always -v %binary_dir/tests/tls_protected/tls_protected_main.out
+RUN: %binary_dir/tests/tls_protected/tls_protected-main print_lib_secret | FileCheck --dump-input=always -v %binary_dir/tests/tls_protected/tls_protected_lib.out
 */
 #pragma once
 #include <stdint.h>

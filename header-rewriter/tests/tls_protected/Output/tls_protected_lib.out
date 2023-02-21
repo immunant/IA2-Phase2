@@ -1,3 +1,11 @@
-main: main secret is deadbeef
-library: lib secret is 1eaf1e55
-CHECK_VIOLATION: seg faulted as expected
+CHECK: errno=5, pkru=
+CHECK-NEXT: library: lib secret is 1eaf1e55
+CHECK-NEXT: main: main secret is deadbeef
+CHECK-NEXT: errno=5, pkru=fffffff0
+CHECK-NEXT: library: lib secret is 1eaf1e55
+CHECK-NEXT: errno=5, pkru=fffffff0
+CHECK-NEXT: pkru=fffffff0
+CHECK-NEXT: errno=5
+CHECK-NEXT: main: going to access lib secret
+CHECK-NEXT: main: accessing lib secret at 
+CHECK-NEXT: CHECK_VIOLATION: seg faulted as expected

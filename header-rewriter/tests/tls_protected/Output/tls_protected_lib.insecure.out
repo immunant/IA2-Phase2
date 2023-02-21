@@ -1,2 +1,7 @@
-TRUSTED: the secret is deadbeef
-CHECK_VIOLATION: did not seg fault as expected
+CHECK: library: lib secret is 1eaf1e55
+CHECK-next: main: main secret is deadbeef
+CHECK: library: lib secret is 1eaf1e55
+CHECK: errno=5
+CHECK: main: going to access lib secret
+CHECK: main: accessing lib secret at 
+CHECK: CHECK_VIOLATION: did not seg fault as expected

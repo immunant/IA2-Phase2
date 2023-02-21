@@ -148,6 +148,10 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
     size_t len_round_up = (phdr.p_memsz + start_moved) & ~0xFFFUL;
     if (len_round_up == 0) {
       const char *libname = basename(info->dlpi_name);
+      /* dlpi_name is "" for the main executable */
+      if (libname && libname[0] == '\0') {
+        libname = "main";
+      }
       printf("TLS segment of %s is not padded\n", libname);
       exit(-1);
     }

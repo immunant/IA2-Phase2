@@ -20,7 +20,7 @@ done
 ./auto/configure --prefix=$BUILD_DIR \
     --builddir=$BUILD_DIR \
     --with-http_perl_module=dynamic \
-    --with-cc="clang" \
+    --with-cc="gcc" \
     --conf-path=$NGINX_ROOT/conf/nginx.conf \
     --pid-path=$BUILD_DIR/nginx.pid \
     --error-log-path=$BUILD_DIR/err.log \

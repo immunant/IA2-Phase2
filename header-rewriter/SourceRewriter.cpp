@@ -58,11 +58,13 @@ static bool in_macro_expansion(const clang::SourceLocation loc,
 }
 
 static Pkey get_file_pkey(const clang::SourceManager &sm) {
-  auto filename = sm.getFileEntryForID(sm.getMainFileID())->getName().str();
+  auto file_entry = sm.getFileEntryForID(sm.getMainFileID());
+  auto filename = file_entry->getName().str();
   try {
     return file_pkeys.at(filename);
   } catch (std::out_of_range const &exc) {
-    llvm::errs() << "Source file " << filename.c_str()
+    llvm::errs() << "Source file " << filename.c_str() << " or "
+                 << file_entry->tryGetRealPathName().str().c_str()
                  << " has no entry with -DPKEY in compile_commands.json\n";
     assert(0);
   }
@@ -277,7 +279,9 @@ public:
     assert(null_fn_ptr != nullptr);
 
     assert(result.SourceManager != nullptr);
+    assert(result.Context != nullptr);
     auto &sm = *result.SourceManager;
+    auto &ctxt = *result.Context;
 
     if (get_file_pkey(sm) == 0) {
       return;
@@ -290,7 +294,11 @@ public:
     // If the matcher found an assignment add the type of the LHS variable to
     // new_expr
     if (auto *lhs_ptr = result.Nodes.getNodeAs<clang::Expr>("ptrLHS")) {
-      new_expr = "("s + lhs_ptr->getType().getAsString() + ") { NULL }";
+      auto char_range =
+          clang::CharSourceRange::getTokenRange(lhs_ptr->getSourceRange());
+      auto lhs_binding =
+          clang::Lexer::getSourceText(char_range, sm, ctxt.getLangOpts());
+      new_expr = "(typeof("s + lhs_binding.str() + ")) { NULL }";
     }
 
     clang::CharSourceRange expansion_range = sm.getExpansionRange(loc);
@@ -376,7 +384,7 @@ public:
       if (spelling_line != expansion_line) {
         llvm::errs() << filename << ":" << spelling_line << " ";
       }
-      llvm::errs() << "must be rewritten manually\n";
+      llvm::errs() << "must be rewritten manually (ID = " << fn_ptr_id << ")\n";
       return;
     }
 
@@ -620,6 +628,8 @@ int main(int argc, const char **argv) {
   CompilationDatabase &comp_db = options_parser.getCompilations();
 
   std::set<Pkey> pkeys_used;
+  llvm::errs() << "Found " << options_parser.getSourcePathList().size()
+               << " input files\n";
   for (auto s : options_parser.getSourcePathList()) {
     // Get the compile commands for each input source
     std::vector<CompileCommand> comp_cmds =
@@ -652,6 +662,8 @@ int main(int argc, const char **argv) {
     // Using sizeof - 1 avoids counting the null terminator in PKEY_DEFINE
     Pkey pkey = std::stoi(pkey_define->substr(sizeof(PKEY_DEFINE) - 1));
 
+    llvm::errs() << "Found file " << cc_cmd.Filename.c_str() << " ("
+                 << cc_cmd.Output.c_str() << ") " << '\n';
     file_pkeys[cc_cmd.Filename] = pkey;
     pkeys_used.insert(pkey);
   }

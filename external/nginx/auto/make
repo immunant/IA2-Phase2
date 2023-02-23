@@ -22,17 +22,22 @@ cat << END                                                     > $NGX_MAKEFILE
 
 CC =	$CC
 CFLAGS = $CFLAGS
-IA2_CFLAGS = -DPKEY=1 -I/usr/lib/clang/15.0.7/include
 CPP =	$CPP
 LINK =	$LINK
 
+C_SYSTEM_INCLUDE = `$CC -print-file-name=include`
+C_SYSTEM_INCLUDE_FIXED = `$CC -print-file-name=include-fixed`
+
+IA2_CFLAGS = -DPKEY=1 -I \$(C_SYSTEM_INCLUDE) -I \$(C_SYSTEM_INCLUDE_FIXED)
+
 END
 
+IA2_MODULE_CFLAGS="-DPKEY=2 -I \$(C_SYSTEM_INCLUDE) -I \$(C_SYSTEM_INCLUDE_FIXED)"
 
 if test -n "$NGX_PERL_CFLAGS"; then
     echo NGX_PERL_CFLAGS = $NGX_PERL_CFLAGS                   >> $NGX_MAKEFILE
-    echo NGX_PERL_IA2_CFLAGS = -DPKEY=2 -I/usr/lib/clang/15.0.7/include                        >> $NGX_MAKEFILE
-    echo NGX_PM_CFLAGS = $NGX_PM_CFLAGS                       >> $NGX_MAKEFILE
+    echo NGX_PERL_IA2_CFLAGS = "$IA2_MODULE_CFLAGS"           >> $NGX_MAKEFILE
+    echo NGX_PM_CFLAGS = $NGX_PM_CFLAGS "$IA2_MODULE_CFLAGS"  >> $NGX_MAKEFILE
     echo NGX_PM_LDFLAGS = $NGX_PM_LDFLAGS                     >> $NGX_MAKEFILE
 fi
 

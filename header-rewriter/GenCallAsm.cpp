@@ -3,6 +3,7 @@
 #include <array>
 #include <cassert>
 #include <iostream>
+#include <optional>
 #include <sstream>
 #include <vector>
 
@@ -269,13 +270,13 @@ static void append_arg_kinds(std::stringstream &ss,
 }
 
 static std::string sig_string(const CAbiSignature &sig,
-                              const std::string *name) {
+                              const std::optional<std::string> name) {
   std::stringstream ss = {};
-  if (name == nullptr) {
+  if (!name) {
     ss << "indirect call"
        << "(";
   } else {
-    ss << *name << "(";
+    ss << name.value() << "(";
   }
   append_arg_kinds(ss, sig.args);
   ss << ")";
@@ -288,8 +289,9 @@ static std::string sig_string(const CAbiSignature &sig,
 
 std::string emit_asm_wrapper(const CAbiSignature &sig,
                              const std::string &wrapper_name,
-                             const std::string *target_name, WrapperKind kind,
-                             int caller_pkey, int target_pkey, bool as_macro) {
+                             const std::optional<std::string> target_name,
+                             WrapperKind kind, int caller_pkey, int target_pkey,
+                             bool as_macro) {
 
   std::string terminator = {};
   // Code generated as a macro needs to terminate each line with '\'
@@ -505,11 +507,11 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
 
   // Call wrapped function
   add_comment_line(aw, "Call wrapped function");
-  if (target_name == nullptr) {
+  if (!target_name) {
     assert(kind == WrapperKind::IndirectCallsite);
     add_asm_line(aw, "call *%r12");
   } else {
-    add_asm_line(aw, "call "s + *target_name);
+    add_asm_line(aw, "call "s + target_name.value());
   }
 
   // After calling the wrapped function, rax and rdx may contain a return value

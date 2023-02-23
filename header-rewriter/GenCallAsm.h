@@ -1,4 +1,6 @@
 #pragma once
+#include <optional>
+
 #include "CAbi.h"
 
 /* The kind of call to generate a wrapper for */
@@ -24,6 +26,6 @@ enum class WrapperKind {
 // macro. Indirect calls are unconditionally emitted as macros.
 std::string emit_asm_wrapper(const CAbiSignature &sig,
                              const std::string &wrapper_name,
-                             const std::string *target_name, WrapperKind kind,
-                             int caller_pkey, int target_pkey,
+                             const std::optional<std::string> target_name,
+                             WrapperKind kind, int caller_pkey, int target_pkey,
                              bool as_macro = false);

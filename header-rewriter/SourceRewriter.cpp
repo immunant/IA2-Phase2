@@ -58,7 +58,8 @@ static bool in_macro_expansion(const clang::SourceLocation loc,
 }
 
 static Pkey get_file_pkey(const clang::SourceManager &sm) {
-  auto filename = sm.getFileEntryForID(sm.getMainFileID())->getName().str();
+  auto file_entry = sm.getFileEntryForID(sm.getMainFileID());
+  auto filename = file_entry->tryGetRealPathName().str();
   try {
     return file_pkeys.at(filename);
   } catch (std::out_of_range const &exc) {
@@ -177,6 +178,7 @@ public:
     const auto &sm = *result.SourceManager;
     auto &ctxt = *result.Context;
 
+    // This pass modifies source files so it should not change files with pkey 0
     if (get_file_pkey(sm) == 0) {
       return;
     }
@@ -277,8 +279,11 @@ public:
     assert(null_fn_ptr != nullptr);
 
     assert(result.SourceManager != nullptr);
+    assert(result.Context != nullptr);
     auto &sm = *result.SourceManager;
+    auto &ctxt = *result.Context;
 
+    // This pass modifies source files so it should not change files with pkey 0
     if (get_file_pkey(sm) == 0) {
       return;
     }
@@ -290,7 +295,11 @@ public:
     // If the matcher found an assignment add the type of the LHS variable to
     // new_expr
     if (auto *lhs_ptr = result.Nodes.getNodeAs<clang::Expr>("ptrLHS")) {
-      new_expr = "("s + lhs_ptr->getType().getAsString() + ") { NULL }";
+      auto char_range =
+          clang::CharSourceRange::getTokenRange(lhs_ptr->getSourceRange());
+      auto lhs_binding =
+          clang::Lexer::getSourceText(char_range, sm, ctxt.getLangOpts());
+      new_expr = "(typeof("s + lhs_binding.str() + ")) { NULL }";
     }
 
     clang::CharSourceRange expansion_range = sm.getExpansionRange(loc);
@@ -341,6 +350,7 @@ public:
     assert(result.Context != nullptr);
     auto &ctxt = *result.Context;
 
+    // This pass modifies source files so it should not change files with pkey 0
     if (get_file_pkey(sm) == 0) {
       return;
     }
@@ -376,7 +386,7 @@ public:
       if (spelling_line != expansion_line) {
         llvm::errs() << filename << ":" << spelling_line << " ";
       }
-      llvm::errs() << "must be rewritten manually\n";
+      llvm::errs() << "must be rewritten manually (ID = " << fn_ptr_id << ")\n";
       return;
     }
 
@@ -388,9 +398,7 @@ public:
         clang::Lexer::getSourceText(char_range, sm, ctxt.getLangOpts());
 
     // Get the translation unit's filename to figure out the pkey
-    Filename tu_filename =
-        sm.getFileEntryForID(sm.getMainFileID())->getName().str();
-    std::string pkey = std::to_string(file_pkeys.at(tu_filename));
+    std::string pkey = std::to_string(get_file_pkey(sm));
 
     std::string new_expr =
         "IA2_CALL("s + old_expr.str() + ", " + fn_ptr_id + ", " + pkey + ")";
@@ -449,6 +457,7 @@ public:
     assert(result.Context != nullptr);
     auto &ctxt = *result.Context;
 
+    // This pass modifies source files so it should not change files with pkey 0
     if (get_file_pkey(sm) == 0) {
       return;
     }
@@ -570,10 +579,7 @@ public:
     abi_signatures[fn_name] = fn_sig;
 
     // Get the translation unit's filename to figure out the pkey
-    Filename tu_filename =
-        sm.getFileEntryForID(sm.getMainFileID())->getName().str();
-
-    Pkey pkey = file_pkeys.at(tu_filename);
+    Pkey pkey = get_file_pkey(sm);
     assert(pkey < MAX_PKEYS);
 
     if (definition) {
@@ -594,8 +600,8 @@ void write_to_ld_file(llvm::raw_fd_ostream *file[MAX_PKEYS], int i,
                       const std::string &contents) {
   if (file[i] == nullptr) {
     std::error_code EC;
-    file[i] =
-        new llvm::raw_fd_ostream(OutputPrefix + std::to_string(i) + ".ld", EC);
+    file[i] = new llvm::raw_fd_ostream(
+        OutputPrefix + "_" + std::to_string(i) + ".ld", EC);
     assert(file[i] != nullptr);
   }
   *file[i] << contents;
@@ -628,8 +634,26 @@ int main(int argc, const char **argv) {
     // Files may be compiled more than once, but we don't support that yet. If
     // the file is not found in the compilation database then there's a problem
     // with it.
+    auto has_pkey_define = [](const CompileCommand &cc) {
+      bool pre_rewriter = false;
+      bool has_pkey_define = false;
+      for (const auto &flag : cc.CommandLine) {
+        if (flag.starts_with(PKEY_DEFINE)) {
+          has_pkey_define = true;
+        }
+      }
+      return has_pkey_define;
+    };
+    auto comp_cmd_with_pkey =
+        std::find_if(comp_cmds.begin(), comp_cmds.end(), has_pkey_define);
+    if (comp_cmd_with_pkey == comp_cmds.end()) {
+      llvm::errs() << "No compile commands with -DPKEY found for " << s.c_str()
+                   << '\n';
+      return -1;
+    }
+
     assert(comp_cmds.size() == 1);
-    auto cc_cmd = comp_cmds[0];
+    auto cc_cmd = *comp_cmd_with_pkey;
 
     auto is_pkey_define = [](const std::string &s) {
       return s.starts_with(PKEY_DEFINE);
@@ -723,7 +747,7 @@ int main(int argc, const char **argv) {
   header_out << "#define IA2_CALL(opaque, id, pkey) ({ \\\n";
   header_out << "  ia2_fn_ptr = opaque.ptr; \\\n";
   header_out
-      << "  (IA2_TYPE_##id)__ia2_indirect_callgate_##id##_pkey_##pkey; \\\n";
+      << "  (IA2_TYPE_##id)&__ia2_indirect_callgate_##id##_pkey_##pkey; \\\n";
   header_out << "})\n";
 
   wrapper_out << "#include \"scrub_registers.h\"\n";
@@ -755,7 +779,7 @@ int main(int argc, const char **argv) {
                                  std::to_string(id) + "_pkey_" +
                                  std::to_string(caller_pkey);
       std::string asm_wrapper =
-          emit_asm_wrapper(c_abi_sig, wrapper_name, nullptr,
+          emit_asm_wrapper(c_abi_sig, wrapper_name, std::nullopt,
                            WrapperKind::IndirectCallsite, caller_pkey, 0);
       wrapper_out << "asm(\n";
       wrapper_out << asm_wrapper;
@@ -765,7 +789,7 @@ int main(int argc, const char **argv) {
         header_out << "#define IA2_TYPE_"s << id << " " << ty << "\n";
         type_id_macros_generated.insert(id);
       }
-      wrapper_decls += "extern char *" + wrapper_name + ";\n";
+      wrapper_decls += "extern char " + wrapper_name + ";\n";
     }
   }
   header_out << wrapper_decls.c_str();
@@ -817,7 +841,7 @@ int main(int argc, const char **argv) {
         continue;
       }
       std::string asm_wrapper =
-          emit_asm_wrapper(c_abi_sig, wrapper_name, &fn_name,
+          emit_asm_wrapper(c_abi_sig, wrapper_name, fn_name,
                            WrapperKind::Direct, caller_pkey, target_pkey);
       wrapper_out << "asm(\n";
       wrapper_out << asm_wrapper;
@@ -846,7 +870,7 @@ int main(int argc, const char **argv) {
     if (target_pkey != 0) {
       CAbiSignature c_abi_sig = fn_decl_pass.abi_signatures[fn_name];
       std::string asm_wrapper =
-          emit_asm_wrapper(c_abi_sig, wrapper_name, &fn_name,
+          emit_asm_wrapper(c_abi_sig, wrapper_name, fn_name,
                            WrapperKind::Pointer, 0, target_pkey);
       wrapper_out << "asm(\n";
       wrapper_out << asm_wrapper;
@@ -866,7 +890,7 @@ int main(int argc, const char **argv) {
 
     // For each static function, define a macro to define the wrapper in the
     // output header and invoke it in the source file
-    for (const auto &[fn_name, opaque] : addr_taken_fns) {
+    for (const auto [fn_name, opaque] : addr_taken_fns) {
       std::string wrapper_name = "__ia2_"s + fn_name;
       // TODO: These wrapper go from pkey 0 to the target pkey so if the target
       // also has pkey 0 then it just needs call the original function
@@ -875,7 +899,7 @@ int main(int argc, const char **argv) {
         CAbiSignature c_abi_sig = fn_decl_pass.abi_signatures[fn_name];
 
         std::string asm_wrapper = emit_asm_wrapper(
-            c_abi_sig, wrapper_name, &fn_name, WrapperKind::Pointer, 0,
+            c_abi_sig, wrapper_name, fn_name, WrapperKind::Pointer, 0,
             target_pkey, true /* as_macro */);
         static_wrappers += "#define IA2_DEFINE_WRAPPER_"s + fn_name + " \\\n";
         static_wrappers += "asm(\\\n";

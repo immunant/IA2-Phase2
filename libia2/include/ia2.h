@@ -210,6 +210,8 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
 
 #define STACK_SIZE (4 * 1024 * 1024)
 
+#define PAGE_SIZE 4096
+
 #ifdef LIBIA2_INSECURE
 #define pkey_mprotect insecure_pkey_mprotect
 static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {

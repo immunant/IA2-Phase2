@@ -118,8 +118,8 @@ function(define_ia2_wrapper)
             set(COPIED_HEADER ${REWRITTEN_HEADER_DIR}/system/${HEADER_NAME})
             add_custom_command(
                 OUTPUT ${COPIED_HEADER}
-                COMMAND mkdir -p ${REWRITTEN_HEADER_DIR}
-                COMMAND cp ${SYSTEM_HEADER} ${COPIED_HEADER}
+                COMMAND ${CMAKE_COMMAND} -E make_directory ${REWRITTEN_HEADER_DIR}
+                COMMAND ${CMAKE_COMMAND} -E copy ${SYSTEM_HEADER} ${COPIED_HEADER}
                 DEPENDS ${SYSTEM_HEADER}
             )
 
@@ -152,7 +152,7 @@ function(define_ia2_wrapper)
     add_custom_command(
         OUTPUT ${REWRITTEN_HEADERS} ${WRAPPER_SRC}
         # Copy headers to their REWRITTEN_HEADERS locations
-        COMMAND cp -r ${HEADER_SRC_DIRS} ${REWRITTEN_HEADER_DIR}
+        COMMAND ${CMAKE_COMMAND} -E copy ${HEADER_SRC_DIRS} ${REWRITTEN_HEADER_DIR}
         # Run the rewriter itself, mutating the headers
         COMMAND ia2-header-rewriter
           --output-header ${REWRITTEN_HEADER_DIR}/${OUTPUT_HEADER}

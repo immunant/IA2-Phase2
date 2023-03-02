@@ -122,7 +122,7 @@ function(define_test)
     # Generate libc with padded TLS segment
     add_custom_command(
         OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/libc.so.6
-        COMMAND cp ${LIBC_PATH} ${CMAKE_CURRENT_BINARY_DIR}/libc.so.6
+        COMMAND ${CMAKE_COMMAND} -E copy ${LIBC_PATH} ${CMAKE_CURRENT_BINARY_DIR}/libc.so.6
         COMMAND pad-tls --allow-no-tls ${CMAKE_CURRENT_BINARY_DIR}/libc.so.6
         DEPENDS pad-tls
         COMMENT "Padding TLS segment of libc"

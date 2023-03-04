@@ -8,16 +8,16 @@ SOURCE_REWRITER ?= $(REPO_ROOT)/build/header-rewriter/ia2-header-rewriter
 BUILD_DIR ?= $(NGINX_ROOT)/build
 
 ia2_all:
-	@gdb --args $(SOURCE_REWRITER) \
+	@$(SOURCE_REWRITER) \
 		--output-prefix=wrapper \
-		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/core/nginx.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/core/ngx_palloc.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/core/ngx_log.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/core/ngx_array.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/core/ngx_buf.c \
-		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/core/ngx_log.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/core/nginx.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/core/ngx_queue.c \
-		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/core/ngx_hash.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/core/ngx_list.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/core/ngx_hash.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/core/ngx_output_chain.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/core/ngx_string.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/core/ngx_parse.c \
@@ -26,8 +26,8 @@ ia2_all:
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/core/ngx_file.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/core/ngx_crc32.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/core/ngx_murmurhash.c \
-		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/core/ngx_sha1.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/core/ngx_md5.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/core/ngx_sha1.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/core/ngx_rbtree.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/core/ngx_radix_tree.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/core/ngx_slab.c \
@@ -38,8 +38,8 @@ ia2_all:
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/core/ngx_spinlock.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/core/ngx_rwlock.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/core/ngx_cpuinfo.c \
-		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/core/ngx_module.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/core/ngx_conf_file.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/core/ngx_module.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/core/ngx_resolver.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/core/ngx_open_file_cache.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/core/ngx_crypt.c \
@@ -54,17 +54,17 @@ ia2_all:
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/event/ngx_event_pipe.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/os/unix/ngx_time.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/os/unix/ngx_errno.c \
-		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/os/unix/ngx_alloc.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/os/unix/ngx_files.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/os/unix/ngx_alloc.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/os/unix/ngx_socket.c \
-		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/os/unix/ngx_readv_chain.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/os/unix/ngx_recv.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/os/unix/ngx_readv_chain.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/os/unix/ngx_udp_recv.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/os/unix/ngx_send.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/os/unix/ngx_writev_chain.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/os/unix/ngx_udp_send.c \
-		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/os/unix/ngx_channel.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/os/unix/ngx_udp_sendmsg_chain.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/os/unix/ngx_channel.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/os/unix/ngx_shmem.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/os/unix/ngx_process.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/os/unix/ngx_daemon.c \
@@ -75,9 +75,11 @@ ia2_all:
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/os/unix/ngx_dlopen.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/os/unix/ngx_process_cycle.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/os/unix/ngx_linux_init.c \
-		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/os/unix/ngx_linux_sendfile_chain.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/event/modules/ngx_epoll_module.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/os/unix/ngx_linux_sendfile_chain.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/event/ngx_event_openssl.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/core/ngx_regex.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/event/ngx_event_openssl_stapling.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/http/ngx_http.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/http/ngx_http_core_module.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/http/ngx_http_special_response.c \
@@ -88,8 +90,8 @@ ia2_all:
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/http/ngx_http_variables.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/http/ngx_http_script.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/http/ngx_http_upstream.c \
-		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/http/ngx_http_file_cache.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/http/ngx_http_upstream_round_robin.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/http/ngx_http_file_cache.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/http/ngx_http_write_filter_module.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/http/ngx_http_header_filter_module.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/http/modules/ngx_http_chunked_filter_module.c \
@@ -107,8 +109,8 @@ ia2_all:
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/http/modules/ngx_http_index_module.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/http/modules/ngx_http_mirror_module.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/http/modules/ngx_http_try_files_module.c \
-		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/http/modules/ngx_http_auth_basic_module.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/http/modules/ngx_http_access_module.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/http/modules/ngx_http_auth_basic_module.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/http/modules/ngx_http_limit_conn_module.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/http/modules/ngx_http_limit_req_module.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/http/modules/ngx_http_geo_module.c \
@@ -129,8 +131,40 @@ ia2_all:
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/http/modules/ngx_http_upstream_random_module.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/http/modules/ngx_http_upstream_keepalive_module.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/http/modules/ngx_http_upstream_zone_module.c \
-		/home/ayrton/immunant/IA2-Phase2/external/nginx/src/http/modules/perl/ngx_http_perl_module.c \
 		/home/ayrton/immunant/IA2-Phase2/external/nginx/build/ngx_modules.c \
-		/home/ayrton/immunant/IA2-Phase2/external/nginx/build/ngx_http_perl_module_modules.c \
-		/home/ayrton/immunant/IA2-Phase2/external/nginx/build/src/http/modules/perl/nginx.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx-rtmp-module/ngx_rtmp_init.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx-rtmp-module/ngx_rtmp.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx-rtmp-module/ngx_rtmp_handshake.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx-rtmp-module/ngx_rtmp_handler.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx-rtmp-module/ngx_rtmp_amf.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx-rtmp-module/ngx_rtmp_send.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx-rtmp-module/ngx_rtmp_shared.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx-rtmp-module/ngx_rtmp_eval.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx-rtmp-module/ngx_rtmp_receive.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx-rtmp-module/ngx_rtmp_core_module.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx-rtmp-module/ngx_rtmp_cmd_module.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx-rtmp-module/ngx_rtmp_codec_module.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx-rtmp-module/ngx_rtmp_access_module.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx-rtmp-module/ngx_rtmp_record_module.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx-rtmp-module/ngx_rtmp_play_module.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx-rtmp-module/ngx_rtmp_live_module.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx-rtmp-module/ngx_rtmp_flv_module.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx-rtmp-module/ngx_rtmp_mp4_module.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx-rtmp-module/ngx_rtmp_netcall_module.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx-rtmp-module/ngx_rtmp_relay_module.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx-rtmp-module/ngx_rtmp_bandwidth.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx-rtmp-module/ngx_rtmp_exec_module.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx-rtmp-module/ngx_rtmp_auto_push_module.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx-rtmp-module/ngx_rtmp_notify_module.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx-rtmp-module/ngx_rtmp_log_module.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx-rtmp-module/ngx_rtmp_limit_module.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx-rtmp-module/ngx_rtmp_bitop.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx-rtmp-module/ngx_rtmp_proxy_protocol.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx-rtmp-module/hls/ngx_rtmp_hls_module.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx-rtmp-module/dash/ngx_rtmp_dash_module.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx-rtmp-module/hls/ngx_rtmp_mpegts.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx-rtmp-module/dash/ngx_rtmp_mp4.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx-rtmp-module/ngx_rtmp_stat_module.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx-rtmp-module/ngx_rtmp_control_module.c \
+		/home/ayrton/immunant/IA2-Phase2/external/nginx/build/ngx_rtmp_module_modules.c \
 

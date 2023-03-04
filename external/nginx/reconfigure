@@ -19,7 +19,6 @@ done
 
 ./auto/configure --prefix=$BUILD_DIR \
     --builddir=$BUILD_DIR \
-    --with-http_perl_module=dynamic \
     --with-cc="gcc" \
     --conf-path=$NGINX_ROOT/conf/nginx.conf \
     --pid-path=$BUILD_DIR/nginx.pid \
@@ -30,3 +29,4 @@ done
     --http-fastcgi-temp-path=$BUILD_DIR/fastcgi_temp \
     --http-uwsgi-temp-path=$BUILD_DIR/uwsgi_temp \
     --http-scgi-temp-path=$BUILD_DIR/scgi_temp \
+    --add-dynamic-module=$BUILD_DIR/../../nginx-rtmp-module \

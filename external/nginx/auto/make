@@ -29,15 +29,13 @@ C_SYSTEM_INCLUDE = `$CC -print-file-name=include`
 C_SYSTEM_INCLUDE_FIXED = `$CC -print-file-name=include-fixed`
 
 IA2_CFLAGS = -DPKEY=1 -I \$(C_SYSTEM_INCLUDE) -I \$(C_SYSTEM_INCLUDE_FIXED)
+IA2_MODULE_CFLAGS = -DPKEY=2 -I \$(C_SYSTEM_INCLUDE) -I \$(C_SYSTEM_INCLUDE_FIXED)
 
 END
 
-IA2_MODULE_CFLAGS="-DPKEY=2 -I \$(C_SYSTEM_INCLUDE) -I \$(C_SYSTEM_INCLUDE_FIXED)"
-
 if test -n "$NGX_PERL_CFLAGS"; then
     echo NGX_PERL_CFLAGS = $NGX_PERL_CFLAGS                   >> $NGX_MAKEFILE
-    echo NGX_PERL_IA2_CFLAGS = "$IA2_MODULE_CFLAGS"           >> $NGX_MAKEFILE
-    echo NGX_PM_CFLAGS = $NGX_PM_CFLAGS "$IA2_MODULE_CFLAGS"  >> $NGX_MAKEFILE
+    echo NGX_PM_CFLAGS = $NGX_PM_CFLAGS                       >> $NGX_MAKEFILE
     echo NGX_PM_LDFLAGS = $NGX_PM_LDFLAGS                     >> $NGX_MAKEFILE
 fi
 
@@ -289,7 +287,7 @@ if [ $HTTP = YES ]; then
         ngx_cc="\$(CC) $ngx_compile_opt \$(CFLAGS) $ngx_use_pch \$(ALL_INCS)"
     else
         ngx_cc="\$(CC) $ngx_compile_opt \$(CFLAGS) \$(CORE_INCS) \$(HTTP_INCS) \$(IA2_CFLAGS)"
-        ngx_perl_cc="\$(CC) $ngx_compile_opt \$(NGX_PERL_CFLAGS) \$(NGX_PERL_IA2_CFLAGS)"
+        ngx_perl_cc="\$(CC) $ngx_compile_opt \$(NGX_PERL_CFLAGS)"
         ngx_perl_cc="$ngx_perl_cc \$(CORE_INCS) \$(HTTP_INCS)"
     fi
 
@@ -501,8 +499,8 @@ fi
 if test -n "$NGX_PCH"; then
     ngx_cc="\$(CC) $ngx_compile_opt $ngx_pic_opt \$(CFLAGS) $ngx_use_pch \$(ALL_INCS)"
 else
-    ngx_cc="\$(CC) $ngx_compile_opt $ngx_pic_opt \$(CFLAGS) \$(ALL_INCS)"
-    ngx_perl_cc="\$(CC) $ngx_compile_opt $ngx_pic_opt \$(NGX_PERL_CFLAGS) \$(NGX_PERL_IA2_CFLAGS)"
+    ngx_cc="\$(CC) $ngx_compile_opt $ngx_pic_opt \$(CFLAGS) \$(IA2_MODULE_CFLAGS) \$(ALL_INCS)"
+    ngx_perl_cc="\$(CC) $ngx_compile_opt $ngx_pic_opt \$(NGX_PERL_CFLAGS)"
     ngx_perl_cc="$ngx_perl_cc \$(ALL_INCS)"
 fi
 
@@ -633,7 +631,7 @@ $ngx_obj:	$ngx_deps$ngx_spacer
 $ngx_long_end
 
 $ngx_modules_obj:	\$(CORE_DEPS)$ngx_cont$ngx_modules_c
-	$ngx_cc$ngx_tab$ngx_objout$ngx_modules_obj$ngx_tab$ngx_modules_c$NGX_AUX$ngx_tab\$(NGX_PERL_IA2_CFLAGS)
+	$ngx_cc$ngx_tab$ngx_objout$ngx_modules_obj$ngx_tab$ngx_modules_c$NGX_AUX$ngx_tab
 
 END
 

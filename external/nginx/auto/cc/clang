@@ -83,6 +83,11 @@ CFLAGS="$CFLAGS -Wconditional-uninitialized"
 # we have a lot of unused function arguments
 CFLAGS="$CFLAGS -Wno-unused-parameter"
 
+# IA2 flags
+CFLAGS="$CFLAGS -Wno-unused-but-set-variable"
+CFLAGS="$CFLAGS -Wno-unused-function"
+CFLAGS="$CFLAGS -Wno-missing-braces"
+
 # deprecated system OpenSSL library on OS X
 if [ "$NGX_SYSTEM" = "Darwin" ]; then
     CFLAGS="$CFLAGS -Wno-deprecated-declarations"

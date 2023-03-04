@@ -59,12 +59,12 @@ static bool in_macro_expansion(const clang::SourceLocation loc,
 
 static Pkey get_file_pkey(const clang::SourceManager &sm) {
   auto file_entry = sm.getFileEntryForID(sm.getMainFileID());
-  auto filename = file_entry->getName().str();
+  // auto filename = file_entry->getName().str();
+  auto filename = file_entry->tryGetRealPathName().str();
   try {
     return file_pkeys.at(filename);
   } catch (std::out_of_range const &exc) {
-    llvm::errs() << "Source file " << filename.c_str() << " or "
-                 << file_entry->tryGetRealPathName().str().c_str()
+    llvm::errs() << "Source file " << filename.c_str()
                  << " has no entry with -DPKEY in compile_commands.json\n";
     assert(0);
   }
@@ -396,9 +396,7 @@ public:
         clang::Lexer::getSourceText(char_range, sm, ctxt.getLangOpts());
 
     // Get the translation unit's filename to figure out the pkey
-    Filename tu_filename =
-        sm.getFileEntryForID(sm.getMainFileID())->getName().str();
-    std::string pkey = std::to_string(file_pkeys.at(tu_filename));
+    std::string pkey = std::to_string(get_file_pkey(sm));
 
     std::string new_expr =
         "IA2_CALL("s + old_expr.str() + ", " + fn_ptr_id + ", " + pkey + ")";
@@ -578,10 +576,7 @@ public:
     abi_signatures[fn_name] = fn_sig;
 
     // Get the translation unit's filename to figure out the pkey
-    Filename tu_filename =
-        sm.getFileEntryForID(sm.getMainFileID())->getName().str();
-
-    Pkey pkey = file_pkeys.at(tu_filename);
+    Pkey pkey = get_file_pkey(sm);
     assert(pkey < MAX_PKEYS);
 
     if (definition) {
@@ -628,8 +623,6 @@ int main(int argc, const char **argv) {
   CompilationDatabase &comp_db = options_parser.getCompilations();
 
   std::set<Pkey> pkeys_used;
-  llvm::errs() << "Found " << options_parser.getSourcePathList().size()
-               << " input files\n";
   for (auto s : options_parser.getSourcePathList()) {
     // Get the compile commands for each input source
     std::vector<CompileCommand> comp_cmds =
@@ -662,8 +655,6 @@ int main(int argc, const char **argv) {
     // Using sizeof - 1 avoids counting the null terminator in PKEY_DEFINE
     Pkey pkey = std::stoi(pkey_define->substr(sizeof(PKEY_DEFINE) - 1));
 
-    llvm::errs() << "Found file " << cc_cmd.Filename.c_str() << " ("
-                 << cc_cmd.Output.c_str() << ") " << '\n';
     file_pkeys[cc_cmd.Filename] = pkey;
     pkeys_used.insert(pkey);
   }

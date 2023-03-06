@@ -282,6 +282,11 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
     }                                                                          \
   }                                                                            \
                                                                                \
+  /* The 0th compartment is unprivileged and does not protect its memory, */   \
+  /* so declare its stack pointer in the shared object that sets up the */     \
+  /* runtime instead of using the INIT_COMPARTMENT macro for it. */            \
+  __thread void *ia2_stackptr_0;                                               \
+                                                                               \
   __attribute__((weak)) void init_stacks(void) {                               \
     switch (n) {                                                               \
     case 15:                                                                   \

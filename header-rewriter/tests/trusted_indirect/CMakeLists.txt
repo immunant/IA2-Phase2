@@ -5,15 +5,11 @@ else()
 endif()
 configure_file(${STDOUT_REF} ${CMAKE_CURRENT_BINARY_DIR}/trusted_indirect.out)
 
-define_shared_lib(
-    SRCS rand_op.c
-)
-
-define_ia2_wrapper(
-    HEADERS rand_op.h
-    CALLER_PKEY 1
-)
+define_shared_lib(SRCS rand_op.c)
 
 define_test(
     SRCS main.c
+    NEEDS_LD_WRAP
 )
+
+define_ia2_wrapper()

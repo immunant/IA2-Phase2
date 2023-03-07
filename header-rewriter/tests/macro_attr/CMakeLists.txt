@@ -1,11 +1,3 @@
-set(HEADERS functions.h)
-
-# Build the wrapper lib
-define_ia2_wrapper(
-    HEADERS ${HEADERS}
-    CALLER_PKEY 1
-)
-
 # Build the wrapped lib
 define_shared_lib(
     SRCS functions.c
@@ -14,4 +6,9 @@ define_shared_lib(
 # Build the test
 define_test(
     SRCS main.c
+    NEEDS_LD_WRAP
 )
+
+# Build the wrapper lib
+define_ia2_wrapper()
+

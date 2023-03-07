@@ -6,14 +6,6 @@ endif()
 configure_file(${STDOUT_REF} ${CMAKE_CURRENT_BINARY_DIR}/should_segfault.out)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/Output/early_segfault.out ${CMAKE_CURRENT_BINARY_DIR})
 
-set(HEADERS print_secret.h)
-
-# Build the wrapper lib
-define_ia2_wrapper(
-    HEADERS ${HEADERS}
-    CALLER_PKEY 1
-)
-
 # Build the wrapped lib
 define_shared_lib(
     SRCS print_secret.c
@@ -22,4 +14,8 @@ define_shared_lib(
 # Build the test
 define_test(
     SRCS main.c
+    NEEDS_LD_WRAP
 )
+
+# Build the wrapper lib
+define_ia2_wrapper()

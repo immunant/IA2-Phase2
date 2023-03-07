@@ -1,9 +1,3 @@
-# Build the wrapper lib
-define_ia2_wrapper(
-    HEADERS access_shared.h
-    CALLER_PKEY 1
-)
-
 # Build the wrapped lib
 define_shared_lib(
     SRCS access_shared.c
@@ -12,4 +6,7 @@ define_shared_lib(
 # Build the test
 define_test(
     SRCS main.c
+    NEEDS_LD_WRAP
 )
+
+define_ia2_wrapper()

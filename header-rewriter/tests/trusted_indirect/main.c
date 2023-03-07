@@ -31,7 +31,8 @@ void call_fn_ptr() {
     uint32_t y = 142151;
     // This calls `f.op` with and without parentheses to ensure the rewriter handles both
     // REWRITER: printf("%s(%d, %d) = %d\n", f.name, x, y, IA2_CALL(f.op)(x, y));
-    printf("%s(%d, %d) = %d\n", f.name, x, y, f.op(x, y));
+    uint32_t res = f.op(x, y);
+    printf("%s(%d, %d) = %d\n", f.name, x, y, res);
     // REWRITER: f.op = IA2_FN(multiply);
     f.op = multiply;
     // REWRITER: printf("mul(%d, %d) = %d\n", x, y, IA2_CALL(f.op)(x, y));

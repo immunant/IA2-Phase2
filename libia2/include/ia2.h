@@ -255,10 +255,12 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
       printf("Failed to allocate stack %d (%s)\n", i, errno_s);                \
       exit(-1);                                                                \
     }                                                                          \
-    int res = pkey_mprotect(stack, STACK_SIZE, PROT_READ | PROT_WRITE, i);     \
-    if (res == -1) {                                                           \
-      printf("Failed to mprotect stack %d (%s)\n", i, errno_s);                \
-      exit(-1);                                                                \
+    if (i != 0) {                                                              \
+      int res = pkey_mprotect(stack, STACK_SIZE, PROT_READ | PROT_WRITE, i);   \
+      if (res == -1) {                                                         \
+        printf("Failed to mprotect stack %d (%s)\n", i, errno_s);              \
+        exit(-1);                                                              \
+      }                                                                        \
     }                                                                          \
     return stack;                                                              \
   }                                                                            \
@@ -320,7 +322,8 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
     case 1:                                                                    \
       ALLOCATE_COMPARTMENT_STACK(1)                                            \
     case 0:                                                                    \
-      ALLOCATE_COMPARTMENT_STACK(0)                                            \
+      /* allocate an unprotected stack for the untrusted compartment */        \
+      ia2_stackptr_0 = allocate_stack(0) + STACK_SIZE - 8;                     \
     }                                                                          \
   }                                                                            \
                                                                                \

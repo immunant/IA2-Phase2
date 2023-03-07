@@ -47,9 +47,9 @@ const std::array<const char *, 2> int_ret_reg_order = {"rax", "rdx"};
 
 const std::array<const char *, 3> cabi_arg_kind_names = {"int", "float", "mem"};
 
-// rsp is also a preserved register, but we handle it separately from these
-// since it's the stack
-const std::array<const char *, 6> preserved_registers = {"rbx", "rbp", "r12",
+// rsp and rbp are also preserved registers, but we handle them separately from these
+// since they're the stack and frame pointers
+const std::array<const char *, 5> preserved_registers = {"rbx", "r12",
                                                          "r13", "r14", "r15"};
 
 /// Compute abi locations for parameters of a C-abi function, given its sequence
@@ -363,6 +363,9 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     add_asm_line(aw, "__wrap_"s + name + ":");
   }
 
+  // Save the old frame pointer and set the frame pointer for the call gate
+  add_asm_line(aw, "pushq %rbp");
+  add_asm_line(aw, "movq %rsp, %rbp");
   // Save registers that are preserved across function calls before switching to
   // the other compartment's stack. This is on the caller's stack so it's not in
   // the diagram above.
@@ -434,9 +437,9 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
     // stack to the compartment's
     for (int i = 0; i < stack_arg_size; i += 8) {
       // We must take the preserved registers we pushed on the caller's stack
-      // into account when determining the location of the stack args
+      // into account (including rbp) when determining the location of the stack args
       size_t caller_stack_size =
-          stack_arg_size + (preserved_registers.size() * 8);
+          stack_arg_size + ((preserved_registers.size() + 1) * 8);
       // The index into the caller's stack is backwards since pushq will copy to
       // the compartment's stack from the highest addresses to the lowest.
       add_asm_line(aw,
@@ -595,6 +598,8 @@ std::string emit_asm_wrapper(const CAbiSignature &sig, const std::string &name,
        r++) {
     add_asm_line(aw, "popq %"s + *r);
   }
+  // Restore the caller's frame pointer
+  add_asm_line(aw, "popq %rbp");
 
   // Return to the caller
   add_comment_line(aw, "Return to the caller");

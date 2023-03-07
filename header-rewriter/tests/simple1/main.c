@@ -67,7 +67,11 @@ int main() {
   // We need to check if exit_hook_fn is NULL since IA2_CALL always
   // returns a non-null pointer. Since it's an opaque pointer, we use this macro
   // instead of directly comparing with NULL.
+#if defined(PRE_REWRITER)
+  if (!exit_hook_fn) {
+#else
   if (!exit_hook_fn.ptr) {
+#endif
     // Creates a wrapper that assumes the caller has pkey 0 and the callee is
     // untrusted since libsimple1 sets the value of exit_hook_fn. If
     // exit_hook_fn were to point to a function defined in this binary, it must

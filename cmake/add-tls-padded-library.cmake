@@ -19,7 +19,7 @@ function(add_tls_padded_library)
     # Abbreviate options
     if(DEFINED ADD_TLS_PADDED_LIBRARY_LIB)
         set(LIB ${ADD_TLS_PADDED_LIBRARY_LIB})
-        set(LIB_PADDED "${LIB}-padded")
+        set(LIB_PADDED "${LIB}_padded")
     else()
         message(FATAL_ERROR "add-tls-padded-library requires a LIB argument")
     endif()

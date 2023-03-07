@@ -15,9 +15,7 @@ int data_in_main = 30;
 
 void defined_in_main(void) { printf("main data is %d\n", data_in_main); }
 
-IA2_DEFINE_WRAPPER(defined_in_main, _ZTSPFvvE, 1);
-
-Fn fnptr_from_main = IA2_WRAPPER(defined_in_main, 1);
+Fn fnptr_from_main = defined_in_main;
 
 static inline unsigned int rdpkru(void) {
   uint32_t pkru = 0;
@@ -43,8 +41,10 @@ pthread_t thread1, thread2;
 void create_threads(void) {
   int iret1, iret2;
 
+#if !defined(PRE_REWRITER)
   iret1 = pthread_create(&thread1, NULL, thread_fn, (void *)1);
   iret2 = pthread_create(&thread2, NULL, thread_fn, (void *)2);
+#endif
 }
 
 __thread int thread_local_var = 50;
@@ -74,8 +74,10 @@ int main() {
   pthread_join(lib_thread, NULL);
 
   pthread_t fault_thread;
+#if !defined(PRE_REWRITER)
   int thread_create_ret = pthread_create(
       &fault_thread, NULL, access_ptr_thread_fn, (void *)&thread_local_var);
+#endif
   pthread_join(fault_thread, NULL);
 
   return 0;

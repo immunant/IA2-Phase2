@@ -21,12 +21,17 @@
 #define PASTE4_(w, x, y, z) w##x##y##z
 #define PASTE4(w, x, y, z) PASTE4_(w, x, y, z)
 
+#define INIT_COMPARTMENT_COMMON(n)                                             \
+  __thread void *ia2_stackptr_##n __attribute__((used));
+
 #ifdef LIBIA2_INSECURE
-#define INIT_COMPARTMENT(n)
+#define INIT_COMPARTMENT(n) INIT_COMPARTMENT_COMMON(n)
 #define IA2_WRPKRU ""
 #define IA2_RDPKRU ""
 #else
-#define INIT_COMPARTMENT(n) _INIT_COMPARTMENT(n)
+#define INIT_COMPARTMENT(n)                                                    \
+  INIT_COMPARTMENT_COMMON(n)                                                   \
+  _INIT_COMPARTMENT(n)
 #define IA2_WRPKRU "wrpkru"
 #define IA2_RDPKRU "rdpkru"
 #endif
@@ -175,7 +180,6 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
 // includes all segments in the ELF except the `ia2_shared_data` section, if one
 // exists.
 #define _INIT_COMPARTMENT(n)                                                   \
-  __thread void *ia2_stackptr_##n __attribute__((used));                       \
   extern int ia2_n_pkeys_to_alloc;                                             \
   void ensure_pkeys_allocated(int *n_to_alloc);                                \
   __attribute__((constructor)) static void init_pkey_##n##_ctor() {            \

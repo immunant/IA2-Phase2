@@ -86,7 +86,7 @@ static ngx_command_t  ngx_http_commands[] = {
 
     { ngx_string("http"),
       NGX_MAIN_CONF|NGX_CONF_BLOCK|NGX_CONF_NOARGS,
-      ngx_http_block,
+      IA2_FN(ngx_http_block),
       0,
       0,
       NULL },
@@ -193,22 +193,22 @@ ngx_http_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         module = cf->cycle->modules[m]->ctx;
         mi = cf->cycle->modules[m]->ctx_index;
 
-        if (module->create_main_conf) {
-            ctx->main_conf[mi] = module->create_main_conf(cf);
+        if (module->create_main_conf.ptr) {
+            ctx->main_conf[mi] = IA2_CALL(module->create_main_conf, 35, 1)(cf);
             if (ctx->main_conf[mi] == NULL) {
                 return NGX_CONF_ERROR;
             }
         }
 
-        if (module->create_srv_conf) {
-            ctx->srv_conf[mi] = module->create_srv_conf(cf);
+        if (module->create_srv_conf.ptr) {
+            ctx->srv_conf[mi] = IA2_CALL(module->create_srv_conf, 35, 1)(cf);
             if (ctx->srv_conf[mi] == NULL) {
                 return NGX_CONF_ERROR;
             }
         }
 
-        if (module->create_loc_conf) {
-            ctx->loc_conf[mi] = module->create_loc_conf(cf);
+        if (module->create_loc_conf.ptr) {
+            ctx->loc_conf[mi] = IA2_CALL(module->create_loc_conf, 35, 1)(cf);
             if (ctx->loc_conf[mi] == NULL) {
                 return NGX_CONF_ERROR;
             }
@@ -225,8 +225,8 @@ ngx_http_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
         module = cf->cycle->modules[m]->ctx;
 
-        if (module->preconfiguration) {
-            if (module->preconfiguration(cf) != NGX_OK) {
+        if (module->preconfiguration.ptr) {
+            if (IA2_CALL(module->preconfiguration, 36, 1)(cf) != NGX_OK) {
                 return NGX_CONF_ERROR;
             }
         }
@@ -260,8 +260,8 @@ ngx_http_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
         /* init http{} main_conf's */
 
-        if (module->init_main_conf) {
-            rv = module->init_main_conf(cf, ctx->main_conf[mi]);
+        if (module->init_main_conf.ptr) {
+            rv = IA2_CALL(module->init_main_conf, 37, 1)(cf, ctx->main_conf[mi]);
             if (rv != NGX_CONF_OK) {
                 goto failed;
             }
@@ -306,8 +306,8 @@ ngx_http_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
         module = cf->cycle->modules[m]->ctx;
 
-        if (module->postconfiguration) {
-            if (module->postconfiguration(cf) != NGX_OK) {
+        if (module->postconfiguration.ptr) {
+            if (IA2_CALL(module->postconfiguration, 36, 1)(cf) != NGX_OK) {
                 return NGX_CONF_ERROR;
             }
         }
@@ -435,7 +435,7 @@ ngx_http_init_headers_in_hash(ngx_conf_t *cf, ngx_http_core_main_conf_t *cmcf)
     }
 
     hash.hash = &cmcf->headers_in_hash;
-    hash.key = ngx_hash_key_lc;
+    hash.key = IA2_FN(ngx_hash_key_lc);
     hash.max_size = 512;
     hash.bucket_size = ngx_align(64, ngx_cacheline_size);
     hash.name = "headers_in_hash";
@@ -492,14 +492,14 @@ ngx_http_init_phase_handlers(ngx_conf_t *cf, ngx_http_core_main_conf_t *cmcf)
             if (cmcf->phase_engine.server_rewrite_index == (ngx_uint_t) -1) {
                 cmcf->phase_engine.server_rewrite_index = n;
             }
-            checker = ngx_http_core_rewrite_phase;
+            checker = IA2_FN(ngx_http_core_rewrite_phase);
 
             break;
 
         case NGX_HTTP_FIND_CONFIG_PHASE:
             find_config_index = n;
 
-            ph->checker = ngx_http_core_find_config_phase;
+            ph->checker = IA2_FN(ngx_http_core_find_config_phase);
             n++;
             ph++;
 
@@ -509,13 +509,13 @@ ngx_http_init_phase_handlers(ngx_conf_t *cf, ngx_http_core_main_conf_t *cmcf)
             if (cmcf->phase_engine.location_rewrite_index == (ngx_uint_t) -1) {
                 cmcf->phase_engine.location_rewrite_index = n;
             }
-            checker = ngx_http_core_rewrite_phase;
+            checker = IA2_FN(ngx_http_core_rewrite_phase);
 
             break;
 
         case NGX_HTTP_POST_REWRITE_PHASE:
             if (use_rewrite) {
-                ph->checker = ngx_http_core_post_rewrite_phase;
+                ph->checker = IA2_FN(ngx_http_core_post_rewrite_phase);
                 ph->next = find_config_index;
                 n++;
                 ph++;
@@ -524,13 +524,13 @@ ngx_http_init_phase_handlers(ngx_conf_t *cf, ngx_http_core_main_conf_t *cmcf)
             continue;
 
         case NGX_HTTP_ACCESS_PHASE:
-            checker = ngx_http_core_access_phase;
+            checker = IA2_FN(ngx_http_core_access_phase);
             n++;
             break;
 
         case NGX_HTTP_POST_ACCESS_PHASE:
             if (use_access) {
-                ph->checker = ngx_http_core_post_access_phase;
+                ph->checker = IA2_FN(ngx_http_core_post_access_phase);
                 ph->next = n;
                 ph++;
             }
@@ -538,11 +538,11 @@ ngx_http_init_phase_handlers(ngx_conf_t *cf, ngx_http_core_main_conf_t *cmcf)
             continue;
 
         case NGX_HTTP_CONTENT_PHASE:
-            checker = ngx_http_core_content_phase;
+            checker = IA2_FN(ngx_http_core_content_phase);
             break;
 
         default:
-            checker = ngx_http_core_generic_phase;
+            checker = IA2_FN(ngx_http_core_generic_phase);
         }
 
         n += cmcf->phases[i].handlers.nelts;
@@ -580,21 +580,21 @@ ngx_http_merge_servers(ngx_conf_t *cf, ngx_http_core_main_conf_t *cmcf,
 
         ctx->srv_conf = cscfp[s]->ctx->srv_conf;
 
-        if (module->merge_srv_conf) {
-            rv = module->merge_srv_conf(cf, saved.srv_conf[ctx_index],
+        if (module->merge_srv_conf.ptr) {
+            rv = IA2_CALL(module->merge_srv_conf, 19, 1)(cf, saved.srv_conf[ctx_index],
                                         cscfp[s]->ctx->srv_conf[ctx_index]);
             if (rv != NGX_CONF_OK) {
                 goto failed;
             }
         }
 
-        if (module->merge_loc_conf) {
+        if (module->merge_loc_conf.ptr) {
 
             /* merge the server{}'s loc_conf */
 
             ctx->loc_conf = cscfp[s]->ctx->loc_conf;
 
-            rv = module->merge_loc_conf(cf, saved.loc_conf[ctx_index],
+            rv = IA2_CALL(module->merge_loc_conf, 19, 1)(cf, saved.loc_conf[ctx_index],
                                         cscfp[s]->ctx->loc_conf[ctx_index]);
             if (rv != NGX_CONF_OK) {
                 goto failed;
@@ -647,7 +647,7 @@ ngx_http_merge_locations(ngx_conf_t *cf, ngx_queue_t *locations,
         clcf = lq->exact ? lq->exact : lq->inclusive;
         ctx->loc_conf = clcf->loc_conf;
 
-        rv = module->merge_loc_conf(cf, loc_conf[ctx_index],
+        rv = IA2_CALL(module->merge_loc_conf, 19, 1)(cf, loc_conf[ctx_index],
                                     clcf->loc_conf[ctx_index]);
         if (rv != NGX_CONF_OK) {
             return rv;
@@ -686,7 +686,7 @@ ngx_http_init_locations(ngx_conf_t *cf, ngx_http_core_srv_conf_t *cscf,
         return NGX_OK;
     }
 
-    ngx_queue_sort(locations, ngx_http_cmp_locations);
+    ngx_queue_sort(locations, IA2_FN(ngx_http_cmp_locations));
 
     named = NULL;
     n = 0;
@@ -1426,7 +1426,7 @@ ngx_http_optimize_servers(ngx_conf_t *cf, ngx_http_core_main_conf_t *cmcf,
     for (p = 0; p < ports->nelts; p++) {
 
         ngx_sort(port[p].addrs.elts, (size_t) port[p].addrs.nelts,
-                 sizeof(ngx_http_conf_addr_t), ngx_http_cmp_conf_addrs);
+                 sizeof(ngx_http_conf_addr_t), IA2_FN(ngx_http_cmp_conf_addrs));
 
         /*
          * check whether all name-based servers have the same
@@ -1523,7 +1523,7 @@ ngx_http_server_names(ngx_conf_t *cf, ngx_http_core_main_conf_t *cmcf,
         }
     }
 
-    hash.key = ngx_hash_key_lc;
+    hash.key = IA2_FN(ngx_hash_key_lc);
     hash.max_size = cmcf->server_names_hash_max_size;
     hash.bucket_size = cmcf->server_names_hash_bucket_size;
     hash.name = "server_names_hash";
@@ -1541,7 +1541,7 @@ ngx_http_server_names(ngx_conf_t *cf, ngx_http_core_main_conf_t *cmcf,
     if (ha.dns_wc_head.nelts) {
 
         ngx_qsort(ha.dns_wc_head.elts, (size_t) ha.dns_wc_head.nelts,
-                  sizeof(ngx_hash_key_t), ngx_http_cmp_dns_wildcards);
+                  sizeof(ngx_hash_key_t), (void*)&__ia2_ngx_http_cmp_dns_wildcards);
 
         hash.hash = NULL;
         hash.temp_pool = ha.temp_pool;
@@ -1559,7 +1559,7 @@ ngx_http_server_names(ngx_conf_t *cf, ngx_http_core_main_conf_t *cmcf,
     if (ha.dns_wc_tail.nelts) {
 
         ngx_qsort(ha.dns_wc_tail.elts, (size_t) ha.dns_wc_tail.nelts,
-                  sizeof(ngx_hash_key_t), ngx_http_cmp_dns_wildcards);
+                  sizeof(ngx_hash_key_t), (void*)&__ia2_ngx_http_cmp_dns_wildcards);
 
         hash.hash = NULL;
         hash.temp_pool = ha.temp_pool;
@@ -1746,7 +1746,7 @@ ngx_http_add_listening(ngx_conf_t *cf, ngx_http_conf_addr_t *addr)
 
     ls->addr_ntop = 1;
 
-    ls->handler = ngx_http_init_connection;
+    ls->handler = IA2_FN(ngx_http_init_connection);
 
     cscf = addr->default_server;
     ls->pool_size = cscf->connection_pool_size;
@@ -1755,7 +1755,7 @@ ngx_http_add_listening(ngx_conf_t *cf, ngx_http_conf_addr_t *addr)
 
     ls->logp = clcf->error_log;
     ls->log.data = &ls->addr_text;
-    ls->log.handler = ngx_accept_log_error;
+    ls->log.handler = IA2_FN(ngx_accept_log_error);
 
 #if (NGX_WIN32)
     {
@@ -2030,7 +2030,7 @@ ngx_http_merge_types(ngx_conf_t *cf, ngx_array_t **keys, ngx_hash_t *types_hash,
         }
 
         hash.hash = types_hash;
-        hash.key = NULL;
+        hash.key = (typeof(hash.key)) { NULL };
         hash.max_size = 2048;
         hash.bucket_size = 64;
         hash.name = "test_types_hash";
@@ -2060,7 +2060,7 @@ ngx_http_merge_types(ngx_conf_t *cf, ngx_array_t **keys, ngx_hash_t *types_hash,
         }
 
         hash.hash = prev_types_hash;
-        hash.key = NULL;
+        hash.key = (typeof(hash.key)) { NULL };
         hash.max_size = 2048;
         hash.bucket_size = 64;
         hash.name = "test_types_hash";
@@ -2109,3 +2109,7 @@ ngx_http_set_default_types(ngx_conf_t *cf, ngx_array_t **types,
 
     return NGX_OK;
 }
+IA2_DEFINE_WRAPPER_ngx_http_block
+IA2_DEFINE_WRAPPER_ngx_http_cmp_conf_addrs
+IA2_DEFINE_WRAPPER_ngx_http_cmp_dns_wildcards
+IA2_DEFINE_WRAPPER_ngx_http_cmp_locations

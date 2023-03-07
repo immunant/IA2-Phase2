@@ -2046,7 +2046,7 @@ ngx_str_rbtree_lookup(ngx_rbtree_t *rbtree, ngx_str_t *val, uint32_t hash)
 
 void
 ngx_sort(void *base, size_t n, size_t size,
-    ngx_int_t (*cmp)(const void *, const void *))
+    struct IA2_fnptr__ZTSFlPKvS0_E cmp)
 {
     u_char  *p1, *p2, *p;
 
@@ -2062,7 +2062,7 @@ ngx_sort(void *base, size_t n, size_t size,
         ngx_memcpy(p, p1, size);
 
         for (p2 = p1;
-             p2 > (u_char *) base && cmp(p2 - size, p) > 0;
+             p2 > (u_char *) base && IA2_CALL(cmp, 7, 1)(p2 - size, p) > 0;
              p2 -= size)
         {
             ngx_memcpy(p2, p2 - size, size);

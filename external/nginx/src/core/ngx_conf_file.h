@@ -77,7 +77,7 @@
 struct ngx_command_s {
     ngx_str_t             name;
     ngx_uint_t            type;
-    char               *(*set)(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
+    struct IA2_fnptr__ZTSFPcP10ngx_conf_sP13ngx_command_sPvE set;
     ngx_uint_t            conf;
     ngx_uint_t            offset;
     void                 *post;
@@ -90,7 +90,7 @@ struct ngx_open_file_s {
     ngx_fd_t              fd;
     ngx_str_t             name;
 
-    void                (*flush)(ngx_open_file_t *file, ngx_log_t *log);
+    struct IA2_fnptr__ZTSFvP15ngx_open_file_sP9ngx_log_sE flush;
     void                 *data;
 };
 
@@ -109,8 +109,7 @@ typedef struct {
 } ngx_conf_dump_t;
 
 
-typedef char *(*ngx_conf_handler_pt)(ngx_conf_t *cf,
-    ngx_command_t *dummy, void *conf);
+typedef struct IA2_fnptr__ZTSFPcP10ngx_conf_sP13ngx_command_sPvE ngx_conf_handler_pt;
 
 
 struct ngx_conf_s {
@@ -132,8 +131,7 @@ struct ngx_conf_s {
 };
 
 
-typedef char *(*ngx_conf_post_handler_pt) (ngx_conf_t *cf,
-    void *data, void *conf);
+typedef struct IA2_fnptr__ZTSFPcP10ngx_conf_sPvS2_E ngx_conf_post_handler_pt;
 
 typedef struct {
     ngx_conf_post_handler_pt  post_handler;

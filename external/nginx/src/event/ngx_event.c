@@ -83,7 +83,7 @@ static ngx_command_t  ngx_events_commands[] = {
 
     { ngx_string("events"),
       NGX_MAIN_CONF|NGX_CONF_BLOCK|NGX_CONF_NOARGS,
-      ngx_events_block,
+      IA2_FN(ngx_events_block),
       0,
       0,
       NULL },
@@ -95,7 +95,7 @@ static ngx_command_t  ngx_events_commands[] = {
 static ngx_core_module_t  ngx_events_module_ctx = {
     ngx_string("events"),
     NULL,
-    ngx_event_init_conf
+    IA2_FN(ngx_event_init_conf)
 };
 
 
@@ -122,42 +122,42 @@ static ngx_command_t  ngx_event_core_commands[] = {
 
     { ngx_string("worker_connections"),
       NGX_EVENT_CONF|NGX_CONF_TAKE1,
-      ngx_event_connections,
+      IA2_FN(ngx_event_connections),
       0,
       0,
       NULL },
 
     { ngx_string("use"),
       NGX_EVENT_CONF|NGX_CONF_TAKE1,
-      ngx_event_use,
+      IA2_FN(ngx_event_use),
       0,
       0,
       NULL },
 
     { ngx_string("multi_accept"),
       NGX_EVENT_CONF|NGX_CONF_FLAG,
-      ngx_conf_set_flag_slot,
+      IA2_FN(ngx_conf_set_flag_slot),
       0,
       offsetof(ngx_event_conf_t, multi_accept),
       NULL },
 
     { ngx_string("accept_mutex"),
       NGX_EVENT_CONF|NGX_CONF_FLAG,
-      ngx_conf_set_flag_slot,
+      IA2_FN(ngx_conf_set_flag_slot),
       0,
       offsetof(ngx_event_conf_t, accept_mutex),
       NULL },
 
     { ngx_string("accept_mutex_delay"),
       NGX_EVENT_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_msec_slot,
+      IA2_FN(ngx_conf_set_msec_slot),
       0,
       offsetof(ngx_event_conf_t, accept_mutex_delay),
       NULL },
 
     { ngx_string("debug_connection"),
       NGX_EVENT_CONF|NGX_CONF_TAKE1,
-      ngx_event_debug_connection,
+      IA2_FN(ngx_event_debug_connection),
       0,
       0,
       NULL },
@@ -168,8 +168,8 @@ static ngx_command_t  ngx_event_core_commands[] = {
 
 static ngx_event_module_t  ngx_event_core_module_ctx = {
     &event_core_name,
-    ngx_event_core_create_conf,            /* create configuration */
-    ngx_event_core_init_conf,              /* init configuration */
+    IA2_FN(ngx_event_core_create_conf),            /* create configuration */
+    IA2_FN(ngx_event_core_init_conf),              /* init configuration */
 
     { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL }
 };
@@ -181,8 +181,8 @@ ngx_module_t  ngx_event_core_module = {
     ngx_event_core_commands,               /* module directives */
     NGX_EVENT_MODULE,                      /* module type */
     NULL,                                  /* init master */
-    ngx_event_module_init,                 /* init module */
-    ngx_event_process_init,                /* init process */
+    IA2_FN(ngx_event_module_init),                 /* init module */
+    IA2_FN(ngx_event_process_init),                /* init process */
     NULL,                                  /* init thread */
     NULL,                                  /* exit thread */
     NULL,                                  /* exit process */
@@ -245,7 +245,7 @@ ngx_process_events_and_timers(ngx_cycle_t *cycle)
 
     delta = ngx_current_msec;
 
-    (void) ngx_process_events(cycle, timer, flags);
+    (void) IA2_CALL(ngx_process_events, 24, 1)(cycle, timer, flags);
 
     delta = ngx_current_msec - delta;
 
@@ -272,7 +272,7 @@ ngx_handle_read_event(ngx_event_t *rev, ngx_uint_t flags)
         /* kqueue, epoll */
 
         if (!rev->active && !rev->ready) {
-            if (ngx_add_event(rev, NGX_READ_EVENT, NGX_CLEAR_EVENT)
+            if (IA2_CALL(ngx_add_event, 11, 1)(rev, NGX_READ_EVENT, NGX_CLEAR_EVENT)
                 == NGX_ERROR)
             {
                 return NGX_ERROR;
@@ -286,7 +286,7 @@ ngx_handle_read_event(ngx_event_t *rev, ngx_uint_t flags)
         /* select, poll, /dev/poll */
 
         if (!rev->active && !rev->ready) {
-            if (ngx_add_event(rev, NGX_READ_EVENT, NGX_LEVEL_EVENT)
+            if (IA2_CALL(ngx_add_event, 11, 1)(rev, NGX_READ_EVENT, NGX_LEVEL_EVENT)
                 == NGX_ERROR)
             {
                 return NGX_ERROR;
@@ -296,7 +296,7 @@ ngx_handle_read_event(ngx_event_t *rev, ngx_uint_t flags)
         }
 
         if (rev->active && (rev->ready || (flags & NGX_CLOSE_EVENT))) {
-            if (ngx_del_event(rev, NGX_READ_EVENT, NGX_LEVEL_EVENT | flags)
+            if (IA2_CALL(ngx_del_event, 11, 1)(rev, NGX_READ_EVENT, NGX_LEVEL_EVENT | flags)
                 == NGX_ERROR)
             {
                 return NGX_ERROR;
@@ -310,7 +310,7 @@ ngx_handle_read_event(ngx_event_t *rev, ngx_uint_t flags)
         /* event ports */
 
         if (!rev->active && !rev->ready) {
-            if (ngx_add_event(rev, NGX_READ_EVENT, 0) == NGX_ERROR) {
+            if (IA2_CALL(ngx_add_event, 11, 1)(rev, NGX_READ_EVENT, 0) == NGX_ERROR) {
                 return NGX_ERROR;
             }
 
@@ -318,7 +318,7 @@ ngx_handle_read_event(ngx_event_t *rev, ngx_uint_t flags)
         }
 
         if (rev->oneshot && rev->ready) {
-            if (ngx_del_event(rev, NGX_READ_EVENT, 0) == NGX_ERROR) {
+            if (IA2_CALL(ngx_del_event, 11, 1)(rev, NGX_READ_EVENT, 0) == NGX_ERROR) {
                 return NGX_ERROR;
             }
 
@@ -350,7 +350,7 @@ ngx_handle_write_event(ngx_event_t *wev, size_t lowat)
         /* kqueue, epoll */
 
         if (!wev->active && !wev->ready) {
-            if (ngx_add_event(wev, NGX_WRITE_EVENT,
+            if (IA2_CALL(ngx_add_event, 11, 1)(wev, NGX_WRITE_EVENT,
                               NGX_CLEAR_EVENT | (lowat ? NGX_LOWAT_EVENT : 0))
                 == NGX_ERROR)
             {
@@ -365,7 +365,7 @@ ngx_handle_write_event(ngx_event_t *wev, size_t lowat)
         /* select, poll, /dev/poll */
 
         if (!wev->active && !wev->ready) {
-            if (ngx_add_event(wev, NGX_WRITE_EVENT, NGX_LEVEL_EVENT)
+            if (IA2_CALL(ngx_add_event, 11, 1)(wev, NGX_WRITE_EVENT, NGX_LEVEL_EVENT)
                 == NGX_ERROR)
             {
                 return NGX_ERROR;
@@ -375,7 +375,7 @@ ngx_handle_write_event(ngx_event_t *wev, size_t lowat)
         }
 
         if (wev->active && wev->ready) {
-            if (ngx_del_event(wev, NGX_WRITE_EVENT, NGX_LEVEL_EVENT)
+            if (IA2_CALL(ngx_del_event, 11, 1)(wev, NGX_WRITE_EVENT, NGX_LEVEL_EVENT)
                 == NGX_ERROR)
             {
                 return NGX_ERROR;
@@ -389,7 +389,7 @@ ngx_handle_write_event(ngx_event_t *wev, size_t lowat)
         /* event ports */
 
         if (!wev->active && !wev->ready) {
-            if (ngx_add_event(wev, NGX_WRITE_EVENT, 0) == NGX_ERROR) {
+            if (IA2_CALL(ngx_add_event, 11, 1)(wev, NGX_WRITE_EVENT, 0) == NGX_ERROR) {
                 return NGX_ERROR;
             }
 
@@ -397,7 +397,7 @@ ngx_handle_write_event(ngx_event_t *wev, size_t lowat)
         }
 
         if (wev->oneshot && wev->ready) {
-            if (ngx_del_event(wev, NGX_WRITE_EVENT, 0) == NGX_ERROR) {
+            if (IA2_CALL(ngx_del_event, 11, 1)(wev, NGX_WRITE_EVENT, 0) == NGX_ERROR) {
                 return NGX_ERROR;
             }
 
@@ -666,7 +666,7 @@ ngx_event_process_init(ngx_cycle_t *cycle)
 
         module = cycle->modules[m]->ctx;
 
-        if (module->actions.init(cycle, ngx_timer_resolution) != NGX_OK) {
+        if (IA2_CALL(module->actions.init, 25, 1)(cycle, ngx_timer_resolution) != NGX_OK) {
             /* fatal */
             exit(2);
         }
@@ -681,7 +681,7 @@ ngx_event_process_init(ngx_cycle_t *cycle)
         struct itimerval  itv;
 
         ngx_memzero(&sa, sizeof(struct sigaction));
-        sa.sa_handler = ngx_timer_signal_handler;
+        sa.sa_handler = (void*)ngx_timer_signal_handler;
         sigemptyset(&sa.sa_mask);
 
         if (sigaction(SIGALRM, &sa, NULL) == -1) {
@@ -820,7 +820,7 @@ ngx_event_process_init(ngx_cycle_t *cycle)
 
                 old = ls[i].previous->connection;
 
-                if (ngx_del_event(old->read, NGX_READ_EVENT, NGX_CLOSE_EVENT)
+                if (IA2_CALL(ngx_del_event, 11, 1)(old->read, NGX_READ_EVENT, NGX_CLOSE_EVENT)
                     == NGX_ERROR)
                 {
                     return NGX_ERROR;
@@ -868,13 +868,13 @@ ngx_event_process_init(ngx_cycle_t *cycle)
 
 #else
 
-        rev->handler = (c->type == SOCK_STREAM) ? ngx_event_accept
-                                                : ngx_event_recvmsg;
+        rev->handler = (c->type == SOCK_STREAM) ? IA2_FN(ngx_event_accept)
+                                                : IA2_FN(ngx_event_recvmsg);
 
 #if (NGX_HAVE_REUSEPORT)
 
         if (ls[i].reuseport) {
-            if (ngx_add_event(rev, NGX_READ_EVENT, 0) == NGX_ERROR) {
+            if (IA2_CALL(ngx_add_event, 11, 1)(rev, NGX_READ_EVENT, 0) == NGX_ERROR) {
                 return NGX_ERROR;
             }
 
@@ -894,7 +894,7 @@ ngx_event_process_init(ngx_cycle_t *cycle)
         {
             ngx_use_exclusive_accept = 1;
 
-            if (ngx_add_event(rev, NGX_READ_EVENT, NGX_EXCLUSIVE_EVENT)
+            if (IA2_CALL(ngx_add_event, 11, 1)(rev, NGX_READ_EVENT, NGX_EXCLUSIVE_EVENT)
                 == NGX_ERROR)
             {
                 return NGX_ERROR;
@@ -905,7 +905,7 @@ ngx_event_process_init(ngx_cycle_t *cycle)
 
 #endif
 
-        if (ngx_add_event(rev, NGX_READ_EVENT, 0) == NGX_ERROR) {
+        if (IA2_CALL(ngx_add_event, 11, 1)(rev, NGX_READ_EVENT, 0) == NGX_ERROR) {
             return NGX_ERROR;
         }
 
@@ -988,9 +988,9 @@ ngx_events_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
         m = cf->cycle->modules[i]->ctx;
 
-        if (m->create_conf) {
+        if (m->create_conf.ptr) {
             (*ctx)[cf->cycle->modules[i]->ctx_index] =
-                                                     m->create_conf(cf->cycle);
+                                                     IA2_CALL(m->create_conf, 14, 1)(cf->cycle);
             if ((*ctx)[cf->cycle->modules[i]->ctx_index] == NULL) {
                 return NGX_CONF_ERROR;
             }
@@ -1017,8 +1017,8 @@ ngx_events_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
         m = cf->cycle->modules[i]->ctx;
 
-        if (m->init_conf) {
-            rv = m->init_conf(cf->cycle,
+        if (m->init_conf.ptr) {
+            rv = IA2_CALL(m->init_conf, 15, 1)(cf->cycle,
                               (*ctx)[cf->cycle->modules[i]->ctx_index]);
             if (rv != NGX_CONF_OK) {
                 return rv;
@@ -1340,3 +1340,13 @@ ngx_event_core_init_conf(ngx_cycle_t *cycle, void *conf)
 
     return NGX_CONF_OK;
 }
+IA2_DEFINE_WRAPPER_ngx_event_connections
+IA2_DEFINE_WRAPPER_ngx_event_core_create_conf
+IA2_DEFINE_WRAPPER_ngx_event_core_init_conf
+IA2_DEFINE_WRAPPER_ngx_event_debug_connection
+IA2_DEFINE_WRAPPER_ngx_event_init_conf
+IA2_DEFINE_WRAPPER_ngx_event_module_init
+IA2_DEFINE_WRAPPER_ngx_event_process_init
+IA2_DEFINE_WRAPPER_ngx_event_use
+IA2_DEFINE_WRAPPER_ngx_events_block
+IA2_DEFINE_WRAPPER_ngx_timer_signal_handler

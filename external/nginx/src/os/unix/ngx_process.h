@@ -17,7 +17,7 @@ typedef pid_t       ngx_pid_t;
 
 #define NGX_INVALID_PID  -1
 
-typedef void (*ngx_spawn_proc_pt) (ngx_cycle_t *cycle, void *data);
+typedef struct IA2_fnptr__ZTSFvP11ngx_cycle_sPvE ngx_spawn_proc_pt;
 
 typedef struct {
     ngx_pid_t           pid;

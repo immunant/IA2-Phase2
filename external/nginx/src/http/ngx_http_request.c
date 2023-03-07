@@ -83,88 +83,88 @@ static char *ngx_http_client_errors[] = {
 
 ngx_http_header_t  ngx_http_headers_in[] = {
     { ngx_string("Host"), offsetof(ngx_http_headers_in_t, host),
-                 ngx_http_process_host },
+                 IA2_FN(ngx_http_process_host) },
 
     { ngx_string("Connection"), offsetof(ngx_http_headers_in_t, connection),
-                 ngx_http_process_connection },
+                 IA2_FN(ngx_http_process_connection) },
 
     { ngx_string("If-Modified-Since"),
                  offsetof(ngx_http_headers_in_t, if_modified_since),
-                 ngx_http_process_unique_header_line },
+                 IA2_FN(ngx_http_process_unique_header_line) },
 
     { ngx_string("If-Unmodified-Since"),
                  offsetof(ngx_http_headers_in_t, if_unmodified_since),
-                 ngx_http_process_unique_header_line },
+                 IA2_FN(ngx_http_process_unique_header_line) },
 
     { ngx_string("If-Match"),
                  offsetof(ngx_http_headers_in_t, if_match),
-                 ngx_http_process_unique_header_line },
+                 IA2_FN(ngx_http_process_unique_header_line) },
 
     { ngx_string("If-None-Match"),
                  offsetof(ngx_http_headers_in_t, if_none_match),
-                 ngx_http_process_unique_header_line },
+                 IA2_FN(ngx_http_process_unique_header_line) },
 
     { ngx_string("User-Agent"), offsetof(ngx_http_headers_in_t, user_agent),
-                 ngx_http_process_user_agent },
+                 IA2_FN(ngx_http_process_user_agent) },
 
     { ngx_string("Referer"), offsetof(ngx_http_headers_in_t, referer),
-                 ngx_http_process_header_line },
+                 IA2_FN(ngx_http_process_header_line) },
 
     { ngx_string("Content-Length"),
                  offsetof(ngx_http_headers_in_t, content_length),
-                 ngx_http_process_unique_header_line },
+                 IA2_FN(ngx_http_process_unique_header_line) },
 
     { ngx_string("Content-Range"),
                  offsetof(ngx_http_headers_in_t, content_range),
-                 ngx_http_process_unique_header_line },
+                 IA2_FN(ngx_http_process_unique_header_line) },
 
     { ngx_string("Content-Type"),
                  offsetof(ngx_http_headers_in_t, content_type),
-                 ngx_http_process_header_line },
+                 IA2_FN(ngx_http_process_header_line) },
 
     { ngx_string("Range"), offsetof(ngx_http_headers_in_t, range),
-                 ngx_http_process_header_line },
+                 IA2_FN(ngx_http_process_header_line) },
 
     { ngx_string("If-Range"),
                  offsetof(ngx_http_headers_in_t, if_range),
-                 ngx_http_process_unique_header_line },
+                 IA2_FN(ngx_http_process_unique_header_line) },
 
     { ngx_string("Transfer-Encoding"),
                  offsetof(ngx_http_headers_in_t, transfer_encoding),
-                 ngx_http_process_unique_header_line },
+                 IA2_FN(ngx_http_process_unique_header_line) },
 
     { ngx_string("TE"),
                  offsetof(ngx_http_headers_in_t, te),
-                 ngx_http_process_header_line },
+                 IA2_FN(ngx_http_process_header_line) },
 
     { ngx_string("Expect"),
                  offsetof(ngx_http_headers_in_t, expect),
-                 ngx_http_process_unique_header_line },
+                 IA2_FN(ngx_http_process_unique_header_line) },
 
     { ngx_string("Upgrade"),
                  offsetof(ngx_http_headers_in_t, upgrade),
-                 ngx_http_process_header_line },
+                 IA2_FN(ngx_http_process_header_line) },
 
 #if (NGX_HTTP_GZIP || NGX_HTTP_HEADERS)
     { ngx_string("Accept-Encoding"),
                  offsetof(ngx_http_headers_in_t, accept_encoding),
-                 ngx_http_process_header_line },
+                 IA2_FN(ngx_http_process_header_line) },
 
     { ngx_string("Via"), offsetof(ngx_http_headers_in_t, via),
-                 ngx_http_process_header_line },
+                 IA2_FN(ngx_http_process_header_line) },
 #endif
 
     { ngx_string("Authorization"),
                  offsetof(ngx_http_headers_in_t, authorization),
-                 ngx_http_process_unique_header_line },
+                 IA2_FN(ngx_http_process_unique_header_line) },
 
     { ngx_string("Keep-Alive"), offsetof(ngx_http_headers_in_t, keep_alive),
-                 ngx_http_process_header_line },
+                 IA2_FN(ngx_http_process_header_line) },
 
 #if (NGX_HTTP_X_FORWARDED_FOR)
     { ngx_string("X-Forwarded-For"),
                  offsetof(ngx_http_headers_in_t, x_forwarded_for),
-                 ngx_http_process_multi_header_lines },
+                 IA2_FN(ngx_http_process_multi_header_lines) },
 #endif
 
 #if (NGX_HTTP_REALIP)
@@ -197,7 +197,7 @@ ngx_http_header_t  ngx_http_headers_in[] = {
 #endif
 
     { ngx_string("Cookie"), offsetof(ngx_http_headers_in_t, cookies),
-                 ngx_http_process_multi_header_lines },
+                 IA2_FN(ngx_http_process_multi_header_lines) },
 
     { ngx_null_string, 0, NULL }
 };
@@ -315,15 +315,15 @@ ngx_http_init_connection(ngx_connection_t *c)
     ctx->current_request = NULL;
 
     c->log->connection = c->number;
-    c->log->handler = ngx_http_log_error;
+    c->log->handler = IA2_FN(ngx_http_log_error);
     c->log->data = ctx;
     c->log->action = "waiting for request";
 
     c->log_error = NGX_ERROR_INFO;
 
     rev = c->read;
-    rev->handler = ngx_http_wait_request_handler;
-    c->write->handler = ngx_http_empty_handler;
+    rev->handler = IA2_FN(ngx_http_wait_request_handler);
+    c->write->handler = IA2_FN(ngx_http_empty_handler);
 
 #if (NGX_HTTP_V2)
     if (hc->addr_conf->http2) {
@@ -358,7 +358,7 @@ ngx_http_init_connection(ngx_connection_t *c)
             return;
         }
 
-        rev->handler(rev);
+        IA2_CALL(rev->handler, 13, 1)(rev);
         return;
     }
 
@@ -429,7 +429,7 @@ ngx_http_wait_request_handler(ngx_event_t *rev)
         b->end = b->last + size;
     }
 
-    n = c->recv(c, b->last, size);
+    n = IA2_CALL(c->recv, 22, 1)(c, b->last, size);
 
     if (n == NGX_AGAIN) {
 
@@ -499,7 +499,7 @@ ngx_http_wait_request_handler(ngx_event_t *rev)
         return;
     }
 
-    rev->handler = ngx_http_process_request_line;
+    rev->handler = IA2_FN(ngx_http_process_request_line);
     ngx_http_process_request_line(rev);
 }
 
@@ -571,7 +571,7 @@ ngx_http_alloc_request(ngx_connection_t *c)
     r->srv_conf = hc->conf_ctx->srv_conf;
     r->loc_conf = hc->conf_ctx->loc_conf;
 
-    r->read_event_handler = ngx_http_block_reading;
+    r->read_event_handler = IA2_FN(ngx_http_block_reading);
 
     r->header_in = hc->busy ? hc->busy->buf : c->buffer;
 
@@ -632,7 +632,7 @@ ngx_http_alloc_request(ngx_connection_t *c)
 
     r->http_state = NGX_HTTP_READING_REQUEST_STATE;
 
-    r->log_handler = ngx_http_log_error_handler;
+    r->log_handler = IA2_FN(ngx_http_log_error_handler);
 
     return r;
 }
@@ -1161,7 +1161,7 @@ ngx_http_process_request_line(ngx_event_t *rev)
 
             c->log->action = "reading client request headers";
 
-            rev->handler = ngx_http_process_request_headers;
+            rev->handler = IA2_FN(ngx_http_process_request_headers);
             ngx_http_process_request_headers(rev);
 
             break;
@@ -1467,7 +1467,7 @@ ngx_http_process_request_headers(ngx_event_t *rev)
             hh = ngx_hash_find(&cmcf->headers_in_hash, h->hash,
                                h->lowcase_key, h->key.len);
 
-            if (hh && hh->handler(r, h, hh->offset) != NGX_OK) {
+            if (hh && IA2_CALL(hh->handler, 41, 1)(r, h, hh->offset) != NGX_OK) {
                 break;
             }
 
@@ -1540,7 +1540,7 @@ ngx_http_read_request_header(ngx_http_request_t *r)
     }
 
     if (rev->ready) {
-        n = c->recv(c, r->header_in->last,
+        n = IA2_CALL(c->recv, 22, 1)(c, r->header_in->last,
                     r->header_in->end - r->header_in->last);
     } else {
         n = NGX_AGAIN;
@@ -2113,9 +2113,9 @@ ngx_http_process_request(ngx_http_request_t *r)
     r->stat_writing = 1;
 #endif
 
-    c->read->handler = ngx_http_request_handler;
-    c->write->handler = ngx_http_request_handler;
-    r->read_event_handler = ngx_http_block_reading;
+    c->read->handler = IA2_FN(ngx_http_request_handler);
+    c->write->handler = IA2_FN(ngx_http_request_handler);
+    r->read_event_handler = IA2_FN(ngx_http_block_reading);
 
     ngx_http_handler(r);
 }
@@ -2409,10 +2409,10 @@ ngx_http_request_handler(ngx_event_t *ev)
     }
 
     if (ev->write) {
-        r->write_event_handler(r);
+        IA2_CALL(r->write_event_handler, 42, 1)(r);
 
     } else {
-        r->read_event_handler(r);
+        IA2_CALL(r->read_event_handler, 42, 1)(r);
     }
 
     ngx_http_run_posted_requests(c);
@@ -2447,7 +2447,7 @@ ngx_http_run_posted_requests(ngx_connection_t *c)
         ngx_log_debug2(NGX_LOG_DEBUG_HTTP, c->log, 0,
                        "http posted request: \"%V?%V\"", &r->uri, &r->args);
 
-        r->write_event_handler(r);
+        IA2_CALL(r->write_event_handler, 42, 1)(r);
     }
 }
 
@@ -2498,14 +2498,14 @@ ngx_http_finalize_request(ngx_http_request_t *r, ngx_int_t rc)
     }
 
     if (rc == NGX_DECLINED) {
-        r->content_handler = NULL;
-        r->write_event_handler = ngx_http_core_run_phases;
+        r->content_handler = (typeof(r->content_handler)) { NULL };
+        r->write_event_handler = IA2_FN(ngx_http_core_run_phases);
         ngx_http_core_run_phases(r);
         return;
     }
 
     if (r != r->main && r->post_subrequest) {
-        rc = r->post_subrequest->handler(r, r->post_subrequest->data, rc);
+        rc = IA2_CALL(r->post_subrequest->handler, 43, 1)(r, r->post_subrequest->data, rc);
     }
 
     if (rc == NGX_ERROR
@@ -2541,8 +2541,8 @@ ngx_http_finalize_request(ngx_http_request_t *r, ngx_int_t rc)
             }
         }
 
-        c->read->handler = ngx_http_request_handler;
-        c->write->handler = ngx_http_request_handler;
+        c->read->handler = IA2_FN(ngx_http_request_handler);
+        c->write->handler = IA2_FN(ngx_http_request_handler);
 
         ngx_http_finalize_request(r, ngx_http_special_response_handler(r, rc));
         return;
@@ -2600,7 +2600,7 @@ ngx_http_finalize_request(ngx_http_request_t *r, ngx_int_t rc)
                            "http finalize non-active request: \"%V?%V\"",
                            &r->uri, &r->args);
 
-            r->write_event_handler = ngx_http_request_finalizer;
+            r->write_event_handler = IA2_FN(ngx_http_request_finalizer);
 
             if (r->waited) {
                 r->done = 1;
@@ -2638,8 +2638,8 @@ ngx_http_finalize_request(ngx_http_request_t *r, ngx_int_t rc)
 
     r->done = 1;
 
-    r->read_event_handler = ngx_http_block_reading;
-    r->write_event_handler = ngx_http_request_empty_handler;
+    r->read_event_handler = IA2_FN(ngx_http_block_reading);
+    r->write_event_handler = IA2_FN(ngx_http_request_empty_handler);
 
     if (!r->post_action) {
         r->request_complete = 1;
@@ -2682,8 +2682,8 @@ ngx_http_terminate_request(ngx_http_request_t *r, ngx_int_t rc)
     mr->cleanup = NULL;
 
     while (cln) {
-        if (cln->handler) {
-            cln->handler(cln->data);
+        if (cln->handler.ptr) {
+            IA2_CALL(cln->handler, 0, 1)(cln->data);
         }
 
         cln = cln->next;
@@ -2693,17 +2693,17 @@ ngx_http_terminate_request(ngx_http_request_t *r, ngx_int_t rc)
                    "http terminate cleanup count:%d blk:%d",
                    mr->count, mr->blocked);
 
-    if (mr->write_event_handler) {
+    if (mr->write_event_handler.ptr) {
 
         if (mr->blocked) {
             r->connection->error = 1;
-            r->write_event_handler = ngx_http_request_finalizer;
+            r->write_event_handler = IA2_FN(ngx_http_request_finalizer);
             return;
         }
 
         e = ngx_http_ephemeral(mr);
         mr->posted_requests = NULL;
-        mr->write_event_handler = ngx_http_terminate_handler;
+        mr->write_event_handler = IA2_FN(ngx_http_terminate_handler);
         (void) ngx_http_post_request(mr, &e->terminal_posted_request);
         return;
     }
@@ -2741,7 +2741,7 @@ ngx_http_finalize_connection(ngx_http_request_t *r)
     if (r->main->count != 1) {
 
         if (r->discard_body) {
-            r->read_event_handler = ngx_http_discarded_request_body_handler;
+            r->read_event_handler = IA2_FN(ngx_http_discarded_request_body_handler);
             ngx_add_timer(r->connection->read, clcf->lingering_timeout);
 
             if (r->lingering_time == 0) {
@@ -2798,9 +2798,9 @@ ngx_http_set_write_handler(ngx_http_request_t *r)
     r->http_state = NGX_HTTP_WRITING_REQUEST_STATE;
 
     r->read_event_handler = r->discard_body ?
-                                ngx_http_discarded_request_body_handler:
-                                ngx_http_test_reading;
-    r->write_event_handler = ngx_http_writer;
+                                IA2_FN(ngx_http_discarded_request_body_handler):
+                                IA2_FN(ngx_http_test_reading);
+    r->write_event_handler = IA2_FN(ngx_http_writer);
 
     wev = r->connection->write;
 
@@ -2889,7 +2889,7 @@ ngx_http_writer(ngx_http_request_t *r)
     ngx_log_debug2(NGX_LOG_DEBUG_HTTP, wev->log, 0,
                    "http writer done: \"%V?%V\"", &r->uri, &r->args);
 
-    r->write_event_handler = ngx_http_request_empty_handler;
+    r->write_event_handler = IA2_FN(ngx_http_request_empty_handler);
 
     ngx_http_finalize_request(r, rc);
 }
@@ -2916,7 +2916,7 @@ ngx_http_block_reading(ngx_http_request_t *r)
     if ((ngx_event_flags & NGX_USE_LEVEL_EVENT)
         && r->connection->read->active)
     {
-        if (ngx_del_event(r->connection->read, NGX_READ_EVENT, 0) != NGX_OK) {
+        if (IA2_CALL(ngx_del_event, 11, 1)(r->connection->read, NGX_READ_EVENT, 0) != NGX_OK) {
             ngx_http_close_request(r, 0);
         }
     }
@@ -3022,7 +3022,7 @@ ngx_http_test_reading(ngx_http_request_t *r)
 
     if ((ngx_event_flags & NGX_USE_LEVEL_EVENT) && rev->active) {
 
-        if (ngx_del_event(rev, NGX_READ_EVENT, 0) != NGX_OK) {
+        if (IA2_CALL(ngx_del_event, 11, 1)(rev, NGX_READ_EVENT, 0) != NGX_OK) {
             ngx_http_close_request(r, 0);
         }
     }
@@ -3129,7 +3129,7 @@ ngx_http_set_keepalive(ngx_http_request_t *r)
     }
 
     wev = c->write;
-    wev->handler = ngx_http_empty_handler;
+    wev->handler = IA2_FN(ngx_http_empty_handler);
 
     if (b->pos < b->last) {
 
@@ -3154,7 +3154,7 @@ ngx_http_set_keepalive(ngx_http_request_t *r)
             ngx_del_timer(rev);
         }
 
-        rev->handler = ngx_http_process_request_line;
+        rev->handler = IA2_FN(ngx_http_process_request_line);
         ngx_post_event(rev, &ngx_posted_events);
         return;
     }
@@ -3217,10 +3217,10 @@ ngx_http_set_keepalive(ngx_http_request_t *r)
     }
 #endif
 
-    rev->handler = ngx_http_keepalive_handler;
+    rev->handler = IA2_FN(ngx_http_keepalive_handler);
 
     if (wev->active && (ngx_event_flags & NGX_USE_LEVEL_EVENT)) {
-        if (ngx_del_event(wev, NGX_WRITE_EVENT, 0) != NGX_OK) {
+        if (IA2_CALL(ngx_del_event, 11, 1)(wev, NGX_WRITE_EVENT, 0) != NGX_OK) {
             ngx_http_close_connection(c);
             return;
         }
@@ -3330,7 +3330,7 @@ ngx_http_keepalive_handler(ngx_event_t *rev)
     c->log_error = NGX_ERROR_IGNORE_ECONNRESET;
     ngx_set_socket_errno(0);
 
-    n = c->recv(c, b->last, size);
+    n = IA2_CALL(c->recv, 22, 1)(c, b->last, size);
     c->log_error = NGX_ERROR_INFO;
 
     if (n == NGX_AGAIN) {
@@ -3361,7 +3361,7 @@ ngx_http_keepalive_handler(ngx_event_t *rev)
         return;
     }
 
-    c->log->handler = NULL;
+    c->log->handler = (typeof(c->log->handler)) { NULL };
 
     if (n == 0) {
         ngx_log_error(NGX_LOG_INFO, c->log, ngx_socket_errno,
@@ -3372,7 +3372,7 @@ ngx_http_keepalive_handler(ngx_event_t *rev)
 
     b->last += n;
 
-    c->log->handler = ngx_http_log_error;
+    c->log->handler = IA2_FN(ngx_http_log_error);
     c->log->action = "reading client request line";
 
     c->idle = 0;
@@ -3389,7 +3389,7 @@ ngx_http_keepalive_handler(ngx_event_t *rev)
 
     ngx_del_timer(rev);
 
-    rev->handler = ngx_http_process_request_line;
+    rev->handler = IA2_FN(ngx_http_process_request_line);
     ngx_http_process_request_line(rev);
 }
 
@@ -3430,7 +3430,7 @@ ngx_http_set_lingering_close(ngx_connection_t *c)
 #endif
 
     rev = c->read;
-    rev->handler = ngx_http_lingering_close_handler;
+    rev->handler = IA2_FN(ngx_http_lingering_close_handler);
 
     if (ngx_handle_read_event(rev, 0) != NGX_OK) {
         ngx_http_close_request(r, 0);
@@ -3438,10 +3438,10 @@ ngx_http_set_lingering_close(ngx_connection_t *c)
     }
 
     wev = c->write;
-    wev->handler = ngx_http_empty_handler;
+    wev->handler = IA2_FN(ngx_http_empty_handler);
 
     if (wev->active && (ngx_event_flags & NGX_USE_LEVEL_EVENT)) {
-        if (ngx_del_event(wev, NGX_WRITE_EVENT, 0) != NGX_OK) {
+        if (IA2_CALL(ngx_del_event, 11, 1)(wev, NGX_WRITE_EVENT, 0) != NGX_OK) {
             ngx_http_close_request(r, 0);
             return;
         }
@@ -3493,7 +3493,7 @@ ngx_http_lingering_close_handler(ngx_event_t *rev)
     }
 
     do {
-        n = c->recv(c, buffer, NGX_HTTP_LINGERING_BUFFER_SIZE);
+        n = IA2_CALL(c->recv, 22, 1)(c, buffer, NGX_HTTP_LINGERING_BUFFER_SIZE);
 
         ngx_log_debug1(NGX_LOG_DEBUG_HTTP, c->log, 0, "lingering read: %z", n);
 
@@ -3601,7 +3601,7 @@ ngx_http_post_action(ngx_http_request_t *r)
     r->header_only = 1;
     r->post_action = 1;
 
-    r->read_event_handler = ngx_http_block_reading;
+    r->read_event_handler = IA2_FN(ngx_http_block_reading);
 
     if (clcf->post_action.data[0] == '/') {
         ngx_http_internal_redirect(r, &clcf->post_action, NULL);
@@ -3670,8 +3670,8 @@ ngx_http_free_request(ngx_http_request_t *r, ngx_int_t rc)
     r->cleanup = NULL;
 
     while (cln) {
-        if (cln->handler) {
-            cln->handler(cln->data);
+        if (cln->handler.ptr) {
+            IA2_CALL(cln->handler, 0, 1)(cln->data);
         }
 
         cln = cln->next;
@@ -3750,7 +3750,7 @@ ngx_http_log_request(ngx_http_request_t *r)
     n = cmcf->phases[NGX_HTTP_LOG_PHASE].handlers.nelts;
 
     for (i = 0; i < n; i++) {
-        log_handler[i](r);
+        IA2_CALL(log_handler[i], 39, 1)(r);
     }
 }
 
@@ -3809,7 +3809,7 @@ ngx_http_log_error(ngx_log_t *log, u_char *buf, size_t len)
     r = ctx->request;
 
     if (r) {
-        return r->log_handler(r, ctx->current_request, p, len);
+        return IA2_CALL(r->log_handler, 44, 1)(r, ctx->current_request, p, len);
 
     } else {
         p = ngx_snprintf(p, len, ", server: %V",
@@ -3892,3 +3892,20 @@ ngx_http_log_error_handler(ngx_http_request_t *r, ngx_http_request_t *sr,
 
     return buf;
 }
+IA2_DEFINE_WRAPPER_ngx_http_keepalive_handler
+IA2_DEFINE_WRAPPER_ngx_http_lingering_close_handler
+IA2_DEFINE_WRAPPER_ngx_http_log_error
+IA2_DEFINE_WRAPPER_ngx_http_log_error_handler
+IA2_DEFINE_WRAPPER_ngx_http_process_connection
+IA2_DEFINE_WRAPPER_ngx_http_process_header_line
+IA2_DEFINE_WRAPPER_ngx_http_process_host
+IA2_DEFINE_WRAPPER_ngx_http_process_multi_header_lines
+IA2_DEFINE_WRAPPER_ngx_http_process_request_headers
+IA2_DEFINE_WRAPPER_ngx_http_process_request_line
+IA2_DEFINE_WRAPPER_ngx_http_process_unique_header_line
+IA2_DEFINE_WRAPPER_ngx_http_process_user_agent
+IA2_DEFINE_WRAPPER_ngx_http_request_finalizer
+IA2_DEFINE_WRAPPER_ngx_http_request_handler
+IA2_DEFINE_WRAPPER_ngx_http_terminate_handler
+IA2_DEFINE_WRAPPER_ngx_http_wait_request_handler
+IA2_DEFINE_WRAPPER_ngx_http_writer

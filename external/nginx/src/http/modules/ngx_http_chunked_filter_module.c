@@ -23,7 +23,7 @@ static ngx_chain_t *ngx_http_chunked_create_trailers(ngx_http_request_t *r,
 
 static ngx_http_module_t  ngx_http_chunked_filter_module_ctx = {
     NULL,                                  /* preconfiguration */
-    ngx_http_chunked_filter_init,          /* postconfiguration */
+    IA2_FN(ngx_http_chunked_filter_init),          /* postconfiguration */
 
     NULL,                                  /* create main configuration */
     NULL,                                  /* init main configuration */
@@ -68,7 +68,7 @@ ngx_http_chunked_header_filter(ngx_http_request_t *r)
         || r != r->main
         || r->method == NGX_HTTP_HEAD)
     {
-        return ngx_http_next_header_filter(r);
+        return IA2_CALL(ngx_http_next_header_filter, 39, 1)(r);
     }
 
     if (r->headers_out.content_length_n == -1
@@ -97,7 +97,7 @@ ngx_http_chunked_header_filter(ngx_http_request_t *r)
         }
     }
 
-    return ngx_http_next_header_filter(r);
+    return IA2_CALL(ngx_http_next_header_filter, 39, 1)(r);
 }
 
 
@@ -112,7 +112,7 @@ ngx_http_chunked_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
     ngx_http_chunked_filter_ctx_t  *ctx;
 
     if (in == NULL || !r->chunked || r->header_only) {
-        return ngx_http_next_body_filter(r, in);
+        return IA2_CALL(ngx_http_next_body_filter, 40, 1)(r, in);
     }
 
     ctx = ngx_http_get_module_ctx(r, ngx_http_chunked_filter_module);
@@ -216,7 +216,7 @@ ngx_http_chunked_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
         *ll = NULL;
     }
 
-    rc = ngx_http_next_body_filter(r, out);
+    rc = IA2_CALL(ngx_http_next_body_filter, 40, 1)(r, out);
 
     ngx_chain_update_chains(r->pool, &ctx->free, &ctx->busy, &out,
                             (ngx_buf_tag_t) &ngx_http_chunked_filter_module);
@@ -332,10 +332,13 @@ static ngx_int_t
 ngx_http_chunked_filter_init(ngx_conf_t *cf)
 {
     ngx_http_next_header_filter = ngx_http_top_header_filter;
-    ngx_http_top_header_filter = ngx_http_chunked_header_filter;
+    ngx_http_top_header_filter = IA2_FN(ngx_http_chunked_header_filter);
 
     ngx_http_next_body_filter = ngx_http_top_body_filter;
-    ngx_http_top_body_filter = ngx_http_chunked_body_filter;
+    ngx_http_top_body_filter = IA2_FN(ngx_http_chunked_body_filter);
 
     return NGX_OK;
 }
+IA2_DEFINE_WRAPPER_ngx_http_chunked_body_filter
+IA2_DEFINE_WRAPPER_ngx_http_chunked_filter_init
+IA2_DEFINE_WRAPPER_ngx_http_chunked_header_filter

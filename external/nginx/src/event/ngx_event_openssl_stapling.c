@@ -114,7 +114,7 @@ struct ngx_ssl_ocsp_ctx_s {
 
     ngx_msec_t                   timeout;
 
-    void                       (*handler)(ngx_ssl_ocsp_ctx_t *ctx);
+    struct IA2_fnptr__ZTSFvP18ngx_ssl_ocsp_ctx_sE handler;
     void                        *data;
 
     ngx_str_t                    key;
@@ -124,7 +124,7 @@ struct ngx_ssl_ocsp_ctx_s {
 
     ngx_shm_zone_t              *shm_zone;
 
-    ngx_int_t                  (*process)(ngx_ssl_ocsp_ctx_t *ctx);
+    struct IA2_fnptr__ZTSFlP18ngx_ssl_ocsp_ctx_sE process;
 
     ngx_uint_t                   state;
 
@@ -232,7 +232,7 @@ ngx_ssl_stapling_certificate(ngx_conf_t *cf, ngx_ssl_t *ssl, X509 *cert,
         return NGX_ERROR;
     }
 
-    cln->handler = ngx_ssl_stapling_cleanup;
+    cln->handler = IA2_FN(ngx_ssl_stapling_cleanup);
     cln->data = staple;
 
     if (X509_set_ex_data(cert, ngx_ssl_stapling_index, staple) == 0) {
@@ -648,7 +648,7 @@ ngx_ssl_stapling_update(ngx_ssl_stapling_t *staple)
     ctx->resolver = staple->resolver;
     ctx->resolver_timeout = staple->resolver_timeout;
 
-    ctx->handler = ngx_ssl_stapling_ocsp_handler;
+    ctx->handler = IA2_FN(ngx_ssl_stapling_ocsp_handler);
     ctx->data = staple;
 
     ngx_ssl_ocsp_request(ctx);
@@ -1012,7 +1012,7 @@ ngx_ssl_ocsp_validate_next(ngx_connection_t *c)
         ctx->resolver = ocf->resolver;
         ctx->resolver_timeout = ocf->resolver_timeout;
 
-        ctx->handler = ngx_ssl_ocsp_handler;
+        ctx->handler = IA2_FN(ngx_ssl_ocsp_handler);
         ctx->data = c;
 
         ctx->shm_zone = ocf->shm_zone;
@@ -1067,7 +1067,7 @@ done:
 
     if (c->ssl->in_ocsp) {
         c->ssl->handshaked = 1;
-        c->ssl->handler(c);
+        IA2_CALL(c->ssl->handler, 26, 1)(c);
     }
 }
 
@@ -1111,7 +1111,7 @@ done:
 
     if (c->ssl->in_ocsp) {
         c->ssl->handshaked = 1;
-        c->ssl->handler(c);
+        IA2_CALL(c->ssl->handler, 26, 1)(c);
     }
 }
 
@@ -1289,7 +1289,7 @@ ngx_ssl_ocsp_start(ngx_log_t *log)
     ctx->pool->log = log;
     ctx->log = log;
 
-    log->handler = ngx_ssl_ocsp_log_error;
+    log->handler = IA2_FN(ngx_ssl_ocsp_log_error);
     log->data = ctx;
     log->action = "requesting certificate status";
 
@@ -1318,7 +1318,7 @@ ngx_ssl_ocsp_error(ngx_ssl_ocsp_ctx_t *ctx)
                    "ssl ocsp error");
 
     ctx->code = 0;
-    ctx->handler(ctx);
+    IA2_CALL(ctx->handler, 33, 1)(ctx);
 }
 
 
@@ -1391,7 +1391,7 @@ ngx_ssl_ocsp_request(ngx_ssl_ocsp_ctx_t *ctx)
         }
 
         resolve->name = ctx->host;
-        resolve->handler = ngx_ssl_ocsp_resolve_handler;
+        resolve->handler = IA2_FN(ngx_ssl_ocsp_resolve_handler);
         resolve->data = ctx;
         resolve->timeout = ctx->resolver_timeout;
 
@@ -1509,7 +1509,7 @@ ngx_ssl_ocsp_connect(ngx_ssl_ocsp_ctx_t *ctx)
     ctx->peer.sockaddr = addr->sockaddr;
     ctx->peer.socklen = addr->socklen;
     ctx->peer.name = &addr->name;
-    ctx->peer.get = ngx_event_get_peer;
+    ctx->peer.get = IA2_FN(ngx_event_get_peer);
     ctx->peer.log = ctx->log;
     ctx->peer.log_error = NGX_ERROR_ERR;
 
@@ -1531,10 +1531,10 @@ ngx_ssl_ocsp_connect(ngx_ssl_ocsp_ctx_t *ctx)
     ctx->peer.connection->data = ctx;
     ctx->peer.connection->pool = ctx->pool;
 
-    ctx->peer.connection->read->handler = ngx_ssl_ocsp_read_handler;
-    ctx->peer.connection->write->handler = ngx_ssl_ocsp_write_handler;
+    ctx->peer.connection->read->handler = IA2_FN(ngx_ssl_ocsp_read_handler);
+    ctx->peer.connection->write->handler = IA2_FN(ngx_ssl_ocsp_write_handler);
 
-    ctx->process = ngx_ssl_ocsp_process_status_line;
+    ctx->process = IA2_FN(ngx_ssl_ocsp_process_status_line);
 
     if (ctx->timeout) {
         ngx_add_timer(ctx->peer.connection->read, ctx->timeout);
@@ -1570,7 +1570,7 @@ ngx_ssl_ocsp_write_handler(ngx_event_t *wev)
 
     size = ctx->request->last - ctx->request->pos;
 
-    n = ngx_send(c, ctx->request->pos, size);
+    n = IA2_CALL(ngx_send, 22, 1)(c, ctx->request->pos, size);
 
     if (n == NGX_ERROR) {
         ngx_ssl_ocsp_next(ctx);
@@ -1581,7 +1581,7 @@ ngx_ssl_ocsp_write_handler(ngx_event_t *wev)
         ctx->request->pos += n;
 
         if (n == size) {
-            wev->handler = ngx_ssl_ocsp_dummy_handler;
+            wev->handler = IA2_FN(ngx_ssl_ocsp_dummy_handler);
 
             if (wev->timer_set) {
                 ngx_del_timer(wev);
@@ -1634,12 +1634,12 @@ ngx_ssl_ocsp_read_handler(ngx_event_t *rev)
 
         size = ctx->response->end - ctx->response->last;
 
-        n = ngx_recv(c, ctx->response->last, size);
+        n = IA2_CALL(ngx_recv, 22, 1)(c, ctx->response->last, size);
 
         if (n > 0) {
             ctx->response->last += n;
 
-            rc = ctx->process(ctx);
+            rc = IA2_CALL(ctx->process, 34, 1)(ctx);
 
             if (rc == NGX_ERROR) {
                 ngx_ssl_ocsp_next(ctx);
@@ -1663,7 +1663,7 @@ ngx_ssl_ocsp_read_handler(ngx_event_t *rev)
 
     ctx->done = 1;
 
-    rc = ctx->process(ctx);
+    rc = IA2_CALL(ctx->process, 34, 1)(ctx);
 
     if (rc == NGX_DONE) {
         /* ctx->handler() was called */
@@ -1817,8 +1817,8 @@ ngx_ssl_ocsp_process_status_line(ngx_ssl_ocsp_ctx_t *ctx)
                        ctx->header_end - ctx->header_start,
                        ctx->header_start);
 
-        ctx->process = ngx_ssl_ocsp_process_headers;
-        return ctx->process(ctx);
+        ctx->process = IA2_FN(ngx_ssl_ocsp_process_headers);
+        return IA2_CALL(ctx->process, 34, 1)(ctx);
     }
 
     if (rc == NGX_AGAIN) {
@@ -2108,8 +2108,8 @@ ngx_ssl_ocsp_process_headers(ngx_ssl_ocsp_ctx_t *ctx)
         return NGX_ERROR;
     }
 
-    ctx->process = ngx_ssl_ocsp_process_body;
-    return ctx->process(ctx);
+    ctx->process = IA2_FN(ngx_ssl_ocsp_process_body);
+    return IA2_CALL(ctx->process, 34, 1)(ctx);
 }
 
 
@@ -2307,7 +2307,7 @@ ngx_ssl_ocsp_process_body(ngx_ssl_ocsp_ctx_t *ctx)
                    "ssl ocsp process body");
 
     if (ctx->done) {
-        ctx->handler(ctx);
+        IA2_CALL(ctx->handler, 33, 1)(ctx);
         return NGX_DONE;
     }
 
@@ -2776,3 +2776,15 @@ ngx_ssl_ocsp_cache_init(ngx_shm_zone_t *shm_zone, void *data)
 
 
 #endif
+IA2_DEFINE_WRAPPER_ngx_ssl_certificate_status_callback
+IA2_DEFINE_WRAPPER_ngx_ssl_ocsp_dummy_handler
+IA2_DEFINE_WRAPPER_ngx_ssl_ocsp_handler
+IA2_DEFINE_WRAPPER_ngx_ssl_ocsp_log_error
+IA2_DEFINE_WRAPPER_ngx_ssl_ocsp_process_body
+IA2_DEFINE_WRAPPER_ngx_ssl_ocsp_process_headers
+IA2_DEFINE_WRAPPER_ngx_ssl_ocsp_process_status_line
+IA2_DEFINE_WRAPPER_ngx_ssl_ocsp_read_handler
+IA2_DEFINE_WRAPPER_ngx_ssl_ocsp_resolve_handler
+IA2_DEFINE_WRAPPER_ngx_ssl_ocsp_write_handler
+IA2_DEFINE_WRAPPER_ngx_ssl_stapling_cleanup
+IA2_DEFINE_WRAPPER_ngx_ssl_stapling_ocsp_handler

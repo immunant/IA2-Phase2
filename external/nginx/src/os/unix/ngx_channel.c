@@ -223,14 +223,14 @@ ngx_add_channel_event(ngx_cycle_t *cycle, ngx_fd_t fd, ngx_int_t event,
 
     ev->handler = handler;
 
-    if (ngx_add_conn && (ngx_event_flags & NGX_USE_EPOLL_EVENT) == 0) {
-        if (ngx_add_conn(c) == NGX_ERROR) {
+    if (ngx_add_conn.ptr && (ngx_event_flags & NGX_USE_EPOLL_EVENT) == 0) {
+        if (IA2_CALL(ngx_add_conn, 23, 1)(c) == NGX_ERROR) {
             ngx_free_connection(c);
             return NGX_ERROR;
         }
 
     } else {
-        if (ngx_add_event(ev, event, 0) == NGX_ERROR) {
+        if (IA2_CALL(ngx_add_event, 11, 1)(ev, event, 0) == NGX_ERROR) {
             ngx_free_connection(c);
             return NGX_ERROR;
         }

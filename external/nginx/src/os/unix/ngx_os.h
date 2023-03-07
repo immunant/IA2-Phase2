@@ -16,12 +16,10 @@
 #define NGX_IO_SENDFILE    1
 
 
-typedef ssize_t (*ngx_recv_pt)(ngx_connection_t *c, u_char *buf, size_t size);
-typedef ssize_t (*ngx_recv_chain_pt)(ngx_connection_t *c, ngx_chain_t *in,
-    off_t limit);
-typedef ssize_t (*ngx_send_pt)(ngx_connection_t *c, u_char *buf, size_t size);
-typedef ngx_chain_t *(*ngx_send_chain_pt)(ngx_connection_t *c, ngx_chain_t *in,
-    off_t limit);
+typedef struct IA2_fnptr__ZTSFlP16ngx_connection_sPhmE ngx_recv_pt;
+typedef struct IA2_fnptr__ZTSFlP16ngx_connection_sP11ngx_chain_slE ngx_recv_chain_pt;
+typedef struct IA2_fnptr__ZTSFlP16ngx_connection_sPhmE ngx_send_pt;
+typedef struct IA2_fnptr__ZTSFP11ngx_chain_sP16ngx_connection_sS0_lE ngx_send_chain_pt;
 
 typedef struct {
     ngx_recv_pt        recv;

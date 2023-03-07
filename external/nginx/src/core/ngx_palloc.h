@@ -27,7 +27,7 @@
               NGX_POOL_ALIGNMENT)
 
 
-typedef void (*ngx_pool_cleanup_pt)(void *data);
+typedef struct IA2_fnptr__ZTSFvPvE ngx_pool_cleanup_pt;
 
 typedef struct ngx_pool_cleanup_s  ngx_pool_cleanup_t;
 

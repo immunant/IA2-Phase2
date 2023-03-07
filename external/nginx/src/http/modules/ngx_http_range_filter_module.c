@@ -79,7 +79,7 @@ static ngx_int_t ngx_http_range_body_filter_init(ngx_conf_t *cf);
 
 static ngx_http_module_t  ngx_http_range_header_filter_module_ctx = {
     NULL,                                  /* preconfiguration */
-    ngx_http_range_header_filter_init,     /* postconfiguration */
+    IA2_FN(ngx_http_range_header_filter_init),     /* postconfiguration */
 
     NULL,                                  /* create main configuration */
     NULL,                                  /* init main configuration */
@@ -110,7 +110,7 @@ ngx_module_t  ngx_http_range_header_filter_module = {
 
 static ngx_http_module_t  ngx_http_range_body_filter_module_ctx = {
     NULL,                                  /* preconfiguration */
-    ngx_http_range_body_filter_init,       /* postconfiguration */
+    IA2_FN(ngx_http_range_body_filter_init),       /* postconfiguration */
 
     NULL,                                  /* create main configuration */
     NULL,                                  /* init main configuration */
@@ -158,13 +158,13 @@ ngx_http_range_header_filter(ngx_http_request_t *r)
         || r->headers_out.content_length_n == -1
         || !r->allow_ranges)
     {
-        return ngx_http_next_header_filter(r);
+        return IA2_CALL(ngx_http_next_header_filter, 39, 1)(r);
     }
 
     clcf = ngx_http_get_module_loc_conf(r, ngx_http_core_module);
 
     if (clcf->max_ranges == 0) {
-        return ngx_http_next_header_filter(r);
+        return IA2_CALL(ngx_http_next_header_filter, 39, 1)(r);
     }
 
     if (r->headers_in.range == NULL
@@ -261,7 +261,7 @@ next_filter:
     ngx_str_set(&r->headers_out.accept_ranges->key, "Accept-Ranges");
     ngx_str_set(&r->headers_out.accept_ranges->value, "bytes");
 
-    return ngx_http_next_header_filter(r);
+    return IA2_CALL(ngx_http_next_header_filter, 39, 1)(r);
 }
 
 
@@ -416,7 +416,7 @@ ngx_http_range_singlepart_header(ngx_http_request_t *r,
     ngx_http_range_t  *range;
 
     if (r != r->main) {
-        return ngx_http_next_header_filter(r);
+        return IA2_CALL(ngx_http_next_header_filter, 39, 1)(r);
     }
 
     content_range = ngx_list_push(&r->headers_out.headers);
@@ -455,7 +455,7 @@ ngx_http_range_singlepart_header(ngx_http_request_t *r,
         r->headers_out.content_length = NULL;
     }
 
-    return ngx_http_next_header_filter(r);
+    return IA2_CALL(ngx_http_next_header_filter, 39, 1)(r);
 }
 
 
@@ -580,7 +580,7 @@ ngx_http_range_multipart_header(ngx_http_request_t *r,
         r->headers_out.content_length = NULL;
     }
 
-    return ngx_http_next_header_filter(r);
+    return IA2_CALL(ngx_http_next_header_filter, 39, 1)(r);
 }
 
 
@@ -626,13 +626,13 @@ ngx_http_range_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
     ngx_http_range_filter_ctx_t  *ctx;
 
     if (in == NULL) {
-        return ngx_http_next_body_filter(r, in);
+        return IA2_CALL(ngx_http_next_body_filter, 40, 1)(r, in);
     }
 
     ctx = ngx_http_get_module_ctx(r, ngx_http_range_body_filter_module);
 
     if (ctx == NULL) {
-        return ngx_http_next_body_filter(r, in);
+        return IA2_CALL(ngx_http_next_body_filter, 40, 1)(r, in);
     }
 
     if (ctx->ranges.nelts == 1) {
@@ -644,7 +644,7 @@ ngx_http_range_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
      */
 
     if (ngx_buf_special(in->buf)) {
-        return ngx_http_next_body_filter(r, in);
+        return IA2_CALL(ngx_http_next_body_filter, 40, 1)(r, in);
     }
 
     if (ngx_http_range_test_overlapped(r, ctx, in) != NGX_OK) {
@@ -806,7 +806,7 @@ ngx_http_range_singlepart_body(ngx_http_request_t *r,
         ll = &tl->next;
     }
 
-    rc = ngx_http_next_body_filter(r, out);
+    rc = IA2_CALL(ngx_http_next_body_filter, 40, 1)(r, out);
 
     while (out) {
         cl = out;
@@ -944,7 +944,7 @@ ngx_http_range_multipart_body(ngx_http_request_t *r,
 
     *ll = hcl;
 
-    return ngx_http_next_body_filter(r, out);
+    return IA2_CALL(ngx_http_next_body_filter, 40, 1)(r, out);
 }
 
 
@@ -952,7 +952,7 @@ static ngx_int_t
 ngx_http_range_header_filter_init(ngx_conf_t *cf)
 {
     ngx_http_next_header_filter = ngx_http_top_header_filter;
-    ngx_http_top_header_filter = ngx_http_range_header_filter;
+    ngx_http_top_header_filter = IA2_FN(ngx_http_range_header_filter);
 
     return NGX_OK;
 }
@@ -962,7 +962,11 @@ static ngx_int_t
 ngx_http_range_body_filter_init(ngx_conf_t *cf)
 {
     ngx_http_next_body_filter = ngx_http_top_body_filter;
-    ngx_http_top_body_filter = ngx_http_range_body_filter;
+    ngx_http_top_body_filter = IA2_FN(ngx_http_range_body_filter);
 
     return NGX_OK;
 }
+IA2_DEFINE_WRAPPER_ngx_http_range_body_filter
+IA2_DEFINE_WRAPPER_ngx_http_range_body_filter_init
+IA2_DEFINE_WRAPPER_ngx_http_range_header_filter
+IA2_DEFINE_WRAPPER_ngx_http_range_header_filter_init

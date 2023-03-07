@@ -76,28 +76,28 @@ static ngx_command_t  ngx_http_browser_commands[] = {
 
     { ngx_string("modern_browser"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE12,
-      ngx_http_modern_browser,
+      IA2_FN(ngx_http_modern_browser),
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       NULL },
 
     { ngx_string("ancient_browser"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_1MORE,
-      ngx_http_ancient_browser,
+      IA2_FN(ngx_http_ancient_browser),
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       NULL },
 
     { ngx_string("modern_browser_value"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-      ngx_http_modern_browser_value,
+      IA2_FN(ngx_http_modern_browser_value),
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       NULL },
 
     { ngx_string("ancient_browser_value"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-      ngx_http_ancient_browser_value,
+      IA2_FN(ngx_http_ancient_browser_value),
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       NULL },
@@ -107,7 +107,7 @@ static ngx_command_t  ngx_http_browser_commands[] = {
 
 
 static ngx_http_module_t  ngx_http_browser_module_ctx = {
-    ngx_http_browser_add_variables,        /* preconfiguration */
+    IA2_FN(ngx_http_browser_add_variables),        /* preconfiguration */
     NULL,                                  /* postconfiguration */
 
     NULL,                                  /* create main configuration */
@@ -116,8 +116,8 @@ static ngx_http_module_t  ngx_http_browser_module_ctx = {
     NULL,                                  /* create server configuration */
     NULL,                                  /* merge server configuration */
 
-    ngx_http_browser_create_conf,          /* create location configuration */
-    ngx_http_browser_merge_conf            /* merge location configuration */
+    IA2_FN(ngx_http_browser_create_conf),          /* create location configuration */
+    IA2_FN(ngx_http_browser_merge_conf)            /* merge location configuration */
 };
 
 
@@ -213,13 +213,13 @@ static ngx_http_modern_browser_mask_t  ngx_http_modern_browser_masks[] = {
 
 static ngx_http_variable_t  ngx_http_browser_vars[] = {
 
-    { ngx_string("msie"), NULL, ngx_http_msie_variable,
+    { ngx_string("msie"), NULL, IA2_FN(ngx_http_msie_variable),
       0, NGX_HTTP_VAR_CHANGEABLE, 0 },
 
-    { ngx_string("modern_browser"), NULL, ngx_http_browser_variable,
+    { ngx_string("modern_browser"), NULL, IA2_FN(ngx_http_browser_variable),
       NGX_HTTP_MODERN_BROWSER, NGX_HTTP_VAR_CHANGEABLE, 0 },
 
-    { ngx_string("ancient_browser"), NULL, ngx_http_browser_variable,
+    { ngx_string("ancient_browser"), NULL, IA2_FN(ngx_http_browser_variable),
       NGX_HTTP_ANCIENT_BROWSER, NGX_HTTP_VAR_CHANGEABLE, 0 },
 
       ngx_http_null_variable
@@ -487,7 +487,7 @@ found:
 
         ngx_qsort(browsers, (size_t) conf->modern_browsers->nelts,
                   sizeof(ngx_http_modern_browser_t),
-                  ngx_http_modern_browser_sort);
+                  (void*)&__ia2_ngx_http_modern_browser_sort);
 
         for (i = 0; i < conf->modern_browsers->nelts; i++) {
              n = browsers[i].skip;
@@ -710,3 +710,13 @@ ngx_http_ancient_browser_value(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     return NGX_CONF_OK;
 }
+IA2_DEFINE_WRAPPER_ngx_http_ancient_browser
+IA2_DEFINE_WRAPPER_ngx_http_ancient_browser_value
+IA2_DEFINE_WRAPPER_ngx_http_browser_add_variables
+IA2_DEFINE_WRAPPER_ngx_http_browser_create_conf
+IA2_DEFINE_WRAPPER_ngx_http_browser_merge_conf
+IA2_DEFINE_WRAPPER_ngx_http_browser_variable
+IA2_DEFINE_WRAPPER_ngx_http_modern_browser
+IA2_DEFINE_WRAPPER_ngx_http_modern_browser_sort
+IA2_DEFINE_WRAPPER_ngx_http_modern_browser_value
+IA2_DEFINE_WRAPPER_ngx_http_msie_variable

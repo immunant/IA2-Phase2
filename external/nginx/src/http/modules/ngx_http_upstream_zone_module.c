@@ -24,7 +24,7 @@ static ngx_command_t  ngx_http_upstream_zone_commands[] = {
 
     { ngx_string("zone"),
       NGX_HTTP_UPS_CONF|NGX_CONF_TAKE12,
-      ngx_http_upstream_zone,
+      IA2_FN(ngx_http_upstream_zone),
       0,
       0,
       NULL },
@@ -108,7 +108,7 @@ ngx_http_upstream_zone(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         return NGX_CONF_ERROR;
     }
 
-    uscf->shm_zone->init = ngx_http_upstream_init_zone;
+    uscf->shm_zone->init = IA2_FN(ngx_http_upstream_init_zone);
     uscf->shm_zone->data = umcf;
 
     uscf->shm_zone->noreuse = 1;
@@ -323,3 +323,5 @@ failed:
 
     return NULL;
 }
+IA2_DEFINE_WRAPPER_ngx_http_upstream_init_zone
+IA2_DEFINE_WRAPPER_ngx_http_upstream_zone

@@ -68,8 +68,8 @@ ngx_init_modules(ngx_cycle_t *cycle)
     ngx_uint_t  i;
 
     for (i = 0; cycle->modules[i]; i++) {
-        if (cycle->modules[i]->init_module) {
-            if (cycle->modules[i]->init_module(cycle) != NGX_OK) {
+        if (cycle->modules[i]->init_module.ptr) {
+            if (IA2_CALL(cycle->modules[i]->init_module, 20, 1)(cycle) != NGX_OK) {
                 return NGX_ERROR;
             }
         }
@@ -262,8 +262,8 @@ ngx_add_module(ngx_conf_t *cf, ngx_str_t *file, ngx_module_t *module,
 
         core_module = module->ctx;
 
-        if (core_module->create_conf) {
-            rv = core_module->create_conf(cf->cycle);
+        if (core_module->create_conf.ptr) {
+            rv = IA2_CALL(core_module->create_conf, 14, 1)(cf->cycle);
             if (rv == NULL) {
                 return NGX_ERROR;
             }

@@ -188,7 +188,7 @@ ngx_event_recvmsg(ngx_event_t *ev)
             rev->ready = 1;
             rev->active = 0;
 
-            rev->handler(rev);
+            IA2_CALL(rev->handler, 13, 1)(rev);
 
             if (c->udp) {
                 c->udp->buffer = NULL;
@@ -242,7 +242,7 @@ ngx_event_recvmsg(ngx_event_t *ev)
 
         *log = ls->log;
 
-        c->recv = ngx_udp_shared_recv;
+        c->recv = IA2_FN(ngx_udp_shared_recv);
         c->send = ngx_udp_send;
         c->send_chain = ngx_udp_send_chain;
 
@@ -341,9 +341,9 @@ ngx_event_recvmsg(ngx_event_t *ev)
         }
 
         log->data = NULL;
-        log->handler = NULL;
+        log->handler = (typeof(log->handler)) { NULL };
 
-        ls->handler(c);
+        IA2_CALL(ls->handler, 26, 1)(c);
 
     next:
 
@@ -485,7 +485,7 @@ ngx_insert_udp_connection(ngx_connection_t *c)
     }
 
     cln->data = c;
-    cln->handler = ngx_delete_udp_connection;
+    cln->handler = IA2_FN(ngx_delete_udp_connection);
 
     ngx_rbtree_insert(&c->listening->rbtree, &udp->node);
 
@@ -593,3 +593,4 @@ ngx_delete_udp_connection(void *data)
 }
 
 #endif
+IA2_DEFINE_WRAPPER_ngx_udp_shared_recv

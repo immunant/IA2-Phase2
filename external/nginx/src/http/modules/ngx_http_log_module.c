@@ -16,11 +16,9 @@
 
 typedef struct ngx_http_log_op_s  ngx_http_log_op_t;
 
-typedef u_char *(*ngx_http_log_op_run_pt) (ngx_http_request_t *r, u_char *buf,
-    ngx_http_log_op_t *op);
+typedef struct IA2_fnptr__ZTSFPhP18ngx_http_request_sS_P17ngx_http_log_op_sE ngx_http_log_op_run_pt;
 
-typedef size_t (*ngx_http_log_op_getlen_pt) (ngx_http_request_t *r,
-    uintptr_t data);
+typedef struct IA2_fnptr__ZTSFmP18ngx_http_request_smE ngx_http_log_op_getlen_pt;
 
 
 struct ngx_http_log_op_s {
@@ -166,7 +164,7 @@ static ngx_command_t  ngx_http_log_commands[] = {
 
     { ngx_string("log_format"),
       NGX_HTTP_MAIN_CONF|NGX_CONF_2MORE,
-      ngx_http_log_set_format,
+      IA2_FN(ngx_http_log_set_format),
       NGX_HTTP_MAIN_CONF_OFFSET,
       0,
       NULL },
@@ -174,14 +172,14 @@ static ngx_command_t  ngx_http_log_commands[] = {
     { ngx_string("access_log"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF
                         |NGX_HTTP_LMT_CONF|NGX_CONF_1MORE,
-      ngx_http_log_set_log,
+      IA2_FN(ngx_http_log_set_log),
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       NULL },
 
     { ngx_string("open_log_file_cache"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1234,
-      ngx_http_log_open_file_cache,
+      IA2_FN(ngx_http_log_open_file_cache),
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       NULL },
@@ -192,16 +190,16 @@ static ngx_command_t  ngx_http_log_commands[] = {
 
 static ngx_http_module_t  ngx_http_log_module_ctx = {
     NULL,                                  /* preconfiguration */
-    ngx_http_log_init,                     /* postconfiguration */
+    IA2_FN(ngx_http_log_init),                     /* postconfiguration */
 
-    ngx_http_log_create_main_conf,         /* create main configuration */
+    IA2_FN(ngx_http_log_create_main_conf),         /* create main configuration */
     NULL,                                  /* init main configuration */
 
     NULL,                                  /* create server configuration */
     NULL,                                  /* merge server configuration */
 
-    ngx_http_log_create_loc_conf,          /* create location configuration */
-    ngx_http_log_merge_loc_conf            /* merge location configuration */
+    IA2_FN(ngx_http_log_create_loc_conf),          /* create location configuration */
+    IA2_FN(ngx_http_log_merge_loc_conf)            /* merge location configuration */
 };
 
 
@@ -231,20 +229,20 @@ static ngx_str_t  ngx_http_combined_fmt =
 
 
 static ngx_http_log_var_t  ngx_http_log_vars[] = {
-    { ngx_string("pipe"), 1, ngx_http_log_pipe },
+    { ngx_string("pipe"), 1, IA2_FN(ngx_http_log_pipe) },
     { ngx_string("time_local"), sizeof("28/Sep/1970:12:00:00 +0600") - 1,
-                          ngx_http_log_time },
+                          IA2_FN(ngx_http_log_time) },
     { ngx_string("time_iso8601"), sizeof("1970-09-28T12:00:00+06:00") - 1,
-                          ngx_http_log_iso8601 },
-    { ngx_string("msec"), NGX_TIME_T_LEN + 4, ngx_http_log_msec },
+                          IA2_FN(ngx_http_log_iso8601) },
+    { ngx_string("msec"), NGX_TIME_T_LEN + 4, IA2_FN(ngx_http_log_msec) },
     { ngx_string("request_time"), NGX_TIME_T_LEN + 4,
-                          ngx_http_log_request_time },
-    { ngx_string("status"), NGX_INT_T_LEN, ngx_http_log_status },
-    { ngx_string("bytes_sent"), NGX_OFF_T_LEN, ngx_http_log_bytes_sent },
+                          IA2_FN(ngx_http_log_request_time) },
+    { ngx_string("status"), NGX_INT_T_LEN, IA2_FN(ngx_http_log_status) },
+    { ngx_string("bytes_sent"), NGX_OFF_T_LEN, IA2_FN(ngx_http_log_bytes_sent) },
     { ngx_string("body_bytes_sent"), NGX_OFF_T_LEN,
-                          ngx_http_log_body_bytes_sent },
+                          IA2_FN(ngx_http_log_body_bytes_sent) },
     { ngx_string("request_length"), NGX_SIZE_T_LEN,
-                          ngx_http_log_request_length },
+                          IA2_FN(ngx_http_log_request_length) },
 
     { ngx_null_string, 0, NULL }
 };
@@ -302,7 +300,7 @@ ngx_http_log_handler(ngx_http_request_t *r)
         op = log[l].format->ops->elts;
         for (i = 0; i < log[l].format->ops->nelts; i++) {
             if (op[i].len == 0) {
-                len += op[i].getlen(r, op[i].data);
+                len += IA2_CALL(op[i].getlen, 45, 1)(r, op[i].data);
 
             } else {
                 len += op[i].len;
@@ -342,7 +340,7 @@ ngx_http_log_handler(ngx_http_request_t *r)
                 }
 
                 for (i = 0; i < log[l].format->ops->nelts; i++) {
-                    p = op[i].run(r, p, &op[i]);
+                    p = IA2_CALL(op[i].run, 46, 1)(r, p, &op[i]);
                 }
 
                 ngx_linefeed(p);
@@ -371,7 +369,7 @@ ngx_http_log_handler(ngx_http_request_t *r)
         }
 
         for (i = 0; i < log[l].format->ops->nelts; i++) {
-            p = op[i].run(r, p, &op[i]);
+            p = IA2_CALL(op[i].run, 46, 1)(r, p, &op[i]);
         }
 
         if (log[l].syslog_peer) {
@@ -620,8 +618,8 @@ ngx_http_log_gzip(ngx_fd_t fd, u_char *buf, size_t len, ngx_int_t level,
 
     pool->log = log;
 
-    zstream.zalloc = ngx_http_log_gzip_alloc;
-    zstream.zfree = ngx_http_log_gzip_free;
+    zstream.zalloc = (void*)&__ia2_ngx_http_log_gzip_alloc;
+    zstream.zfree = (void*)&__ia2_ngx_http_log_gzip_free;
     zstream.opaque = pool;
 
     out = ngx_pnalloc(pool, size);
@@ -927,18 +925,18 @@ ngx_http_log_variable_compile(ngx_conf_t *cf, ngx_http_log_op_t *op,
 
     switch (escape) {
     case NGX_HTTP_LOG_ESCAPE_JSON:
-        op->getlen = ngx_http_log_json_variable_getlen;
-        op->run = ngx_http_log_json_variable;
+        op->getlen = IA2_FN(ngx_http_log_json_variable_getlen);
+        op->run = IA2_FN(ngx_http_log_json_variable);
         break;
 
     case NGX_HTTP_LOG_ESCAPE_NONE:
-        op->getlen = ngx_http_log_unescaped_variable_getlen;
-        op->run = ngx_http_log_unescaped_variable;
+        op->getlen = IA2_FN(ngx_http_log_unescaped_variable_getlen);
+        op->run = IA2_FN(ngx_http_log_unescaped_variable);
         break;
 
     default: /* NGX_HTTP_LOG_ESCAPE_DEFAULT */
-        op->getlen = ngx_http_log_variable_getlen;
-        op->run = ngx_http_log_variable;
+        op->getlen = IA2_FN(ngx_http_log_variable_getlen);
+        op->run = IA2_FN(ngx_http_log_variable);
     }
 
     op->data = index;
@@ -1516,7 +1514,7 @@ process_formats:
             }
 
             buffer->event->data = log->file;
-            buffer->event->handler = ngx_http_log_flush_handler;
+            buffer->event->handler = IA2_FN(ngx_http_log_flush_handler);
             buffer->event->log = &cf->cycle->new_log;
             buffer->event->cancelable = 1;
 
@@ -1525,7 +1523,7 @@ process_formats:
 
         buffer->gzip = gzip;
 
-        log->file->flush = ngx_http_log_flush;
+        log->file->flush = IA2_FN(ngx_http_log_flush);
         log->file->data = buffer;
     }
 
@@ -1680,7 +1678,7 @@ ngx_http_log_compile_format(ngx_conf_t *cf, ngx_array_t *flushes,
                         && ngx_strncmp(v->name.data, var.data, var.len) == 0)
                     {
                         op->len = v->len;
-                        op->getlen = NULL;
+                        op->getlen = (typeof(op->getlen)) { NULL };
                         op->run = v->run;
                         op->data = 0;
 
@@ -1720,10 +1718,10 @@ ngx_http_log_compile_format(ngx_conf_t *cf, ngx_array_t *flushes,
             if (len) {
 
                 op->len = len;
-                op->getlen = NULL;
+                op->getlen = (typeof(op->getlen)) { NULL };
 
                 if (len <= sizeof(uintptr_t)) {
-                    op->run = ngx_http_log_copy_short;
+                    op->run = IA2_FN(ngx_http_log_copy_short);
                     op->data = 0;
 
                     while (len--) {
@@ -1732,7 +1730,7 @@ ngx_http_log_compile_format(ngx_conf_t *cf, ngx_array_t *flushes,
                     }
 
                 } else {
-                    op->run = ngx_http_log_copy_long;
+                    op->run = IA2_FN(ngx_http_log_copy_long);
 
                     p = ngx_pnalloc(cf->pool, len);
                     if (p == NULL) {
@@ -1903,7 +1901,36 @@ ngx_http_log_init(ngx_conf_t *cf)
         return NGX_ERROR;
     }
 
-    *h = ngx_http_log_handler;
+    *h = IA2_FN(ngx_http_log_handler);
 
     return NGX_OK;
 }
+IA2_DEFINE_WRAPPER_ngx_http_log_body_bytes_sent
+IA2_DEFINE_WRAPPER_ngx_http_log_bytes_sent
+IA2_DEFINE_WRAPPER_ngx_http_log_copy_long
+IA2_DEFINE_WRAPPER_ngx_http_log_copy_short
+IA2_DEFINE_WRAPPER_ngx_http_log_create_loc_conf
+IA2_DEFINE_WRAPPER_ngx_http_log_create_main_conf
+IA2_DEFINE_WRAPPER_ngx_http_log_flush
+IA2_DEFINE_WRAPPER_ngx_http_log_flush_handler
+IA2_DEFINE_WRAPPER_ngx_http_log_gzip_alloc
+IA2_DEFINE_WRAPPER_ngx_http_log_gzip_free
+IA2_DEFINE_WRAPPER_ngx_http_log_handler
+IA2_DEFINE_WRAPPER_ngx_http_log_init
+IA2_DEFINE_WRAPPER_ngx_http_log_iso8601
+IA2_DEFINE_WRAPPER_ngx_http_log_json_variable
+IA2_DEFINE_WRAPPER_ngx_http_log_json_variable_getlen
+IA2_DEFINE_WRAPPER_ngx_http_log_merge_loc_conf
+IA2_DEFINE_WRAPPER_ngx_http_log_msec
+IA2_DEFINE_WRAPPER_ngx_http_log_open_file_cache
+IA2_DEFINE_WRAPPER_ngx_http_log_pipe
+IA2_DEFINE_WRAPPER_ngx_http_log_request_length
+IA2_DEFINE_WRAPPER_ngx_http_log_request_time
+IA2_DEFINE_WRAPPER_ngx_http_log_set_format
+IA2_DEFINE_WRAPPER_ngx_http_log_set_log
+IA2_DEFINE_WRAPPER_ngx_http_log_status
+IA2_DEFINE_WRAPPER_ngx_http_log_time
+IA2_DEFINE_WRAPPER_ngx_http_log_unescaped_variable
+IA2_DEFINE_WRAPPER_ngx_http_log_unescaped_variable_getlen
+IA2_DEFINE_WRAPPER_ngx_http_log_variable
+IA2_DEFINE_WRAPPER_ngx_http_log_variable_getlen

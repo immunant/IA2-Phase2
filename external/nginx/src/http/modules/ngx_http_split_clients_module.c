@@ -31,7 +31,7 @@ static ngx_command_t  ngx_http_split_clients_commands[] = {
 
     { ngx_string("split_clients"),
       NGX_HTTP_MAIN_CONF|NGX_CONF_BLOCK|NGX_CONF_TAKE2,
-      ngx_conf_split_clients_block,
+      IA2_FN(ngx_conf_split_clients_block),
       NGX_HTTP_MAIN_CONF_OFFSET,
       0,
       NULL },
@@ -153,7 +153,7 @@ ngx_conf_split_clients_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         return NGX_CONF_ERROR;
     }
 
-    var->get_handler = ngx_http_split_clients_variable;
+    var->get_handler = IA2_FN(ngx_http_split_clients_variable);
     var->data = (uintptr_t) ctx;
 
     if (ngx_array_init(&ctx->parts, cf->pool, 2,
@@ -165,7 +165,7 @@ ngx_conf_split_clients_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     save = *cf;
     cf->ctx = ctx;
-    cf->handler = ngx_http_split_clients;
+    cf->handler = IA2_FN(ngx_http_split_clients);
     cf->handler_conf = conf;
 
     rv = ngx_conf_parse(cf, NULL);
@@ -244,3 +244,6 @@ invalid:
                        "invalid percent value \"%V\"", &value[0]);
     return NGX_CONF_ERROR;
 }
+IA2_DEFINE_WRAPPER_ngx_conf_split_clients_block
+IA2_DEFINE_WRAPPER_ngx_http_split_clients
+IA2_DEFINE_WRAPPER_ngx_http_split_clients_variable

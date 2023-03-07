@@ -227,7 +227,7 @@ ngx_str_node_t *ngx_str_rbtree_lookup(ngx_rbtree_t *rbtree, ngx_str_t *name,
 
 
 void ngx_sort(void *base, size_t n, size_t size,
-    ngx_int_t (*cmp)(const void *, const void *));
+    struct IA2_fnptr__ZTSFlPKvS0_E cmp);
 #define ngx_qsort             qsort
 
 

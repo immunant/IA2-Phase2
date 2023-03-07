@@ -300,17 +300,17 @@ ngx_event_accept(ngx_event_t *ev)
         }
 #endif
 
-        if (ngx_add_conn && (ngx_event_flags & NGX_USE_EPOLL_EVENT) == 0) {
-            if (ngx_add_conn(c) == NGX_ERROR) {
+        if (ngx_add_conn.ptr && (ngx_event_flags & NGX_USE_EPOLL_EVENT) == 0) {
+            if (IA2_CALL(ngx_add_conn, 23, 1)(c) == NGX_ERROR) {
                 ngx_close_accepted_connection(c);
                 return;
             }
         }
 
         log->data = NULL;
-        log->handler = NULL;
+        log->handler = (typeof(log->handler)) { NULL };
 
-        ls->handler(c);
+        IA2_CALL(ls->handler, 26, 1)(c);
 
         if (ngx_event_flags & NGX_USE_KQUEUE_EVENT) {
             ev->available--;
@@ -378,7 +378,7 @@ ngx_enable_accept_events(ngx_cycle_t *cycle)
             continue;
         }
 
-        if (ngx_add_event(c->read, NGX_READ_EVENT, 0) == NGX_ERROR) {
+        if (IA2_CALL(ngx_add_event, 11, 1)(c->read, NGX_READ_EVENT, 0) == NGX_ERROR) {
             return NGX_ERROR;
         }
     }
@@ -416,7 +416,7 @@ ngx_disable_accept_events(ngx_cycle_t *cycle, ngx_uint_t all)
 
 #endif
 
-        if (ngx_del_event(c->read, NGX_READ_EVENT, NGX_DISABLE_EVENT)
+        if (IA2_CALL(ngx_del_event, 11, 1)(c->read, NGX_READ_EVENT, NGX_DISABLE_EVENT)
             == NGX_ERROR)
         {
             return NGX_ERROR;
@@ -462,13 +462,13 @@ ngx_reorder_accept_events(ngx_listening_t *ls)
         return;
     }
 
-    if (ngx_del_event(c->read, NGX_READ_EVENT, NGX_DISABLE_EVENT)
+    if (IA2_CALL(ngx_del_event, 11, 1)(c->read, NGX_READ_EVENT, NGX_DISABLE_EVENT)
         == NGX_ERROR)
     {
         return;
     }
 
-    if (ngx_add_event(c->read, NGX_READ_EVENT, NGX_EXCLUSIVE_EVENT)
+    if (IA2_CALL(ngx_add_event, 11, 1)(c->read, NGX_READ_EVENT, NGX_EXCLUSIVE_EVENT)
         == NGX_ERROR)
     {
         return;

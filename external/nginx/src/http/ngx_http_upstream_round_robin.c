@@ -37,7 +37,7 @@ ngx_http_upstream_init_round_robin(ngx_conf_t *cf,
     ngx_http_upstream_rr_peer_t   *peer, **peerp;
     ngx_http_upstream_rr_peers_t  *peers, *backup;
 
-    us->peer.init = ngx_http_upstream_init_round_robin_peer;
+    us->peer.init = IA2_FN(ngx_http_upstream_init_round_robin_peer);
 
     if (us->servers) {
         server = us->servers->elts;
@@ -294,8 +294,8 @@ ngx_http_upstream_init_round_robin_peer(ngx_http_request_t *r,
         }
     }
 
-    r->upstream->peer.get = ngx_http_upstream_get_round_robin_peer;
-    r->upstream->peer.free = ngx_http_upstream_free_round_robin_peer;
+    r->upstream->peer.get = IA2_FN(ngx_http_upstream_get_round_robin_peer);
+    r->upstream->peer.free = IA2_FN(ngx_http_upstream_free_round_robin_peer);
     r->upstream->peer.tries = ngx_http_upstream_tries(rrp->peers);
 #if (NGX_HTTP_SSL)
     r->upstream->peer.set_session =
@@ -415,8 +415,8 @@ ngx_http_upstream_create_round_robin_peer(ngx_http_request_t *r,
         }
     }
 
-    r->upstream->peer.get = ngx_http_upstream_get_round_robin_peer;
-    r->upstream->peer.free = ngx_http_upstream_free_round_robin_peer;
+    r->upstream->peer.get = IA2_FN(ngx_http_upstream_get_round_robin_peer);
+    r->upstream->peer.free = IA2_FN(ngx_http_upstream_free_round_robin_peer);
     r->upstream->peer.tries = ngx_http_upstream_tries(rrp->peers);
 #if (NGX_HTTP_SSL)
     r->upstream->peer.set_session = ngx_http_upstream_empty_set_session;

@@ -123,49 +123,49 @@ static ngx_command_t  ngx_http_ssi_filter_commands[] = {
     { ngx_string("ssi"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF
                         |NGX_CONF_FLAG,
-      ngx_conf_set_flag_slot,
+      IA2_FN(ngx_conf_set_flag_slot),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_ssi_loc_conf_t, enable),
       NULL },
 
     { ngx_string("ssi_silent_errors"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_FLAG,
-      ngx_conf_set_flag_slot,
+      IA2_FN(ngx_conf_set_flag_slot),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_ssi_loc_conf_t, silent_errors),
       NULL },
 
     { ngx_string("ssi_ignore_recycled_buffers"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_FLAG,
-      ngx_conf_set_flag_slot,
+      IA2_FN(ngx_conf_set_flag_slot),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_ssi_loc_conf_t, ignore_recycled_buffers),
       NULL },
 
     { ngx_string("ssi_min_file_chunk"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_size_slot,
+      IA2_FN(ngx_conf_set_size_slot),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_ssi_loc_conf_t, min_file_chunk),
       NULL },
 
     { ngx_string("ssi_value_length"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_size_slot,
+      IA2_FN(ngx_conf_set_size_slot),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_ssi_loc_conf_t, value_len),
       NULL },
 
     { ngx_string("ssi_types"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_1MORE,
-      ngx_http_types_slot,
+      IA2_FN(ngx_http_types_slot),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_ssi_loc_conf_t, types_keys),
       &ngx_http_html_default_types[0] },
 
     { ngx_string("ssi_last_modified"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_FLAG,
-      ngx_conf_set_flag_slot,
+      IA2_FN(ngx_conf_set_flag_slot),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_ssi_loc_conf_t, last_modified),
       NULL },
@@ -176,17 +176,17 @@ static ngx_command_t  ngx_http_ssi_filter_commands[] = {
 
 
 static ngx_http_module_t  ngx_http_ssi_filter_module_ctx = {
-    ngx_http_ssi_preconfiguration,         /* preconfiguration */
-    ngx_http_ssi_filter_init,              /* postconfiguration */
+    IA2_FN(ngx_http_ssi_preconfiguration),         /* preconfiguration */
+    IA2_FN(ngx_http_ssi_filter_init),              /* postconfiguration */
 
-    ngx_http_ssi_create_main_conf,         /* create main configuration */
-    ngx_http_ssi_init_main_conf,           /* init main configuration */
+    IA2_FN(ngx_http_ssi_create_main_conf),         /* create main configuration */
+    IA2_FN(ngx_http_ssi_init_main_conf),           /* init main configuration */
 
     NULL,                                  /* create server configuration */
     NULL,                                  /* merge server configuration */
 
-    ngx_http_ssi_create_loc_conf,          /* create location configuration */
-    ngx_http_ssi_merge_loc_conf            /* merge location configuration */
+    IA2_FN(ngx_http_ssi_create_loc_conf),          /* create location configuration */
+    IA2_FN(ngx_http_ssi_merge_loc_conf)            /* merge location configuration */
 };
 
 
@@ -288,25 +288,25 @@ static ngx_http_ssi_param_t  ngx_http_ssi_no_params[] = {
 
 
 static ngx_http_ssi_command_t  ngx_http_ssi_commands[] = {
-    { ngx_string("include"), ngx_http_ssi_include,
+    { ngx_string("include"), IA2_FN(ngx_http_ssi_include),
                        ngx_http_ssi_include_params, 0, 0, 1 },
-    { ngx_string("echo"), ngx_http_ssi_echo,
+    { ngx_string("echo"), IA2_FN(ngx_http_ssi_echo),
                        ngx_http_ssi_echo_params, 0, 0, 0 },
-    { ngx_string("config"), ngx_http_ssi_config,
+    { ngx_string("config"), IA2_FN(ngx_http_ssi_config),
                        ngx_http_ssi_config_params, 0, 0, 0 },
-    { ngx_string("set"), ngx_http_ssi_set, ngx_http_ssi_set_params, 0, 0, 0 },
+    { ngx_string("set"), IA2_FN(ngx_http_ssi_set), ngx_http_ssi_set_params, 0, 0, 0 },
 
-    { ngx_string("if"), ngx_http_ssi_if, ngx_http_ssi_if_params, 0, 0, 0 },
-    { ngx_string("elif"), ngx_http_ssi_if, ngx_http_ssi_if_params,
+    { ngx_string("if"), IA2_FN(ngx_http_ssi_if), ngx_http_ssi_if_params, 0, 0, 0 },
+    { ngx_string("elif"), IA2_FN(ngx_http_ssi_if), ngx_http_ssi_if_params,
                        NGX_HTTP_SSI_COND_IF, 0, 0 },
-    { ngx_string("else"), ngx_http_ssi_else, ngx_http_ssi_no_params,
+    { ngx_string("else"), IA2_FN(ngx_http_ssi_else), ngx_http_ssi_no_params,
                        NGX_HTTP_SSI_COND_IF, 0, 0 },
-    { ngx_string("endif"), ngx_http_ssi_endif, ngx_http_ssi_no_params,
+    { ngx_string("endif"), IA2_FN(ngx_http_ssi_endif), ngx_http_ssi_no_params,
                        NGX_HTTP_SSI_COND_ELSE, 0, 0 },
 
-    { ngx_string("block"), ngx_http_ssi_block,
+    { ngx_string("block"), IA2_FN(ngx_http_ssi_block),
                        ngx_http_ssi_block_params, 0, 0, 0 },
-    { ngx_string("endblock"), ngx_http_ssi_endblock,
+    { ngx_string("endblock"), IA2_FN(ngx_http_ssi_endblock),
                        ngx_http_ssi_no_params, 0, 1, 0 },
 
     { ngx_null_string, NULL, NULL, 0, 0, 0 }
@@ -315,10 +315,10 @@ static ngx_http_ssi_command_t  ngx_http_ssi_commands[] = {
 
 static ngx_http_variable_t  ngx_http_ssi_vars[] = {
 
-    { ngx_string("date_local"), NULL, ngx_http_ssi_date_gmt_local_variable, 0,
+    { ngx_string("date_local"), NULL, IA2_FN(ngx_http_ssi_date_gmt_local_variable), 0,
       NGX_HTTP_VAR_NOCACHEABLE, 0 },
 
-    { ngx_string("date_gmt"), NULL, ngx_http_ssi_date_gmt_local_variable, 1,
+    { ngx_string("date_gmt"), NULL, IA2_FN(ngx_http_ssi_date_gmt_local_variable), 1,
       NGX_HTTP_VAR_NOCACHEABLE, 0 },
 
       ngx_http_null_variable
@@ -338,7 +338,7 @@ ngx_http_ssi_header_filter(ngx_http_request_t *r)
         || r->headers_out.content_length_n == 0
         || ngx_http_test_content_type(r, &slcf->types) == NULL)
     {
-        return ngx_http_next_header_filter(r);
+        return IA2_CALL(ngx_http_next_header_filter, 39, 1)(r);
     }
 
     ctx = ngx_pcalloc(r->pool, sizeof(ngx_http_ssi_ctx_t));
@@ -381,7 +381,7 @@ ngx_http_ssi_header_filter(ngx_http_request_t *r)
         }
     }
 
-    return ngx_http_next_header_filter(r);
+    return IA2_CALL(ngx_http_next_header_filter, 39, 1)(r);
 }
 
 
@@ -410,7 +410,7 @@ ngx_http_ssi_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
             && ctx->in == NULL
             && ctx->busy == NULL))
     {
-        return ngx_http_next_body_filter(r, in);
+        return IA2_CALL(ngx_http_next_body_filter, 40, 1)(r, in);
     }
 
     /* add the incoming chain to the chain ctx->in */
@@ -446,7 +446,7 @@ ngx_http_ssi_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
                            "http ssi filter wait \"%V?%V\"",
                            &ctx->wait->uri, &ctx->wait->args);
 
-            return ngx_http_next_body_filter(r, NULL);
+            return IA2_CALL(ngx_http_next_body_filter, 40, 1)(r, NULL);
         }
     }
 
@@ -809,7 +809,7 @@ ngx_http_ssi_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
                     }
                 }
 
-                rc = cmd->handler(r, ctx, params);
+                rc = IA2_CALL(cmd->handler, 59, 1)(r, ctx, params);
 
                 if (rc == NGX_OK) {
                     continue;
@@ -933,7 +933,7 @@ ngx_http_ssi_output(ngx_http_request_t *r, ngx_http_ssi_ctx_t *ctx)
     }
 #endif
 
-    rc = ngx_http_next_body_filter(r, ctx->out);
+    rc = IA2_CALL(ngx_http_next_body_filter, 40, 1)(r, ctx->out);
 
     if (ctx->busy == NULL) {
         ctx->busy = ctx->out;
@@ -2093,7 +2093,7 @@ ngx_http_ssi_include(ngx_http_request_t *r, ngx_http_ssi_ctx_t *ctx,
             return NGX_ERROR;
         }
 
-        psr->handler = ngx_http_ssi_stub_output;
+        psr->handler = IA2_FN(ngx_http_ssi_stub_output);
 
         if (bl[i].count++) {
 
@@ -2149,7 +2149,7 @@ ngx_http_ssi_include(ngx_http_request_t *r, ngx_http_ssi_ctx_t *ctx,
             return NGX_ERROR;
         }
 
-        psr->handler = ngx_http_ssi_set_variable;
+        psr->handler = IA2_FN(ngx_http_ssi_set_variable);
         psr->data = ngx_http_ssi_get_variable(r, set, key);
 
         if (psr->data == NULL) {
@@ -2846,7 +2846,7 @@ ngx_http_ssi_init_main_conf(ngx_conf_t *cf, void *conf)
     ngx_hash_init_t  hash;
 
     hash.hash = &smcf->hash;
-    hash.key = ngx_hash_key;
+    hash.key = IA2_FN(ngx_hash_key);
     hash.max_size = 1024;
     hash.bucket_size = ngx_cacheline_size;
     hash.name = "ssi_command_hash";
@@ -2924,10 +2924,30 @@ static ngx_int_t
 ngx_http_ssi_filter_init(ngx_conf_t *cf)
 {
     ngx_http_next_header_filter = ngx_http_top_header_filter;
-    ngx_http_top_header_filter = ngx_http_ssi_header_filter;
+    ngx_http_top_header_filter = IA2_FN(ngx_http_ssi_header_filter);
 
     ngx_http_next_body_filter = ngx_http_top_body_filter;
-    ngx_http_top_body_filter = ngx_http_ssi_body_filter;
+    ngx_http_top_body_filter = IA2_FN(ngx_http_ssi_body_filter);
 
     return NGX_OK;
 }
+IA2_DEFINE_WRAPPER_ngx_http_ssi_block
+IA2_DEFINE_WRAPPER_ngx_http_ssi_body_filter
+IA2_DEFINE_WRAPPER_ngx_http_ssi_config
+IA2_DEFINE_WRAPPER_ngx_http_ssi_create_loc_conf
+IA2_DEFINE_WRAPPER_ngx_http_ssi_create_main_conf
+IA2_DEFINE_WRAPPER_ngx_http_ssi_date_gmt_local_variable
+IA2_DEFINE_WRAPPER_ngx_http_ssi_echo
+IA2_DEFINE_WRAPPER_ngx_http_ssi_else
+IA2_DEFINE_WRAPPER_ngx_http_ssi_endblock
+IA2_DEFINE_WRAPPER_ngx_http_ssi_endif
+IA2_DEFINE_WRAPPER_ngx_http_ssi_filter_init
+IA2_DEFINE_WRAPPER_ngx_http_ssi_header_filter
+IA2_DEFINE_WRAPPER_ngx_http_ssi_if
+IA2_DEFINE_WRAPPER_ngx_http_ssi_include
+IA2_DEFINE_WRAPPER_ngx_http_ssi_init_main_conf
+IA2_DEFINE_WRAPPER_ngx_http_ssi_merge_loc_conf
+IA2_DEFINE_WRAPPER_ngx_http_ssi_preconfiguration
+IA2_DEFINE_WRAPPER_ngx_http_ssi_set
+IA2_DEFINE_WRAPPER_ngx_http_ssi_set_variable
+IA2_DEFINE_WRAPPER_ngx_http_ssi_stub_output

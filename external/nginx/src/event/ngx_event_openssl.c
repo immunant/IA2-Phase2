@@ -96,7 +96,7 @@ static ngx_command_t  ngx_openssl_commands[] = {
 
     { ngx_string("ssl_engine"),
       NGX_MAIN_CONF|NGX_DIRECT_CONF|NGX_CONF_TAKE1,
-      ngx_openssl_engine,
+      IA2_FN(ngx_openssl_engine),
       0,
       0,
       NULL },
@@ -107,7 +107,7 @@ static ngx_command_t  ngx_openssl_commands[] = {
 
 static ngx_core_module_t  ngx_openssl_module_ctx = {
     ngx_string("openssl"),
-    ngx_openssl_create_conf,
+    IA2_FN(ngx_openssl_create_conf),
     NULL
 };
 
@@ -123,7 +123,7 @@ ngx_module_t  ngx_openssl_module = {
     NULL,                                  /* init thread */
     NULL,                                  /* exit thread */
     NULL,                                  /* exit process */
-    ngx_openssl_exit,                      /* exit master */
+    IA2_FN(ngx_openssl_exit),                      /* exit master */
     NGX_MODULE_V1_PADDING
 };
 
@@ -389,7 +389,7 @@ ngx_ssl_create(ngx_ssl_t *ssl, ngx_uint_t protocols, void *data)
 
     SSL_CTX_set_read_ahead(ssl->ctx, 1);
 
-    SSL_CTX_set_info_callback(ssl->ctx, ngx_ssl_info_callback);
+    SSL_CTX_set_info_callback(ssl->ctx, (void*)&__ia2_ngx_ssl_info_callback);
 
     return NGX_OK;
 }
@@ -784,7 +784,7 @@ ngx_ssl_load_certificate_key(ngx_pool_t *pool, char **err,
     if (passwords) {
         tries = passwords->nelts;
         pwd = passwords->elts;
-        cb = ngx_ssl_password_callback;
+        cb = (void*)&__ia2_ngx_ssl_password_callback;
 
     } else {
         tries = 1;
@@ -870,7 +870,7 @@ ngx_ssl_client_certificate(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_str_t *cert,
 {
     STACK_OF(X509_NAME)  *list;
 
-    SSL_CTX_set_verify(ssl->ctx, SSL_VERIFY_PEER, ngx_ssl_verify_callback);
+    SSL_CTX_set_verify(ssl->ctx, SSL_VERIFY_PEER, (void*)&__ia2_ngx_ssl_verify_callback);
 
     SSL_CTX_set_verify_depth(ssl->ctx, depth);
 
@@ -917,7 +917,7 @@ ngx_ssl_trusted_certificate(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_str_t *cert,
     ngx_int_t depth)
 {
     SSL_CTX_set_verify(ssl->ctx, SSL_CTX_get_verify_mode(ssl->ctx),
-                       ngx_ssl_verify_callback);
+                       (void*)&__ia2_ngx_ssl_verify_callback);
 
     SSL_CTX_set_verify_depth(ssl->ctx, depth);
 
@@ -1138,7 +1138,7 @@ ngx_ssl_read_password_file(ngx_conf_t *cf, ngx_str_t *file)
         return NULL;
     }
 
-    cln->handler = ngx_ssl_passwords_cleanup;
+    cln->handler = IA2_FN(ngx_ssl_passwords_cleanup);
     cln->data = passwords;
 
     fd = ngx_open_file(file->data, NGX_FILE_RDONLY, NGX_FILE_OPEN, 0);
@@ -1278,7 +1278,7 @@ ngx_ssl_preserve_passwords(ngx_conf_t *cf, ngx_array_t *passwords)
         return NULL;
     }
 
-    cln->handler = ngx_ssl_passwords_cleanup;
+    cln->handler = IA2_FN(ngx_ssl_passwords_cleanup);
     cln->data = pwds;
 
     opwd = passwords->elts;
@@ -1592,7 +1592,7 @@ ngx_ssl_client_session_cache(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_uint_t enable)
                                    SSL_SESS_CACHE_CLIENT
                                    |SSL_SESS_CACHE_NO_INTERNAL);
 
-    SSL_CTX_sess_set_new_cb(ssl->ctx, ngx_ssl_new_client_session);
+    SSL_CTX_sess_set_new_cb(ssl->ctx, (void*)&__ia2_ngx_ssl_new_client_session);
 
     return NGX_OK;
 }
@@ -1605,10 +1605,10 @@ ngx_ssl_new_client_session(ngx_ssl_conn_t *ssl_conn, ngx_ssl_session_t *sess)
 
     c = ngx_ssl_get_connection(ssl_conn);
 
-    if (c->ssl->save_session) {
+    if (c->ssl->save_session.ptr) {
         c->ssl->session = sess;
 
-        c->ssl->save_session(c);
+        IA2_CALL(c->ssl->save_session, 26, 1)(c);
 
         c->ssl->session = NULL;
     }
@@ -1748,10 +1748,10 @@ ngx_ssl_handshake(ngx_connection_t *c)
         ngx_ssl_handshake_log(c);
 #endif
 
-        c->recv = ngx_ssl_recv;
-        c->send = ngx_ssl_write;
-        c->recv_chain = ngx_ssl_recv_chain;
-        c->send_chain = ngx_ssl_send_chain;
+        c->recv = IA2_FN(ngx_ssl_recv);
+        c->send = IA2_FN(ngx_ssl_write);
+        c->recv_chain = IA2_FN(ngx_ssl_recv_chain);
+        c->send_chain = IA2_FN(ngx_ssl_send_chain);
 
         c->read->ready = 1;
         c->write->ready = 1;
@@ -1786,8 +1786,8 @@ ngx_ssl_handshake(ngx_connection_t *c)
         }
 
         if (rc == NGX_AGAIN) {
-            c->read->handler = ngx_ssl_handshake_handler;
-            c->write->handler = ngx_ssl_handshake_handler;
+            c->read->handler = IA2_FN(ngx_ssl_handshake_handler);
+            c->write->handler = IA2_FN(ngx_ssl_handshake_handler);
             return NGX_AGAIN;
         }
 
@@ -1802,8 +1802,8 @@ ngx_ssl_handshake(ngx_connection_t *c)
 
     if (sslerr == SSL_ERROR_WANT_READ) {
         c->read->ready = 0;
-        c->read->handler = ngx_ssl_handshake_handler;
-        c->write->handler = ngx_ssl_handshake_handler;
+        c->read->handler = IA2_FN(ngx_ssl_handshake_handler);
+        c->write->handler = IA2_FN(ngx_ssl_handshake_handler);
 
         if (ngx_handle_read_event(c->read, 0) != NGX_OK) {
             return NGX_ERROR;
@@ -1818,8 +1818,8 @@ ngx_ssl_handshake(ngx_connection_t *c)
 
     if (sslerr == SSL_ERROR_WANT_WRITE) {
         c->write->ready = 0;
-        c->read->handler = ngx_ssl_handshake_handler;
-        c->write->handler = ngx_ssl_handshake_handler;
+        c->read->handler = IA2_FN(ngx_ssl_handshake_handler);
+        c->write->handler = IA2_FN(ngx_ssl_handshake_handler);
 
         if (ngx_handle_read_event(c->read, 0) != NGX_OK) {
             return NGX_ERROR;
@@ -1906,10 +1906,10 @@ ngx_ssl_try_early_data(ngx_connection_t *c)
 
         c->ssl->in_early = 1;
 
-        c->recv = ngx_ssl_recv;
-        c->send = ngx_ssl_write;
-        c->recv_chain = ngx_ssl_recv_chain;
-        c->send_chain = ngx_ssl_send_chain;
+        c->recv = IA2_FN(ngx_ssl_recv);
+        c->send = IA2_FN(ngx_ssl_write);
+        c->recv_chain = IA2_FN(ngx_ssl_recv_chain);
+        c->send_chain = IA2_FN(ngx_ssl_send_chain);
 
         c->read->ready = 1;
         c->write->ready = 1;
@@ -1931,8 +1931,8 @@ ngx_ssl_try_early_data(ngx_connection_t *c)
         }
 
         if (rc == NGX_AGAIN) {
-            c->read->handler = ngx_ssl_handshake_handler;
-            c->write->handler = ngx_ssl_handshake_handler;
+            c->read->handler = IA2_FN(ngx_ssl_handshake_handler);
+            c->write->handler = IA2_FN(ngx_ssl_handshake_handler);
             return NGX_AGAIN;
         }
 
@@ -1949,8 +1949,8 @@ ngx_ssl_try_early_data(ngx_connection_t *c)
 
     if (sslerr == SSL_ERROR_WANT_READ) {
         c->read->ready = 0;
-        c->read->handler = ngx_ssl_handshake_handler;
-        c->write->handler = ngx_ssl_handshake_handler;
+        c->read->handler = IA2_FN(ngx_ssl_handshake_handler);
+        c->write->handler = IA2_FN(ngx_ssl_handshake_handler);
 
         if (ngx_handle_read_event(c->read, 0) != NGX_OK) {
             return NGX_ERROR;
@@ -1965,8 +1965,8 @@ ngx_ssl_try_early_data(ngx_connection_t *c)
 
     if (sslerr == SSL_ERROR_WANT_WRITE) {
         c->write->ready = 0;
-        c->read->handler = ngx_ssl_handshake_handler;
-        c->write->handler = ngx_ssl_handshake_handler;
+        c->read->handler = IA2_FN(ngx_ssl_handshake_handler);
+        c->write->handler = IA2_FN(ngx_ssl_handshake_handler);
 
         if (ngx_handle_read_event(c->read, 0) != NGX_OK) {
             return NGX_ERROR;
@@ -2069,7 +2069,7 @@ ngx_ssl_handshake_handler(ngx_event_t *ev)
                    "SSL handshake handler: %d", ev->write);
 
     if (ev->timedout) {
-        c->ssl->handler(c);
+        IA2_CALL(c->ssl->handler, 26, 1)(c);
         return;
     }
 
@@ -2077,7 +2077,7 @@ ngx_ssl_handshake_handler(ngx_event_t *ev)
         return;
     }
 
-    c->ssl->handler(c);
+    IA2_CALL(c->ssl->handler, 26, 1)(c);
 }
 
 
@@ -2424,10 +2424,10 @@ ngx_ssl_handle_recv(ngx_connection_t *c, int n)
 
     if (n > 0) {
 
-        if (c->ssl->saved_write_handler) {
+        if (c->ssl->saved_write_handler.ptr) {
 
             c->write->handler = c->ssl->saved_write_handler;
-            c->ssl->saved_write_handler = NULL;
+            c->ssl->saved_write_handler = (typeof(c->ssl->saved_write_handler)) { NULL };
             c->write->ready = 1;
 
             if (ngx_handle_write_event(c->write, 0) != NGX_OK) {
@@ -2448,10 +2448,10 @@ ngx_ssl_handle_recv(ngx_connection_t *c, int n)
 
     if (sslerr == SSL_ERROR_WANT_READ) {
 
-        if (c->ssl->saved_write_handler) {
+        if (c->ssl->saved_write_handler.ptr) {
 
             c->write->handler = c->ssl->saved_write_handler;
-            c->ssl->saved_write_handler = NULL;
+            c->ssl->saved_write_handler = (typeof(c->ssl->saved_write_handler)) { NULL };
             c->write->ready = 1;
 
             if (ngx_handle_write_event(c->write, 0) != NGX_OK) {
@@ -2480,9 +2480,9 @@ ngx_ssl_handle_recv(ngx_connection_t *c, int n)
          * we do not set the timer because there is already the read event timer
          */
 
-        if (c->ssl->saved_write_handler == NULL) {
+        if (c->ssl->saved_write_handler.ptr == NULL) {
             c->ssl->saved_write_handler = c->write->handler;
-            c->write->handler = ngx_ssl_write_handler;
+            c->write->handler = IA2_FN(ngx_ssl_write_handler);
         }
 
         return NGX_AGAIN;
@@ -2512,7 +2512,7 @@ ngx_ssl_write_handler(ngx_event_t *wev)
 
     ngx_log_debug0(NGX_LOG_DEBUG_EVENT, c->log, 0, "SSL write handler");
 
-    c->read->handler(c->read);
+    IA2_CALL(c->read->handler, 13, 1)(c->read);
 }
 
 
@@ -2734,10 +2734,10 @@ ngx_ssl_write(ngx_connection_t *c, u_char *data, size_t size)
 
     if (n > 0) {
 
-        if (c->ssl->saved_read_handler) {
+        if (c->ssl->saved_read_handler.ptr) {
 
             c->read->handler = c->ssl->saved_read_handler;
-            c->ssl->saved_read_handler = NULL;
+            c->ssl->saved_read_handler = (typeof(c->ssl->saved_read_handler)) { NULL };
             c->read->ready = 1;
 
             if (ngx_handle_read_event(c->read, 0) != NGX_OK) {
@@ -2772,10 +2772,10 @@ ngx_ssl_write(ngx_connection_t *c, u_char *data, size_t size)
 
     if (sslerr == SSL_ERROR_WANT_WRITE) {
 
-        if (c->ssl->saved_read_handler) {
+        if (c->ssl->saved_read_handler.ptr) {
 
             c->read->handler = c->ssl->saved_read_handler;
-            c->ssl->saved_read_handler = NULL;
+            c->ssl->saved_read_handler = (typeof(c->ssl->saved_read_handler)) { NULL };
             c->read->ready = 1;
 
             if (ngx_handle_read_event(c->read, 0) != NGX_OK) {
@@ -2805,9 +2805,9 @@ ngx_ssl_write(ngx_connection_t *c, u_char *data, size_t size)
          * the write event timer
          */
 
-        if (c->ssl->saved_read_handler == NULL) {
+        if (c->ssl->saved_read_handler.ptr == NULL) {
             c->ssl->saved_read_handler = c->read->handler;
-            c->read->handler = ngx_ssl_read_handler;
+            c->read->handler = IA2_FN(ngx_ssl_read_handler);
         }
 
         return NGX_AGAIN;
@@ -2845,10 +2845,10 @@ ngx_ssl_write_early(ngx_connection_t *c, u_char *data, size_t size)
 
     if (n > 0) {
 
-        if (c->ssl->saved_read_handler) {
+        if (c->ssl->saved_read_handler.ptr) {
 
             c->read->handler = c->ssl->saved_read_handler;
-            c->ssl->saved_read_handler = NULL;
+            c->ssl->saved_read_handler = (typeof(c->ssl->saved_read_handler)) { NULL };
             c->read->ready = 1;
 
             if (ngx_handle_read_event(c->read, 0) != NGX_OK) {
@@ -2879,10 +2879,10 @@ ngx_ssl_write_early(ngx_connection_t *c, u_char *data, size_t size)
         ngx_log_debug0(NGX_LOG_DEBUG_EVENT, c->log, 0,
                        "SSL_write_early_data: want write");
 
-        if (c->ssl->saved_read_handler) {
+        if (c->ssl->saved_read_handler.ptr) {
 
             c->read->handler = c->ssl->saved_read_handler;
-            c->ssl->saved_read_handler = NULL;
+            c->ssl->saved_read_handler = (typeof(c->ssl->saved_read_handler)) { NULL };
             c->read->ready = 1;
 
             if (ngx_handle_read_event(c->read, 0) != NGX_OK) {
@@ -2920,9 +2920,9 @@ ngx_ssl_write_early(ngx_connection_t *c, u_char *data, size_t size)
          * the write event timer
          */
 
-        if (c->ssl->saved_read_handler == NULL) {
+        if (c->ssl->saved_read_handler.ptr == NULL) {
             c->ssl->saved_read_handler = c->read->handler;
-            c->read->handler = ngx_ssl_read_handler;
+            c->read->handler = IA2_FN(ngx_ssl_read_handler);
         }
 
         return NGX_AGAIN;
@@ -2976,10 +2976,10 @@ ngx_ssl_sendfile(ngx_connection_t *c, ngx_buf_t *file, size_t size)
 
     if (n > 0) {
 
-        if (c->ssl->saved_read_handler) {
+        if (c->ssl->saved_read_handler.ptr) {
 
             c->read->handler = c->ssl->saved_read_handler;
-            c->ssl->saved_read_handler = NULL;
+            c->ssl->saved_read_handler = (typeof(c->ssl->saved_read_handler)) { NULL };
             c->read->ready = 1;
 
             if (ngx_handle_read_event(c->read, 0) != NGX_OK) {
@@ -3044,10 +3044,10 @@ ngx_ssl_sendfile(ngx_connection_t *c, ngx_buf_t *file, size_t size)
 
     if (sslerr == SSL_ERROR_WANT_WRITE) {
 
-        if (c->ssl->saved_read_handler) {
+        if (c->ssl->saved_read_handler.ptr) {
 
             c->read->handler = c->ssl->saved_read_handler;
-            c->ssl->saved_read_handler = NULL;
+            c->ssl->saved_read_handler = (typeof(c->ssl->saved_read_handler)) { NULL };
             c->read->ready = 1;
 
             if (ngx_handle_read_event(c->read, 0) != NGX_OK) {
@@ -3094,9 +3094,9 @@ ngx_ssl_sendfile(ngx_connection_t *c, ngx_buf_t *file, size_t size)
          * the write event timer
          */
 
-        if (c->ssl->saved_read_handler == NULL) {
+        if (c->ssl->saved_read_handler.ptr == NULL) {
             c->ssl->saved_read_handler = c->read->handler;
-            c->read->handler = ngx_ssl_read_handler;
+            c->read->handler = IA2_FN(ngx_ssl_read_handler);
         }
 
         return NGX_AGAIN;
@@ -3126,7 +3126,7 @@ ngx_ssl_read_handler(ngx_event_t *rev)
 
     ngx_log_debug0(NGX_LOG_DEBUG_EVENT, c->log, 0, "SSL read handler");
 
-    c->write->handler(c->write);
+    IA2_CALL(c->write->handler, 13, 1)(c->write);
 }
 
 
@@ -3217,8 +3217,8 @@ ngx_ssl_shutdown(ngx_connection_t *c)
                        "SSL_get_error: %d", sslerr);
 
         if (sslerr == SSL_ERROR_WANT_READ || sslerr == SSL_ERROR_WANT_WRITE) {
-            c->read->handler = ngx_ssl_shutdown_handler;
-            c->write->handler = ngx_ssl_shutdown_handler;
+            c->read->handler = IA2_FN(ngx_ssl_shutdown_handler);
+            c->write->handler = IA2_FN(ngx_ssl_shutdown_handler);
 
             if (sslerr == SSL_ERROR_WANT_READ) {
                 c->read->ready = 0;
@@ -3290,7 +3290,7 @@ ngx_ssl_shutdown_handler(ngx_event_t *ev)
         return;
     }
 
-    handler(c);
+    IA2_CALL(handler, 26, 1)(c);
 }
 
 
@@ -3588,9 +3588,9 @@ ngx_ssl_session_cache(ngx_ssl_t *ssl, ngx_str_t *sess_ctx,
     }
 
     if (shm_zone) {
-        SSL_CTX_sess_set_new_cb(ssl->ctx, ngx_ssl_new_session);
-        SSL_CTX_sess_set_get_cb(ssl->ctx, ngx_ssl_get_cached_session);
-        SSL_CTX_sess_set_remove_cb(ssl->ctx, ngx_ssl_remove_session);
+        SSL_CTX_sess_set_new_cb(ssl->ctx, (void*)&__ia2_ngx_ssl_new_session);
+        SSL_CTX_sess_set_get_cb(ssl->ctx, (void*)&__ia2_ngx_ssl_get_cached_session);
+        SSL_CTX_sess_set_remove_cb(ssl->ctx, (void*)&__ia2_ngx_ssl_remove_session);
 
         if (SSL_CTX_set_ex_data(ssl->ctx, ngx_ssl_session_cache_index, shm_zone)
             == 0)
@@ -4229,7 +4229,7 @@ ngx_ssl_session_ticket_keys(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_array_t *paths)
         return NGX_ERROR;
     }
 
-    cln->handler = ngx_ssl_session_ticket_keys_cleanup;
+    cln->handler = IA2_FN(ngx_ssl_session_ticket_keys_cleanup);
     cln->data = keys;
 
     path = paths->elts;
@@ -5718,3 +5718,21 @@ ngx_openssl_exit(ngx_cycle_t *cycle)
 
 #endif
 }
+IA2_DEFINE_WRAPPER_ngx_openssl_create_conf
+IA2_DEFINE_WRAPPER_ngx_openssl_engine
+IA2_DEFINE_WRAPPER_ngx_openssl_exit
+IA2_DEFINE_WRAPPER_ngx_ssl_get_cached_session
+IA2_DEFINE_WRAPPER_ngx_ssl_handshake_handler
+IA2_DEFINE_WRAPPER_ngx_ssl_info_callback
+IA2_DEFINE_WRAPPER_ngx_ssl_new_client_session
+IA2_DEFINE_WRAPPER_ngx_ssl_new_session
+IA2_DEFINE_WRAPPER_ngx_ssl_password_callback
+IA2_DEFINE_WRAPPER_ngx_ssl_passwords_cleanup
+IA2_DEFINE_WRAPPER_ngx_ssl_read_handler
+IA2_DEFINE_WRAPPER_ngx_ssl_remove_session
+IA2_DEFINE_WRAPPER_ngx_ssl_session_rbtree_insert_value
+IA2_DEFINE_WRAPPER_ngx_ssl_session_ticket_key_callback
+IA2_DEFINE_WRAPPER_ngx_ssl_session_ticket_keys_cleanup
+IA2_DEFINE_WRAPPER_ngx_ssl_shutdown_handler
+IA2_DEFINE_WRAPPER_ngx_ssl_verify_callback
+IA2_DEFINE_WRAPPER_ngx_ssl_write_handler

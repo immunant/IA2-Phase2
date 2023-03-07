@@ -84,8 +84,7 @@ typedef struct {
 } ngx_http_ssi_ctx_t;
 
 
-typedef ngx_int_t (*ngx_http_ssi_command_pt) (ngx_http_request_t *r,
-    ngx_http_ssi_ctx_t *ctx, ngx_str_t **);
+typedef struct IA2_fnptr__ZTSFlP18ngx_http_request_sP18ngx_http_ssi_ctx_tPP9ngx_str_tE ngx_http_ssi_command_pt;
 
 
 typedef struct {

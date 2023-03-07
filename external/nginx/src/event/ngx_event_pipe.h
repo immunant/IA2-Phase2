@@ -16,10 +16,8 @@
 
 typedef struct ngx_event_pipe_s  ngx_event_pipe_t;
 
-typedef ngx_int_t (*ngx_event_pipe_input_filter_pt)(ngx_event_pipe_t *p,
-                                                    ngx_buf_t *buf);
-typedef ngx_int_t (*ngx_event_pipe_output_filter_pt)(void *data,
-                                                     ngx_chain_t *chain);
+typedef struct IA2_fnptr__ZTSFlP16ngx_event_pipe_sP9ngx_buf_sE ngx_event_pipe_input_filter_pt;
+typedef struct IA2_fnptr__ZTSFlPvP11ngx_chain_sE ngx_event_pipe_output_filter_pt;
 
 
 struct ngx_event_pipe_s {

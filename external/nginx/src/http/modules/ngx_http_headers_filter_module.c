@@ -12,8 +12,7 @@
 
 typedef struct ngx_http_header_val_s  ngx_http_header_val_t;
 
-typedef ngx_int_t (*ngx_http_set_header_pt)(ngx_http_request_t *r,
-    ngx_http_header_val_t *hv, ngx_str_t *value);
+typedef struct IA2_fnptr__ZTSFlP18ngx_http_request_sP21ngx_http_header_val_sP9ngx_str_tE ngx_http_set_header_pt;
 
 
 typedef struct {
@@ -79,19 +78,19 @@ static ngx_http_set_header_t  ngx_http_set_headers[] = {
 
     { ngx_string("Cache-Control"),
                  offsetof(ngx_http_headers_out_t, cache_control),
-                 ngx_http_add_multi_header_lines },
+                 IA2_FN(ngx_http_add_multi_header_lines) },
 
     { ngx_string("Link"),
                  offsetof(ngx_http_headers_out_t, link),
-                 ngx_http_add_multi_header_lines },
+                 IA2_FN(ngx_http_add_multi_header_lines) },
 
     { ngx_string("Last-Modified"),
                  offsetof(ngx_http_headers_out_t, last_modified),
-                 ngx_http_set_last_modified },
+                 IA2_FN(ngx_http_set_last_modified) },
 
     { ngx_string("ETag"),
                  offsetof(ngx_http_headers_out_t, etag),
-                 ngx_http_set_response_header },
+                 IA2_FN(ngx_http_set_response_header) },
 
     { ngx_null_string, 0, NULL }
 };
@@ -102,7 +101,7 @@ static ngx_command_t  ngx_http_headers_filter_commands[] = {
     { ngx_string("expires"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF
                         |NGX_CONF_TAKE12,
-      ngx_http_headers_expires,
+      IA2_FN(ngx_http_headers_expires),
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       NULL },
@@ -110,7 +109,7 @@ static ngx_command_t  ngx_http_headers_filter_commands[] = {
     { ngx_string("add_header"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF
                         |NGX_CONF_TAKE23,
-      ngx_http_headers_add,
+      IA2_FN(ngx_http_headers_add),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_headers_conf_t, headers),
       NULL },
@@ -118,7 +117,7 @@ static ngx_command_t  ngx_http_headers_filter_commands[] = {
     { ngx_string("add_trailer"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF
                         |NGX_CONF_TAKE23,
-      ngx_http_headers_add,
+      IA2_FN(ngx_http_headers_add),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_headers_conf_t, trailers),
       NULL },
@@ -129,7 +128,7 @@ static ngx_command_t  ngx_http_headers_filter_commands[] = {
 
 static ngx_http_module_t  ngx_http_headers_filter_module_ctx = {
     NULL,                                  /* preconfiguration */
-    ngx_http_headers_filter_init,          /* postconfiguration */
+    IA2_FN(ngx_http_headers_filter_init),          /* postconfiguration */
 
     NULL,                                  /* create main configuration */
     NULL,                                  /* init main configuration */
@@ -137,8 +136,8 @@ static ngx_http_module_t  ngx_http_headers_filter_module_ctx = {
     NULL,                                  /* create server configuration */
     NULL,                                  /* merge server configuration */
 
-    ngx_http_headers_create_conf,          /* create location configuration */
-    ngx_http_headers_merge_conf            /* merge location configuration */
+    IA2_FN(ngx_http_headers_create_conf),          /* create location configuration */
+    IA2_FN(ngx_http_headers_merge_conf)            /* merge location configuration */
 };
 
 
@@ -171,7 +170,7 @@ ngx_http_headers_filter(ngx_http_request_t *r)
     ngx_http_headers_conf_t  *conf;
 
     if (r != r->main) {
-        return ngx_http_next_header_filter(r);
+        return IA2_CALL(ngx_http_next_header_filter, 39, 1)(r);
     }
 
     conf = ngx_http_get_module_loc_conf(r, ngx_http_headers_filter_module);
@@ -180,7 +179,7 @@ ngx_http_headers_filter(ngx_http_request_t *r)
         && conf->headers == NULL
         && conf->trailers == NULL)
     {
-        return ngx_http_next_header_filter(r);
+        return IA2_CALL(ngx_http_next_header_filter, 39, 1)(r);
     }
 
     switch (r->headers_out.status) {
@@ -221,7 +220,7 @@ ngx_http_headers_filter(ngx_http_request_t *r)
                 return NGX_ERROR;
             }
 
-            if (h[i].handler(r, &h[i], &value) != NGX_OK) {
+            if (IA2_CALL(h[i].handler, 60, 1)(r, &h[i], &value) != NGX_OK) {
                 return NGX_ERROR;
             }
         }
@@ -240,7 +239,7 @@ ngx_http_headers_filter(ngx_http_request_t *r)
         }
     }
 
-    return ngx_http_next_header_filter(r);
+    return IA2_CALL(ngx_http_next_header_filter, 39, 1)(r);
 }
 
 
@@ -261,7 +260,7 @@ ngx_http_trailers_filter(ngx_http_request_t *r, ngx_chain_t *in)
         || !r->expect_trailers
         || r->header_only)
     {
-        return ngx_http_next_body_filter(r, in);
+        return IA2_CALL(ngx_http_next_body_filter, 40, 1)(r, in);
     }
 
     for (cl = in; cl; cl = cl->next) {
@@ -271,7 +270,7 @@ ngx_http_trailers_filter(ngx_http_request_t *r, ngx_chain_t *in)
     }
 
     if (cl == NULL) {
-        return ngx_http_next_body_filter(r, in);
+        return IA2_CALL(ngx_http_next_body_filter, 40, 1)(r, in);
     }
 
     switch (r->headers_out.status) {
@@ -317,7 +316,7 @@ ngx_http_trailers_filter(ngx_http_request_t *r, ngx_chain_t *in)
         }
     }
 
-    return ngx_http_next_body_filter(r, in);
+    return IA2_CALL(ngx_http_next_body_filter, 40, 1)(r, in);
 }
 
 
@@ -709,10 +708,10 @@ static ngx_int_t
 ngx_http_headers_filter_init(ngx_conf_t *cf)
 {
     ngx_http_next_header_filter = ngx_http_top_header_filter;
-    ngx_http_top_header_filter = ngx_http_headers_filter;
+    ngx_http_top_header_filter = IA2_FN(ngx_http_headers_filter);
 
     ngx_http_next_body_filter = ngx_http_top_body_filter;
-    ngx_http_top_body_filter = ngx_http_trailers_filter;
+    ngx_http_top_body_filter = IA2_FN(ngx_http_trailers_filter);
 
     return NGX_OK;
 }
@@ -816,12 +815,12 @@ ngx_http_headers_add(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     }
 
     hv->key = value[1];
-    hv->handler = NULL;
+    hv->handler = (typeof(hv->handler)) { NULL };
     hv->offset = 0;
     hv->always = 0;
 
     if (headers == &hcf->headers) {
-        hv->handler = ngx_http_add_header;
+        hv->handler = IA2_FN(ngx_http_add_header);
 
         set = ngx_http_set_headers;
         for (i = 0; set[i].name.len; i++) {
@@ -865,3 +864,14 @@ ngx_http_headers_add(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     return NGX_CONF_OK;
 }
+IA2_DEFINE_WRAPPER_ngx_http_add_header
+IA2_DEFINE_WRAPPER_ngx_http_add_multi_header_lines
+IA2_DEFINE_WRAPPER_ngx_http_headers_add
+IA2_DEFINE_WRAPPER_ngx_http_headers_create_conf
+IA2_DEFINE_WRAPPER_ngx_http_headers_expires
+IA2_DEFINE_WRAPPER_ngx_http_headers_filter
+IA2_DEFINE_WRAPPER_ngx_http_headers_filter_init
+IA2_DEFINE_WRAPPER_ngx_http_headers_merge_conf
+IA2_DEFINE_WRAPPER_ngx_http_set_last_modified
+IA2_DEFINE_WRAPPER_ngx_http_set_response_header
+IA2_DEFINE_WRAPPER_ngx_http_trailers_filter

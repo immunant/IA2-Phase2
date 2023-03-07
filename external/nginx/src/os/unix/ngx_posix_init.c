@@ -20,13 +20,13 @@ struct rlimit  rlmt;
 
 
 ngx_os_io_t ngx_os_io = {
-    ngx_unix_recv,
-    ngx_readv_chain,
-    ngx_udp_unix_recv,
-    ngx_unix_send,
-    ngx_udp_unix_send,
-    ngx_udp_unix_sendmsg_chain,
-    ngx_writev_chain,
+    IA2_FN(ngx_unix_recv),
+    IA2_FN(ngx_readv_chain),
+    IA2_FN(ngx_udp_unix_recv),
+    IA2_FN(ngx_unix_send),
+    IA2_FN(ngx_udp_unix_send),
+    IA2_FN(ngx_udp_unix_sendmsg_chain),
+    IA2_FN(ngx_writev_chain),
     0
 };
 

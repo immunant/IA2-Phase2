@@ -114,7 +114,7 @@ static ngx_command_t  ngx_http_geo_commands[] = {
 
     { ngx_string("geo"),
       NGX_HTTP_MAIN_CONF|NGX_CONF_BLOCK|NGX_CONF_TAKE12,
-      ngx_http_geo_block,
+      IA2_FN(ngx_http_geo_block),
       NGX_HTTP_MAIN_CONF_OFFSET,
       0,
       NULL },
@@ -467,7 +467,7 @@ ngx_http_geo_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     save = *cf;
     cf->pool = pool;
     cf->ctx = &ctx;
-    cf->handler = ngx_http_geo;
+    cf->handler = IA2_FN(ngx_http_geo);
     cf->handler_conf = conf;
 
     rv = ngx_conf_parse(cf, NULL);
@@ -523,7 +523,7 @@ ngx_http_geo_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
         geo->u.high = ctx.high;
 
-        var->get_handler = ngx_http_geo_range_variable;
+        var->get_handler = IA2_FN(ngx_http_geo_range_variable);
         var->data = (uintptr_t) geo;
 
     } else {
@@ -547,7 +547,7 @@ ngx_http_geo_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         geo->u.trees.tree6 = ctx.tree6;
 #endif
 
-        var->get_handler = ngx_http_geo_cidr_variable;
+        var->get_handler = IA2_FN(ngx_http_geo_cidr_variable);
         var->data = (uintptr_t) geo;
 
         if (ngx_radix32tree_insert(ctx.tree, 0, 0,
@@ -1679,3 +1679,7 @@ ngx_http_geo_copy_values(u_char *base, u_char *p, ngx_rbtree_node_t *node,
 
     return ngx_http_geo_copy_values(base, p, node->right, sentinel);
 }
+IA2_DEFINE_WRAPPER_ngx_http_geo
+IA2_DEFINE_WRAPPER_ngx_http_geo_block
+IA2_DEFINE_WRAPPER_ngx_http_geo_cidr_variable
+IA2_DEFINE_WRAPPER_ngx_http_geo_range_variable

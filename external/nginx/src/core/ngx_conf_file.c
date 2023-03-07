@@ -20,7 +20,7 @@ static ngx_command_t  ngx_conf_commands[] = {
 
     { ngx_string("include"),
       NGX_ANY_CONF|NGX_CONF_TAKE1,
-      ngx_conf_include,
+      IA2_FN(ngx_conf_include),
       0,
       0,
       NULL },
@@ -39,7 +39,7 @@ ngx_module_t  ngx_conf_module = {
     NULL,                                  /* init process */
     NULL,                                  /* init thread */
     NULL,                                  /* exit thread */
-    ngx_conf_flush_files,                  /* exit process */
+    IA2_FN(ngx_conf_flush_files),                  /* exit process */
     NULL,                                  /* exit master */
     NGX_MODULE_V1_PADDING
 };
@@ -289,7 +289,7 @@ ngx_conf_parse(ngx_conf_t *cf, ngx_str_t *filename)
 
         /* rc == NGX_OK || rc == NGX_CONF_BLOCK_START */
 
-        if (cf->handler) {
+        if (cf->handler.ptr) {
 
             /*
              * the custom handler, i.e., that is used in the http's
@@ -301,7 +301,7 @@ ngx_conf_parse(ngx_conf_t *cf, ngx_str_t *filename)
                 goto failed;
             }
 
-            rv = (*cf->handler)(cf, NULL, cf->handler_conf);
+            rv = IA2_CALL((cf->handler), 18, 1)(cf, NULL, cf->handler_conf);
             if (rv == NGX_CONF_OK) {
                 continue;
             }
@@ -460,7 +460,7 @@ ngx_conf_handler(ngx_conf_t *cf, ngx_int_t last)
                 }
             }
 
-            rv = cmd->set(cf, cmd, conf);
+            rv = IA2_CALL(cmd->set, 18, 1)(cf, cmd, conf);
 
             if (rv == NGX_CONF_OK) {
                 return NGX_OK;
@@ -951,7 +951,7 @@ ngx_conf_open_file(ngx_cycle_t *cycle, ngx_str_t *name)
         file->name = *name;
     }
 
-    file->flush = NULL;
+    file->flush = (typeof(file->flush)) { NULL };
     file->data = NULL;
 
     return file;
@@ -981,8 +981,8 @@ ngx_conf_flush_files(ngx_cycle_t *cycle)
             i = 0;
         }
 
-        if (file[i].flush) {
-            file[i].flush(&file[i], cycle->log);
+        if (file[i].flush.ptr) {
+            IA2_CALL(file[i].flush, 17, 1)(&file[i], cycle->log);
         }
     }
 }
@@ -1055,7 +1055,7 @@ ngx_conf_set_flag_slot(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     if (cmd->post) {
         post = cmd->post;
-        return post->post_handler(cf, post, fp);
+        return IA2_CALL(post->post_handler, 19, 1)(cf, post, fp);
     }
 
     return NGX_CONF_OK;
@@ -1082,7 +1082,7 @@ ngx_conf_set_str_slot(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     if (cmd->post) {
         post = cmd->post;
-        return post->post_handler(cf, post, field);
+        return IA2_CALL(post->post_handler, 19, 1)(cf, post, field);
     }
 
     return NGX_CONF_OK;
@@ -1118,7 +1118,7 @@ ngx_conf_set_str_array_slot(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     if (cmd->post) {
         post = cmd->post;
-        return post->post_handler(cf, post, s);
+        return IA2_CALL(post->post_handler, 19, 1)(cf, post, s);
     }
 
     return NGX_CONF_OK;
@@ -1156,7 +1156,7 @@ ngx_conf_set_keyval_slot(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     if (cmd->post) {
         post = cmd->post;
-        return post->post_handler(cf, post, kv);
+        return IA2_CALL(post->post_handler, 19, 1)(cf, post, kv);
     }
 
     return NGX_CONF_OK;
@@ -1187,7 +1187,7 @@ ngx_conf_set_num_slot(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     if (cmd->post) {
         post = cmd->post;
-        return post->post_handler(cf, post, np);
+        return IA2_CALL(post->post_handler, 19, 1)(cf, post, np);
     }
 
     return NGX_CONF_OK;
@@ -1218,7 +1218,7 @@ ngx_conf_set_size_slot(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     if (cmd->post) {
         post = cmd->post;
-        return post->post_handler(cf, post, sp);
+        return IA2_CALL(post->post_handler, 19, 1)(cf, post, sp);
     }
 
     return NGX_CONF_OK;
@@ -1249,7 +1249,7 @@ ngx_conf_set_off_slot(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     if (cmd->post) {
         post = cmd->post;
-        return post->post_handler(cf, post, op);
+        return IA2_CALL(post->post_handler, 19, 1)(cf, post, op);
     }
 
     return NGX_CONF_OK;
@@ -1280,7 +1280,7 @@ ngx_conf_set_msec_slot(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     if (cmd->post) {
         post = cmd->post;
-        return post->post_handler(cf, post, msp);
+        return IA2_CALL(post->post_handler, 19, 1)(cf, post, msp);
     }
 
     return NGX_CONF_OK;
@@ -1311,7 +1311,7 @@ ngx_conf_set_sec_slot(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     if (cmd->post) {
         post = cmd->post;
-        return post->post_handler(cf, post, sp);
+        return IA2_CALL(post->post_handler, 19, 1)(cf, post, sp);
     }
 
     return NGX_CONF_OK;
@@ -1484,3 +1484,4 @@ ngx_conf_check_num_bounds(ngx_conf_t *cf, void *post, void *data)
 
     return NGX_CONF_ERROR;
 }
+IA2_DEFINE_WRAPPER_ngx_conf_flush_files

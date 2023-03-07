@@ -17,7 +17,7 @@ static ngx_int_t ngx_http_header_filter(ngx_http_request_t *r);
 
 static ngx_http_module_t  ngx_http_header_filter_module_ctx = {
     NULL,                                  /* preconfiguration */
-    ngx_http_header_filter_init,           /* postconfiguration */
+    IA2_FN(ngx_http_header_filter_init),           /* postconfiguration */
 
     NULL,                                  /* create main configuration */
     NULL,                                  /* init main configuration */
@@ -628,7 +628,9 @@ ngx_http_header_filter(ngx_http_request_t *r)
 static ngx_int_t
 ngx_http_header_filter_init(ngx_conf_t *cf)
 {
-    ngx_http_top_header_filter = ngx_http_header_filter;
+    ngx_http_top_header_filter = IA2_FN(ngx_http_header_filter);
 
     return NGX_OK;
 }
+IA2_DEFINE_WRAPPER_ngx_http_header_filter
+IA2_DEFINE_WRAPPER_ngx_http_header_filter_init

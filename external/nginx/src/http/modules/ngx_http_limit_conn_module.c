@@ -84,7 +84,7 @@ static ngx_conf_enum_t  ngx_http_limit_conn_log_levels[] = {
 
 
 static ngx_conf_num_bounds_t  ngx_http_limit_conn_status_bounds = {
-    ngx_conf_check_num_bounds, 400, 599
+    IA2_FN(ngx_conf_check_num_bounds), 400, 599
 };
 
 
@@ -92,35 +92,35 @@ static ngx_command_t  ngx_http_limit_conn_commands[] = {
 
     { ngx_string("limit_conn_zone"),
       NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE2,
-      ngx_http_limit_conn_zone,
+      IA2_FN(ngx_http_limit_conn_zone),
       0,
       0,
       NULL },
 
     { ngx_string("limit_conn"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE2,
-      ngx_http_limit_conn,
+      IA2_FN(ngx_http_limit_conn),
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       NULL },
 
     { ngx_string("limit_conn_log_level"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_enum_slot,
+      IA2_FN(ngx_conf_set_enum_slot),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_limit_conn_conf_t, log_level),
       &ngx_http_limit_conn_log_levels },
 
     { ngx_string("limit_conn_status"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_num_slot,
+      IA2_FN(ngx_conf_set_num_slot),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_limit_conn_conf_t, status_code),
       &ngx_http_limit_conn_status_bounds },
 
     { ngx_string("limit_conn_dry_run"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_FLAG,
-      ngx_conf_set_flag_slot,
+      IA2_FN(ngx_conf_set_flag_slot),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_limit_conn_conf_t, dry_run),
       NULL },
@@ -130,8 +130,8 @@ static ngx_command_t  ngx_http_limit_conn_commands[] = {
 
 
 static ngx_http_module_t  ngx_http_limit_conn_module_ctx = {
-    ngx_http_limit_conn_add_variables,     /* preconfiguration */
-    ngx_http_limit_conn_init,              /* postconfiguration */
+    IA2_FN(ngx_http_limit_conn_add_variables),     /* preconfiguration */
+    IA2_FN(ngx_http_limit_conn_init),              /* postconfiguration */
 
     NULL,                                  /* create main configuration */
     NULL,                                  /* init main configuration */
@@ -139,8 +139,8 @@ static ngx_http_module_t  ngx_http_limit_conn_module_ctx = {
     NULL,                                  /* create server configuration */
     NULL,                                  /* merge server configuration */
 
-    ngx_http_limit_conn_create_conf,       /* create location configuration */
-    ngx_http_limit_conn_merge_conf         /* merge location configuration */
+    IA2_FN(ngx_http_limit_conn_create_conf),       /* create location configuration */
+    IA2_FN(ngx_http_limit_conn_merge_conf)         /* merge location configuration */
 };
 
 
@@ -163,7 +163,7 @@ ngx_module_t  ngx_http_limit_conn_module = {
 static ngx_http_variable_t  ngx_http_limit_conn_vars[] = {
 
     { ngx_string("limit_conn_status"), NULL,
-      ngx_http_limit_conn_status_variable, 0, NGX_HTTP_VAR_NOCACHEABLE, 0 },
+      IA2_FN(ngx_http_limit_conn_status_variable), 0, NGX_HTTP_VAR_NOCACHEABLE, 0 },
 
       ngx_http_null_variable
 };
@@ -297,7 +297,7 @@ ngx_http_limit_conn_handler(ngx_http_request_t *r)
             return NGX_HTTP_INTERNAL_SERVER_ERROR;
         }
 
-        cln->handler = ngx_http_limit_conn_cleanup;
+        cln->handler = IA2_FN(ngx_http_limit_conn_cleanup);
         lccln = cln->data;
 
         lccln->shm_zone = limits[i].shm_zone;
@@ -424,7 +424,7 @@ ngx_http_limit_conn_cleanup_all(ngx_pool_t *pool)
 
     cln = pool->cleanup;
 
-    while (cln && cln->handler == ngx_http_limit_conn_cleanup) {
+    while (cln && cln->handler.ptr == IA2_FN(ngx_http_limit_conn_cleanup).ptr) {
         ngx_http_limit_conn_cleanup(cln->data);
         cln = cln->next;
     }
@@ -652,7 +652,7 @@ ngx_http_limit_conn_zone(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         return NGX_CONF_ERROR;
     }
 
-    shm_zone->init = ngx_http_limit_conn_init_zone;
+    shm_zone->init = IA2_FN(ngx_http_limit_conn_init_zone);
     shm_zone->data = ctx;
 
     return NGX_CONF_OK;
@@ -752,7 +752,18 @@ ngx_http_limit_conn_init(ngx_conf_t *cf)
         return NGX_ERROR;
     }
 
-    *h = ngx_http_limit_conn_handler;
+    *h = IA2_FN(ngx_http_limit_conn_handler);
 
     return NGX_OK;
 }
+IA2_DEFINE_WRAPPER_ngx_http_limit_conn
+IA2_DEFINE_WRAPPER_ngx_http_limit_conn_add_variables
+IA2_DEFINE_WRAPPER_ngx_http_limit_conn_cleanup
+IA2_DEFINE_WRAPPER_ngx_http_limit_conn_create_conf
+IA2_DEFINE_WRAPPER_ngx_http_limit_conn_handler
+IA2_DEFINE_WRAPPER_ngx_http_limit_conn_init
+IA2_DEFINE_WRAPPER_ngx_http_limit_conn_init_zone
+IA2_DEFINE_WRAPPER_ngx_http_limit_conn_merge_conf
+IA2_DEFINE_WRAPPER_ngx_http_limit_conn_rbtree_insert_value
+IA2_DEFINE_WRAPPER_ngx_http_limit_conn_status_variable
+IA2_DEFINE_WRAPPER_ngx_http_limit_conn_zone

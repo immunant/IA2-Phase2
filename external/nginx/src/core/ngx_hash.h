@@ -39,7 +39,7 @@ typedef struct {
 } ngx_hash_key_t;
 
 
-typedef ngx_uint_t (*ngx_hash_key_pt) (u_char *data, size_t len);
+typedef struct IA2_fnptr__ZTSFmPhmE ngx_hash_key_pt;
 
 
 typedef struct {

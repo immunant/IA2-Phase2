@@ -235,16 +235,16 @@ struct ngx_module_s {
     ngx_command_t        *commands;
     ngx_uint_t            type;
 
-    ngx_int_t           (*init_master)(ngx_log_t *log);
+    struct IA2_fnptr__ZTSFlP9ngx_log_sE init_master;
 
-    ngx_int_t           (*init_module)(ngx_cycle_t *cycle);
+    struct IA2_fnptr__ZTSFlP11ngx_cycle_sE init_module;
 
-    ngx_int_t           (*init_process)(ngx_cycle_t *cycle);
-    ngx_int_t           (*init_thread)(ngx_cycle_t *cycle);
-    void                (*exit_thread)(ngx_cycle_t *cycle);
-    void                (*exit_process)(ngx_cycle_t *cycle);
+    struct IA2_fnptr__ZTSFlP11ngx_cycle_sE init_process;
+    struct IA2_fnptr__ZTSFlP11ngx_cycle_sE init_thread;
+    struct IA2_fnptr__ZTSFvP11ngx_cycle_sE exit_thread;
+    struct IA2_fnptr__ZTSFvP11ngx_cycle_sE exit_process;
 
-    void                (*exit_master)(ngx_cycle_t *cycle);
+    struct IA2_fnptr__ZTSFvP11ngx_cycle_sE exit_master;
 
     uintptr_t             spare_hook0;
     uintptr_t             spare_hook1;
@@ -259,8 +259,8 @@ struct ngx_module_s {
 
 typedef struct {
     ngx_str_t             name;
-    void               *(*create_conf)(ngx_cycle_t *cycle);
-    char               *(*init_conf)(ngx_cycle_t *cycle, void *conf);
+    struct IA2_fnptr__ZTSFPvP11ngx_cycle_sE create_conf;
+    struct IA2_fnptr__ZTSFPcP11ngx_cycle_sPvE init_conf;
 } ngx_core_module_t;
 
 

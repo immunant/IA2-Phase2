@@ -44,7 +44,7 @@ ngx_http_read_client_request_body(ngx_http_request_t *r,
 
     if (r != r->main || r->request_body || r->discard_body) {
         r->request_body_no_buffering = 0;
-        post_handler(r);
+        IA2_CALL(post_handler, 42, 1)(r);
         return NGX_OK;
     }
 
@@ -81,7 +81,7 @@ ngx_http_read_client_request_body(ngx_http_request_t *r,
 
     if (r->headers_in.content_length_n < 0 && !r->headers_in.chunked) {
         r->request_body_no_buffering = 0;
-        post_handler(r);
+        IA2_CALL(post_handler, 42, 1)(r);
         return NGX_OK;
     }
 
@@ -132,8 +132,8 @@ ngx_http_read_client_request_body(ngx_http_request_t *r,
 
             rb->buf = b;
 
-            r->read_event_handler = ngx_http_read_client_request_body_handler;
-            r->write_event_handler = ngx_http_request_empty_handler;
+            r->read_event_handler = IA2_FN(ngx_http_read_client_request_body_handler);
+            r->write_event_handler = IA2_FN(ngx_http_request_empty_handler);
 
             rc = ngx_http_do_read_client_request_body(r);
             goto done;
@@ -152,7 +152,7 @@ ngx_http_read_client_request_body(ngx_http_request_t *r,
     if (rb->rest == 0 && rb->last_saved) {
         /* the whole request body was pre-read */
         r->request_body_no_buffering = 0;
-        post_handler(r);
+        IA2_CALL(post_handler, 42, 1)(r);
         return NGX_OK;
     }
 
@@ -191,8 +191,8 @@ ngx_http_read_client_request_body(ngx_http_request_t *r,
         goto done;
     }
 
-    r->read_event_handler = ngx_http_read_client_request_body_handler;
-    r->write_event_handler = ngx_http_request_empty_handler;
+    r->read_event_handler = IA2_FN(ngx_http_read_client_request_body_handler);
+    r->write_event_handler = IA2_FN(ngx_http_request_empty_handler);
 
     rc = ngx_http_do_read_client_request_body(r);
 
@@ -209,8 +209,8 @@ done:
             r->reading_body = 1;
         }
 
-        r->read_event_handler = ngx_http_block_reading;
-        post_handler(r);
+        r->read_event_handler = IA2_FN(ngx_http_block_reading);
+        IA2_CALL(post_handler, 42, 1)(r);
     }
 
     if (rc >= NGX_HTTP_SPECIAL_RESPONSE) {
@@ -355,7 +355,7 @@ ngx_http_do_read_client_request_body(ngx_http_request_t *r)
                 break;
             }
 
-            n = c->recv(c, rb->buf->last, size);
+            n = IA2_CALL(c->recv, 22, 1)(c, rb->buf->last, size);
 
             ngx_log_debug1(NGX_LOG_DEBUG_HTTP, c->log, 0,
                            "http client request body recv %z", n);
@@ -435,8 +435,8 @@ ngx_http_do_read_client_request_body(ngx_http_request_t *r)
     }
 
     if (!r->request_body_no_buffering) {
-        r->read_event_handler = ngx_http_block_reading;
-        rb->post_handler(r);
+        r->read_event_handler = IA2_FN(ngx_http_block_reading);
+        IA2_CALL(rb->post_handler, 42, 1)(r);
     }
 
     return NGX_OK;
@@ -668,7 +668,7 @@ ngx_http_discard_request_body(ngx_http_request_t *r)
 
     /* rc == NGX_AGAIN */
 
-    r->read_event_handler = ngx_http_discarded_request_body_handler;
+    r->read_event_handler = IA2_FN(ngx_http_discarded_request_body_handler);
 
     if (ngx_handle_read_event(rev, 0) != NGX_OK) {
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
@@ -781,7 +781,7 @@ ngx_http_read_discarded_request_body(ngx_http_request_t *r)
         size = (size_t) ngx_min(r->headers_in.content_length_n,
                                 NGX_HTTP_DISCARD_BUFFER_SIZE);
 
-        n = r->connection->recv(r->connection, buffer, size);
+        n = IA2_CALL(r->connection->recv, 22, 1)(r->connection, buffer, size);
 
         if (n == NGX_ERROR) {
             r->connection->error = 1;
@@ -810,7 +810,7 @@ ngx_http_read_discarded_request_body(ngx_http_request_t *r)
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
 
-    r->read_event_handler = ngx_http_block_reading;
+    r->read_event_handler = IA2_FN(ngx_http_block_reading);
 
     return NGX_OK;
 }
@@ -941,7 +941,7 @@ ngx_http_test_expect(ngx_http_request_t *r)
     ngx_log_debug0(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
                    "send 100 Continue");
 
-    n = r->connection->send(r->connection,
+    n = IA2_CALL(r->connection->send, 22, 1)(r->connection,
                             (u_char *) "HTTP/1.1 100 Continue" CRLF CRLF,
                             sizeof("HTTP/1.1 100 Continue" CRLF CRLF) - 1);
 
@@ -1023,7 +1023,7 @@ ngx_http_request_body_length_filter(ngx_http_request_t *r, ngx_chain_t *in)
         ngx_memzero(b, sizeof(ngx_buf_t));
 
         b->temporary = 1;
-        b->tag = (ngx_buf_tag_t) &ngx_http_read_client_request_body;
+        b->tag = (ngx_buf_tag_t) &__ia2_ngx_http_read_client_request_body;
         b->start = cl->buf->pos;
         b->pos = cl->buf->pos;
         b->last = cl->buf->last;
@@ -1047,10 +1047,10 @@ ngx_http_request_body_length_filter(ngx_http_request_t *r, ngx_chain_t *in)
         ll = &tl->next;
     }
 
-    rc = ngx_http_top_request_body_filter(r, out);
+    rc = IA2_CALL(ngx_http_top_request_body_filter, 40, 1)(r, out);
 
     ngx_chain_update_chains(r->pool, &rb->free, &rb->busy, &out,
-                            (ngx_buf_tag_t) &ngx_http_read_client_request_body);
+                            (ngx_buf_tag_t) &__ia2_ngx_http_read_client_request_body);
 
     return rc;
 }
@@ -1159,7 +1159,7 @@ ngx_http_request_body_chunked_filter(ngx_http_request_t *r, ngx_chain_t *in)
                 ngx_memzero(b, sizeof(ngx_buf_t));
 
                 b->temporary = 1;
-                b->tag = (ngx_buf_tag_t) &ngx_http_read_client_request_body;
+                b->tag = (ngx_buf_tag_t) &__ia2_ngx_http_read_client_request_body;
                 b->start = cl->buf->pos;
                 b->pos = cl->buf->pos;
                 b->last = cl->buf->last;
@@ -1231,10 +1231,10 @@ ngx_http_request_body_chunked_filter(ngx_http_request_t *r, ngx_chain_t *in)
         }
     }
 
-    rc = ngx_http_top_request_body_filter(r, out);
+    rc = IA2_CALL(ngx_http_top_request_body_filter, 40, 1)(r, out);
 
     ngx_chain_update_chains(r->pool, &rb->free, &rb->busy, &out,
-                            (ngx_buf_tag_t) &ngx_http_read_client_request_body);
+                            (ngx_buf_tag_t) &__ia2_ngx_http_read_client_request_body);
 
     return rc;
 }
@@ -1355,3 +1355,4 @@ ngx_http_request_body_save_filter(ngx_http_request_t *r, ngx_chain_t *in)
 
     return NGX_OK;
 }
+IA2_DEFINE_WRAPPER_ngx_http_read_client_request_body_handler

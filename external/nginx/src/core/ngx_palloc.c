@@ -51,10 +51,10 @@ ngx_destroy_pool(ngx_pool_t *pool)
     ngx_pool_cleanup_t  *c;
 
     for (c = pool->cleanup; c; c = c->next) {
-        if (c->handler) {
+        if (c->handler.ptr) {
             ngx_log_debug1(NGX_LOG_DEBUG_ALLOC, pool->log, 0,
                            "run cleanup: %p", c);
-            c->handler(c->data);
+            IA2_CALL(c->handler, 0, 1)(c->data);
         }
     }
 
@@ -328,7 +328,7 @@ ngx_pool_cleanup_add(ngx_pool_t *p, size_t size)
         c->data = NULL;
     }
 
-    c->handler = NULL;
+    c->handler = (typeof(c->handler)) { NULL };
     c->next = p->cleanup;
 
     p->cleanup = c;
@@ -346,13 +346,13 @@ ngx_pool_run_cleanup_file(ngx_pool_t *p, ngx_fd_t fd)
     ngx_pool_cleanup_file_t  *cf;
 
     for (c = p->cleanup; c; c = c->next) {
-        if (c->handler == ngx_pool_cleanup_file) {
+        if (c->handler.ptr == IA2_FN(ngx_pool_cleanup_file).ptr) {
 
             cf = c->data;
 
             if (cf->fd == fd) {
-                c->handler(cf);
-                c->handler = NULL;
+                IA2_CALL(c->handler, 0, 1)(cf);
+                c->handler = (typeof(c->handler)) { NULL };
                 return;
             }
         }

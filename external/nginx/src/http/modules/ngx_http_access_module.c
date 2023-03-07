@@ -70,7 +70,7 @@ static ngx_command_t  ngx_http_access_commands[] = {
     { ngx_string("allow"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LMT_CONF
                         |NGX_CONF_TAKE1,
-      ngx_http_access_rule,
+      IA2_FN(ngx_http_access_rule),
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       NULL },
@@ -78,7 +78,7 @@ static ngx_command_t  ngx_http_access_commands[] = {
     { ngx_string("deny"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LMT_CONF
                         |NGX_CONF_TAKE1,
-      ngx_http_access_rule,
+      IA2_FN(ngx_http_access_rule),
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       NULL },
@@ -90,7 +90,7 @@ static ngx_command_t  ngx_http_access_commands[] = {
 
 static ngx_http_module_t  ngx_http_access_module_ctx = {
     NULL,                                  /* preconfiguration */
-    ngx_http_access_init,                  /* postconfiguration */
+    IA2_FN(ngx_http_access_init),                  /* postconfiguration */
 
     NULL,                                  /* create main configuration */
     NULL,                                  /* init main configuration */
@@ -98,8 +98,8 @@ static ngx_http_module_t  ngx_http_access_module_ctx = {
     NULL,                                  /* create server configuration */
     NULL,                                  /* merge server configuration */
 
-    ngx_http_access_create_loc_conf,       /* create location configuration */
-    ngx_http_access_merge_loc_conf         /* merge location configuration */
+    IA2_FN(ngx_http_access_create_loc_conf),       /* create location configuration */
+    IA2_FN(ngx_http_access_merge_loc_conf)         /* merge location configuration */
 };
 
 
@@ -457,7 +457,12 @@ ngx_http_access_init(ngx_conf_t *cf)
         return NGX_ERROR;
     }
 
-    *h = ngx_http_access_handler;
+    *h = IA2_FN(ngx_http_access_handler);
 
     return NGX_OK;
 }
+IA2_DEFINE_WRAPPER_ngx_http_access_create_loc_conf
+IA2_DEFINE_WRAPPER_ngx_http_access_handler
+IA2_DEFINE_WRAPPER_ngx_http_access_init
+IA2_DEFINE_WRAPPER_ngx_http_access_merge_loc_conf
+IA2_DEFINE_WRAPPER_ngx_http_access_rule

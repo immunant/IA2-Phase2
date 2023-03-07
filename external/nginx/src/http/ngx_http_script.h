@@ -86,8 +86,8 @@ typedef struct {
 } ngx_http_compile_complex_value_t;
 
 
-typedef void (*ngx_http_script_code_pt) (ngx_http_script_engine_t *e);
-typedef size_t (*ngx_http_script_len_code_pt) (ngx_http_script_engine_t *e);
+typedef struct IA2_fnptr__ZTSFvP24ngx_http_script_engine_tE ngx_http_script_code_pt;
+typedef struct IA2_fnptr__ZTSFmP24ngx_http_script_engine_tE ngx_http_script_len_code_pt;
 
 
 typedef struct {

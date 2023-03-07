@@ -22,7 +22,7 @@ static ngx_command_t  ngx_http_upstream_least_conn_commands[] = {
 
     { ngx_string("least_conn"),
       NGX_HTTP_UPS_CONF|NGX_CONF_NOARGS,
-      ngx_http_upstream_least_conn,
+      IA2_FN(ngx_http_upstream_least_conn),
       0,
       0,
       NULL },
@@ -73,7 +73,7 @@ ngx_http_upstream_init_least_conn(ngx_conf_t *cf,
         return NGX_ERROR;
     }
 
-    us->peer.init = ngx_http_upstream_init_least_conn_peer;
+    us->peer.init = IA2_FN(ngx_http_upstream_init_least_conn_peer);
 
     return NGX_OK;
 }
@@ -90,7 +90,7 @@ ngx_http_upstream_init_least_conn_peer(ngx_http_request_t *r,
         return NGX_ERROR;
     }
 
-    r->upstream->peer.get = ngx_http_upstream_get_least_conn_peer;
+    r->upstream->peer.get = IA2_FN(ngx_http_upstream_get_least_conn_peer);
 
     return NGX_OK;
 }
@@ -295,12 +295,12 @@ ngx_http_upstream_least_conn(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     uscf = ngx_http_conf_get_module_srv_conf(cf, ngx_http_upstream_module);
 
-    if (uscf->peer.init_upstream) {
+    if (uscf->peer.init_upstream.ptr) {
         ngx_conf_log_error(NGX_LOG_WARN, cf, 0,
                            "load balancing method redefined");
     }
 
-    uscf->peer.init_upstream = ngx_http_upstream_init_least_conn;
+    uscf->peer.init_upstream = IA2_FN(ngx_http_upstream_init_least_conn);
 
     uscf->flags = NGX_HTTP_UPSTREAM_CREATE
                   |NGX_HTTP_UPSTREAM_WEIGHT
@@ -312,3 +312,7 @@ ngx_http_upstream_least_conn(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     return NGX_CONF_OK;
 }
+IA2_DEFINE_WRAPPER_ngx_http_upstream_get_least_conn_peer
+IA2_DEFINE_WRAPPER_ngx_http_upstream_init_least_conn
+IA2_DEFINE_WRAPPER_ngx_http_upstream_init_least_conn_peer
+IA2_DEFINE_WRAPPER_ngx_http_upstream_least_conn

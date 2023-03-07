@@ -8,6 +8,10 @@
 #include <ngx_config.h>
 #include <ngx_core.h>
 #include <nginx.h>
+#include <ia2.h>
+
+INIT_RUNTIME(2);
+INIT_COMPARTMENT(1);
 
 
 static void ngx_show_version_info(void);
@@ -42,112 +46,112 @@ static ngx_command_t  ngx_core_commands[] = {
 
     { ngx_string("daemon"),
       NGX_MAIN_CONF|NGX_DIRECT_CONF|NGX_CONF_FLAG,
-      ngx_conf_set_flag_slot,
+      IA2_FN(ngx_conf_set_flag_slot),
       0,
       offsetof(ngx_core_conf_t, daemon),
       NULL },
 
     { ngx_string("master_process"),
       NGX_MAIN_CONF|NGX_DIRECT_CONF|NGX_CONF_FLAG,
-      ngx_conf_set_flag_slot,
+      IA2_FN(ngx_conf_set_flag_slot),
       0,
       offsetof(ngx_core_conf_t, master),
       NULL },
 
     { ngx_string("timer_resolution"),
       NGX_MAIN_CONF|NGX_DIRECT_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_msec_slot,
+      IA2_FN(ngx_conf_set_msec_slot),
       0,
       offsetof(ngx_core_conf_t, timer_resolution),
       NULL },
 
     { ngx_string("pid"),
       NGX_MAIN_CONF|NGX_DIRECT_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_str_slot,
+      IA2_FN(ngx_conf_set_str_slot),
       0,
       offsetof(ngx_core_conf_t, pid),
       NULL },
 
     { ngx_string("lock_file"),
       NGX_MAIN_CONF|NGX_DIRECT_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_str_slot,
+      IA2_FN(ngx_conf_set_str_slot),
       0,
       offsetof(ngx_core_conf_t, lock_file),
       NULL },
 
     { ngx_string("worker_processes"),
       NGX_MAIN_CONF|NGX_DIRECT_CONF|NGX_CONF_TAKE1,
-      ngx_set_worker_processes,
+      IA2_FN(ngx_set_worker_processes),
       0,
       0,
       NULL },
 
     { ngx_string("debug_points"),
       NGX_MAIN_CONF|NGX_DIRECT_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_enum_slot,
+      IA2_FN(ngx_conf_set_enum_slot),
       0,
       offsetof(ngx_core_conf_t, debug_points),
       &ngx_debug_points },
 
     { ngx_string("user"),
       NGX_MAIN_CONF|NGX_DIRECT_CONF|NGX_CONF_TAKE12,
-      ngx_set_user,
+      IA2_FN(ngx_set_user),
       0,
       0,
       NULL },
 
     { ngx_string("worker_priority"),
       NGX_MAIN_CONF|NGX_DIRECT_CONF|NGX_CONF_TAKE1,
-      ngx_set_priority,
+      IA2_FN(ngx_set_priority),
       0,
       0,
       NULL },
 
     { ngx_string("worker_cpu_affinity"),
       NGX_MAIN_CONF|NGX_DIRECT_CONF|NGX_CONF_1MORE,
-      ngx_set_cpu_affinity,
+      IA2_FN(ngx_set_cpu_affinity),
       0,
       0,
       NULL },
 
     { ngx_string("worker_rlimit_nofile"),
       NGX_MAIN_CONF|NGX_DIRECT_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_num_slot,
+      IA2_FN(ngx_conf_set_num_slot),
       0,
       offsetof(ngx_core_conf_t, rlimit_nofile),
       NULL },
 
     { ngx_string("worker_rlimit_core"),
       NGX_MAIN_CONF|NGX_DIRECT_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_off_slot,
+      IA2_FN(ngx_conf_set_off_slot),
       0,
       offsetof(ngx_core_conf_t, rlimit_core),
       NULL },
 
     { ngx_string("worker_shutdown_timeout"),
       NGX_MAIN_CONF|NGX_DIRECT_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_msec_slot,
+      IA2_FN(ngx_conf_set_msec_slot),
       0,
       offsetof(ngx_core_conf_t, shutdown_timeout),
       NULL },
 
     { ngx_string("working_directory"),
       NGX_MAIN_CONF|NGX_DIRECT_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_str_slot,
+      IA2_FN(ngx_conf_set_str_slot),
       0,
       offsetof(ngx_core_conf_t, working_directory),
       NULL },
 
     { ngx_string("env"),
       NGX_MAIN_CONF|NGX_DIRECT_CONF|NGX_CONF_TAKE1,
-      ngx_set_env,
+      IA2_FN(ngx_set_env),
       0,
       0,
       NULL },
 
     { ngx_string("load_module"),
       NGX_MAIN_CONF|NGX_DIRECT_CONF|NGX_CONF_TAKE1,
-      ngx_load_module,
+      IA2_FN(ngx_load_module),
       0,
       0,
       NULL },
@@ -158,8 +162,8 @@ static ngx_command_t  ngx_core_commands[] = {
 
 static ngx_core_module_t  ngx_core_module_ctx = {
     ngx_string("core"),
-    ngx_core_module_create_conf,
-    ngx_core_module_init_conf
+    IA2_FN(ngx_core_module_create_conf),
+    IA2_FN(ngx_core_module_init_conf)
 };
 
 
@@ -193,7 +197,7 @@ static char **ngx_os_environ;
 
 
 int ngx_cdecl
-main(int argc, char *const *argv)
+inner_main(int argc, char *const *argv)
 {
     ngx_buf_t        *b;
     ngx_log_t        *log;
@@ -385,6 +389,15 @@ main(int argc, char *const *argv)
 
     return 0;
 }
+
+int ngx_cdecl
+main(int argc, char *const *argv) {
+    uint64_t sp = (uint64_t)ia2_stackptrs[1] - 8;
+    //printf("Switching %%rsp to %lx\n", sp);
+    __asm__ volatile("movq %0, %%rsp":"=r"(sp));
+    inner_main(argc, argv);
+}
+
 
 
 static void
@@ -591,7 +604,7 @@ tz_found:
             return NULL;
         }
 
-        cln->handler = ngx_cleanup_environment;
+        cln->handler = IA2_FN(ngx_cleanup_environment);
         cln->data = env;
     }
 
@@ -1562,7 +1575,7 @@ ngx_load_module(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         return NGX_CONF_ERROR;
     }
 
-    cln->handler = ngx_unload_module;
+    cln->handler = IA2_FN(ngx_unload_module);
     cln->data = handle;
 
     modules = ngx_dlsym(handle, "ngx_modules");
@@ -1622,3 +1635,13 @@ ngx_unload_module(void *data)
 }
 
 #endif
+IA2_DEFINE_WRAPPER_ngx_cleanup_environment
+IA2_DEFINE_WRAPPER_ngx_core_module_create_conf
+IA2_DEFINE_WRAPPER_ngx_core_module_init_conf
+IA2_DEFINE_WRAPPER_ngx_load_module
+IA2_DEFINE_WRAPPER_ngx_set_cpu_affinity
+IA2_DEFINE_WRAPPER_ngx_set_env
+IA2_DEFINE_WRAPPER_ngx_set_priority
+IA2_DEFINE_WRAPPER_ngx_set_user
+IA2_DEFINE_WRAPPER_ngx_set_worker_processes
+IA2_DEFINE_WRAPPER_ngx_unload_module

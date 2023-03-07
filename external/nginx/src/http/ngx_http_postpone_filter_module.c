@@ -19,7 +19,7 @@ static ngx_int_t ngx_http_postpone_filter_init(ngx_conf_t *cf);
 
 static ngx_http_module_t  ngx_http_postpone_filter_module_ctx = {
     NULL,                                  /* preconfiguration */
-    ngx_http_postpone_filter_init,         /* postconfiguration */
+    IA2_FN(ngx_http_postpone_filter_init),         /* postconfiguration */
 
     NULL,                                  /* create main configuration */
     NULL,                                  /* init main configuration */
@@ -88,7 +88,7 @@ ngx_http_postpone_filter(ngx_http_request_t *r, ngx_chain_t *in)
     if (r->postponed == NULL) {
 
         if (in || c->buffered) {
-            return ngx_http_next_body_filter(r->main, in);
+            return IA2_CALL(ngx_http_next_body_filter, 40, 1)(r->main, in);
         }
 
         return NGX_OK;
@@ -125,7 +125,7 @@ ngx_http_postpone_filter(ngx_http_request_t *r, ngx_chain_t *in)
                            "http postpone filter output \"%V?%V\"",
                            &r->uri, &r->args);
 
-            if (ngx_http_next_body_filter(r->main, pr->out) == NGX_ERROR) {
+            if (IA2_CALL(ngx_http_next_body_filter, 40, 1)(r->main, pr->out) == NGX_ERROR) {
                 return NGX_ERROR;
             }
         }
@@ -253,7 +253,9 @@ static ngx_int_t
 ngx_http_postpone_filter_init(ngx_conf_t *cf)
 {
     ngx_http_next_body_filter = ngx_http_top_body_filter;
-    ngx_http_top_body_filter = ngx_http_postpone_filter;
+    ngx_http_top_body_filter = IA2_FN(ngx_http_postpone_filter);
 
     return NGX_OK;
 }
+IA2_DEFINE_WRAPPER_ngx_http_postpone_filter
+IA2_DEFINE_WRAPPER_ngx_http_postpone_filter_init

@@ -55,7 +55,7 @@ typedef struct {
 
 typedef struct ngx_resolver_ctx_s  ngx_resolver_ctx_t;
 
-typedef void (*ngx_resolver_handler_pt)(ngx_resolver_ctx_t *ctx);
+typedef struct IA2_fnptr__ZTSFvP18ngx_resolver_ctx_sE ngx_resolver_handler_pt;
 
 
 typedef struct {

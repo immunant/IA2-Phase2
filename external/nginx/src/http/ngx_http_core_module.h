@@ -127,8 +127,7 @@ typedef enum {
 
 typedef struct ngx_http_phase_handler_s  ngx_http_phase_handler_t;
 
-typedef ngx_int_t (*ngx_http_phase_handler_pt)(ngx_http_request_t *r,
-    ngx_http_phase_handler_t *ph);
+typedef struct IA2_fnptr__ZTSFlP18ngx_http_request_sP24ngx_http_phase_handler_sE ngx_http_phase_handler_pt;
 
 struct ngx_http_phase_handler_s {
     ngx_http_phase_handler_pt  checker;
@@ -512,11 +511,9 @@ ngx_int_t ngx_http_named_location(ngx_http_request_t *r, ngx_str_t *name);
 ngx_http_cleanup_t *ngx_http_cleanup_add(ngx_http_request_t *r, size_t size);
 
 
-typedef ngx_int_t (*ngx_http_output_header_filter_pt)(ngx_http_request_t *r);
-typedef ngx_int_t (*ngx_http_output_body_filter_pt)
-    (ngx_http_request_t *r, ngx_chain_t *chain);
-typedef ngx_int_t (*ngx_http_request_body_filter_pt)
-    (ngx_http_request_t *r, ngx_chain_t *chain);
+typedef struct IA2_fnptr__ZTSFlP18ngx_http_request_sE ngx_http_output_header_filter_pt;
+typedef struct IA2_fnptr__ZTSFlP18ngx_http_request_sP11ngx_chain_sE ngx_http_output_body_filter_pt;
+typedef struct IA2_fnptr__ZTSFlP18ngx_http_request_sP11ngx_chain_sE ngx_http_request_body_filter_pt;
 
 
 ngx_int_t ngx_http_output_filter(ngx_http_request_t *r, ngx_chain_t *chain);

@@ -1049,10 +1049,10 @@ ngx_close_listening_sockets(ngx_cycle_t *cycle)
                      * the events was explicitly deleted
                      */
 
-                    ngx_del_event(c->read, NGX_READ_EVENT, 0);
+                    IA2_CALL(ngx_del_event, 11, 1)(c->read, NGX_READ_EVENT, 0);
 
                 } else {
-                    ngx_del_event(c->read, NGX_READ_EVENT, NGX_CLOSE_EVENT);
+                    IA2_CALL(ngx_del_event, 11, 1)(c->read, NGX_READ_EVENT, NGX_CLOSE_EVENT);
                 }
             }
 
@@ -1193,16 +1193,16 @@ ngx_close_connection(ngx_connection_t *c)
     }
 
     if (!c->shared) {
-        if (ngx_del_conn) {
-            ngx_del_conn(c, NGX_CLOSE_EVENT);
+        if (ngx_del_conn.ptr) {
+            IA2_CALL(ngx_del_conn, 12, 1)(c, NGX_CLOSE_EVENT);
 
         } else {
             if (c->read->active || c->read->disabled) {
-                ngx_del_event(c->read, NGX_READ_EVENT, NGX_CLOSE_EVENT);
+                IA2_CALL(ngx_del_event, 11, 1)(c->read, NGX_READ_EVENT, NGX_CLOSE_EVENT);
             }
 
             if (c->write->active || c->write->disabled) {
-                ngx_del_event(c->write, NGX_WRITE_EVENT, NGX_CLOSE_EVENT);
+                IA2_CALL(ngx_del_event, 11, 1)(c->write, NGX_WRITE_EVENT, NGX_CLOSE_EVENT);
             }
         }
     }
@@ -1328,7 +1328,7 @@ ngx_drain_connections(ngx_cycle_t *cycle)
                        "reusing connection");
 
         c->close = 1;
-        c->read->handler(c->read);
+        IA2_CALL(c->read->handler, 13, 1)(c->read);
     }
 
     if (cycle->free_connection_n == 0 && c && c->reusable) {
@@ -1343,7 +1343,7 @@ ngx_drain_connections(ngx_cycle_t *cycle)
                        "reusing connection again");
 
         c->close = 1;
-        c->read->handler(c->read);
+        IA2_CALL(c->read->handler, 13, 1)(c->read);
     }
 }
 
@@ -1362,7 +1362,7 @@ ngx_close_idle_connections(ngx_cycle_t *cycle)
 
         if (c[i].fd != (ngx_socket_t) -1 && c[i].idle) {
             c[i].close = 1;
-            c[i].read->handler(c[i].read);
+            IA2_CALL(c[i].read->handler, 13, 1)(c[i].read);
         }
     }
 }

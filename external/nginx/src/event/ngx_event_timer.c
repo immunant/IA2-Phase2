@@ -91,7 +91,7 @@ ngx_event_expire_timers(void)
 
         ev->timedout = 1;
 
-        ev->handler(ev);
+        IA2_CALL(ev->handler, 13, 1)(ev);
     }
 }
 

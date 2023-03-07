@@ -19,7 +19,7 @@ static ngx_int_t ngx_http_not_modified_filter_init(ngx_conf_t *cf);
 
 static ngx_http_module_t  ngx_http_not_modified_filter_module_ctx = {
     NULL,                                  /* preconfiguration */
-    ngx_http_not_modified_filter_init,     /* postconfiguration */
+    IA2_FN(ngx_http_not_modified_filter_init),     /* postconfiguration */
 
     NULL,                                  /* create main configuration */
     NULL,                                  /* init main configuration */
@@ -58,7 +58,7 @@ ngx_http_not_modified_header_filter(ngx_http_request_t *r)
         || r != r->main
         || r->disable_not_modified)
     {
-        return ngx_http_next_header_filter(r);
+        return IA2_CALL(ngx_http_next_header_filter, 39, 1)(r);
     }
 
     if (r->headers_in.if_unmodified_since
@@ -80,13 +80,13 @@ ngx_http_not_modified_header_filter(ngx_http_request_t *r)
         if (r->headers_in.if_modified_since
             && ngx_http_test_if_modified(r))
         {
-            return ngx_http_next_header_filter(r);
+            return IA2_CALL(ngx_http_next_header_filter, 39, 1)(r);
         }
 
         if (r->headers_in.if_none_match
             && !ngx_http_test_if_match(r, r->headers_in.if_none_match, 1))
         {
-            return ngx_http_next_header_filter(r);
+            return IA2_CALL(ngx_http_next_header_filter, 39, 1)(r);
         }
 
         /* not modified */
@@ -102,10 +102,10 @@ ngx_http_not_modified_header_filter(ngx_http_request_t *r)
             r->headers_out.content_encoding = NULL;
         }
 
-        return ngx_http_next_header_filter(r);
+        return IA2_CALL(ngx_http_next_header_filter, 39, 1)(r);
     }
 
-    return ngx_http_next_header_filter(r);
+    return IA2_CALL(ngx_http_next_header_filter, 39, 1)(r);
 }
 
 
@@ -260,7 +260,9 @@ static ngx_int_t
 ngx_http_not_modified_filter_init(ngx_conf_t *cf)
 {
     ngx_http_next_header_filter = ngx_http_top_header_filter;
-    ngx_http_top_header_filter = ngx_http_not_modified_header_filter;
+    ngx_http_top_header_filter = IA2_FN(ngx_http_not_modified_header_filter);
 
     return NGX_OK;
 }
+IA2_DEFINE_WRAPPER_ngx_http_not_modified_filter_init
+IA2_DEFINE_WRAPPER_ngx_http_not_modified_header_filter

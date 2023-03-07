@@ -164,22 +164,21 @@ struct ngx_event_aio_s {
 
 
 typedef struct {
-    ngx_int_t  (*add)(ngx_event_t *ev, ngx_int_t event, ngx_uint_t flags);
-    ngx_int_t  (*del)(ngx_event_t *ev, ngx_int_t event, ngx_uint_t flags);
+    struct IA2_fnptr__ZTSFlP11ngx_event_slmE add;
+    struct IA2_fnptr__ZTSFlP11ngx_event_slmE del;
 
-    ngx_int_t  (*enable)(ngx_event_t *ev, ngx_int_t event, ngx_uint_t flags);
-    ngx_int_t  (*disable)(ngx_event_t *ev, ngx_int_t event, ngx_uint_t flags);
+    struct IA2_fnptr__ZTSFlP11ngx_event_slmE enable;
+    struct IA2_fnptr__ZTSFlP11ngx_event_slmE disable;
 
-    ngx_int_t  (*add_conn)(ngx_connection_t *c);
-    ngx_int_t  (*del_conn)(ngx_connection_t *c, ngx_uint_t flags);
+    struct IA2_fnptr__ZTSFlP16ngx_connection_sE add_conn;
+    struct IA2_fnptr__ZTSFlP16ngx_connection_smE del_conn;
 
-    ngx_int_t  (*notify)(ngx_event_handler_pt handler);
+    struct IA2_fnptr__ZTSFlPFvP11ngx_event_sEE notify;
 
-    ngx_int_t  (*process_events)(ngx_cycle_t *cycle, ngx_msec_t timer,
-                                 ngx_uint_t flags);
+    struct IA2_fnptr__ZTSFlP11ngx_cycle_smmE process_events;
 
-    ngx_int_t  (*init)(ngx_cycle_t *cycle, ngx_msec_t timer);
-    void       (*done)(ngx_cycle_t *cycle);
+    struct IA2_fnptr__ZTSFlP11ngx_cycle_smE init;
+    struct IA2_fnptr__ZTSFvP11ngx_cycle_sE done;
 } ngx_event_actions_t;
 
 
@@ -446,8 +445,8 @@ typedef struct {
 typedef struct {
     ngx_str_t              *name;
 
-    void                 *(*create_conf)(ngx_cycle_t *cycle);
-    char                 *(*init_conf)(ngx_cycle_t *cycle, void *conf);
+    struct IA2_fnptr__ZTSFPvP11ngx_cycle_sE create_conf;
+    struct IA2_fnptr__ZTSFPcP11ngx_cycle_sPvE init_conf;
 
     ngx_event_actions_t     actions;
 } ngx_event_module_t;

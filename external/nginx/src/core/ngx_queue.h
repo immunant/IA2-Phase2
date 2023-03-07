@@ -106,7 +106,7 @@ struct ngx_queue_s {
 
 ngx_queue_t *ngx_queue_middle(ngx_queue_t *queue);
 void ngx_queue_sort(ngx_queue_t *queue,
-    ngx_int_t (*cmp)(const ngx_queue_t *, const ngx_queue_t *));
+    struct IA2_fnptr__ZTSFlPK11ngx_queue_sS1_E cmp);
 
 
 #endif /* _NGX_QUEUE_H_INCLUDED_ */

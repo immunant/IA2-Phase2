@@ -36,7 +36,7 @@ static ngx_command_t  ngx_http_copy_filter_commands[] = {
 
     { ngx_string("output_buffers"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE2,
-      ngx_conf_set_bufs_slot,
+      IA2_FN(ngx_conf_set_bufs_slot),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_copy_filter_conf_t, bufs),
       NULL },
@@ -47,7 +47,7 @@ static ngx_command_t  ngx_http_copy_filter_commands[] = {
 
 static ngx_http_module_t  ngx_http_copy_filter_module_ctx = {
     NULL,                                  /* preconfiguration */
-    ngx_http_copy_filter_init,             /* postconfiguration */
+    IA2_FN(ngx_http_copy_filter_init),             /* postconfiguration */
 
     NULL,                                  /* create main configuration */
     NULL,                                  /* init main configuration */
@@ -55,8 +55,8 @@ static ngx_http_module_t  ngx_http_copy_filter_module_ctx = {
     NULL,                                  /* create server configuration */
     NULL,                                  /* merge server configuration */
 
-    ngx_http_copy_filter_create_conf,      /* create location configuration */
-    ngx_http_copy_filter_merge_conf        /* merge location configuration */
+    IA2_FN(ngx_http_copy_filter_create_conf),      /* create location configuration */
+    IA2_FN(ngx_http_copy_filter_merge_conf)        /* merge location configuration */
 };
 
 
@@ -117,8 +117,8 @@ ngx_http_copy_filter(ngx_http_request_t *r, ngx_chain_t *in)
         ctx->bufs = conf->bufs;
         ctx->tag = (ngx_buf_tag_t) &ngx_http_copy_filter_module;
 
-        ctx->output_filter = (ngx_output_chain_filter_pt)
-                                  ngx_http_next_body_filter;
+        ctx->output_filter = (ngx_output_chain_filter_pt) {
+                                  (void*) ngx_http_next_body_filter.ptr };
         ctx->filter_ctx = r;
 
 #if (NGX_HAVE_FILE_AIO)
@@ -355,8 +355,12 @@ static ngx_int_t
 ngx_http_copy_filter_init(ngx_conf_t *cf)
 {
     ngx_http_next_body_filter = ngx_http_top_body_filter;
-    ngx_http_top_body_filter = ngx_http_copy_filter;
+    ngx_http_top_body_filter = IA2_FN(ngx_http_copy_filter);
 
     return NGX_OK;
 }
 
+IA2_DEFINE_WRAPPER_ngx_http_copy_filter
+IA2_DEFINE_WRAPPER_ngx_http_copy_filter_create_conf
+IA2_DEFINE_WRAPPER_ngx_http_copy_filter_init
+IA2_DEFINE_WRAPPER_ngx_http_copy_filter_merge_conf

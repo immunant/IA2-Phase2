@@ -160,14 +160,14 @@ static ngx_command_t  ngx_epoll_commands[] = {
 
     { ngx_string("epoll_events"),
       NGX_EVENT_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_num_slot,
+      IA2_FN(ngx_conf_set_num_slot),
       0,
       offsetof(ngx_epoll_conf_t, events),
       NULL },
 
     { ngx_string("worker_aio_requests"),
       NGX_EVENT_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_num_slot,
+      IA2_FN(ngx_conf_set_num_slot),
       0,
       offsetof(ngx_epoll_conf_t, aio_requests),
       NULL },
@@ -178,24 +178,24 @@ static ngx_command_t  ngx_epoll_commands[] = {
 
 static ngx_event_module_t  ngx_epoll_module_ctx = {
     &epoll_name,
-    ngx_epoll_create_conf,               /* create configuration */
-    ngx_epoll_init_conf,                 /* init configuration */
+    IA2_FN(ngx_epoll_create_conf),               /* create configuration */
+    IA2_FN(ngx_epoll_init_conf),                 /* init configuration */
 
     {
-        ngx_epoll_add_event,             /* add an event */
-        ngx_epoll_del_event,             /* delete an event */
-        ngx_epoll_add_event,             /* enable an event */
-        ngx_epoll_del_event,             /* disable an event */
-        ngx_epoll_add_connection,        /* add an connection */
-        ngx_epoll_del_connection,        /* delete an connection */
+        IA2_FN(ngx_epoll_add_event),             /* add an event */
+        IA2_FN(ngx_epoll_del_event),             /* delete an event */
+        IA2_FN(ngx_epoll_add_event),             /* enable an event */
+        IA2_FN(ngx_epoll_del_event),             /* disable an event */
+        IA2_FN(ngx_epoll_add_connection),        /* add an connection */
+        IA2_FN(ngx_epoll_del_connection),        /* delete an connection */
 #if (NGX_HAVE_EVENTFD)
-        ngx_epoll_notify,                /* trigger a notify */
+        IA2_FN(ngx_epoll_notify),                /* trigger a notify */
 #else
         NULL,                            /* trigger a notify */
 #endif
-        ngx_epoll_process_events,        /* process the events */
-        ngx_epoll_init,                  /* init the events */
-        ngx_epoll_done,                  /* done the events */
+        IA2_FN(ngx_epoll_process_events),        /* process the events */
+        IA2_FN(ngx_epoll_init),                  /* init the events */
+        IA2_FN(ngx_epoll_done),                  /* done the events */
     }
 };
 
@@ -337,7 +337,7 @@ ngx_epoll_init(ngx_cycle_t *cycle, ngx_msec_t timer)
 
 #if (NGX_HAVE_EVENTFD)
         if (ngx_epoll_notify_init(cycle->log) != NGX_OK) {
-            ngx_epoll_module_ctx.actions.notify = NULL;
+            ngx_epoll_module_ctx.actions.notify = (typeof(ngx_epoll_module_ctx.actions.notify)) { NULL };
         }
 #endif
 
@@ -401,7 +401,7 @@ ngx_epoll_notify_init(ngx_log_t *log)
     ngx_log_debug1(NGX_LOG_DEBUG_EVENT, log, 0,
                    "notify eventfd: %d", notify_fd);
 
-    notify_event.handler = ngx_epoll_notify_handler;
+    notify_event.handler = IA2_FN(ngx_epoll_notify_handler);
     notify_event.log = log;
     notify_event.active = 1;
 
@@ -452,8 +452,8 @@ ngx_epoll_notify_handler(ngx_event_t *ev)
         }
     }
 
-    handler = ev->data;
-    handler(ev);
+    handler.ptr = ev->data;
+    IA2_CALL(handler, 13, 1)(ev);
 }
 
 #endif
@@ -766,7 +766,7 @@ ngx_epoll_notify(ngx_event_handler_pt handler)
 {
     static uint64_t inc = 1;
 
-    notify_event.data = handler;
+    notify_event.data = handler.ptr;
 
     if ((size_t) write(notify_fd, &inc, sizeof(uint64_t)) != sizeof(uint64_t)) {
         ngx_log_error(NGX_LOG_ALERT, notify_event.log, ngx_errno,
@@ -898,7 +898,7 @@ ngx_epoll_process_events(ngx_cycle_t *cycle, ngx_msec_t timer, ngx_uint_t flags)
                 ngx_post_event(rev, queue);
 
             } else {
-                rev->handler(rev);
+                IA2_CALL(rev->handler, 13, 1)(rev);
             }
         }
 
@@ -927,7 +927,7 @@ ngx_epoll_process_events(ngx_cycle_t *cycle, ngx_msec_t timer, ngx_uint_t flags)
                 ngx_post_event(wev, &ngx_posted_events);
 
             } else {
-                wev->handler(wev);
+                IA2_CALL(wev->handler, 13, 1)(wev);
             }
         }
     }
@@ -1049,3 +1049,14 @@ ngx_epoll_init_conf(ngx_cycle_t *cycle, void *conf)
 
     return NGX_CONF_OK;
 }
+IA2_DEFINE_WRAPPER_ngx_epoll_add_connection
+IA2_DEFINE_WRAPPER_ngx_epoll_add_event
+IA2_DEFINE_WRAPPER_ngx_epoll_create_conf
+IA2_DEFINE_WRAPPER_ngx_epoll_del_connection
+IA2_DEFINE_WRAPPER_ngx_epoll_del_event
+IA2_DEFINE_WRAPPER_ngx_epoll_done
+IA2_DEFINE_WRAPPER_ngx_epoll_init
+IA2_DEFINE_WRAPPER_ngx_epoll_init_conf
+IA2_DEFINE_WRAPPER_ngx_epoll_notify
+IA2_DEFINE_WRAPPER_ngx_epoll_notify_handler
+IA2_DEFINE_WRAPPER_ngx_epoll_process_events

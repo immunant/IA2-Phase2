@@ -35,14 +35,14 @@ static ngx_command_t  ngx_http_mirror_commands[] = {
 
     { ngx_string("mirror"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-      ngx_http_mirror,
+      IA2_FN(ngx_http_mirror),
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       NULL },
 
     { ngx_string("mirror_request_body"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_FLAG,
-      ngx_conf_set_flag_slot,
+      IA2_FN(ngx_conf_set_flag_slot),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_mirror_loc_conf_t, request_body),
       NULL },
@@ -53,7 +53,7 @@ static ngx_command_t  ngx_http_mirror_commands[] = {
 
 static ngx_http_module_t  ngx_http_mirror_module_ctx = {
     NULL,                                  /* preconfiguration */
-    ngx_http_mirror_init,                  /* postconfiguration */
+    IA2_FN(ngx_http_mirror_init),                  /* postconfiguration */
 
     NULL,                                  /* create main configuration */
     NULL,                                  /* init main configuration */
@@ -61,8 +61,8 @@ static ngx_http_module_t  ngx_http_mirror_module_ctx = {
     NULL,                                  /* create server configuration */
     NULL,                                  /* merge server configuration */
 
-    ngx_http_mirror_create_loc_conf,       /* create location configuration */
-    ngx_http_mirror_merge_loc_conf         /* merge location configuration */
+    IA2_FN(ngx_http_mirror_create_loc_conf),       /* create location configuration */
+    IA2_FN(ngx_http_mirror_merge_loc_conf)         /* merge location configuration */
 };
 
 
@@ -117,7 +117,7 @@ ngx_http_mirror_handler(ngx_http_request_t *r)
 
         ngx_http_set_ctx(r, ctx, ngx_http_mirror_module);
 
-        rc = ngx_http_read_client_request_body(r, ngx_http_mirror_body_handler);
+        rc = ngx_http_read_client_request_body(r, IA2_FN(ngx_http_mirror_body_handler));
         if (rc >= NGX_HTTP_SPECIAL_RESPONSE) {
             return rc;
         }
@@ -141,7 +141,7 @@ ngx_http_mirror_body_handler(ngx_http_request_t *r)
 
     r->preserve_body = 1;
 
-    r->write_event_handler = ngx_http_core_run_phases;
+    r->write_event_handler = IA2_FN(ngx_http_core_run_phases);
     ngx_http_core_run_phases(r);
 }
 
@@ -258,7 +258,13 @@ ngx_http_mirror_init(ngx_conf_t *cf)
         return NGX_ERROR;
     }
 
-    *h = ngx_http_mirror_handler;
+    *h = IA2_FN(ngx_http_mirror_handler);
 
     return NGX_OK;
 }
+IA2_DEFINE_WRAPPER_ngx_http_mirror
+IA2_DEFINE_WRAPPER_ngx_http_mirror_body_handler
+IA2_DEFINE_WRAPPER_ngx_http_mirror_create_loc_conf
+IA2_DEFINE_WRAPPER_ngx_http_mirror_handler
+IA2_DEFINE_WRAPPER_ngx_http_mirror_init
+IA2_DEFINE_WRAPPER_ngx_http_mirror_merge_loc_conf

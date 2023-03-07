@@ -78,7 +78,7 @@ ngx_open_file_cache_init(ngx_pool_t *pool, ngx_uint_t max, time_t inactive)
         return NULL;
     }
 
-    cln->handler = ngx_open_file_cache_cleanup;
+    cln->handler = IA2_FN(ngx_open_file_cache_cleanup);
     cln->data = cache;
 
     return cache;
@@ -186,7 +186,7 @@ ngx_open_cached_file(ngx_open_file_cache_t *cache, ngx_str_t *name,
         rc = ngx_open_and_stat_file(name, of, pool->log);
 
         if (rc == NGX_OK && !of->is_dir) {
-            cln->handler = ngx_pool_cleanup_file;
+            cln->handler = IA2_FN(ngx_pool_cleanup_file);
             clnf = cln->data;
 
             clnf->fd = of->fd;
@@ -436,7 +436,7 @@ found:
     if (of->err == 0) {
 
         if (!of->is_dir) {
-            cln->handler = ngx_open_file_cleanup;
+            cln->handler = IA2_FN(ngx_open_file_cleanup);
             ofcln = cln->data;
 
             ofcln->cache = cache;
@@ -983,7 +983,7 @@ ngx_open_file_add_event(ngx_open_file_cache_t *cache,
     fev->file = file;
     fev->cache = cache;
 
-    file->event->handler = ngx_open_file_cache_remove;
+    file->event->handler = IA2_FN(ngx_open_file_cache_remove);
     file->event->data = fev;
 
     /*
@@ -994,7 +994,7 @@ ngx_open_file_add_event(ngx_open_file_cache_t *cache,
 
     file->event->log = ngx_cycle->log;
 
-    if (ngx_add_event(file->event, NGX_VNODE_EVENT, NGX_ONESHOT_EVENT)
+    if (IA2_CALL(ngx_add_event, 11, 1)(file->event, NGX_VNODE_EVENT, NGX_ONESHOT_EVENT)
         != NGX_OK)
     {
         ngx_free(file->event->data);
@@ -1081,7 +1081,7 @@ ngx_open_file_del_event(ngx_cached_open_file_t *file)
         return;
     }
 
-    (void) ngx_del_event(file->event, NGX_VNODE_EVENT,
+    (void) IA2_CALL(ngx_del_event, 11, 1)(file->event, NGX_VNODE_EVENT,
                          file->count ? NGX_FLUSH_EVENT : NGX_CLOSE_EVENT);
 
     ngx_free(file->event->data);
@@ -1251,3 +1251,7 @@ ngx_open_file_cache_remove(ngx_event_t *ev)
     ngx_free(ev->data);
     ngx_free(ev);
 }
+IA2_DEFINE_WRAPPER_ngx_open_file_cache_cleanup
+IA2_DEFINE_WRAPPER_ngx_open_file_cache_rbtree_insert_value
+IA2_DEFINE_WRAPPER_ngx_open_file_cache_remove
+IA2_DEFINE_WRAPPER_ngx_open_file_cleanup

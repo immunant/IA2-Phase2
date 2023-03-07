@@ -20,10 +20,8 @@ typedef ngx_variable_value_t  ngx_http_variable_value_t;
 
 typedef struct ngx_http_variable_s  ngx_http_variable_t;
 
-typedef void (*ngx_http_set_variable_pt) (ngx_http_request_t *r,
-    ngx_http_variable_value_t *v, uintptr_t data);
-typedef ngx_int_t (*ngx_http_get_variable_pt) (ngx_http_request_t *r,
-    ngx_http_variable_value_t *v, uintptr_t data);
+typedef struct IA2_fnptr__ZTSFvP18ngx_http_request_sP20ngx_variable_value_tmE ngx_http_set_variable_pt;
+typedef struct IA2_fnptr__ZTSFlP18ngx_http_request_sP20ngx_variable_value_tmE ngx_http_get_variable_pt;
 
 
 #define NGX_HTTP_VAR_CHANGEABLE   1

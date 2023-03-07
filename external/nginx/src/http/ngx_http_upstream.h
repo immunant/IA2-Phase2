@@ -78,10 +78,8 @@ typedef struct {
 
 typedef struct ngx_http_upstream_srv_conf_s  ngx_http_upstream_srv_conf_t;
 
-typedef ngx_int_t (*ngx_http_upstream_init_pt)(ngx_conf_t *cf,
-    ngx_http_upstream_srv_conf_t *us);
-typedef ngx_int_t (*ngx_http_upstream_init_peer_pt)(ngx_http_request_t *r,
-    ngx_http_upstream_srv_conf_t *us);
+typedef struct IA2_fnptr__ZTSFlP10ngx_conf_sP28ngx_http_upstream_srv_conf_sE ngx_http_upstream_init_pt;
+typedef struct IA2_fnptr__ZTSFlP18ngx_http_request_sP28ngx_http_upstream_srv_conf_sE ngx_http_upstream_init_peer_pt;
 
 
 typedef struct {
@@ -316,8 +314,7 @@ typedef struct {
 } ngx_http_upstream_resolved_t;
 
 
-typedef void (*ngx_http_upstream_handler_pt)(ngx_http_request_t *r,
-    ngx_http_upstream_t *u);
+typedef struct IA2_fnptr__ZTSFvP18ngx_http_request_sP19ngx_http_upstream_sE ngx_http_upstream_handler_pt;
 
 
 struct ngx_http_upstream_s {
@@ -352,23 +349,20 @@ struct ngx_http_upstream_s {
     ngx_chain_t                     *busy_bufs;
     ngx_chain_t                     *free_bufs;
 
-    ngx_int_t                      (*input_filter_init)(void *data);
-    ngx_int_t                      (*input_filter)(void *data, ssize_t bytes);
+    struct IA2_fnptr__ZTSFlPvE input_filter_init;
+    struct IA2_fnptr__ZTSFlPvlE input_filter;
     void                            *input_filter_ctx;
 
 #if (NGX_HTTP_CACHE)
-    ngx_int_t                      (*create_key)(ngx_http_request_t *r);
+    struct IA2_fnptr__ZTSFlP18ngx_http_request_sE create_key;
 #endif
-    ngx_int_t                      (*create_request)(ngx_http_request_t *r);
-    ngx_int_t                      (*reinit_request)(ngx_http_request_t *r);
-    ngx_int_t                      (*process_header)(ngx_http_request_t *r);
-    void                           (*abort_request)(ngx_http_request_t *r);
-    void                           (*finalize_request)(ngx_http_request_t *r,
-                                         ngx_int_t rc);
-    ngx_int_t                      (*rewrite_redirect)(ngx_http_request_t *r,
-                                         ngx_table_elt_t *h, size_t prefix);
-    ngx_int_t                      (*rewrite_cookie)(ngx_http_request_t *r,
-                                         ngx_table_elt_t *h);
+    struct IA2_fnptr__ZTSFlP18ngx_http_request_sE create_request;
+    struct IA2_fnptr__ZTSFlP18ngx_http_request_sE reinit_request;
+    struct IA2_fnptr__ZTSFlP18ngx_http_request_sE process_header;
+    struct IA2_fnptr__ZTSFvP18ngx_http_request_sE abort_request;
+    struct IA2_fnptr__ZTSFvP18ngx_http_request_slE finalize_request;
+    struct IA2_fnptr__ZTSFlP18ngx_http_request_sP15ngx_table_elt_tmE rewrite_redirect;
+    struct IA2_fnptr__ZTSFlP18ngx_http_request_sP15ngx_table_elt_tE rewrite_cookie;
 
     ngx_msec_t                       start_time;
 

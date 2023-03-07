@@ -38,7 +38,7 @@ static ngx_command_t  ngx_http_auth_basic_commands[] = {
     { ngx_string("auth_basic"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LMT_CONF
                         |NGX_CONF_TAKE1,
-      ngx_http_set_complex_value_slot,
+      IA2_FN(ngx_http_set_complex_value_slot),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_auth_basic_loc_conf_t, realm),
       NULL },
@@ -46,7 +46,7 @@ static ngx_command_t  ngx_http_auth_basic_commands[] = {
     { ngx_string("auth_basic_user_file"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LMT_CONF
                         |NGX_CONF_TAKE1,
-      ngx_http_auth_basic_user_file,
+      IA2_FN(ngx_http_auth_basic_user_file),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_auth_basic_loc_conf_t, user_file),
       NULL },
@@ -57,7 +57,7 @@ static ngx_command_t  ngx_http_auth_basic_commands[] = {
 
 static ngx_http_module_t  ngx_http_auth_basic_module_ctx = {
     NULL,                                  /* preconfiguration */
-    ngx_http_auth_basic_init,              /* postconfiguration */
+    IA2_FN(ngx_http_auth_basic_init),              /* postconfiguration */
 
     NULL,                                  /* create main configuration */
     NULL,                                  /* init main configuration */
@@ -65,8 +65,8 @@ static ngx_http_module_t  ngx_http_auth_basic_module_ctx = {
     NULL,                                  /* create server configuration */
     NULL,                                  /* merge server configuration */
 
-    ngx_http_auth_basic_create_loc_conf,   /* create location configuration */
-    ngx_http_auth_basic_merge_loc_conf     /* merge location configuration */
+    IA2_FN(ngx_http_auth_basic_create_loc_conf),   /* create location configuration */
+    IA2_FN(ngx_http_auth_basic_merge_loc_conf)     /* merge location configuration */
 };
 
 
@@ -390,7 +390,7 @@ ngx_http_auth_basic_init(ngx_conf_t *cf)
         return NGX_ERROR;
     }
 
-    *h = ngx_http_auth_basic_handler;
+    *h = IA2_FN(ngx_http_auth_basic_handler);
 
     return NGX_OK;
 }
@@ -429,3 +429,8 @@ ngx_http_auth_basic_user_file(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     return NGX_CONF_OK;
 }
+IA2_DEFINE_WRAPPER_ngx_http_auth_basic_create_loc_conf
+IA2_DEFINE_WRAPPER_ngx_http_auth_basic_handler
+IA2_DEFINE_WRAPPER_ngx_http_auth_basic_init
+IA2_DEFINE_WRAPPER_ngx_http_auth_basic_merge_loc_conf
+IA2_DEFINE_WRAPPER_ngx_http_auth_basic_user_file

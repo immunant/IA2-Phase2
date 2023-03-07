@@ -14,14 +14,14 @@ u_char  ngx_linux_kern_osrelease[50];
 
 
 static ngx_os_io_t ngx_linux_io = {
-    ngx_unix_recv,
-    ngx_readv_chain,
-    ngx_udp_unix_recv,
-    ngx_unix_send,
-    ngx_udp_unix_send,
-    ngx_udp_unix_sendmsg_chain,
+    IA2_FN(ngx_unix_recv),
+    IA2_FN(ngx_readv_chain),
+    IA2_FN(ngx_udp_unix_recv),
+    IA2_FN(ngx_unix_send),
+    IA2_FN(ngx_udp_unix_send),
+    IA2_FN(ngx_udp_unix_sendmsg_chain),
 #if (NGX_HAVE_SENDFILE)
-    ngx_linux_sendfile_chain,
+    IA2_FN(ngx_linux_sendfile_chain),
     NGX_IO_SENDFILE
 #else
     ngx_writev_chain,

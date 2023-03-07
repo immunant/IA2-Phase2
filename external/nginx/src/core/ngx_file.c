@@ -206,7 +206,7 @@ ngx_create_temp_file(ngx_file_t *file, ngx_path_t *path, ngx_pool_t *pool,
 
         if (file->fd != NGX_INVALID_FILE) {
 
-            cln->handler = clean ? ngx_pool_delete_file : ngx_pool_cleanup_file;
+            cln->handler = clean ? IA2_FN(ngx_pool_delete_file) : IA2_FN(ngx_pool_cleanup_file);
             clnf = cln->data;
 
             clnf->fd = file->fd;
@@ -972,7 +972,7 @@ ngx_walk_tree(ngx_tree_ctx_t *ctx, ngx_str_t *tree)
             goto failed;
         }
 
-        if (ctx->init_handler(data, prev) == NGX_ABORT) {
+        if (IA2_CALL(ctx->init_handler, 8, 1)(data, prev) == NGX_ABORT) {
             goto failed;
         }
 
@@ -1058,7 +1058,7 @@ ngx_walk_tree(ngx_tree_ctx_t *ctx, ngx_str_t *tree)
             ctx->access = ngx_de_access(&dir);
             ctx->mtime = ngx_de_mtime(&dir);
 
-            if (ctx->file_handler(ctx, &file) == NGX_ABORT) {
+            if (IA2_CALL(ctx->file_handler, 9, 1)(ctx, &file) == NGX_ABORT) {
                 goto failed;
             }
 
@@ -1070,7 +1070,7 @@ ngx_walk_tree(ngx_tree_ctx_t *ctx, ngx_str_t *tree)
             ctx->access = ngx_de_access(&dir);
             ctx->mtime = ngx_de_mtime(&dir);
 
-            rc = ctx->pre_tree_handler(ctx, &file);
+            rc = IA2_CALL(ctx->pre_tree_handler, 9, 1)(ctx, &file);
 
             if (rc == NGX_ABORT) {
                 goto failed;
@@ -1089,7 +1089,7 @@ ngx_walk_tree(ngx_tree_ctx_t *ctx, ngx_str_t *tree)
             ctx->access = ngx_de_access(&dir);
             ctx->mtime = ngx_de_mtime(&dir);
 
-            if (ctx->post_tree_handler(ctx, &file) == NGX_ABORT) {
+            if (IA2_CALL(ctx->post_tree_handler, 9, 1)(ctx, &file) == NGX_ABORT) {
                 goto failed;
             }
 
@@ -1098,7 +1098,7 @@ ngx_walk_tree(ngx_tree_ctx_t *ctx, ngx_str_t *tree)
             ngx_log_debug1(NGX_LOG_DEBUG_CORE, ctx->log, 0,
                            "tree special \"%s\"", file.data);
 
-            if (ctx->spec_handler(ctx, &file) == NGX_ABORT) {
+            if (IA2_CALL(ctx->spec_handler, 9, 1)(ctx, &file) == NGX_ABORT) {
                 goto failed;
             }
         }

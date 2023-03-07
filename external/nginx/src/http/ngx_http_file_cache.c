@@ -118,7 +118,7 @@ ngx_http_file_cache_init(ngx_shm_zone_t *shm_zone, void *data)
         cache->max_size /= cache->bsize;
 
         if (!cache->sh->cold || cache->sh->loading) {
-            cache->path->loader = NULL;
+            cache->path->loader = (typeof(cache->path->loader)) { NULL };
         }
 
         return NGX_OK;
@@ -209,7 +209,7 @@ ngx_http_file_cache_create(ngx_http_request_t *r)
         return NGX_ERROR;
     }
 
-    cln->handler = ngx_http_file_cache_cleanup;
+    cln->handler = IA2_FN(ngx_http_file_cache_cleanup);
     cln->data = c;
 
     if (ngx_http_file_cache_exists(cache, c) == NGX_ERROR) {
@@ -290,7 +290,7 @@ ngx_http_file_cache_open(ngx_http_request_t *r)
             return NGX_ERROR;
         }
 
-        cln->handler = ngx_http_file_cache_cleanup;
+        cln->handler = IA2_FN(ngx_http_file_cache_cleanup);
         cln->data = c;
     }
 
@@ -445,7 +445,7 @@ ngx_http_file_cache_lock(ngx_http_request_t *r, ngx_http_cache_t *c)
     if (c->wait_time == 0) {
         c->wait_time = now + c->lock_timeout;
 
-        c->wait_event.handler = ngx_http_file_cache_lock_wait_handler;
+        c->wait_event.handler = IA2_FN(ngx_http_file_cache_lock_wait_handler);
         c->wait_event.data = r;
         c->wait_event.log = r->connection->log;
     }
@@ -520,7 +520,7 @@ wakeup:
 
     c->waiting = 0;
     r->main->blocked--;
-    r->write_event_handler(r);
+    IA2_CALL(r->write_event_handler, 42, 1)(r);
 }
 
 
@@ -2067,11 +2067,11 @@ ngx_http_file_cache_loader(void *data)
     ngx_log_debug0(NGX_LOG_DEBUG_HTTP, ngx_cycle->log, 0,
                    "http file cache loader");
 
-    tree.init_handler = NULL;
-    tree.file_handler = ngx_http_file_cache_manage_file;
-    tree.pre_tree_handler = ngx_http_file_cache_manage_directory;
-    tree.post_tree_handler = ngx_http_file_cache_noop;
-    tree.spec_handler = ngx_http_file_cache_delete_file;
+    tree.init_handler = (typeof(tree.init_handler)) { NULL };
+    tree.file_handler = IA2_FN(ngx_http_file_cache_manage_file);
+    tree.pre_tree_handler = IA2_FN(ngx_http_file_cache_manage_directory);
+    tree.post_tree_handler = IA2_FN(ngx_http_file_cache_noop);
+    tree.spec_handler = IA2_FN(ngx_http_file_cache_delete_file);
     tree.data = cache;
     tree.alloc = 0;
     tree.log = ngx_cycle->log;
@@ -2616,8 +2616,8 @@ ngx_http_file_cache_set_slot(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         return NGX_CONF_ERROR;
     }
 
-    cache->path->manager = ngx_http_file_cache_manager;
-    cache->path->loader = ngx_http_file_cache_loader;
+    cache->path->manager = IA2_FN(ngx_http_file_cache_manager);
+    cache->path->loader = IA2_FN(ngx_http_file_cache_loader);
     cache->path->data = cache;
     cache->path->conf_file = cf->conf_file->file.name.data;
     cache->path->line = cf->conf_file->line;
@@ -2644,7 +2644,7 @@ ngx_http_file_cache_set_slot(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     }
 
 
-    cache->shm_zone->init = ngx_http_file_cache_init;
+    cache->shm_zone->init = IA2_FN(ngx_http_file_cache_init);
     cache->shm_zone->data = cache;
 
     cache->use_temp_path = use_temp_path;
@@ -2741,3 +2741,13 @@ ngx_http_file_cache_valid_set_slot(ngx_conf_t *cf, ngx_command_t *cmd,
 
     return NGX_CONF_OK;
 }
+IA2_DEFINE_WRAPPER_ngx_http_file_cache_cleanup
+IA2_DEFINE_WRAPPER_ngx_http_file_cache_delete_file
+IA2_DEFINE_WRAPPER_ngx_http_file_cache_init
+IA2_DEFINE_WRAPPER_ngx_http_file_cache_loader
+IA2_DEFINE_WRAPPER_ngx_http_file_cache_lock_wait_handler
+IA2_DEFINE_WRAPPER_ngx_http_file_cache_manage_directory
+IA2_DEFINE_WRAPPER_ngx_http_file_cache_manage_file
+IA2_DEFINE_WRAPPER_ngx_http_file_cache_manager
+IA2_DEFINE_WRAPPER_ngx_http_file_cache_noop
+IA2_DEFINE_WRAPPER_ngx_http_file_cache_rbtree_insert_value

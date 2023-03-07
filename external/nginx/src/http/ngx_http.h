@@ -21,10 +21,8 @@ typedef struct ngx_http_log_ctx_s     ngx_http_log_ctx_t;
 typedef struct ngx_http_chunked_s     ngx_http_chunked_t;
 typedef struct ngx_http_v2_stream_s   ngx_http_v2_stream_t;
 
-typedef ngx_int_t (*ngx_http_header_handler_pt)(ngx_http_request_t *r,
-    ngx_table_elt_t *h, ngx_uint_t offset);
-typedef u_char *(*ngx_http_log_handler_pt)(ngx_http_request_t *r,
-    ngx_http_request_t *sr, u_char *buf, size_t len);
+typedef struct IA2_fnptr__ZTSFlP18ngx_http_request_sP15ngx_table_elt_tmE ngx_http_header_handler_pt;
+typedef struct IA2_fnptr__ZTSFPhP18ngx_http_request_sS1_S_mE ngx_http_log_handler_pt;
 
 
 #include <ngx_http_variables.h>

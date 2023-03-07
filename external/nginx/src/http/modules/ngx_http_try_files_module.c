@@ -35,7 +35,7 @@ static ngx_command_t  ngx_http_try_files_commands[] = {
 
     { ngx_string("try_files"),
       NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_2MORE,
-      ngx_http_try_files,
+      IA2_FN(ngx_http_try_files),
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       NULL },
@@ -46,7 +46,7 @@ static ngx_command_t  ngx_http_try_files_commands[] = {
 
 static ngx_http_module_t  ngx_http_try_files_module_ctx = {
     NULL,                                  /* preconfiguration */
-    ngx_http_try_files_init,               /* postconfiguration */
+    IA2_FN(ngx_http_try_files_init),               /* postconfiguration */
 
     NULL,                                  /* create main configuration */
     NULL,                                  /* init main configuration */
@@ -54,7 +54,7 @@ static ngx_http_module_t  ngx_http_try_files_module_ctx = {
     NULL,                                  /* create server configuration */
     NULL,                                  /* merge server configuration */
 
-    ngx_http_try_files_create_loc_conf,    /* create location configuration */
+    IA2_FN(ngx_http_try_files_create_loc_conf),    /* create location configuration */
     NULL                                   /* merge location configuration */
 };
 
@@ -124,7 +124,7 @@ ngx_http_try_files_handler(ngx_http_request_t *r)
 
             while (*(uintptr_t *) e.ip) {
                 lcode = *(ngx_http_script_len_code_pt *) e.ip;
-                len += lcode(&e);
+                len += IA2_CALL(lcode, 48, 1)(&e);
             }
 
         } else {
@@ -168,7 +168,7 @@ ngx_http_try_files_handler(ngx_http_request_t *r)
 
             while (*(uintptr_t *) e.ip) {
                 code = *(ngx_http_script_code_pt *) e.ip;
-                code((ngx_http_script_engine_t *) &e);
+                IA2_CALL(code, 49, 1)((ngx_http_script_engine_t *) &e);
             }
 
             path.len = e.pos - path.data;
@@ -398,7 +398,11 @@ ngx_http_try_files_init(ngx_conf_t *cf)
         return NGX_ERROR;
     }
 
-    *h = ngx_http_try_files_handler;
+    *h = IA2_FN(ngx_http_try_files_handler);
 
     return NGX_OK;
 }
+IA2_DEFINE_WRAPPER_ngx_http_try_files
+IA2_DEFINE_WRAPPER_ngx_http_try_files_create_loc_conf
+IA2_DEFINE_WRAPPER_ngx_http_try_files_handler
+IA2_DEFINE_WRAPPER_ngx_http_try_files_init

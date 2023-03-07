@@ -15,7 +15,7 @@ typedef struct {
     int     signo;
     char   *signame;
     char   *name;
-    void  (*handler)(int signo, siginfo_t *siginfo, void *ucontext);
+    void *handler;
 } ngx_signal_t;
 
 
@@ -196,7 +196,7 @@ ngx_spawn_process(ngx_cycle_t *cycle, ngx_spawn_proc_pt proc, void *data,
     case 0:
         ngx_parent = ngx_pid;
         ngx_pid = ngx_getpid();
-        proc(cycle, data);
+        IA2_CALL(proc, 30, 1)(cycle, data);
         break;
 
     default:
@@ -261,7 +261,7 @@ ngx_spawn_process(ngx_cycle_t *cycle, ngx_spawn_proc_pt proc, void *data,
 ngx_pid_t
 ngx_execute(ngx_cycle_t *cycle, ngx_exec_ctx_t *ctx)
 {
-    return ngx_spawn_process(cycle, ngx_execute_proc, ctx, ctx->name,
+    return ngx_spawn_process(cycle, IA2_FN(ngx_execute_proc), ctx, ctx->name,
                              NGX_PROCESS_DETACHED);
 }
 
@@ -646,3 +646,5 @@ ngx_os_signal_process(ngx_cycle_t *cycle, char *name, ngx_pid_t pid)
 
     return 1;
 }
+IA2_DEFINE_WRAPPER_ngx_execute_proc
+IA2_DEFINE_WRAPPER_ngx_signal_handler

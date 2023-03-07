@@ -534,7 +534,7 @@ ngx_hash_wildcard_init(ngx_hash_init_t *hinit, ngx_hash_key_t *names,
 
         name->key.len = len;
         name->key.data = names[n].key.data;
-        name->key_hash = hinit->key(name->key.data, name->key.len);
+        name->key_hash = IA2_CALL(hinit->key, 4, 1)(name->key.data, name->key.len);
         name->value = names[n].value;
 
 #if 0

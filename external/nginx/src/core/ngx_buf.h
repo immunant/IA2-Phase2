@@ -70,10 +70,9 @@ typedef struct {
 
 typedef struct ngx_output_chain_ctx_s  ngx_output_chain_ctx_t;
 
-typedef ngx_int_t (*ngx_output_chain_filter_pt)(void *ctx, ngx_chain_t *in);
+typedef struct IA2_fnptr__ZTSFlPvP11ngx_chain_sE ngx_output_chain_filter_pt;
 
-typedef void (*ngx_output_chain_aio_pt)(ngx_output_chain_ctx_t *ctx,
-    ngx_file_t *file);
+typedef struct IA2_fnptr__ZTSFvP22ngx_output_chain_ctx_sP10ngx_file_sE ngx_output_chain_aio_pt;
 
 struct ngx_output_chain_ctx_s {
     ngx_buf_t                   *buf;

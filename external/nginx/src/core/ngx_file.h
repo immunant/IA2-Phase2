@@ -42,9 +42,9 @@ struct ngx_file_s {
 #define NGX_MAX_PATH_LEVEL  3
 
 
-typedef ngx_msec_t (*ngx_path_manager_pt) (void *data);
-typedef ngx_msec_t (*ngx_path_purger_pt) (void *data);
-typedef void (*ngx_path_loader_pt) (void *data);
+typedef struct IA2_fnptr__ZTSFmPvE ngx_path_manager_pt;
+typedef struct IA2_fnptr__ZTSFmPvE ngx_path_purger_pt;
+typedef struct IA2_fnptr__ZTSFvPvE ngx_path_loader_pt;
 
 
 typedef struct {
@@ -110,8 +110,8 @@ typedef struct {
 
 typedef struct ngx_tree_ctx_s  ngx_tree_ctx_t;
 
-typedef ngx_int_t (*ngx_tree_init_handler_pt) (void *ctx, void *prev);
-typedef ngx_int_t (*ngx_tree_handler_pt) (ngx_tree_ctx_t *ctx, ngx_str_t *name);
+typedef struct IA2_fnptr__ZTSFlPvS_E ngx_tree_init_handler_pt;
+typedef struct IA2_fnptr__ZTSFlP14ngx_tree_ctx_sP9ngx_str_tE ngx_tree_handler_pt;
 
 struct ngx_tree_ctx_s {
     off_t                      size;

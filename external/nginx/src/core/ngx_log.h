@@ -42,9 +42,8 @@
 #define NGX_LOG_DEBUG_ALL         0x7ffffff0
 
 
-typedef u_char *(*ngx_log_handler_pt) (ngx_log_t *log, u_char *buf, size_t len);
-typedef void (*ngx_log_writer_pt) (ngx_log_t *log, ngx_uint_t level,
-    u_char *buf, size_t len);
+typedef struct IA2_fnptr__ZTSFPhP9ngx_log_sS_mE ngx_log_handler_pt;
+typedef struct IA2_fnptr__ZTSFvP9ngx_log_smPhmE ngx_log_writer_pt;
 
 
 struct ngx_log_s {

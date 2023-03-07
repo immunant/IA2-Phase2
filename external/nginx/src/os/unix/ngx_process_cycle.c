@@ -57,11 +57,11 @@ static u_char  master_process[] = "master process";
 
 
 static ngx_cache_manager_ctx_t  ngx_cache_manager_ctx = {
-    ngx_cache_manager_process_handler, "cache manager process", 0
+    IA2_FN(ngx_cache_manager_process_handler), "cache manager process", 0
 };
 
 static ngx_cache_manager_ctx_t  ngx_cache_loader_ctx = {
-    ngx_cache_loader_process_handler, "cache loader process", 60000
+    IA2_FN(ngx_cache_loader_process_handler), "cache loader process", 60000
 };
 
 
@@ -286,8 +286,8 @@ ngx_single_process_cycle(ngx_cycle_t *cycle)
     }
 
     for (i = 0; cycle->modules[i]; i++) {
-        if (cycle->modules[i]->init_process) {
-            if (cycle->modules[i]->init_process(cycle) == NGX_ERROR) {
+        if (cycle->modules[i]->init_process.ptr) {
+            if (IA2_CALL(cycle->modules[i]->init_process, 20, 1)(cycle) == NGX_ERROR) {
                 /* fatal */
                 exit(2);
             }
@@ -302,8 +302,8 @@ ngx_single_process_cycle(ngx_cycle_t *cycle)
         if (ngx_terminate || ngx_quit) {
 
             for (i = 0; cycle->modules[i]; i++) {
-                if (cycle->modules[i]->exit_process) {
-                    cycle->modules[i]->exit_process(cycle);
+                if (cycle->modules[i]->exit_process.ptr) {
+                    IA2_CALL(cycle->modules[i]->exit_process, 31, 1)(cycle);
                 }
             }
 
@@ -341,7 +341,7 @@ ngx_start_worker_processes(ngx_cycle_t *cycle, ngx_int_t n, ngx_int_t type)
 
     for (i = 0; i < n; i++) {
 
-        ngx_spawn_process(cycle, ngx_worker_process_cycle,
+        ngx_spawn_process(cycle, IA2_FN(ngx_worker_process_cycle),
                           (void *) (intptr_t) i, "worker process", type);
 
         ngx_pass_open_channel(cycle);
@@ -361,11 +361,11 @@ ngx_start_cache_manager_processes(ngx_cycle_t *cycle, ngx_uint_t respawn)
     path = ngx_cycle->paths.elts;
     for (i = 0; i < ngx_cycle->paths.nelts; i++) {
 
-        if (path[i]->manager) {
+        if (path[i]->manager.ptr) {
             manager = 1;
         }
 
-        if (path[i]->loader) {
+        if (path[i]->loader.ptr) {
             loader = 1;
         }
     }
@@ -374,7 +374,7 @@ ngx_start_cache_manager_processes(ngx_cycle_t *cycle, ngx_uint_t respawn)
         return;
     }
 
-    ngx_spawn_process(cycle, ngx_cache_manager_process_cycle,
+    ngx_spawn_process(cycle, IA2_FN(ngx_cache_manager_process_cycle),
                       &ngx_cache_manager_ctx, "cache manager process",
                       respawn ? NGX_PROCESS_JUST_RESPAWN : NGX_PROCESS_RESPAWN);
 
@@ -384,7 +384,7 @@ ngx_start_cache_manager_processes(ngx_cycle_t *cycle, ngx_uint_t respawn)
         return;
     }
 
-    ngx_spawn_process(cycle, ngx_cache_manager_process_cycle,
+    ngx_spawn_process(cycle, IA2_FN(ngx_cache_manager_process_cycle),
                       &ngx_cache_loader_ctx, "cache loader process",
                       respawn ? NGX_PROCESS_JUST_SPAWN : NGX_PROCESS_NORESPAWN);
 
@@ -662,8 +662,8 @@ ngx_master_process_exit(ngx_cycle_t *cycle)
     ngx_log_error(NGX_LOG_NOTICE, cycle->log, 0, "exit");
 
     for (i = 0; cycle->modules[i]; i++) {
-        if (cycle->modules[i]->exit_master) {
-            cycle->modules[i]->exit_master(cycle);
+        if (cycle->modules[i]->exit_master.ptr) {
+            IA2_CALL(cycle->modules[i]->exit_master, 31, 1)(cycle);
         }
     }
 
@@ -682,7 +682,7 @@ ngx_master_process_exit(ngx_cycle_t *cycle)
     ngx_exit_log_file.fd = ngx_exit_log.file->fd;
     ngx_exit_log.file = &ngx_exit_log_file;
     ngx_exit_log.next = NULL;
-    ngx_exit_log.writer = NULL;
+    ngx_exit_log.writer = (typeof(ngx_exit_log.writer)) { NULL };
 
     ngx_exit_cycle.log = &ngx_exit_log;
     ngx_exit_cycle.files = ngx_cycle->files;
@@ -898,8 +898,8 @@ ngx_worker_process_init(ngx_cycle_t *cycle, ngx_int_t worker)
     }
 
     for (i = 0; cycle->modules[i]; i++) {
-        if (cycle->modules[i]->init_process) {
-            if (cycle->modules[i]->init_process(cycle) == NGX_ERROR) {
+        if (cycle->modules[i]->init_process.ptr) {
+            if (IA2_CALL(cycle->modules[i]->init_process, 20, 1)(cycle) == NGX_ERROR) {
                 /* fatal */
                 exit(2);
             }
@@ -936,7 +936,7 @@ ngx_worker_process_init(ngx_cycle_t *cycle, ngx_int_t worker)
 #endif
 
     if (ngx_add_channel_event(cycle, ngx_channel, NGX_READ_EVENT,
-                              ngx_channel_handler)
+                              IA2_FN(ngx_channel_handler))
         == NGX_ERROR)
     {
         /* fatal */
@@ -952,8 +952,8 @@ ngx_worker_process_exit(ngx_cycle_t *cycle)
     ngx_connection_t  *c;
 
     for (i = 0; cycle->modules[i]; i++) {
-        if (cycle->modules[i]->exit_process) {
-            cycle->modules[i]->exit_process(cycle);
+        if (cycle->modules[i]->exit_process.ptr) {
+            IA2_CALL(cycle->modules[i]->exit_process, 31, 1)(cycle);
         }
     }
 
@@ -991,7 +991,7 @@ ngx_worker_process_exit(ngx_cycle_t *cycle)
     ngx_exit_log_file.fd = ngx_exit_log.file->fd;
     ngx_exit_log.file = &ngx_exit_log_file;
     ngx_exit_log.next = NULL;
-    ngx_exit_log.writer = NULL;
+    ngx_exit_log.writer = (typeof(ngx_exit_log.writer)) { NULL };
 
     ngx_exit_cycle.log = &ngx_exit_log;
     ngx_exit_cycle.files = ngx_cycle->files;
@@ -1031,7 +1031,7 @@ ngx_channel_handler(ngx_event_t *ev)
         if (n == NGX_ERROR) {
 
             if (ngx_event_flags & NGX_USE_EPOLL_EVENT) {
-                ngx_del_conn(c, 0);
+                IA2_CALL(ngx_del_conn, 12, 1)(c, 0);
             }
 
             ngx_close_connection(c);
@@ -1039,7 +1039,7 @@ ngx_channel_handler(ngx_event_t *ev)
         }
 
         if (ngx_event_flags & NGX_USE_EVENTPORT_EVENT) {
-            if (ngx_add_event(ev, NGX_READ_EVENT, 0) == NGX_ERROR) {
+            if (IA2_CALL(ngx_add_event, 11, 1)(ev, NGX_READ_EVENT, 0) == NGX_ERROR) {
                 return;
             }
         }
@@ -1157,8 +1157,8 @@ ngx_cache_manager_process_handler(ngx_event_t *ev)
     path = ngx_cycle->paths.elts;
     for (i = 0; i < ngx_cycle->paths.nelts; i++) {
 
-        if (path[i]->manager) {
-            n = path[i]->manager(path[i]->data);
+        if (path[i]->manager.ptr) {
+            n = IA2_CALL(path[i]->manager, 32, 1)(path[i]->data);
 
             next = (n <= next) ? n : next;
 
@@ -1190,11 +1190,16 @@ ngx_cache_loader_process_handler(ngx_event_t *ev)
             break;
         }
 
-        if (path[i]->loader) {
-            path[i]->loader(path[i]->data);
+        if (path[i]->loader.ptr) {
+            IA2_CALL(path[i]->loader, 0, 1)(path[i]->data);
             ngx_time_update();
         }
     }
 
     exit(0);
 }
+IA2_DEFINE_WRAPPER_ngx_cache_loader_process_handler
+IA2_DEFINE_WRAPPER_ngx_cache_manager_process_cycle
+IA2_DEFINE_WRAPPER_ngx_cache_manager_process_handler
+IA2_DEFINE_WRAPPER_ngx_channel_handler
+IA2_DEFINE_WRAPPER_ngx_worker_process_cycle

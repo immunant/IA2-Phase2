@@ -46,7 +46,7 @@ static ngx_command_t  ngx_http_rewrite_commands[] = {
     { ngx_string("rewrite"),
       NGX_HTTP_SRV_CONF|NGX_HTTP_SIF_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF
                        |NGX_CONF_TAKE23,
-      ngx_http_rewrite,
+      IA2_FN(ngx_http_rewrite),
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       NULL },
@@ -54,7 +54,7 @@ static ngx_command_t  ngx_http_rewrite_commands[] = {
     { ngx_string("return"),
       NGX_HTTP_SRV_CONF|NGX_HTTP_SIF_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF
                        |NGX_CONF_TAKE12,
-      ngx_http_rewrite_return,
+      IA2_FN(ngx_http_rewrite_return),
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       NULL },
@@ -62,14 +62,14 @@ static ngx_command_t  ngx_http_rewrite_commands[] = {
     { ngx_string("break"),
       NGX_HTTP_SRV_CONF|NGX_HTTP_SIF_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF
                        |NGX_CONF_NOARGS,
-      ngx_http_rewrite_break,
+      IA2_FN(ngx_http_rewrite_break),
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       NULL },
 
     { ngx_string("if"),
       NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_BLOCK|NGX_CONF_1MORE,
-      ngx_http_rewrite_if,
+      IA2_FN(ngx_http_rewrite_if),
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       NULL },
@@ -77,7 +77,7 @@ static ngx_command_t  ngx_http_rewrite_commands[] = {
     { ngx_string("set"),
       NGX_HTTP_SRV_CONF|NGX_HTTP_SIF_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF
                        |NGX_CONF_TAKE2,
-      ngx_http_rewrite_set,
+      IA2_FN(ngx_http_rewrite_set),
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       NULL },
@@ -85,7 +85,7 @@ static ngx_command_t  ngx_http_rewrite_commands[] = {
     { ngx_string("rewrite_log"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_SIF_CONF|NGX_HTTP_LOC_CONF
                         |NGX_HTTP_LIF_CONF|NGX_CONF_FLAG,
-      ngx_conf_set_flag_slot,
+      IA2_FN(ngx_conf_set_flag_slot),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_rewrite_loc_conf_t, log),
       NULL },
@@ -93,7 +93,7 @@ static ngx_command_t  ngx_http_rewrite_commands[] = {
     { ngx_string("uninitialized_variable_warn"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_SIF_CONF|NGX_HTTP_LOC_CONF
                         |NGX_HTTP_LIF_CONF|NGX_CONF_FLAG,
-      ngx_conf_set_flag_slot,
+      IA2_FN(ngx_conf_set_flag_slot),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_rewrite_loc_conf_t, uninitialized_variable_warn),
       NULL },
@@ -104,7 +104,7 @@ static ngx_command_t  ngx_http_rewrite_commands[] = {
 
 static ngx_http_module_t  ngx_http_rewrite_module_ctx = {
     NULL,                                  /* preconfiguration */
-    ngx_http_rewrite_init,                 /* postconfiguration */
+    IA2_FN(ngx_http_rewrite_init),                 /* postconfiguration */
 
     NULL,                                  /* create main configuration */
     NULL,                                  /* init main configuration */
@@ -112,8 +112,8 @@ static ngx_http_module_t  ngx_http_rewrite_module_ctx = {
     NULL,                                  /* create server configuration */
     NULL,                                  /* merge server configuration */
 
-    ngx_http_rewrite_create_loc_conf,      /* create location configuration */
-    ngx_http_rewrite_merge_loc_conf        /* merge location configuration */
+    IA2_FN(ngx_http_rewrite_create_loc_conf),      /* create location configuration */
+    IA2_FN(ngx_http_rewrite_merge_loc_conf)        /* merge location configuration */
 };
 
 
@@ -177,7 +177,7 @@ ngx_http_rewrite_handler(ngx_http_request_t *r)
 
     while (*(uintptr_t *) e->ip) {
         code = *(ngx_http_script_code_pt *) e->ip;
-        code(e);
+        IA2_CALL(code, 49, 1)(e);
     }
 
     return e->status;
@@ -281,14 +281,14 @@ ngx_http_rewrite_init(ngx_conf_t *cf)
         return NGX_ERROR;
     }
 
-    *h = ngx_http_rewrite_handler;
+    *h = IA2_FN(ngx_http_rewrite_handler);
 
     h = ngx_array_push(&cmcf->phases[NGX_HTTP_REWRITE_PHASE].handlers);
     if (h == NULL) {
         return NGX_ERROR;
     }
 
-    *h = ngx_http_rewrite_handler;
+    *h = IA2_FN(ngx_http_rewrite_handler);
 
     return NGX_OK;
 }
@@ -336,7 +336,7 @@ ngx_http_rewrite(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         return NGX_CONF_ERROR;
     }
 
-    regex->code = ngx_http_script_regex_start_code;
+    regex->code = IA2_FN(ngx_http_script_regex_start_code);
     regex->uri = 1;
     regex->name = value[1];
 
@@ -416,7 +416,7 @@ ngx_http_rewrite(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         return NGX_CONF_ERROR;
     }
 
-    regex_end->code = ngx_http_script_regex_end_code;
+    regex_end->code = IA2_FN(ngx_http_script_regex_end_code);
     regex_end->uri = regex->uri;
     regex_end->args = regex->args;
     regex_end->add_args = regex->add_args;
@@ -428,7 +428,7 @@ ngx_http_rewrite(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
             return NGX_CONF_ERROR;
         }
 
-        *code = NULL;
+        *code = (typeof(*code)) { NULL };
     }
 
     regex->next = (u_char *) lcf->codes->elts + lcf->codes->nelts
@@ -458,7 +458,7 @@ ngx_http_rewrite_return(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     ngx_memzero(ret, sizeof(ngx_http_script_return_code_t));
 
-    ret->code = ngx_http_script_return_code;
+    ret->code = IA2_FN(ngx_http_script_return_code);
 
     p = value[1].data;
 
@@ -521,7 +521,7 @@ ngx_http_rewrite_break(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         return NGX_CONF_ERROR;
     }
 
-    *code = ngx_http_script_break_code;
+    *code = IA2_FN(ngx_http_script_break_code);
 
     return NGX_CONF_OK;
 }
@@ -564,9 +564,9 @@ ngx_http_rewrite_if(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
         module = cf->cycle->modules[i]->ctx;
 
-        if (module->create_loc_conf) {
+        if (module->create_loc_conf.ptr) {
 
-            mconf = module->create_loc_conf(cf);
+            mconf = IA2_CALL(module->create_loc_conf, 35, 1)(cf);
             if (mconf == NULL) {
                 return NGX_CONF_ERROR;
             }
@@ -595,7 +595,7 @@ ngx_http_rewrite_if(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         return NGX_CONF_ERROR;
     }
 
-    if_code->code = ngx_http_script_if_code;
+    if_code->code = IA2_FN(ngx_http_script_if_code);
 
     elts = lcf->codes->elts;
 
@@ -724,7 +724,7 @@ ngx_http_rewrite_if_condition(ngx_conf_t *cf, ngx_http_rewrite_loc_conf_t *lcf)
                 return NGX_CONF_ERROR;
             }
 
-            *code = ngx_http_script_equal_code;
+            *code = IA2_FN(ngx_http_script_equal_code);
 
             return NGX_CONF_OK;
         }
@@ -741,7 +741,7 @@ ngx_http_rewrite_if_condition(ngx_conf_t *cf, ngx_http_rewrite_loc_conf_t *lcf)
                 return NGX_CONF_ERROR;
             }
 
-            *code = ngx_http_script_not_equal_code;
+            *code = IA2_FN(ngx_http_script_not_equal_code);
             return NGX_CONF_OK;
         }
 
@@ -770,7 +770,7 @@ ngx_http_rewrite_if_condition(ngx_conf_t *cf, ngx_http_rewrite_loc_conf_t *lcf)
                 return NGX_CONF_ERROR;
             }
 
-            regex->code = ngx_http_script_regex_start_code;
+            regex->code = IA2_FN(ngx_http_script_regex_start_code);
             regex->next = sizeof(ngx_http_script_regex_code_t);
             regex->test = 1;
             if (p[0] == '!') {
@@ -807,7 +807,7 @@ ngx_http_rewrite_if_condition(ngx_conf_t *cf, ngx_http_rewrite_loc_conf_t *lcf)
             return NGX_CONF_ERROR;
         }
 
-        fop->code = ngx_http_script_file_code;
+        fop->code = IA2_FN(ngx_http_script_file_code);
 
         if (p[1] == 'f') {
             fop->op = ngx_http_script_file_plain;
@@ -885,7 +885,7 @@ ngx_http_rewrite_variable(ngx_conf_t *cf, ngx_http_rewrite_loc_conf_t *lcf,
         return NGX_CONF_ERROR;
     }
 
-    var_code->code = ngx_http_script_var_code;
+    var_code->code = IA2_FN(ngx_http_script_var_code);
     var_code->index = index;
 
     return NGX_CONF_OK;
@@ -925,8 +925,8 @@ ngx_http_rewrite_set(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         return NGX_CONF_ERROR;
     }
 
-    if (v->get_handler == NULL) {
-        v->get_handler = ngx_http_rewrite_var;
+    if (v->get_handler.ptr == NULL) {
+        v->get_handler = IA2_FN(ngx_http_rewrite_var);
         v->data = index;
     }
 
@@ -934,14 +934,14 @@ ngx_http_rewrite_set(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         return NGX_CONF_ERROR;
     }
 
-    if (v->set_handler) {
+    if (v->set_handler.ptr) {
         vhcode = ngx_http_script_start_code(cf->pool, &lcf->codes,
                                    sizeof(ngx_http_script_var_handler_code_t));
         if (vhcode == NULL) {
             return NGX_CONF_ERROR;
         }
 
-        vhcode->code = ngx_http_script_var_set_handler_code;
+        vhcode->code = IA2_FN(ngx_http_script_var_set_handler_code);
         vhcode->handler = v->set_handler;
         vhcode->data = v->data;
 
@@ -954,7 +954,7 @@ ngx_http_rewrite_set(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         return NGX_CONF_ERROR;
     }
 
-    vcode->code = ngx_http_script_set_var_code;
+    vcode->code = IA2_FN(ngx_http_script_set_var_code);
     vcode->index = (uintptr_t) index;
 
     return NGX_CONF_OK;
@@ -985,7 +985,7 @@ ngx_http_rewrite_value(ngx_conf_t *cf, ngx_http_rewrite_loc_conf_t *lcf,
             n = 0;
         }
 
-        val->code = ngx_http_script_value_code;
+        val->code = IA2_FN(ngx_http_script_value_code);
         val->value = (uintptr_t) n;
         val->text_len = (uintptr_t) value->len;
         val->text_data = (uintptr_t) value->data;
@@ -999,7 +999,7 @@ ngx_http_rewrite_value(ngx_conf_t *cf, ngx_http_rewrite_loc_conf_t *lcf,
         return NGX_CONF_ERROR;
     }
 
-    complex->code = ngx_http_script_complex_value_code;
+    complex->code = IA2_FN(ngx_http_script_complex_value_code);
     complex->lengths = NULL;
 
     ngx_memzero(&sc, sizeof(ngx_http_script_compile_t));
@@ -1017,3 +1017,13 @@ ngx_http_rewrite_value(ngx_conf_t *cf, ngx_http_rewrite_loc_conf_t *lcf,
 
     return NGX_CONF_OK;
 }
+IA2_DEFINE_WRAPPER_ngx_http_rewrite
+IA2_DEFINE_WRAPPER_ngx_http_rewrite_break
+IA2_DEFINE_WRAPPER_ngx_http_rewrite_create_loc_conf
+IA2_DEFINE_WRAPPER_ngx_http_rewrite_handler
+IA2_DEFINE_WRAPPER_ngx_http_rewrite_if
+IA2_DEFINE_WRAPPER_ngx_http_rewrite_init
+IA2_DEFINE_WRAPPER_ngx_http_rewrite_merge_loc_conf
+IA2_DEFINE_WRAPPER_ngx_http_rewrite_return
+IA2_DEFINE_WRAPPER_ngx_http_rewrite_set
+IA2_DEFINE_WRAPPER_ngx_http_rewrite_var

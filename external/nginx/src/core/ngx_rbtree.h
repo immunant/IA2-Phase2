@@ -31,8 +31,7 @@ struct ngx_rbtree_node_s {
 
 typedef struct ngx_rbtree_s  ngx_rbtree_t;
 
-typedef void (*ngx_rbtree_insert_pt) (ngx_rbtree_node_t *root,
-    ngx_rbtree_node_t *node, ngx_rbtree_node_t *sentinel);
+typedef struct IA2_fnptr__ZTSFvP17ngx_rbtree_node_sS0_S0_E ngx_rbtree_insert_pt;
 
 struct ngx_rbtree_s {
     ngx_rbtree_node_t     *root;
@@ -45,7 +44,7 @@ struct ngx_rbtree_s {
     ngx_rbtree_sentinel_init(s);                                              \
     (tree)->root = s;                                                         \
     (tree)->sentinel = s;                                                     \
-    (tree)->insert = i
+    (tree)->insert = IA2_FN(i)
 
 #define ngx_rbtree_data(node, type, link)                                     \
     (type *) ((u_char *) (node) - offsetof(type, link))

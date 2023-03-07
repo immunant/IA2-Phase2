@@ -16,7 +16,7 @@ static ngx_command_t  ngx_http_empty_gif_commands[] = {
 
     { ngx_string("empty_gif"),
       NGX_HTTP_LOC_CONF|NGX_CONF_NOARGS,
-      ngx_http_empty_gif,
+      IA2_FN(ngx_http_empty_gif),
       0,
       0,
       NULL },
@@ -134,7 +134,9 @@ ngx_http_empty_gif(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     ngx_http_core_loc_conf_t  *clcf;
 
     clcf = ngx_http_conf_get_module_loc_conf(cf, ngx_http_core_module);
-    clcf->handler = ngx_http_empty_gif_handler;
+    clcf->handler = IA2_FN(ngx_http_empty_gif_handler);
 
     return NGX_CONF_OK;
 }
+IA2_DEFINE_WRAPPER_ngx_http_empty_gif
+IA2_DEFINE_WRAPPER_ngx_http_empty_gif_handler

@@ -33,14 +33,14 @@ static void *ngx_regex_create_conf(ngx_cycle_t *cycle);
 static char *ngx_regex_init_conf(ngx_cycle_t *cycle, void *conf);
 
 static char *ngx_regex_pcre_jit(ngx_conf_t *cf, void *post, void *data);
-static ngx_conf_post_t  ngx_regex_pcre_jit_post = { ngx_regex_pcre_jit };
+static ngx_conf_post_t  ngx_regex_pcre_jit_post = { IA2_FN(ngx_regex_pcre_jit) };
 
 
 static ngx_command_t  ngx_regex_commands[] = {
 
     { ngx_string("pcre_jit"),
       NGX_MAIN_CONF|NGX_DIRECT_CONF|NGX_CONF_FLAG,
-      ngx_conf_set_flag_slot,
+      IA2_FN(ngx_conf_set_flag_slot),
       0,
       offsetof(ngx_regex_conf_t, pcre_jit),
       &ngx_regex_pcre_jit_post },
@@ -51,8 +51,8 @@ static ngx_command_t  ngx_regex_commands[] = {
 
 static ngx_core_module_t  ngx_regex_module_ctx = {
     ngx_string("regex"),
-    ngx_regex_create_conf,
-    ngx_regex_init_conf
+    IA2_FN(ngx_regex_create_conf),
+    IA2_FN(ngx_regex_init_conf)
 };
 
 
@@ -62,7 +62,7 @@ ngx_module_t  ngx_regex_module = {
     ngx_regex_commands,                    /* module directives */
     NGX_CORE_MODULE,                       /* module type */
     NULL,                                  /* init master */
-    ngx_regex_module_init,                 /* init module */
+    IA2_FN(ngx_regex_module_init),                 /* init module */
     NULL,                                  /* init process */
     NULL,                                  /* init thread */
     NULL,                                  /* exit thread */
@@ -133,7 +133,7 @@ ngx_regex_compile(ngx_regex_compile_t *rc)
 
         ngx_regex_malloc_init(NULL);
 
-        gctx = pcre2_general_context_create(ngx_regex_malloc, ngx_regex_free,
+        gctx = pcre2_general_context_create((void*)&__ia2_ngx_regex_malloc, (void*)&__ia2_ngx_regex_free,
                                             NULL);
         if (gctx == NULL) {
             ngx_regex_malloc_done();
@@ -732,7 +732,7 @@ ngx_regex_create_conf(ngx_cycle_t *cycle)
         return NULL;
     }
 
-    cln->handler = ngx_regex_cleanup;
+    cln->handler = IA2_FN(ngx_regex_cleanup);
     cln->data = rcf;
 
     rcf->studies = ngx_list_create(cycle->pool, 8, sizeof(ngx_regex_elt_t));
@@ -801,3 +801,10 @@ ngx_regex_pcre_jit(ngx_conf_t *cf, void *post, void *data)
 
     return NGX_CONF_OK;
 }
+IA2_DEFINE_WRAPPER_ngx_regex_cleanup
+IA2_DEFINE_WRAPPER_ngx_regex_create_conf
+IA2_DEFINE_WRAPPER_ngx_regex_free
+IA2_DEFINE_WRAPPER_ngx_regex_init_conf
+IA2_DEFINE_WRAPPER_ngx_regex_malloc
+IA2_DEFINE_WRAPPER_ngx_regex_module_init
+IA2_DEFINE_WRAPPER_ngx_regex_pcre_jit

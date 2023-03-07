@@ -290,7 +290,7 @@ typedef struct {
 } ngx_http_headers_out_t;
 
 
-typedef void (*ngx_http_client_body_handler_pt)(ngx_http_request_t *r);
+typedef struct IA2_fnptr__ZTSFvP18ngx_http_request_sE ngx_http_client_body_handler_pt;
 
 typedef struct {
     ngx_temp_file_t                  *temp_file;
@@ -331,7 +331,7 @@ typedef struct {
 } ngx_http_connection_t;
 
 
-typedef void (*ngx_http_cleanup_pt)(void *data);
+typedef struct IA2_fnptr__ZTSFvPvE ngx_http_cleanup_pt;
 
 typedef struct ngx_http_cleanup_s  ngx_http_cleanup_t;
 
@@ -342,8 +342,7 @@ struct ngx_http_cleanup_s {
 };
 
 
-typedef ngx_int_t (*ngx_http_post_subrequest_pt)(ngx_http_request_t *r,
-    void *data, ngx_int_t rc);
+typedef struct IA2_fnptr__ZTSFlP18ngx_http_request_sPvlE ngx_http_post_subrequest_pt;
 
 typedef struct {
     ngx_http_post_subrequest_pt       handler;
@@ -368,8 +367,8 @@ struct ngx_http_posted_request_s {
 };
 
 
-typedef ngx_int_t (*ngx_http_handler_pt)(ngx_http_request_t *r);
-typedef void (*ngx_http_event_handler_pt)(ngx_http_request_t *r);
+typedef struct IA2_fnptr__ZTSFlP18ngx_http_request_sE ngx_http_handler_pt;
+typedef struct IA2_fnptr__ZTSFvP18ngx_http_request_sE ngx_http_event_handler_pt;
 
 
 struct ngx_http_request_s {

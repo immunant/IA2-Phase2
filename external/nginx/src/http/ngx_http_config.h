@@ -22,17 +22,17 @@ typedef struct {
 
 
 typedef struct {
-    ngx_int_t   (*preconfiguration)(ngx_conf_t *cf);
-    ngx_int_t   (*postconfiguration)(ngx_conf_t *cf);
+    struct IA2_fnptr__ZTSFlP10ngx_conf_sE preconfiguration;
+    struct IA2_fnptr__ZTSFlP10ngx_conf_sE postconfiguration;
 
-    void       *(*create_main_conf)(ngx_conf_t *cf);
-    char       *(*init_main_conf)(ngx_conf_t *cf, void *conf);
+    struct IA2_fnptr__ZTSFPvP10ngx_conf_sE create_main_conf;
+    struct IA2_fnptr__ZTSFPcP10ngx_conf_sPvE init_main_conf;
 
-    void       *(*create_srv_conf)(ngx_conf_t *cf);
-    char       *(*merge_srv_conf)(ngx_conf_t *cf, void *prev, void *conf);
+    struct IA2_fnptr__ZTSFPvP10ngx_conf_sE create_srv_conf;
+    struct IA2_fnptr__ZTSFPcP10ngx_conf_sPvS2_E merge_srv_conf;
 
-    void       *(*create_loc_conf)(ngx_conf_t *cf);
-    char       *(*merge_loc_conf)(ngx_conf_t *cf, void *prev, void *conf);
+    struct IA2_fnptr__ZTSFPvP10ngx_conf_sE create_loc_conf;
+    struct IA2_fnptr__ZTSFPcP10ngx_conf_sPvS2_E merge_loc_conf;
 } ngx_http_module_t;
 
 

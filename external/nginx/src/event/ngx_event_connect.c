@@ -31,7 +31,7 @@ ngx_event_connect_peer(ngx_peer_connection_t *pc)
     ngx_event_t       *rev, *wev;
     ngx_connection_t  *c;
 
-    rc = pc->get(pc, pc->data);
+    rc = IA2_CALL(pc->get, 27, 1)(pc, pc->data);
     if (rc != NGX_OK) {
         return rc;
     }
@@ -197,8 +197,8 @@ ngx_event_connect_peer(ngx_peer_connection_t *pc)
 
     c->start_time = ngx_current_msec;
 
-    if (ngx_add_conn) {
-        if (ngx_add_conn(c) == NGX_ERROR) {
+    if (ngx_add_conn.ptr) {
+        if (IA2_CALL(ngx_add_conn, 23, 1)(c) == NGX_ERROR) {
             goto failed;
         }
     }
@@ -249,7 +249,7 @@ ngx_event_connect_peer(ngx_peer_connection_t *pc)
         }
     }
 
-    if (ngx_add_conn) {
+    if (ngx_add_conn.ptr) {
         if (rc == -1) {
 
             /* NGX_EINPROGRESS */
@@ -301,7 +301,7 @@ ngx_event_connect_peer(ngx_peer_connection_t *pc)
         event = NGX_LEVEL_EVENT;
     }
 
-    if (ngx_add_event(rev, NGX_READ_EVENT, event) != NGX_OK) {
+    if (IA2_CALL(ngx_add_event, 11, 1)(rev, NGX_READ_EVENT, event) != NGX_OK) {
         goto failed;
     }
 
@@ -309,7 +309,7 @@ ngx_event_connect_peer(ngx_peer_connection_t *pc)
 
         /* NGX_EINPROGRESS */
 
-        if (ngx_add_event(wev, NGX_WRITE_EVENT, event) != NGX_OK) {
+        if (IA2_CALL(ngx_add_event, 11, 1)(wev, NGX_WRITE_EVENT, event) != NGX_OK) {
             goto failed;
         }
 

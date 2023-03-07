@@ -15,7 +15,7 @@ static ngx_int_t ngx_http_write_filter_init(ngx_conf_t *cf);
 
 static ngx_http_module_t  ngx_http_write_filter_module_ctx = {
     NULL,                                  /* preconfiguration */
-    ngx_http_write_filter_init,            /* postconfiguration */
+    IA2_FN(ngx_http_write_filter_init),            /* postconfiguration */
 
     NULL,                                  /* create main configuration */
     NULL,                                  /* init main configuration */
@@ -292,7 +292,7 @@ ngx_http_write_filter(ngx_http_request_t *r, ngx_chain_t *in)
     ngx_log_debug1(NGX_LOG_DEBUG_HTTP, c->log, 0,
                    "http write filter limit %O", limit);
 
-    chain = c->send_chain(c, r->out, limit);
+    chain = IA2_CALL(c->send_chain, 6, 1)(c, r->out, limit);
 
     ngx_log_debug1(NGX_LOG_DEBUG_HTTP, c->log, 0,
                    "http write filter %p", chain);
@@ -357,7 +357,8 @@ ngx_http_write_filter(ngx_http_request_t *r, ngx_chain_t *in)
 static ngx_int_t
 ngx_http_write_filter_init(ngx_conf_t *cf)
 {
-    ngx_http_top_body_filter = ngx_http_write_filter;
+    ngx_http_top_body_filter = IA2_FN(ngx_http_write_filter);
 
     return NGX_OK;
 }
+IA2_DEFINE_WRAPPER_ngx_http_write_filter_init

@@ -30,8 +30,8 @@ typedef struct ngx_proxy_protocol_s  ngx_proxy_protocol_t;
 typedef struct ngx_ssl_connection_s  ngx_ssl_connection_t;
 typedef struct ngx_udp_connection_s  ngx_udp_connection_t;
 
-typedef void (*ngx_event_handler_pt)(ngx_event_t *ev);
-typedef void (*ngx_connection_handler_pt)(ngx_connection_t *c);
+typedef struct IA2_fnptr__ZTSFvP11ngx_event_sE ngx_event_handler_pt;
+typedef struct IA2_fnptr__ZTSFvP16ngx_connection_sE ngx_connection_handler_pt;
 
 
 #define  NGX_OK          0

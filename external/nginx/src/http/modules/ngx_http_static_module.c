@@ -16,7 +16,7 @@ static ngx_int_t ngx_http_static_init(ngx_conf_t *cf);
 
 static ngx_http_module_t  ngx_http_static_module_ctx = {
     NULL,                                  /* preconfiguration */
-    ngx_http_static_init,                  /* postconfiguration */
+    IA2_FN(ngx_http_static_init),                  /* postconfiguration */
 
     NULL,                                  /* create main configuration */
     NULL,                                  /* init main configuration */
@@ -293,7 +293,9 @@ ngx_http_static_init(ngx_conf_t *cf)
         return NGX_ERROR;
     }
 
-    *h = ngx_http_static_handler;
+    *h = IA2_FN(ngx_http_static_handler);
 
     return NGX_OK;
 }
+IA2_DEFINE_WRAPPER_ngx_http_static_handler
+IA2_DEFINE_WRAPPER_ngx_http_static_init

@@ -88,28 +88,28 @@ static ngx_command_t  ngx_http_autoindex_commands[] = {
 
     { ngx_string("autoindex"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_FLAG,
-      ngx_conf_set_flag_slot,
+      IA2_FN(ngx_conf_set_flag_slot),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_autoindex_loc_conf_t, enable),
       NULL },
 
     { ngx_string("autoindex_format"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_enum_slot,
+      IA2_FN(ngx_conf_set_enum_slot),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_autoindex_loc_conf_t, format),
       &ngx_http_autoindex_format },
 
     { ngx_string("autoindex_localtime"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_FLAG,
-      ngx_conf_set_flag_slot,
+      IA2_FN(ngx_conf_set_flag_slot),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_autoindex_loc_conf_t, localtime),
       NULL },
 
     { ngx_string("autoindex_exact_size"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_FLAG,
-      ngx_conf_set_flag_slot,
+      IA2_FN(ngx_conf_set_flag_slot),
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_autoindex_loc_conf_t, exact_size),
       NULL },
@@ -120,7 +120,7 @@ static ngx_command_t  ngx_http_autoindex_commands[] = {
 
 static ngx_http_module_t  ngx_http_autoindex_module_ctx = {
     NULL,                                  /* preconfiguration */
-    ngx_http_autoindex_init,               /* postconfiguration */
+    IA2_FN(ngx_http_autoindex_init),               /* postconfiguration */
 
     NULL,                                  /* create main configuration */
     NULL,                                  /* init main configuration */
@@ -128,8 +128,8 @@ static ngx_http_module_t  ngx_http_autoindex_module_ctx = {
     NULL,                                  /* create server configuration */
     NULL,                                  /* merge server configuration */
 
-    ngx_http_autoindex_create_loc_conf,    /* create location configuration */
-    ngx_http_autoindex_merge_loc_conf      /* merge location configuration */
+    IA2_FN(ngx_http_autoindex_create_loc_conf),    /* create location configuration */
+    IA2_FN(ngx_http_autoindex_merge_loc_conf)      /* merge location configuration */
 };
 
 
@@ -388,7 +388,7 @@ ngx_http_autoindex_handler(ngx_http_request_t *r)
     if (entries.nelts > 1) {
         ngx_qsort(entries.elts, (size_t) entries.nelts,
                   sizeof(ngx_http_autoindex_entry_t),
-                  ngx_http_autoindex_cmp_entries);
+                  (void*)&__ia2_ngx_http_autoindex_cmp_entries);
     }
 
     switch (format) {
@@ -1066,7 +1066,12 @@ ngx_http_autoindex_init(ngx_conf_t *cf)
         return NGX_ERROR;
     }
 
-    *h = ngx_http_autoindex_handler;
+    *h = IA2_FN(ngx_http_autoindex_handler);
 
     return NGX_OK;
 }
+IA2_DEFINE_WRAPPER_ngx_http_autoindex_cmp_entries
+IA2_DEFINE_WRAPPER_ngx_http_autoindex_create_loc_conf
+IA2_DEFINE_WRAPPER_ngx_http_autoindex_handler
+IA2_DEFINE_WRAPPER_ngx_http_autoindex_init
+IA2_DEFINE_WRAPPER_ngx_http_autoindex_merge_loc_conf

@@ -50,21 +50,21 @@ static ngx_command_t  ngx_http_map_commands[] = {
 
     { ngx_string("map"),
       NGX_HTTP_MAIN_CONF|NGX_CONF_BLOCK|NGX_CONF_TAKE2,
-      ngx_http_map_block,
+      IA2_FN(ngx_http_map_block),
       NGX_HTTP_MAIN_CONF_OFFSET,
       0,
       NULL },
 
     { ngx_string("map_hash_max_size"),
       NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_num_slot,
+      IA2_FN(ngx_conf_set_num_slot),
       NGX_HTTP_MAIN_CONF_OFFSET,
       offsetof(ngx_http_map_conf_t, hash_max_size),
       NULL },
 
     { ngx_string("map_hash_bucket_size"),
       NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_num_slot,
+      IA2_FN(ngx_conf_set_num_slot),
       NGX_HTTP_MAIN_CONF_OFFSET,
       offsetof(ngx_http_map_conf_t, hash_bucket_size),
       NULL },
@@ -77,7 +77,7 @@ static ngx_http_module_t  ngx_http_map_module_ctx = {
     NULL,                                  /* preconfiguration */
     NULL,                                  /* postconfiguration */
 
-    ngx_http_map_create_conf,              /* create main configuration */
+    IA2_FN(ngx_http_map_create_conf),              /* create main configuration */
     NULL,                                  /* init main configuration */
 
     NULL,                                  /* create server configuration */
@@ -232,7 +232,7 @@ ngx_http_map_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         return NGX_CONF_ERROR;
     }
 
-    var->get_handler = ngx_http_map_variable;
+    var->get_handler = IA2_FN(ngx_http_map_variable);
     var->data = (uintptr_t) map;
 
     pool = ngx_create_pool(NGX_DEFAULT_POOL_SIZE, cf->log);
@@ -271,7 +271,7 @@ ngx_http_map_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     save = *cf;
     cf->pool = pool;
     cf->ctx = &ctx;
-    cf->handler = ngx_http_map;
+    cf->handler = IA2_FN(ngx_http_map);
     cf->handler_conf = conf;
 
     rv = ngx_conf_parse(cf, NULL);
@@ -292,7 +292,7 @@ ngx_http_map_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     map->hostnames = ctx.hostnames;
 
-    hash.key = ngx_hash_key_lc;
+    hash.key = IA2_FN(ngx_hash_key_lc);
     hash.max_size = mcf->hash_max_size;
     hash.bucket_size = mcf->hash_bucket_size;
     hash.name = "map_hash";
@@ -314,7 +314,7 @@ ngx_http_map_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
         ngx_qsort(ctx.keys.dns_wc_head.elts,
                   (size_t) ctx.keys.dns_wc_head.nelts,
-                  sizeof(ngx_hash_key_t), ngx_http_map_cmp_dns_wildcards);
+                  sizeof(ngx_hash_key_t), (void*)&__ia2_ngx_http_map_cmp_dns_wildcards);
 
         hash.hash = NULL;
         hash.temp_pool = pool;
@@ -334,7 +334,7 @@ ngx_http_map_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
         ngx_qsort(ctx.keys.dns_wc_tail.elts,
                   (size_t) ctx.keys.dns_wc_tail.nelts,
-                  sizeof(ngx_hash_key_t), ngx_http_map_cmp_dns_wildcards);
+                  sizeof(ngx_hash_key_t), (void*)&__ia2_ngx_http_map_cmp_dns_wildcards);
 
         hash.hash = NULL;
         hash.temp_pool = pool;
@@ -587,3 +587,8 @@ found:
 
     return NGX_CONF_ERROR;
 }
+IA2_DEFINE_WRAPPER_ngx_http_map
+IA2_DEFINE_WRAPPER_ngx_http_map_block
+IA2_DEFINE_WRAPPER_ngx_http_map_cmp_dns_wildcards
+IA2_DEFINE_WRAPPER_ngx_http_map_create_conf
+IA2_DEFINE_WRAPPER_ngx_http_map_variable

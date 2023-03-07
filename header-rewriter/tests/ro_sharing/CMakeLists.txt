@@ -8,22 +8,17 @@ endif()
 configure_file(${PLUGIN_STDOUT_REF} ${CMAKE_CURRENT_BINARY_DIR}/plugin.out)
 configure_file(${MAIN_STDOUT_REF} ${CMAKE_CURRENT_BINARY_DIR}/main.out)
 
-# Build the wrapper lib for the plugin
-define_ia2_wrapper(
-    HEADERS plugin.h
-    COMPARTMENT_PKEY 2
-    INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/
-    CALLER_PKEY 1
-)
-
 # Build the plugin lib
 define_shared_lib(
     SRCS plugin.c
-    LINK_OPTS "-Wl,-T${libia2_BINARY_DIR}/padding.ld"
-    INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR}/
+    PKEY 2
 )
 
 # Build the test
 define_test(
     SRCS main.c
+    PKEY 1
+    NEEDS_LD_WRAP
 )
+
+define_ia2_wrapper()

@@ -1,19 +1,11 @@
-# Build the wrapper lib
-define_ia2_wrapper(
-    WRAPPER wrapper
-    WRAPPED_LIB original
-    HEADERS minimal.h
-    CALLER_PKEY 1
-)
-
 # Build the wrapped lib
-define_shared_lib(
-    SRCS minimal.c
-    LIBNAME original
-)
+define_shared_lib(SRCS minimal.c)
 
 # Build the test
 define_test(
     SRCS main.c
-    WRAPPERS wrapper
+    NEEDS_LD_WRAP
 )
+
+# Build the wrapper lib
+define_ia2_wrapper()

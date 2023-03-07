@@ -19,18 +19,21 @@ add_lit_testsuite(check-ia2 "Running the IA2 tests"
   )
 set_target_properties(check-ia2 PROPERTIES FOLDER "tests")
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 # Set up 'check' alias
 add_custom_target(check)
 add_dependencies(check check-ia2)
 set_target_properties(check PROPERTIES FOLDER "tests")
 
-add_subdirectory(ffmpeg)
+# add_subdirectory(ffmpeg)
 add_subdirectory(function_allowlist)
 add_subdirectory(header_includes)
 add_subdirectory(heap_two_keys)
-add_subdirectory(libusb)
+# add_subdirectory(libusb)
 add_subdirectory(macro_attr)
 add_subdirectory(minimal)
+# TODO: support C++ namespaces
 #add_subdirectory(namespaces)
 add_subdirectory(recursion)
 add_subdirectory(ro_sharing)

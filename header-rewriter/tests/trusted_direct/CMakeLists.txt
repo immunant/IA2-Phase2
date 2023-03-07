@@ -5,32 +5,18 @@ else()
 endif()
 configure_file(${STDOUT_REF} ${CMAKE_CURRENT_BINARY_DIR}/trusted_direct.out)
 
-# Build the wrapper lib for the plugin
-define_ia2_wrapper(
-    HEADERS plugin.h
-    INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/plugin/
-    CALLER_PKEY 1
-)
-
-# Build the wrapper lib for the main binary
-define_ia2_wrapper(
-    WRAP_MAIN
-    # The main binary has pkey 1
-    COMPARTMENT_PKEY 1
-    HEADERS exported_fn.h
-    INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/main/
-    # This wrapper's caller is the library which has pkey 0 (untrusted)
-    CALLER_PKEY 0
-)
-
 # Build the plugin lib
 define_shared_lib(
     SRCS plugin.c
-    LINK_LIBS trusted_direct-main-wrapper
-    INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR}/
+    INCLUDE_DIR include/main
+    NEEDS_LD_WRAP
 )
 
 # Build the test
 define_test(
     SRCS main.c
+    INCLUDE_DIR include/plugin
+    NEEDS_LD_WRAP
 )
+
+define_ia2_wrapper()

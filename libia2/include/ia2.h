@@ -253,9 +253,8 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
     __asm__ volatile(IA2_WRPKRU : : "a"(new_pkru), "d"(0), "c"(0));            \
     /* Forbid overwriting an existing stack. */                                \
     if (ia2_stackptr_##i != NULL) {                                            \
-      printf(                                                                  \
-          "compartment %zd in thread %zd tried to allocate existing stack\n",  \
-          i, gettid());                                                        \
+      printf("compartment %d in thread %d tried to allocate existing stack\n", \
+             i, gettid());                                                     \
       exit(1);                                                                 \
     }                                                                          \
     /* Write the stack pointer. */                                             \

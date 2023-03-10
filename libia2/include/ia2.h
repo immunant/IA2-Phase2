@@ -50,6 +50,7 @@
 /// data->address is found. Protect the pages in that object according to the
 /// information in the search arguments.
 int protect_pages(struct dl_phdr_info *info, size_t size, void *data);
+int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data);
 
 // The data argument each time dl_iterate_phdr calls protect_pages
 struct PhdrSearchArgs {
@@ -175,6 +176,12 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
 // Checks if an opaque pointer is null
 #define IA2_FNPTR_IS_NULL(target) (target.ptr == NULL)
 
+#ifdef LIBIA2_INSECURE
+#define protect_tls_for_compartment(n)
+#else
+#define protect_tls_for_compartment(n) init_tls_##n();
+#endif
+
 // Initializes a compartment with protection key `n` when the ELF invoking this
 // macro is loaded. This must only be called once for each key. The compartment
 // includes all segments in the ELF except the `ia2_shared_data` section, if one
@@ -189,6 +196,13 @@ asm(".macro mov_mixed_pkru_eax pkey0, pkey1\n"
         .address = &init_pkey_##n##_ctor,                                      \
     };                                                                         \
     dl_iterate_phdr(protect_pages, &args);                                     \
+  }                                                                            \
+  void init_tls_##n(void) {                                                    \
+    struct PhdrSearchArgs args = {                                             \
+        .pkey = n,                                                             \
+        .address = &init_pkey_##n##_ctor,                                      \
+    };                                                                         \
+    dl_iterate_phdr(protect_tls_pages, &args);                                 \
   }
 
 // Obtain a string corresponding to errno in a threadsafe fashion.
@@ -267,6 +281,55 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
       }                                                                        \
     }                                                                          \
     return stack;                                                              \
+  }                                                                            \
+  void init_tls_15(void);                                                      \
+  void init_tls_14(void);                                                      \
+  void init_tls_13(void);                                                      \
+  void init_tls_12(void);                                                      \
+  void init_tls_11(void);                                                      \
+  void init_tls_10(void);                                                      \
+  void init_tls_9(void);                                                       \
+  void init_tls_8(void);                                                       \
+  void init_tls_7(void);                                                       \
+  void init_tls_6(void);                                                       \
+  void init_tls_5(void);                                                       \
+  void init_tls_4(void);                                                       \
+  void init_tls_3(void);                                                       \
+  void init_tls_2(void);                                                       \
+  void init_tls_1(void);                                                       \
+  /* Ensure that TLS is protected in a new thread. */                          \
+  void protect_tls(void) {                                                     \
+    goto tls_##n;                                                              \
+  tls_15:                                                                      \
+    protect_tls_for_compartment(15);                                           \
+  tls_14:                                                                      \
+    protect_tls_for_compartment(14);                                           \
+  tls_13:                                                                      \
+    protect_tls_for_compartment(13);                                           \
+  tls_12:                                                                      \
+    protect_tls_for_compartment(12);                                           \
+  tls_11:                                                                      \
+    protect_tls_for_compartment(11);                                           \
+  tls_10:                                                                      \
+    protect_tls_for_compartment(10);                                           \
+  tls_9:                                                                       \
+    protect_tls_for_compartment(9);                                            \
+  tls_8:                                                                       \
+    protect_tls_for_compartment(8);                                            \
+  tls_7:                                                                       \
+    protect_tls_for_compartment(7);                                            \
+  tls_6:                                                                       \
+    protect_tls_for_compartment(6);                                            \
+  tls_5:                                                                       \
+    protect_tls_for_compartment(5);                                            \
+  tls_4:                                                                       \
+    protect_tls_for_compartment(4);                                            \
+  tls_3:                                                                       \
+    protect_tls_for_compartment(3);                                            \
+  tls_2:                                                                       \
+    protect_tls_for_compartment(2);                                            \
+  tls_1:                                                                       \
+    protect_tls_for_compartment(1);                                            \
   }                                                                            \
   /* Ensure that all required pkeys are allocated. */                          \
   void ensure_pkeys_allocated(int *n_to_alloc) {                               \

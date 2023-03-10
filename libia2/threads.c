@@ -3,6 +3,7 @@
 #include "ia2.h"
 
 void init_stacks(void);
+void protect_tls(void);
 
 struct ia2_thread_thunk {
   void *(*fn)(void *);
@@ -17,6 +18,7 @@ void *ia2_thread_begin(void *arg) {
   munmap(arg, sizeof(struct ia2_thread_thunk));
 
   init_stacks();
+  protect_tls();
 
   /* TODO: switch to compartment stack before calling `fn` */
 

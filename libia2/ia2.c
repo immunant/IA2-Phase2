@@ -60,6 +60,53 @@ static int segment_flags_to_access_flags(Elf64_Word flags) {
          ((flags & PF_R) != 0 ? PROT_READ : 0);
 }
 
+int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
+  if (!data || !info) {
+    printf("Passed invalid args to dl_iterate_phdr callback\n");
+    exit(-1);
+  }
+
+  struct PhdrSearchArgs *search_args = (struct PhdrSearchArgs *)data;
+  Elf64_Addr address = (Elf64_Addr)search_args->address;
+  if (!in_loaded_segment(info, address)) {
+    // Continue iterating to check the next object
+    return 0;
+  }
+
+  /* protect TLS segment */
+  for (size_t i = 0; i < info->dlpi_phnum; i++) {
+    Elf64_Phdr phdr = info->dlpi_phdr[i];
+    if (phdr.p_type != PT_TLS) {
+      continue;
+    }
+
+    void *start = info->dlpi_tls_data;
+    size_t len = phdr.p_memsz;
+
+    void *start_round_down = (void *)((uint64_t)start & ~0xFFFUL);
+    uint64_t start_moved = (uint64_t)start & 0xFFFUL;
+    // p_memsz is 0x1000 more than the size of what we actually need to protect
+    size_t len_round_up = (phdr.p_memsz + start_moved) & ~0xFFFUL;
+    if (len_round_up == 0) {
+      const char *libname = basename(info->dlpi_name);
+      /* dlpi_name is "" for the main executable */
+      if (libname && libname[0] == '\0') {
+        libname = "main";
+      }
+      printf("TLS segment of %s is not padded\n", libname);
+      exit(-1);
+    }
+    int mprotect_err = pkey_mprotect(start_round_down, len_round_up,
+                                     PROT_READ | PROT_WRITE, search_args->pkey);
+    if (mprotect_err != 0) {
+      printf("pkey_mprotect failed: %s\n", strerror(errno));
+      exit(-1);
+    }
+  }
+
+  return 0;
+}
+
 int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
   if (!data || !info) {
     printf("Passed invalid args to dl_iterate_phdr callback\n");

@@ -1,9 +1,14 @@
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
+#include <inttypes.h>
 #include <link.h>
+#include <stdio.h>
 
 #include "ia2.h"
+
+// TODO: Do we want to use sysconf(3) here?
+#define PAGE_SIZE 4096
 
 #ifdef LIBIA2_INSECURE
 size_t ia2_get_pkey() { return 0; }
@@ -218,6 +223,13 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
   }
 
   struct PhdrSearchArgs *search_args = (struct PhdrSearchArgs *)data;
+
+  size_t cur_pkey = ia2_get_pkey();
+  if (cur_pkey != search_args->pkey) {
+    fprintf(stderr, "Invalid pkey, expected %" PRId32 ", found %" PRId32 "\n",
+            search_args->pkey, cur_pkey);
+    abort();
+  }
   Elf64_Addr address = (Elf64_Addr)search_args->address;
   if (!in_loaded_segment(info, address)) {
     // Continue iterating to check the next object
@@ -341,8 +353,22 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
       }
 
       if (cur_end > start) {
+        // Probe each page to ensure that we can read from it. This ensures that
+        // we at least have read permission to the page before we pkey_mprotect
+        // it to exclude all other compartments from accessing the page. We only
+        // use pkeys to grant both read and write permission together and rely
+        // on normal page permissions to create read-only regions, so reading is
+        // sufficient to prove we have access in the current compartment. After
+        // we finish protecting these pages, no other compartment may re-protect
+        // them because it cannot read from the pages at this probe.
+        for (size_t i = 0; i < cur_end - start; i += PAGE_SIZE) {
+          volatile char* cur = (volatile char*)start + i;
+          (void)*cur;
+        }
+        // TODO: Inline pkey_mprotect call and make sure the pkey is in a
+        // register here so we can disallow calls to the libc function
         int mprotect_err = pkey_mprotect((void *)start, cur_end - start,
-                                         access_flags, search_args->pkey);
+                                         access_flags, (int)cur_pkey);
         if (mprotect_err != 0) {
           printf("pkey_mprotect failed: %s\n", strerror(errno));
           exit(-1);

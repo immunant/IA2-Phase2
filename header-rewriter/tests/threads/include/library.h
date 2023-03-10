@@ -30,3 +30,6 @@ void library_memset(void *ptr, uint8_t byte, size_t n);
 
 // LINKARGS: --wrap=library_call_fn
 void library_call_fn(Fn what);
+
+// LINKARGS: --wrap=library_access_int_ptr
+int library_access_int_ptr(int *ptr);

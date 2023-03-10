@@ -14,3 +14,5 @@ CHECK-DAG: main data is 30
 ptr is 0x1, formatting int: 000010cd
 CHECK-DAG: library pkru fffffffc
 ptr is 0x2, formatting int: 000010ce
+CHECK-DAG: c1t3 accessing c1t1 thread-local: 50
+CHECK-NEXT: CHECK_VIOLATION: seg faulted as expected

@@ -4,6 +4,8 @@
 #include <pthread.h>
 #include <string.h>
 #include <sys/wait.h>
+#define IA2_DEFINE_TEST_HANDLER
+#include <test_fault_handler.h>
 #include <unistd.h>
 
 INIT_RUNTIME(1);
@@ -45,6 +47,16 @@ void create_threads(void) {
   iret2 = pthread_create(&thread2, NULL, thread_fn, (void *)2);
 }
 
+__thread int thread_local_var = 50;
+
+void *access_ptr_thread_fn(void *ptr) {
+  int *x = (int *)ptr;
+  printf("c1t3 accessing c1t1 thread-local: %d\n", *x);
+  printf("c2t3 accessing c1t1 thread-local: %d\n",
+         CHECK_VIOLATION(library_access_int_ptr(x)));
+  return NULL;
+}
+
 int main() {
   printf("main-module main pkru=%08x\n", rdpkru());
   library_showpkru();
@@ -60,5 +72,11 @@ int main() {
   pthread_join(thread1, NULL);
   pthread_join(thread2, NULL);
   pthread_join(lib_thread, NULL);
+
+  pthread_t fault_thread;
+  int thread_create_ret = pthread_create(
+      &fault_thread, NULL, access_ptr_thread_fn, (void *)&thread_local_var);
+  pthread_join(fault_thread, NULL);
+
   return 0;
 }

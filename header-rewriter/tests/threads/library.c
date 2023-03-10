@@ -37,6 +37,8 @@ void library_memset(void *ptr, uint8_t byte, size_t n) {
   }
 }
 
+int library_access_int_ptr(int *ptr) { return *ptr; }
+
 void library_call_fn(Fn what) {
   printf("in lib, about to call fnptr; lib data: %d\n", data_in_lib);
   what();

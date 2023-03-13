@@ -528,6 +528,13 @@ emit_wrappers(llvm::raw_ostream &WrapperOut, llvm::raw_ostream &ArgsOut,
     // Add the wrapper to the list of symbols to redirect
     ArgsOut << "--wrap=" << wrapper.name << "\n";
   }
+
+  // Because we don't directly call into threads.c, our pthread_create wrapper
+  // needs to be explicitly required by wrapper libraries. Marking it as an
+  // undefined symbol to resolve does this.
+  ArgsOut << "--undefined="
+          << "__wrap_pthread_create"
+          << "\n";
 }
 
 int main(int argc, const char **argv) {

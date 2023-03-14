@@ -237,7 +237,7 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
                                                                                \
     /* We must change the pkru to write the stack pointer because each */      \
     /* stack pointer is part of the compartment whose stack it points to. */   \
-    __asm__ volatile goto(                                                     \
+    __asm__ volatile(                                                          \
         "mov $" #i ",%%rdi\n"                                                  \
         "push %%rbp\n"                                                         \
         "# allocate a stack; puts its top in rax\n"                            \
@@ -258,26 +258,19 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
         "mov ia2_stackptr_" #i "@GOTTPOFF(%%rip), %%r11\n"                     \
         "# check that stack pointer holds NULL\n"                              \
         "cmpq $0x0,%%fs:(%%r11)\n"                                             \
-        "jne %l[already_init" #i "]\n"                                         \
+        "je .Lfresh_init" #i "\n"                                              \
+        "mov $" #i ", %%rdi\n"                                                 \
+        "call ia2_reinit_stack_err\n"                                          \
+        ".Lfresh_init" #i ":\n"                                                \
         "# store the stack addr in the stack pointer\n"                        \
         "mov %%rbp, %%fs:(%%r11)\n"                                            \
         "# restore old pkru\n"                                                 \
         "mov %%r12d,%%eax\n"                                                   \
         "wrpkru\n"                                                             \
         "pop %%rbp\n"                                                          \
-        "jmp %l[next" #i "]\n"                                                 \
         :                                                                      \
         :                                                                      \
-        : "rdi", "rax", "rbx", "rcx", "rdx", "r11", "r12"                      \
-        : already_init##i, next##i);                                           \
-                                                                               \
-    /* Forbid overwriting an existing stack. */                                \
-    already_init##i:                                                           \
-    printf(                                                                    \
-        "compartment %d in thread %d tried to allocate existing stack\n",      \
-        i, gettid());                                                          \
-    exit(1);                                                                   \
-    next##i:                                                                   \
+        : "rdi", "rax", "rbx", "rcx", "rdx", "r11", "r12");                    \
   }
 /* clang-format on */
 
@@ -368,6 +361,12 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
       }                                                                        \
       *n_to_alloc = 0;                                                         \
     }                                                                          \
+  }                                                                            \
+  /* Forbid overwriting an existing stack. */                                  \
+  void ia2_reinit_stack_err(int i) {                                           \
+    printf("compartment %d in thread %d tried to allocate existing stack\n",   \
+           i, gettid());                                                       \
+    exit(1);                                                                   \
   }                                                                            \
                                                                                \
   /* The 0th compartment is unprivileged and does not protect its memory, */   \

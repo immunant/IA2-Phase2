@@ -239,10 +239,9 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
     /* stack pointer is part of the compartment whose stack it points to. */   \
     __asm__ volatile(                                                          \
         "mov $" #i ",%%rdi\n"                                                  \
-        "push %%rbp\n"                                                         \
         "# allocate a stack; puts its top in rax\n"                            \
         "call allocate_stack\n"                                                \
-        "mov %%rax, %%rbp\n"                                                   \
+        "mov %%rax, %%r10\n"                                                   \
         "# zero eax/ebx/ecx/edx\n"                                             \
         "xor %%eax,%%eax\n"                                                    \
         "mov %%eax,%%ebx\n"                                                    \
@@ -264,14 +263,13 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
         "ud2\n"                                                                \
         ".Lfresh_init" #i ":\n"                                                \
         "# store the stack addr in the stack pointer\n"                        \
-        "mov %%rbp, %%fs:(%%r11)\n"                                            \
+        "mov %%r10, %%fs:(%%r11)\n"                                            \
         "# restore old pkru\n"                                                 \
         "mov %%r12d,%%eax\n"                                                   \
         IA2_WRPKRU "\n"                                                        \
-        "pop %%rbp\n"                                                          \
         :                                                                      \
         :                                                                      \
-        : "rdi", "rax", "rbx", "rcx", "rdx", "r11", "r12");                    \
+        : "rdi", "rax", "rbx", "rcx", "rdx", "r10", "r11", "r12");             \
   }
 /* clang-format on */
 

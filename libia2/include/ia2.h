@@ -235,13 +235,12 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
   {                                                                            \
     extern __thread void *ia2_stackptr_##i;                                    \
                                                                                \
+    register void *stack asm("rax") = allocate_stack(i);                       \
+                                                                               \
     /* We must change the pkru to write the stack pointer because each */      \
     /* stack pointer is part of the compartment whose stack it points to. */   \
     __asm__ volatile(                                                          \
-        "mov $" #i ",%%rdi\n"                                                  \
-        "# allocate a stack; puts its top in rax\n"                            \
-        "call allocate_stack\n"                                                \
-        "mov %%rax, %%r10\n"                                                   \
+        "mov %0, %%r10\n"                                                      \
         "# zero eax/ebx/ecx/edx\n"                                             \
         "xor %%eax,%%eax\n"                                                    \
         "mov %%eax,%%ebx\n"                                                    \
@@ -268,8 +267,8 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
         "mov %%r12d,%%eax\n"                                                   \
         IA2_WRPKRU "\n"                                                        \
         :                                                                      \
-        :                                                                      \
-        : "rdi", "rax", "rbx", "rcx", "rdx", "r10", "r11", "r12");             \
+        : "rax"(stack)                                                         \
+        : "rdi", "rbx", "rcx", "rdx", "r10", "r11", "r12");                    \
   }
 /* clang-format on */
 

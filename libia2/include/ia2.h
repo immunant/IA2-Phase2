@@ -228,40 +228,58 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
   INIT_RUNTIME_COMMON(n)
 #endif
 
+/* clang-format can't handle inline asm in macros */
+/* clang-format off */
 /* Allocate and protect the stack for this thread's i'th compartment. */
-
-/* I'm worried about interference from other threads if sensitive */
-/* locals in this code (namely old_pkru) get spilled to the */
-/* stack. We probably need to write this in assembly. */
 #define ALLOCATE_COMPARTMENT_STACK(i)                                          \
   {                                                                            \
     extern __thread void *ia2_stackptr_##i;                                    \
-    /*assert(&ia2_stackptr_##i != NULL);*/                                     \
-    char *stack = allocate_stack(i);                                           \
-                                                                               \
-    /* Each stack frame start + 8 is initially 16-byte aligned. */             \
-    char *stack_ptr_value = stack;                                             \
                                                                                \
     /* We must change the pkru to write the stack pointer because each */      \
     /* stack pointer is part of the compartment whose stack it points to. */   \
+    __asm__ volatile goto(                                                     \
+        "mov $" #i ",%%rdi\n"                                                  \
+        "push %%rbp\n"                                                         \
+        "# allocate a stack; puts its top in rax\n"                            \
+        "call allocate_stack\n"                                                \
+        "mov %%rax, %%rbp\n"                                                   \
+        "# zero eax/ebx/ecx/edx\n"                                             \
+        "xor %%eax,%%eax\n"                                                    \
+        "mov %%eax,%%ebx\n"                                                    \
+        "mov %%eax,%%ecx\n"                                                    \
+        "mov %%eax,%%edx\n"                                                    \
+        "# read old pkru\n"                                                    \
+        "rdpkru\n"                                                             \
+        "# save pkru in r12d\n"                                                \
+        "mov %%eax,%%r12d\n"                                                   \
+        "# write new pkru\n"                                                   \
+        "mov_pkru_eax " #i "\n"                                                \
+        "wrpkru\n"                                                             \
+        "mov ia2_stackptr_" #i "@GOTTPOFF(%%rip), %%r11\n"                     \
+        "# check that stack pointer holds NULL\n"                              \
+        "cmpq $0x0,%%fs:(%%r11)\n"                                             \
+        "jne %l[already_init" #i "]\n"                                         \
+        "# store the stack addr in the stack pointer\n"                        \
+        "mov %%rbp, %%fs:(%%r11)\n"                                            \
+        "# restore old pkru\n"                                                 \
+        "mov %%r12d,%%eax\n"                                                   \
+        "wrpkru\n"                                                             \
+        "pop %%rbp\n"                                                          \
+        "jmp %l[next" #i "]\n"                                                 \
+        :                                                                      \
+        :                                                                      \
+        : "rdi", "rax", "rbx", "rcx", "rdx", "r11", "r12"                      \
+        : already_init##i, next##i);                                           \
                                                                                \
-    /* Save the current pkru. */                                               \
-    uint32_t old_pkru = 0;                                                     \
-    __asm__ volatile(IA2_RDPKRU : "=a"(old_pkru) : "a"(0), "d"(0), "c"(0));    \
-    /* Switch to the compartment's pkru to access its stack pointer. */        \
-    uint32_t new_pkru = ~((3 << (2 * i)) | 3);                                 \
-    __asm__ volatile(IA2_WRPKRU : : "a"(new_pkru), "d"(0), "c"(0));            \
     /* Forbid overwriting an existing stack. */                                \
-    if (ia2_stackptr_##i != NULL) {                                            \
-      printf("compartment %d in thread %d tried to allocate existing stack\n", \
-             i, gettid());                                                     \
-      exit(1);                                                                 \
-    }                                                                          \
-    /* Write the stack pointer. */                                             \
-    ia2_stackptr_##i = stack_ptr_value;                                        \
-    /* Restore the old pkru. */                                                \
-    __asm__(IA2_WRPKRU : : "a"(old_pkru), "d"(0), "c"(0));                     \
+    already_init##i:                                                           \
+    printf(                                                                    \
+        "compartment %d in thread %d tried to allocate existing stack\n",      \
+        i, gettid());                                                          \
+    exit(1);                                                                   \
+    next##i:                                                                   \
   }
+/* clang-format on */
 
 #define INIT_RUNTIME_COMMON(n)                                                 \
   /* Allocate a fixed-size stack and protect it with the ith pkey. */          \

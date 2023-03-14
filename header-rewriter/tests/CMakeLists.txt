@@ -32,6 +32,7 @@ add_subdirectory(libusb)
 add_subdirectory(macro_attr)
 add_subdirectory(minimal)
 #add_subdirectory(namespaces)
+add_subdirectory(recursion)
 add_subdirectory(ro_sharing)
 # We don't actually compile the `omit_wrappers` test, but it is picked up by LIT.
 add_subdirectory(shared_data)

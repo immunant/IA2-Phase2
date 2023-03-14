@@ -240,7 +240,7 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
     char *stack = allocate_stack(i);                                           \
                                                                                \
     /* Each stack frame start + 8 is initially 16-byte aligned. */             \
-    char *stack_ptr_value = stack + STACK_SIZE - 8;                            \
+    char *stack_ptr_value = stack;                                             \
                                                                                \
     /* We must change the pkru to write the stack pointer because each */      \
     /* stack pointer is part of the compartment whose stack it points to. */   \
@@ -265,6 +265,7 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
 
 #define INIT_RUNTIME_COMMON(n)                                                 \
   /* Allocate a fixed-size stack and protect it with the ith pkey. */          \
+  /* Returns the top of the stack, not the base address of the allocation. */  \
   char *allocate_stack(int i) {                                                \
     char *stack = (char *)mmap(NULL, STACK_SIZE, PROT_READ | PROT_WRITE,       \
                                MAP_PRIVATE | MAP_ANON, -1, 0);                 \
@@ -279,7 +280,8 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
         exit(-1);                                                              \
       }                                                                        \
     }                                                                          \
-    return stack;                                                              \
+    /* Each stack frame start + 8 is initially 16-byte aligned. */             \
+    return stack + STACK_SIZE - 8;                                             \
   }                                                                            \
   void init_tls_15(void);                                                      \
   void init_tls_14(void);                                                      \
@@ -389,7 +391,7 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
       ALLOCATE_COMPARTMENT_STACK(1)                                            \
     case 0:                                                                    \
       /* allocate an unprotected stack for the untrusted compartment */        \
-      ia2_stackptr_0 = allocate_stack(0) + STACK_SIZE - 8;                     \
+      ia2_stackptr_0 = allocate_stack(0);                                      \
     }                                                                          \
   }                                                                            \
                                                                                \

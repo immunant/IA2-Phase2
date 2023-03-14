@@ -261,6 +261,7 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
         "je .Lfresh_init" #i "\n"                                              \
         "mov $" #i ", %%rdi\n"                                                 \
         "call ia2_reinit_stack_err\n"                                          \
+        "ud2\n"                                                                \
         ".Lfresh_init" #i ":\n"                                                \
         "# store the stack addr in the stack pointer\n"                        \
         "mov %%rbp, %%fs:(%%r11)\n"                                            \

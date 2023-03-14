@@ -363,7 +363,7 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
     }                                                                          \
   }                                                                            \
   /* Forbid overwriting an existing stack. */                                  \
-  void ia2_reinit_stack_err(int i) {                                           \
+  _Noreturn void ia2_reinit_stack_err(int i) {                                 \
     printf("compartment %d in thread %d tried to allocate existing stack\n",   \
            i, gettid());                                                       \
     exit(1);                                                                   \

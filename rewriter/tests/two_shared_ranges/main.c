@@ -2,7 +2,7 @@
 RUN: cat two_shared_ranges_call_gates_2.ld | FileCheck --check-prefix=LINKARGS %s
 RUN: %binary_dir/tests/two_shared_ranges/two_shared_ranges_main_wrapped plugin | diff %S/Output/plugin.out -
 RUN: %binary_dir/tests/two_shared_ranges/two_shared_ranges_main_wrapped main | diff %S/Output/main.out -
-TODO: %binary_dir/tests/two_shared_ranges/two_shared_rangesr_main_wrapped clean_exit | diff %S/Output/clean_exit.out -
+RUN: %binary_dir/tests/two_shared_ranges/two_shared_ranges_main_wrapped clean_exit | diff %S/Output/clean_exit.out -
 RUN: readelf -lW %binary_dir/tests/two_shared_ranges/two_shared_ranges_main_wrapped | FileCheck --check-prefix=SEGMENTS %s
 */
 

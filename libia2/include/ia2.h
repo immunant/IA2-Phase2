@@ -292,6 +292,16 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
     /* Each stack frame start + 8 is initially 16-byte aligned. */             \
     return stack + STACK_SIZE - 8;                                             \
   }                                                                            \
+  /* Static dispatch hack: */                                                  \
+  /* We declare an init_tls_N function for each possible compartment, but */   \
+  /* each compartment's shared library is responsible for providing the  */    \
+  /* definition of its respective function. As such, only those */             \
+  /* corresponding to actual compartments in the program will have a*/         \
+  /* definition at load-time. We skip the ones that don't exist with */        \
+  /* statically-determined control flow (goto or switch(literal)), so the */   \
+  /* compiler will remove references to the ones that don't exist and give */  \
+  /* us clean, straight-line code calling only the functions for */            \
+  /* compartments that do exist. */                                            \
   void init_tls_15(void);                                                      \
   void init_tls_14(void);                                                      \
   void init_tls_13(void);                                                      \

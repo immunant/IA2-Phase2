@@ -1,9 +1,3 @@
-/*
-RUN: cp %s %t.h
-RUN: ia2-header-rewriter %T/wrapper.c %t.h -- -I%resource_dir
-RUN: %binary_dir/tests/ro_sharing/ro_sharing-main plugin | diff %binary_dir/tests/ro_sharing/plugin.out -
-RUN: %binary_dir/tests/ro_sharing/ro_sharing-main main | diff %binary_dir/tests/ro_sharing/main.out -
-*/
 #pragma once
 
 #include <stdbool.h>

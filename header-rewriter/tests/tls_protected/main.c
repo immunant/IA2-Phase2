@@ -1,3 +1,8 @@
+/*
+RUN: %binary_dir/tests/tls_protected/tls_protected_main_wrapped | FileCheck --dump-input=always -v %binary_dir/tests/tls_protected/tls_protected_main.out
+RUN: %binary_dir/tests/tls_protected/tls_protected_main_wrapped print_lib_secret | FileCheck --dump-input=always -v %binary_dir/tests/tls_protected/tls_protected_lib.out
+*/
+
 #include <ia2.h>
 #include <library.h>
 #include <stdbool.h>

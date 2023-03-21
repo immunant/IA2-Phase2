@@ -1,3 +1,6 @@
+/*
+RUN: cat read_config_call_gates_2.ld | FileCheck --check-prefix=LINKARGS %s
+*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -37,6 +40,7 @@ static void parse_array(char *opt, void *out) {
 // The arguments to the following functions point to the main binary so we don't
 // need to use a shared buffer
 
+// LINKARGS: --wrap=get_builtin_opt
 struct cfg_opt *get_builtin_opt(char *name) {
     for (size_t i = 0; i < 3; i++) {
         if (!strcmp(opts[i].name, name)) {
@@ -47,6 +51,7 @@ struct cfg_opt *get_builtin_opt(char *name) {
     exit(-1);
 }
 
+// LINKARGS: --wrap=print_array
 void print_array(uint8_t ar[3]) {
     printf("[%x, %x, %x]\n", ar[0], ar[1], ar[2]);
 }

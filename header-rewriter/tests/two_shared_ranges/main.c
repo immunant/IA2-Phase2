@@ -1,3 +1,15 @@
+/*
+RUN: cat two_shared_ranges_call_gates_2.ld | FileCheck --check-prefix=LINKARGS %s
+RUN: %binary_dir/tests/two_shared_ranges/two_shared_ranges_main_wrapped plugin | diff %binary_dir/tests/two_shared_ranges/plugin.out -
+RUN: %binary_dir/tests/two_shared_ranges/two_shared_ranges_main_wrapped main | diff %binary_dir/tests/two_shared_ranges/main.out -
+TODO: %binary_dir/tests/two_shared_ranges/two_shared_rangesr_main_wrapped clean_exit | diff %source_dir/tests/two_shared_ranges/Output/clean_exit.out -
+RUN: readelf -lW %binary_dir/tests/two_shared_ranges/two_shared_ranges_main_wrapped | FileCheck --check-prefix=SEGMENTS %s
+*/
+
+// Check that readelf shows exactly one executable segment
+// SEGMENTS-COUNT-1: LOAD{{.*}}R E
+// SEGMENTS-NOT:     LOAD{{.*}}R E
+
 #include <stdio.h>
 #include <unistd.h>
 #include <ia2.h>
@@ -20,6 +32,7 @@ bool debug_mode IA2_SHARED_DATA = false;
 
 bool clean_exit IA2_SHARED_DATA = false;
 
+// LINKARGS: --wrap=print_message
 void print_message(void) {
     LOG("this is defined in the main binary");
     if (debug_mode) {

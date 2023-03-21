@@ -1,3 +1,12 @@
+/*
+RUN: cat read_config_call_gates_2.ld | FileCheck --check-prefix=LINKARGS %s
+TODO: %binary_dir/tests/read_config/read_config_main_wrapped | diff %S/Output/read_config.out -
+RUN: readelf -lW %binary_dir/tests/read_config/read_config_main_wrapped | FileCheck --check-prefix=SEGMENTS %s
+*/
+
+// Check that readelf shows exactly one executable segment
+// SEGMENTS-COUNT-1: LOAD{{.*}}R E
+// SEGMENTS-NOT:     LOAD{{.*}}R E
 #include "plugin.h"
 #include <ia2.h>
 #include <stdio.h>
@@ -38,16 +47,19 @@ name=builtin_config\n\
 num_options=3\n\
 array=\x11\x22\x33";
 
+// LINKARGS: --wrap=parse_bool
 void parse_bool(char *opt, void *out) {
   bool *res = out;
   *res = strcmp(opt, "false");
 }
 
+// LINKARGS: --wrap=parse_str
 void parse_str(char *opt, void *out) {
   char **res = out;
   strcpy(*res, opt);
 }
 
+// LINKARGS: --wrap=parse_u32
 void parse_u32(char *opt, void *out) {
   uint32_t *res = out;
   *res = strtol(opt, NULL, 10);

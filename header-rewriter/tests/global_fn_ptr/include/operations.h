@@ -1,6 +1,4 @@
 /*
-RUN: cp %s %t.h
-RUN: ia2-header-rewriter %t.c %t.h -- -I%resource_dir
 RUN: cat %t.c.args | FileCheck --check-prefix=LINKARGS %s
 RUN: %binary_dir/tests/global_fn_ptr/global_fn_ptr-main | diff %S/../Output/operations.out -
 */

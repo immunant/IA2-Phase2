@@ -814,6 +814,8 @@ int main(int argc, const char **argv) {
                         fn_decl_pass.defined_fns[caller_pkey].begin(),
                         fn_decl_pass.defined_fns[caller_pkey].end(),
                         std::inserter(undefined_fns, undefined_fns.begin()));
+    // create the file, even if it's going to be empty
+    write_to_ld_file(ld_args_out, caller_pkey, "");
     for (const auto &fn_name : undefined_fns) {
       CAbiSignature c_abi_sig;
       try {

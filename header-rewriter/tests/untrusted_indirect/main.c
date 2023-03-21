@@ -1,3 +1,6 @@
+/*
+RUN: sh -c 'if [ ! -s "untrusted_indirect_call_gates_0.ld" ]; then echo "No link args as expected"; exit 0; fi; echo "Unexpected link args"; exit 1;'
+*/
 #include <stdio.h>
 #include <stdint.h>
 #include "foo.h"

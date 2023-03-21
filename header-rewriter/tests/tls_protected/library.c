@@ -1,3 +1,7 @@
+/*
+RUN: sh -c 'if [ ! -s "tls_protected_call_gates_2.ld" ]; then echo "No link args as expected"; exit 0; fi; echo "Unexpected link args"; exit 1;'
+*/
+
 #include "library.h"
 #include "test_fault_handler.h"
 #include <ia2.h>

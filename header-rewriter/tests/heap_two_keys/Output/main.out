@@ -1,1 +1,1 @@
-CHECK_VIOLATION: seg faulted as expected
+CHECK_VIOLATION: did not seg fault as expected

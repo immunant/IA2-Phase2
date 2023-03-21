@@ -1,3 +1,7 @@
+/*
+RUN: cat main.c | FileCheck --check-prefix=REWRITER %s
+RUN: cat simple1_call_gates_0.ld | FileCheck --check-prefix=LINKARGS %s
+*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -15,8 +19,10 @@ INIT_COMPARTMENT(1);
 // IA2_DEFINE_WRAPPER with target pkey 1, then use IA2_WRAPPER.
 static HookFn exit_hook_fn = NULL;
 
+// LINKARGS: --wrap=get_exit_hook
 HookFn get_exit_hook(void) { return exit_hook_fn; }
 
+// LINKARGS: --wrap=set_exit_hook
 void set_exit_hook(HookFn new_exit_hook_fn) { exit_hook_fn = new_exit_hook_fn; }
 
 // Secret values: a secret string and decryption value.

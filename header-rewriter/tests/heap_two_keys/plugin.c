@@ -1,3 +1,6 @@
+/*
+RUN: cat heap_two_keys_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
+*/
 #include <stdio.h>
 #include <ia2.h>
 #include "exported_fn.h"
@@ -5,6 +8,7 @@
 
 INIT_COMPARTMENT(2);
 
+// LINKARGS: --wrap=trigger_compartment_init
 void trigger_compartment_init(void) {}
 
 #define DEFINE_FUNCTIONS(ty)                            \

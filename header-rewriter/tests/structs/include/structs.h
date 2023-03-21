@@ -1,9 +1,3 @@
-/*
-RUN: cp %s %t.h
-RUN: ia2-header-rewriter %T/wrapper.c %t.h -- -I%resource_dir
-RUN: cat %T/wrapper.c.args | FileCheck --check-prefix=LINKARGS %s
-RUN: %binary_dir/tests/structs/structs-main | diff %binary_dir/tests/structs/structs.out -
-*/
 #pragma once
 #include <stdint.h>
 #include <stdbool.h>

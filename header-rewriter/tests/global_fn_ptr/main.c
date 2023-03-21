@@ -1,3 +1,7 @@
+/*
+RUN: sh -c 'if [ ! -s "global_fn_ptr_call_gates_0.ld" ]; then echo "No link args as expected"; exit 0; fi; echo "Unexpected link args"; exit 1;'
+RUN: %binary_dir/tests/global_fn_ptr/global_fn_ptr_main_wrapped | diff %S/Output/operations.out -
+*/
 #include "operations.h"
 #include <ia2.h>
 

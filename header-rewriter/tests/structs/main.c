@@ -1,3 +1,7 @@
+/*
+RUN: sh -c 'if [ ! -s "structs_call_gates_0.ld" ]; then echo "No link args as expected"; exit 0; fi; echo "Unexpected link args"; exit 1;'
+RUN: %binary_dir/tests/structs/structs_main_wrapped | diff %S/Output/structs.out -
+*/
 #include <stdio.h>
 #include "structs.h"
 #include <ia2.h>

@@ -1,3 +1,10 @@
+/*
+RUN: readelf -lW %binary_dir/tests/read_config/libread_config_lib_wrapped.so | FileCheck --check-prefix=SEGMENTS %s
+*/
+
+// Check that readelf shows exactly one executable segment
+// SEGMENTS-COUNT-1: LOAD{{.*}}R E
+// SEGMENTS-NOT:     LOAD{{.*}}R E
 #include "core.h"
 #include "plugin.h"
 #include <ia2.h>
@@ -74,6 +81,7 @@ struct cfg_opt *get_opt(char *name) {
   exit(-1);
 }
 
+// LINKARGS: --wrap=print_tuple
 void print_tuple(struct tuple *tup) {
   // These derefs are fine since the heap is shared.
   printf("(%x, %x)\n", tup->first, tup->second);

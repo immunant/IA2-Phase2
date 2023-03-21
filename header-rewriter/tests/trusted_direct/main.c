@@ -1,3 +1,8 @@
+/*
+RUN: cat trusted_direct_call_gates_0.ld | FileCheck --check-prefix=LINKARGS %s
+RUN: %binary_dir/tests/trusted_direct/trusted_direct_main_wrapped | diff %binary_dir/tests/trusted_direct/trusted_direct.out -
+RUN: %binary_dir/tests/trusted_direct/trusted_direct_main_wrapped clean_exit | diff %source_dir/tests/trusted_direct/Output/trusted_direct.clean_exit.out -
+*/
 #include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
@@ -19,6 +24,7 @@ uint32_t secret = 0x09431233;
 
 bool clean_exit IA2_SHARED_DATA = false;
 
+//LINKARGS: --wrap=print_message
 void print_message(void) {
     printf("%s: the secret 0x%" PRIx32 " is defined in the main binary\n", __func__, secret);
 }

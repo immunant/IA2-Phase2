@@ -1,8 +1,12 @@
+/*
+RUN: cat global_fn_ptr_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
+*/
 #include "operations.h"
 #include <stdio.h>
 
 extern Op operations[2];
 
+// LINKARGS: --wrap=call_operations
 void call_operations(void) {
     for (int i = 0; i < 2; i++) {
         // TODO: Add a way to share strings between compartments

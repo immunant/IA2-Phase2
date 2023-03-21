@@ -1,3 +1,7 @@
+/*
+RUN: sh -c 'if [ ! -s "shared_data_call_gates_0.ld" ]; then echo "No link args as expected"; exit 0; fi; echo "Unexpected link args"; exit 1;'
+RUN: %binary_dir/tests/shared_data/shared_data_main_wrapped | diff %S/Output/shared_data.out -
+*/
 #include <stdint.h>
 #include <assert.h>
 #include <ia2.h>

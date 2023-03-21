@@ -119,6 +119,9 @@ function(define_shared_lib)
         target_compile_options(${WRAPPED_LIBNAME} PRIVATE
             "-include${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME}_call_gates.h")
     endif()
+    add_tls_padded_library(
+        LIB "${WRAPPED_LIBNAME}"
+        OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/padded")
 endfunction()
 
 
@@ -220,7 +223,7 @@ function(define_test)
         target_link_libraries(${target} PRIVATE
             dl
             libia2
-            ${DEFINE_TEST_LIBS}_wrapped
+            ${DEFINE_TEST_LIBS}_wrapped_padded
             partition-alloc)
     endforeach()
     add_dependencies(check-ia2 ${WRAPPED_MAIN})
@@ -231,7 +234,7 @@ function(define_test)
             "-Wl,-T${PADDING_LINKER_SCRIPT}"
             "-Wl,--dynamic-list=${DYN_SYM}")
     target_link_libraries(${WRAPPED_MAIN} PRIVATE
-        ${DEFINE_TEST_LIBS}_wrapped
+        ${DEFINE_TEST_LIBS}_wrapped_padded
         ${TEST_NAME}_call_gates)
     if (DEFINE_TEST_NEEDS_LD_WRAP)
         set_target_properties(${WRAPPED_MAIN} PROPERTIES NEEDS_LD_WRAP YES)
@@ -244,28 +247,6 @@ function(define_test)
         target_compile_options(${WRAPPED_MAIN} PRIVATE
             "-include${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME}_call_gates.h")
     endif()
-    target_compile_definitions(${MAIN} PRIVATE _GNU_SOURCE)
-    target_compile_options(${MAIN} PRIVATE
-        "-Werror=incompatible-pointer-types"
-        "-fsanitize=undefined"
-        "-fPIC"
-        "-g"
-        ${DEFINE_TEST_COMPILE_OPTS})
-    target_link_options(${MAIN} PRIVATE
-        # UBSAN requires passing this as both a compiler and linker flag
-        "-fsanitize=undefined"
-        "-Wl,--export-dynamic"
-        "-Wl,-z,now"
-        "-Wl,-T${LINKER_SCRIPT}"
-        "-Wl,--dynamic-list=${DYN_SYM}")
-    target_include_directories(${MAIN} BEFORE PRIVATE
-        ${INCLUDE_DIR})
-    target_link_libraries(${MAIN} PRIVATE
-        "dl"
-        libia2
-        ${WRAPPERS}
-        partition-alloc)
-    add_dependencies(check-ia2 ${MAIN})
 
     # Find libc. We cannot simply do `find_library(LIBC c REQUIRED)` because
     # `libc.so` itself is a linker script with glibc, while we need the path of

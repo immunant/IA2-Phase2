@@ -41,7 +41,6 @@ function(define_ia2_wrapper)
         ${TEST_NAME}_call_gate_generation
         BYPRODUCTS ${CALL_GATE_SRC} ${CALL_GATE_HDR} ${LD_ARGS_FILES}
         COMMAND ia2-header-rewriter
-            --extra-arg=-DPRE_REWRITER
             --output-prefix=${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME}_call_gates
             ${ALL_SRCS}
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}

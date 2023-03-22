@@ -70,6 +70,7 @@ function(define_shared_lib)
     set(CMAKE_EXPORT_COMPILE_COMMANDS OFF)
     add_library(${WRAPPED_LIBNAME} SHARED ${COPIED_SRCS})
 
+    target_compile_definitions(${LIBNAME} PRIVATE PRE_REWRITER=1)
     # Define options common to both targets
     foreach(target ${LIBNAME} ${WRAPPED_LIBNAME})
         set_target_properties(${target} PROPERTIES PKEY ${SHARED_LIB_PKEY})
@@ -118,10 +119,10 @@ function(define_shared_lib)
             "-Wl,-T${PADDING_LINKER_SCRIPT}")
         target_compile_options(${WRAPPED_LIBNAME} PRIVATE
             "-include${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME}_call_gates.h")
+        add_tls_padded_library(
+            LIB "${WRAPPED_LIBNAME}"
+            OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/padded")
     endif()
-    add_tls_padded_library(
-        LIB "${WRAPPED_LIBNAME}"
-        OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/padded")
 endfunction()
 
 
@@ -189,6 +190,7 @@ function(define_test)
     set(CMAKE_EXPORT_COMPILE_COMMANDS OFF)
     add_executable(${WRAPPED_MAIN} ${COPIED_SRCS})
 
+    target_compile_definitions(${MAIN} PRIVATE PRE_REWRITER=1)
     # Define options common to both targets
     foreach(target ${MAIN} ${WRAPPED_MAIN})
         set_target_properties(${target} PROPERTIES PKEY ${DEFINE_TEST_PKEY})
@@ -223,7 +225,6 @@ function(define_test)
         target_link_libraries(${target} PRIVATE
             dl
             libia2
-            ${DEFINE_TEST_LIBS}_wrapped_padded
             partition-alloc)
     endforeach()
     add_dependencies(check-ia2 ${WRAPPED_MAIN})
@@ -234,8 +235,18 @@ function(define_test)
             "-Wl,-T${PADDING_LINKER_SCRIPT}"
             "-Wl,--dynamic-list=${DYN_SYM}")
     target_link_libraries(${WRAPPED_MAIN} PRIVATE
-        ${DEFINE_TEST_LIBS}_wrapped_padded
         ${TEST_NAME}_call_gates)
+    get_target_property(LIB_PKEY ${DEFINE_TEST_LIBS} PKEY)
+
+    target_link_libraries(${MAIN} PRIVATE ${DEFINE_TEST_LIBS})
+    if (${LIB_PKEY} GREATER 0)
+        target_link_libraries(${WRAPPED_MAIN} PRIVATE
+            ${DEFINE_TEST_LIBS}_wrapped_padded)
+    else()
+        target_link_libraries(${WRAPPED_MAIN} PRIVATE
+            ${DEFINE_TEST_LIBS}_wrapped)
+    endif()
+
     if (DEFINE_TEST_NEEDS_LD_WRAP)
         set_target_properties(${WRAPPED_MAIN} PROPERTIES NEEDS_LD_WRAP YES)
         target_link_options(${WRAPPED_MAIN} PRIVATE

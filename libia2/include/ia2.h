@@ -241,12 +241,9 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
     /* stack pointer is part of the compartment whose stack it points to. */   \
     __asm__ volatile(                                                          \
         "mov %0, %%r10\n"                                                      \
-        "# zero eax/ebx/ecx/edx\n"                                             \
-        "xor %%eax,%%eax\n"                                                    \
-        "mov %%eax,%%ebx\n"                                                    \
-        "mov %%eax,%%ecx\n"                                                    \
-        "mov %%eax,%%edx\n"                                                    \
-        "# read old pkru\n"                                                    \
+        "# zero ecx as precondition of rdpkru\n"                               \
+        "xor %%ecx,%%ecx\n"                                                    \
+        "# eax = old pkru; also zeroes edx, which is required for wrpkru\n"    \
         IA2_RDPKRU "\n"                                                        \
         "# save pkru in r12d\n"                                                \
         "mov %%eax,%%r12d\n"                                                   \
@@ -268,7 +265,7 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
         IA2_WRPKRU "\n"                                                        \
         :                                                                      \
         : "rax"(stack)                                                         \
-        : "rdi", "rbx", "rcx", "rdx", "r10", "r11", "r12");                    \
+        : "rdi", "rcx", "rdx", "r10", "r11", "r12");                           \
   }
 /* clang-format on */
 

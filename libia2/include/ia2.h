@@ -298,7 +298,7 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
   /* definition of its respective function. As such, only those */             \
   /* corresponding to actual compartments in the program will have a*/         \
   /* definition at load-time. We skip the ones that don't exist with */        \
-  /* statically-determined control flow (goto or switch(literal)), so the */   \
+  /* statically-determined control flow (goto based on macro arg), so the */   \
   /* compiler will remove references to the ones that don't exist and give */  \
   /* us clean, straight-line code calling only the functions for */            \
   /* compartments that do exist. */                                            \
@@ -319,36 +319,36 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
   void init_tls_1(void);                                                       \
   /* Ensure that TLS is protected in a new thread. */                          \
   void protect_tls(void) {                                                     \
-    goto tls_##n;                                                              \
-  tls_15:                                                                      \
+    goto compartment##n;                                                       \
+  compartment15:                                                               \
     protect_tls_for_compartment(15);                                           \
-  tls_14:                                                                      \
+  compartment14:                                                               \
     protect_tls_for_compartment(14);                                           \
-  tls_13:                                                                      \
+  compartment13:                                                               \
     protect_tls_for_compartment(13);                                           \
-  tls_12:                                                                      \
+  compartment12:                                                               \
     protect_tls_for_compartment(12);                                           \
-  tls_11:                                                                      \
+  compartment11:                                                               \
     protect_tls_for_compartment(11);                                           \
-  tls_10:                                                                      \
+  compartment10:                                                               \
     protect_tls_for_compartment(10);                                           \
-  tls_9:                                                                       \
+  compartment9:                                                                \
     protect_tls_for_compartment(9);                                            \
-  tls_8:                                                                       \
+  compartment8:                                                                \
     protect_tls_for_compartment(8);                                            \
-  tls_7:                                                                       \
+  compartment7:                                                                \
     protect_tls_for_compartment(7);                                            \
-  tls_6:                                                                       \
+  compartment6:                                                                \
     protect_tls_for_compartment(6);                                            \
-  tls_5:                                                                       \
+  compartment5:                                                                \
     protect_tls_for_compartment(5);                                            \
-  tls_4:                                                                       \
+  compartment4:                                                                \
     protect_tls_for_compartment(4);                                            \
-  tls_3:                                                                       \
+  compartment3:                                                                \
     protect_tls_for_compartment(3);                                            \
-  tls_2:                                                                       \
+  compartment2:                                                                \
     protect_tls_for_compartment(2);                                            \
-  tls_1:                                                                       \
+  compartment1:                                                                \
     protect_tls_for_compartment(1);                                            \
   }                                                                            \
   /* Ensure that all required pkeys are allocated. */                          \
@@ -383,41 +383,40 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
   __thread void *ia2_stackptr_0;                                               \
                                                                                \
   __attribute__((weak)) void init_stacks(void) {                               \
-    switch (n) {                                                               \
-    case 15:                                                                   \
-      ALLOCATE_COMPARTMENT_STACK(15)                                           \
-    case 14:                                                                   \
-      ALLOCATE_COMPARTMENT_STACK(14)                                           \
-    case 13:                                                                   \
-      ALLOCATE_COMPARTMENT_STACK(13)                                           \
-    case 12:                                                                   \
-      ALLOCATE_COMPARTMENT_STACK(12)                                           \
-    case 11:                                                                   \
-      ALLOCATE_COMPARTMENT_STACK(11)                                           \
-    case 10:                                                                   \
-      ALLOCATE_COMPARTMENT_STACK(10)                                           \
-    case 9:                                                                    \
-      ALLOCATE_COMPARTMENT_STACK(9)                                            \
-    case 8:                                                                    \
-      ALLOCATE_COMPARTMENT_STACK(8)                                            \
-    case 7:                                                                    \
-      ALLOCATE_COMPARTMENT_STACK(7)                                            \
-    case 6:                                                                    \
-      ALLOCATE_COMPARTMENT_STACK(6)                                            \
-    case 5:                                                                    \
-      ALLOCATE_COMPARTMENT_STACK(5)                                            \
-    case 4:                                                                    \
-      ALLOCATE_COMPARTMENT_STACK(4)                                            \
-    case 3:                                                                    \
-      ALLOCATE_COMPARTMENT_STACK(3)                                            \
-    case 2:                                                                    \
-      ALLOCATE_COMPARTMENT_STACK(2)                                            \
-    case 1:                                                                    \
-      ALLOCATE_COMPARTMENT_STACK(1)                                            \
-    case 0:                                                                    \
-      /* allocate an unprotected stack for the untrusted compartment */        \
-      ia2_stackptr_0 = allocate_stack(0);                                      \
-    }                                                                          \
+    goto compartment##n;                                                       \
+  compartment15:                                                               \
+    ALLOCATE_COMPARTMENT_STACK(15)                                             \
+  compartment14:                                                               \
+    ALLOCATE_COMPARTMENT_STACK(14)                                             \
+  compartment13:                                                               \
+    ALLOCATE_COMPARTMENT_STACK(13)                                             \
+  compartment12:                                                               \
+    ALLOCATE_COMPARTMENT_STACK(12)                                             \
+  compartment11:                                                               \
+    ALLOCATE_COMPARTMENT_STACK(11)                                             \
+  compartment10:                                                               \
+    ALLOCATE_COMPARTMENT_STACK(10)                                             \
+  compartment9:                                                                \
+    ALLOCATE_COMPARTMENT_STACK(9)                                              \
+  compartment8:                                                                \
+    ALLOCATE_COMPARTMENT_STACK(8)                                              \
+  compartment7:                                                                \
+    ALLOCATE_COMPARTMENT_STACK(7)                                              \
+  compartment6:                                                                \
+    ALLOCATE_COMPARTMENT_STACK(6)                                              \
+  compartment5:                                                                \
+    ALLOCATE_COMPARTMENT_STACK(5)                                              \
+  compartment4:                                                                \
+    ALLOCATE_COMPARTMENT_STACK(4)                                              \
+  compartment3:                                                                \
+    ALLOCATE_COMPARTMENT_STACK(3)                                              \
+  compartment2:                                                                \
+    ALLOCATE_COMPARTMENT_STACK(2)                                              \
+  compartment1:                                                                \
+    ALLOCATE_COMPARTMENT_STACK(1)                                              \
+  compartment0:                                                                \
+    /* allocate an unprotected stack for the untrusted compartment */          \
+    ia2_stackptr_0 = allocate_stack(0);                                        \
   }                                                                            \
                                                                                \
   __attribute__((constructor)) static void ia2_init(void) {                    \

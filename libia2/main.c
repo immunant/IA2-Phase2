@@ -5,6 +5,7 @@ int __real_main(int argc, char **argv);
 /* Stores the stack pointer to return to after main() is called. */
 static void *main_sp __attribute__((used)) = 0;
 
+/* XXX: Assumes main compartment has pkey 1. */
 __attribute__((naked)) int __wrap_main(int argc, char **argv) {
   __asm__(
       /* clang-format off */

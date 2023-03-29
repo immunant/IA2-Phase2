@@ -7,6 +7,7 @@ static void *main_sp __attribute__((used)) = 0;
 
 __attribute__((naked)) int __wrap_main(int argc, char **argv) {
   __asm__(
+      /* clang-format off */
       "pushq %%rbp\n"
       "movq %%rsp, %%rbp\n"
       // Save the old stack pointer in main_sp.
@@ -21,5 +22,7 @@ __attribute__((naked)) int __wrap_main(int argc, char **argv) {
       // Restore the old stack pointer before returning.
       "mov main_sp(%%rip), %%rsp\n"
       "popq %%rbp\n"
-      "ret\n" ::);
+      "ret\n"
+      /* clang-format on */
+      ::);
 }

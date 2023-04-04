@@ -61,10 +61,10 @@ if(LIBIA2_INSECURE)
     target_compile_definitions(partition-alloc PUBLIC LIBIA2_INSECURE=1)
 endif()
 
-target_include_directories(partition-alloc
+target_include_directories(partition-alloc BEFORE
     INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
-    BEFORE PRIVATE
+    PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${EXTERNAL_DIR}/chromium/src)
 

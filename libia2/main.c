@@ -16,6 +16,7 @@ __attribute__((naked)) int __wrap_main(int argc, char **argv) {
       // Load the stack pointer for this compartment's stack.
       "mov ia2_stackptr_1@GOTTPOFF(%%rip), %%r11\n"
       "mov %%fs:(%%r11), %%rsp\n"
+      // Switch pkey to the appropriate compartment.
       "xor %%ecx,%%ecx\n"
       "mov %%ecx,%%edx\n"
       "mov_pkru_eax 1\n"

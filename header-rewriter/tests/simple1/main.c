@@ -30,7 +30,7 @@ void set_exit_hook(HookFn new_exit_hook_fn) { exit_hook_fn = new_exit_hook_fn; }
 static const char secret_string[] = "This is a secret.\n";
 static int last_xor;
 
-static int main_read(int i) {
+__attribute__((used)) static int main_read(int i) {
   if (i >= sizeof(secret_string)) {
     return 0;
   }
@@ -40,9 +40,9 @@ static int main_read(int i) {
   return x ? (x ^ last_xor) : x;
 }
 
-static void main_write(int x) { putchar(x); }
+__attribute__((used)) static void main_write(int x) { putchar(x); }
 
-static int main_map(int x) { return x ? (x ^ last_xor) : x; }
+__attribute__((used)) static int main_map(int x) { return x ? (x ^ last_xor) : x; }
 
 int main() {
   // These will be called from untrusted code but may access trusted compartment

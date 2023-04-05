@@ -9,7 +9,7 @@ RUN: cat read_config_call_gates_2.ld | FileCheck --check-prefix=LINKARGS %s
 #include "plugin.h"
 #include "core.h"
 
-static void parse_array(char *opt, void *out);
+__attribute__((used)) static void parse_array(char *opt, void *out);
 
 static struct cfg_opt opts[3] = {
     {
@@ -32,7 +32,7 @@ static struct cfg_opt opts[3] = {
     },
 };
 
-static void parse_array(char *opt, void *out) {
+__attribute__((used)) static void parse_array(char *opt, void *out) {
     uint8_t **res = out;
     memcpy(*res, opt, sizeof(uint8_t[3]));
 }

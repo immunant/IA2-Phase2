@@ -4,6 +4,7 @@
 
 void init_stacks(void);
 void protect_tls(void);
+void **ia2_stackptr_for_pkey(uint32_t pkey);
 
 struct ia2_thread_thunk {
   void *(*fn)(void *);
@@ -20,9 +21,36 @@ void *ia2_thread_begin(void *arg) {
   init_stacks();
   protect_tls();
 
-  /* TODO: switch to compartment stack before calling `fn` */
+  /* Determine the current compartment so know which stack to use. */
+  uint32_t pkru = 0;
+  __asm__ volatile(
+      /* clang-format off */
+      "xor %%ecx,%%ecx\n"
+      IA2_RDPKRU "\n"
+      /* clang-format on */
+      : "=a"(pkru)::"ecx", "edx");
+  void **new_sp_addr = ia2_stackptr_for_pkey(pkru);
 
-  return fn(data);
+  /* Switch to the stack for this compartment, then call `fn(data)`. */
+  void *result;
+  __asm__ volatile(
+      /* clang-format off */
+      // Copy stack pointer to rdi.
+      "movq %%rsp, %%rdi\n"
+      // Load the stack pointer for this compartment's stack.
+      "mov (%[new_sp_addr]), %%rsp\n"
+      // Push old stack pointer, which aligns the stack.
+      "pushq %%rdi\n"
+      // Call fn(data).
+      "mov %[data], %%rdi\n"
+      "call *%[fn]\n"
+      // Restore old stack pointer.
+      "popq %%rsp\n"
+      : "=a"(result)
+      : [fn] "rm"(fn), [data] "rm"(data), [new_sp_addr] "r"(new_sp_addr)
+      : "rdi");
+  /* clang-format on */
+  return result;
 }
 
 int __real_pthread_create(pthread_t *restrict thread,

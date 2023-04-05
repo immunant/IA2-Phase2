@@ -21,6 +21,7 @@ static const char *shared_sections[][2] = {
 // only an estimate of the maximum value of dlpi_phnum below.
 #define MAX_NUM_PHDRS 20
 
+__thread void *ia2_stackptr_0;
 __thread char ia2_threadlocal_padding[PAGE_SIZE] __attribute__((used));
 
 struct AddressRange {
@@ -84,9 +85,14 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
     size_t len = phdr.p_memsz;
 
     void *start_round_down = (void *)((uint64_t)start & ~0xFFFUL);
+    void *start_round_up = (void *)(((uint64_t)start + 0xFFFUL) & ~0xFFFUL);
     uint64_t start_moved = (uint64_t)start & 0xFFFUL;
     // p_memsz is 0x1000 more than the size of what we actually need to protect
     size_t len_round_up = (phdr.p_memsz + start_moved) & ~0xFFFUL;
+    size_t end = phdr.p_memsz + start;
+    size_t end_round_up = (end + 0xFFFUL) & ~0xFFFUL;
+    size_t len2_round_down = start_round_up - end_round_up;
+
     if (len_round_up == 0) {
       const char *libname = basename(info->dlpi_name);
       /* dlpi_name is "" for the main executable */

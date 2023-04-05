@@ -163,6 +163,18 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
   }
 /* clang-format on */
 
+#define PKRU(pkey) (~((3 << (2 * pkey)) | 3))
+
+#define return_stackptr_if_compartment(compartment)                            \
+  if (pkey == PKRU(compartment)) {                                             \
+    __asm__ volatile(                                                          \
+        "mov %%fs:(0), %%rax\n"                                                \
+        "addq ia2_stackptr_" #compartment                                      \
+        "@GOTTPOFF(%%rip), %%rax\n"                                            \
+        "ret\n" ::                                                             \
+            :);                                                                \
+  }
+
 #define INIT_RUNTIME_COMMON(n)                                                 \
   /* Allocate a fixed-size stack and protect it with the ith pkey. */          \
   /* Returns the top of the stack, not the base address of the allocation. */  \
@@ -271,7 +283,45 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
   /* The 0th compartment is unprivileged and does not protect its memory, */   \
   /* so declare its stack pointer in the shared object that sets up the */     \
   /* runtime instead of using the INIT_COMPARTMENT macro for it. */            \
-  __thread void *ia2_stackptr_0;                                               \
+  extern __thread void *ia2_stackptr_0;                                        \
+                                                                               \
+  /* Returns `&ia2_stackptr_N` given the pkey for the Nth compartment. */      \
+  void **ia2_stackptr_for_pkey(uint32_t pkey) {                                \
+    goto compartment##n;                                                       \
+  compartment15:                                                               \
+    return_stackptr_if_compartment(15);                                        \
+  compartment14:                                                               \
+    return_stackptr_if_compartment(14);                                        \
+  compartment13:                                                               \
+    return_stackptr_if_compartment(13);                                        \
+  compartment12:                                                               \
+    return_stackptr_if_compartment(12);                                        \
+  compartment11:                                                               \
+    return_stackptr_if_compartment(11);                                        \
+  compartment10:                                                               \
+    return_stackptr_if_compartment(10);                                        \
+  compartment9:                                                                \
+    return_stackptr_if_compartment(9);                                         \
+  compartment8:                                                                \
+    return_stackptr_if_compartment(8);                                         \
+  compartment7:                                                                \
+    return_stackptr_if_compartment(7);                                         \
+  compartment6:                                                                \
+    return_stackptr_if_compartment(6);                                         \
+  compartment5:                                                                \
+    return_stackptr_if_compartment(5);                                         \
+  compartment4:                                                                \
+    return_stackptr_if_compartment(4);                                         \
+  compartment3:                                                                \
+    return_stackptr_if_compartment(3);                                         \
+  compartment2:                                                                \
+    return_stackptr_if_compartment(2);                                         \
+  compartment1:                                                                \
+    return_stackptr_if_compartment(1);                                         \
+  compartment0:                                                                \
+    return_stackptr_if_compartment(0);                                         \
+    return NULL;                                                               \
+  }                                                                            \
                                                                                \
   __attribute__((weak)) void init_stacks(void) {                               \
     goto compartment##n;                                                       \

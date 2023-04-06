@@ -12,6 +12,7 @@ int add(int x, int y) {
     return x + y;
 }
 
+__attribute__((used))
 static int sub(int x, int y) {
     return x - y;
 }

@@ -1,5 +1,5 @@
 /*
-RUN: cat main.c | sed 's/^.*REWRITER.*$//' | FileCheck --check-prefix=REWRITER %S/main.c
+RUN: cat main.c | FileCheck --match-full-lines --check-prefix=REWRITER %S/main.c
 */
 #include <stdio.h>
 #include <lib.h>

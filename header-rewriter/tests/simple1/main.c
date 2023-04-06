@@ -1,5 +1,5 @@
 /*
-RUN: cat main.c | FileCheck --check-prefix=REWRITER %s
+RUN: cat main.c | FileCheck --match-full-lines --check-prefix=REWRITER %s
 RUN: cat simple1_call_gates_0.ld | FileCheck --check-prefix=LINKARGS %s
 */
 #include <stdio.h>
@@ -73,6 +73,7 @@ int main() {
   // We need to check if exit_hook_fn is NULL since IA2_CALL always
   // returns a non-null pointer. Since it's an opaque pointer, we use this macro
   // instead of directly comparing with NULL.
+  // REWRITER: if (!IA2_ADDR(exit_hook_fn)) {
   if (!exit_hook_fn) {
     // Creates a wrapper that assumes the caller has pkey 0 and the callee is
     // untrusted since libsimple1 sets the value of exit_hook_fn. If

@@ -542,6 +542,64 @@ private:
   std::map<std::string, Replacements> &file_replacements;
 };
 
+class FnPtrEq : public RefactoringCallback {
+public:
+  FnPtrEq(ASTMatchRefactorer &refactorer,
+          std::map<std::string, Replacements> &file_replacements)
+      : file_replacements(file_replacements) {
+    auto fn_ptr = pointerType(pointee(ignoringParens(functionType())));
+
+    auto fn_ptr_typedef = hasType(typedefNameDecl(hasType(fn_ptr)));
+
+    auto ptr = expr(anyOf(fn_ptr_typedef, hasType(fn_ptr))).bind("ifPtr");
+
+    auto if_stmt = ifStmt(hasCondition(ptr));
+
+    auto if_not_stmt = ifStmt(hasCondition(
+        unaryOperator(hasOperatorName("!"), hasUnaryOperand(ptr))));
+
+    refactorer.addMatcher(if_stmt, this);
+    refactorer.addMatcher(if_not_stmt, this);
+  }
+  virtual void run(const MatchFinder::MatchResult &result) {
+    auto *if_ptr_expr = result.Nodes.getNodeAs<clang::Expr>("ifPtr");
+    assert(if_ptr_expr != nullptr);
+
+    assert(result.SourceManager != nullptr);
+    auto &sm = *result.SourceManager;
+
+    assert(result.Context != nullptr);
+    auto &ctxt = *result.Context;
+
+    // This pass modifies source files so it should not change files with pkey 0
+    if (get_file_pkey(sm) == 0) {
+      return;
+    }
+
+    clang::SourceLocation loc = if_ptr_expr->getExprLoc();
+    Filename filename = get_filename(loc, sm);
+    if (ignore_file(filename)) {
+      return;
+    }
+    auto char_range =
+        clang::CharSourceRange::getTokenRange(if_ptr_expr->getSourceRange());
+    auto orig_expr =
+        clang::Lexer::getSourceText(char_range, sm, ctxt.getLangOpts());
+    std::string new_expr = "IA2_ADDR(" + orig_expr.str() + ")";
+
+    clang::CharSourceRange expansion_range = sm.getExpansionRange(loc);
+    Replacement r{sm, expansion_range, new_expr};
+    auto err = file_replacements[filename].add(r);
+    if (err) {
+      llvm::errs() << "Error adding replacements: " << err << '\n';
+    }
+    return;
+  }
+
+private:
+  std::map<std::string, Replacements> &file_replacements;
+};
+
 /*
  * Finds function declarations and definitions to determine in which
  * compartment functions are defined in. This is later used to determine what
@@ -739,6 +797,7 @@ int main(int argc, const char **argv) {
   FnPtrExpr ptr_expr_pass(refactorer, tool.getReplacements());
   FnPtrCall ptr_call_pass(refactorer, tool.getReplacements());
   FnPtrNull null_ptr_pass(refactorer, tool.getReplacements());
+  FnPtrEq eq_ptr_pass(refactorer, tool.getReplacements());
 
   auto rc = tool.runAndSave(newFrontendActionFactory(&refactorer).get());
 
@@ -751,6 +810,7 @@ int main(int argc, const char **argv) {
 
   header_out << '\n';
 
+  header_out << "#define IA2_ADDR(opaque) opaque.ptr\n";
   header_out
       << "#define IA2_FN(func) (typeof(__ia2_##func)) { (void*)&__ia2_##func }\n";
 

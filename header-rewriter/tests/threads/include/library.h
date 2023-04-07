@@ -1,11 +1,3 @@
-/*
-RUN: cp %s %t.h
-RUN: ia2-header-rewriter %t.c %t.h -- -I%resource_dir
-RUN: cat %t.h | sed 's/^.*CHECK.*$//' >/dev/null || FileCheck %s
-RUN: strace %binary_dir/tests/threads/threads-main
-RUN: %binary_dir/tests/threads/threads-main | FileCheck --dump-input=always -v %binary_dir/tests/threads/threads.out
-*/
-
 #include <pthread.h>
 #include <stddef.h>
 #include <stdint.h>

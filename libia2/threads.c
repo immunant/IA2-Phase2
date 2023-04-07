@@ -17,8 +17,8 @@ void *ia2_thread_begin(void *arg) {
   /* Free the thunk. */
   munmap(arg, sizeof(struct ia2_thread_thunk));
 
-  init_stacks();
   protect_tls();
+  init_stacks();
 
   /* TODO: switch to compartment stack before calling `fn` */
 

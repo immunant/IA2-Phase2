@@ -314,5 +314,6 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
     /* Set up global resources. */                                             \
     ensure_pkeys_allocated(&ia2_n_pkeys_to_alloc);                             \
     /* Initialize stacks for the main thread/ */                               \
+    protect_tls();                                                             \
     init_stacks();                                                             \
   }

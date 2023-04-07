@@ -4,6 +4,10 @@ project(libia2)
 add_library(libia2 ia2.c threads.c main.c)
 target_compile_options(libia2 PRIVATE "-fPIC")
 
+if(LIBIA2_INSECURE)
+target_compile_definitions(libia2 PRIVATE LIBIA2_INSECURE=1)
+endif()
+
 target_link_options(libia2
     INTERFACE
         "-pthread"

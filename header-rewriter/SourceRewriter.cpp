@@ -581,6 +581,20 @@ public:
     if (ignore_file(filename)) {
       return;
     }
+
+    if (in_macro_expansion(loc, sm)) {
+      auto expansion_file = sm.getFilename(sm.getExpansionLoc(loc)).str();
+      auto expansion_line = sm.getExpansionLineNumber(loc);
+      auto spelling_line = sm.getSpellingLineNumber(loc);
+      llvm::errs() << "FnPtrExpr: " << expansion_file << ":" << expansion_line
+                   << " ";
+      if (spelling_line != expansion_line) {
+        llvm::errs() << filename << ":" << spelling_line << " ";
+      }
+      llvm::errs() << "must be rewritten manually\n";
+      return;
+    }
+
     auto char_range =
         clang::CharSourceRange::getTokenRange(if_ptr_expr->getSourceRange());
     auto orig_expr =

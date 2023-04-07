@@ -21,8 +21,6 @@ static const char *shared_sections[][2] = {
 // only an estimate of the maximum value of dlpi_phnum below.
 #define MAX_NUM_PHDRS 20
 
-__thread char ia2_threadlocal_padding[PAGE_SIZE] __attribute__((used));
-
 struct AddressRange {
   uint64_t start;
   uint64_t end;

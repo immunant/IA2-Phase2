@@ -385,7 +385,11 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
   add_asm_line(aw, ".text");
   if (!as_macro) {
     add_asm_line(aw, ".global "s + wrapper_name);
+  } else {
+    add_asm_line(aw, ".local "s + wrapper_name);
   }
+  // Set the symbol type
+  add_asm_line(aw, ".type "s + wrapper_name + ", @function");
   add_asm_line(aw, wrapper_name + ":");
 
   // Save the old frame pointer and set the frame pointer for the call gate
@@ -608,6 +612,8 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
   // Return to the caller
   add_comment_line(aw, "Return to the caller");
   add_asm_line(aw, "ret");
+  // Set the symbol size
+  add_asm_line(aw, ".size "s + wrapper_name + ", .-" + wrapper_name);
 
   // Jump to the previous location counter to undo the effect of `.text 1`
   // for indirect wrappers or `.text` for the direct case

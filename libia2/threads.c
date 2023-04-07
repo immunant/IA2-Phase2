@@ -29,6 +29,7 @@ void *ia2_thread_begin(void *arg) {
       IA2_RDPKRU "\n"
       /* clang-format on */
       : "=a"(pkru)::"ecx", "edx");
+  /* returns NULL in insecure mode, because we can't read a pkru there. */
   void **new_sp_addr = ia2_stackptr_for_pkru(pkru);
 
   /* Switch to the stack for this compartment, then call `fn(data)`. */
@@ -37,8 +38,13 @@ void *ia2_thread_begin(void *arg) {
       /* clang-format off */
       // Copy stack pointer to rdi.
       "movq %%rsp, %%rdi\n"
+      // In insecure mode, we can't read pkru to know which compartment the
+      // thread started in (inherited from the parent thread), so we don't know
+      // which stack it would be appropriate to switch to here.
+#ifndef LIBIA2_INSECURE
       // Load the stack pointer for this compartment's stack.
       "mov (%[new_sp_addr]), %%rsp\n"
+#endif
       // Push old stack pointer, which aligns the stack.
       "pushq %%rdi\n"
       // Call fn(data).

@@ -183,6 +183,16 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
     /* Each stack frame start + 8 is initially 16-byte aligned. */             \
     return stack + STACK_SIZE - 8;                                             \
   }                                                                            \
+  /* The 0th compartment is unprivileged and does not protect its memory, */   \
+  /* so declare its stack pointer in the shared object that sets up the */     \
+  /* runtime instead of using the INIT_COMPARTMENT macro for it. */            \
+  __thread void *ia2_stackptr_0 __attribute__((aligned(4096)));                \
+  /* Include one page of padding after ia2_stackptr_0 to ensure that the */    \
+  /* last page of the TLS segment of compartment 0 does not contain any */     \
+  /* variables that will be used, because the last page-1 bytes may be */      \
+  /* pkey_mprotected by the next compartment depending on sizes/alignment. */  \
+  __thread char ia2_threadlocal_padding[PAGE_SIZE] __attribute__((used));      \
+                                                                               \
   /* Static dispatch hack: */                                                  \
   /* We declare an init_tls_N function for each possible compartment, but */   \
   /* each compartment's shared library is responsible for providing the  */    \
@@ -210,6 +220,16 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
   void init_tls_1(void);                                                       \
   /* Ensure that TLS is protected in a new thread. */                          \
   void protect_tls(void) {                                                     \
+    /* Confirm that stack pointers for compartments 0 and 1 are at least 4K */ \
+    /* apart. */                                                               \
+    /* It's safe to depend on ia2_stackptr_1 existing because all users of */  \
+    /* IA2 will have at least one compartment other than the untrusted one. */ \
+    extern __thread void *ia2_stackptr_1;                                      \
+    if (labs((intptr_t)&ia2_stackptr_1 - (intptr_t)&ia2_stackptr_0) <          \
+        0x1000) {                                                              \
+      printf("ia2_stackptr_1 is too close to ia2_stackptr_0\n");               \
+      exit(1);                                                                 \
+    }                                                                          \
     goto compartment##n;                                                       \
   compartment15:                                                               \
     protect_tls_for_compartment(15);                                           \
@@ -267,11 +287,6 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
            i, gettid());                                                       \
     exit(1);                                                                   \
   }                                                                            \
-                                                                               \
-  /* The 0th compartment is unprivileged and does not protect its memory, */   \
-  /* so declare its stack pointer in the shared object that sets up the */     \
-  /* runtime instead of using the INIT_COMPARTMENT macro for it. */            \
-  __thread void *ia2_stackptr_0;                                               \
                                                                                \
   __attribute__((weak)) void init_stacks(void) {                               \
     goto compartment##n;                                                       \

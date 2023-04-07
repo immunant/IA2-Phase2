@@ -43,4 +43,13 @@ int main() {
         fn2 = sub;
         call_fn(fn2, 2, 1);
     }
+
+    // REWRITER: if (x && IA2_ADDR(fn2)) { }
+    if (x && fn2) { }
+    // REWRITER: if (y || !IA2_ADDR(fn)) { }
+    if (y || !fn) { }
+    // REWRITER: if (x && IA2_ADDR(fn) && y) { }
+    if (x && fn && y) { }
+    // REWRITER: if (x && !!IA2_ADDR(fn2) && y) { }
+    if (x && !!fn2 && y) { }
 }

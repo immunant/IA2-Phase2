@@ -1,0 +1,247 @@
+#!/bin/bash
+set -euo pipefail
+REPO_ROOT=`realpath ${PWD}/../../`
+BUILD_DIR=${PWD}/build
+IA2_BUILD_DIR=${BUILD_DIR}/ia2
+NGINX_BUILD_DIR=${BUILD_DIR}/nginx
+NGINX_ROOT=${BUILD_DIR}
+NGINX_RTMP_ROOT=${BUILD_DIR}/nginx-rtmp-module-rewritten
+SRC_REWRITER=$IA2_BUILD_DIR/rewriter/ia2-rewriter
+LIBIA2=$IA2_BUILD_DIR/libia2/liblibia2.a
+TEMP_FILES=(
+    nginx.pid
+    err.log
+    http.log
+    client_body_temp
+    proxy_temp
+    fastcgi_temp
+    uwsgi_temp
+    scgi_temp
+)
+
+if ! command -v bear; then
+    echo "Bear is required for this demo. See https://github.com/rizsotto/Bear for installation details."
+    exit 1
+fi
+
+if [ ! -f $SRC_REWRITER ] || [ ! -f $LIBIA2 ]; then
+    mkdir -p $IA2_BUILD_DIR
+    pushd $IA2_BUILD_DIR
+    cmake -GNinja $REPO_ROOT
+    ninja ia2-rewriter libia2 pad-tls
+    popd
+fi
+
+mkdir -p $NGINX_BUILD_DIR
+for tmp in ${TEMP_FILES[@]}; do
+    touch $NGINX_BUILD_DIR/$tmp
+done
+
+if [ ! -f $NGINX_ROOT/auto/configure ]; then
+    mkdir -p $NGINX_ROOT
+    pushd "$REPO_ROOT/external/nginx"
+    find . -name build -prune -o \
+            -exec sh -c "mkdir -p $NGINX_ROOT/\$(dirname {})" ';' \
+            -exec cp '{}' "$NGINX_ROOT/{}" ';'
+    popd
+fi
+
+if [ ! -d $NGINX_RTMP_ROOT ]; then
+    mkdir -p $NGINX_RTMP_ROOT
+    pushd "$REPO_ROOT/external/nginx-rtmp-module"
+    find . -type f \
+            -exec sh -c "mkdir -p $NGINX_RTMP_ROOT/\$(dirname {})" ';' \
+            -exec cp '{}' "$NGINX_RTMP_ROOT/{}" ';'
+    popd
+fi
+
+# Transition into the new source root
+cd "$NGINX_ROOT"
+
+if [ ! -f $BUILD_DIR/Makefile ]; then
+    REPO_ROOT=$REPO_ROOT ./auto/configure --prefix=$NGINX_BUILD_DIR \
+        --builddir=$NGINX_BUILD_DIR \
+        --with-cc="gcc" \
+        --conf-path=$NGINX_ROOT/conf/nginx.conf \
+        --pid-path=$NGINX_BUILD_DIR/nginx.pid \
+        --error-log-path=$NGINX_BUILD_DIR/err.log \
+        --http-log-path=$NGINX_BUILD_DIR/http.log \
+        --http-client-body-temp-path=$NGINX_BUILD_DIR/client_body_temp \
+        --http-proxy-temp-path=$NGINX_BUILD_DIR/proxy_temp \
+        --http-fastcgi-temp-path=$NGINX_BUILD_DIR/fastcgi_temp \
+        --http-uwsgi-temp-path=$NGINX_BUILD_DIR/uwsgi_temp \
+        --http-scgi-temp-path=$NGINX_BUILD_DIR/scgi_temp \
+        --add-dynamic-module=$NGINX_RTMP_ROOT
+fi
+
+touch "$BUILD_DIR/wrapper.h"
+if [ ! -f $NGINX_ROOT/compile_commands.json ]; then
+    bear -- make IA2_LDFLAGS= IA2_MODULE_LDFLAGS= IA2_CALLGATES= build
+fi
+
+if [ ! -f $BUILD_DIR/wrapper.c ] ||
+   [ ! -f $BUILD_DIR/wrapper.h ]
+   [ ! -f $BUILD_DIR/wrapper_2.ld ]; then
+    pushd $BUILD_DIR
+    $SRC_REWRITER --output-prefix=wrapper \
+        $NGINX_ROOT/src/core/ngx_palloc.c \
+        $NGINX_ROOT/src/core/ngx_log.c \
+        $NGINX_ROOT/src/core/ngx_array.c \
+        $NGINX_ROOT/src/core/ngx_buf.c \
+        $NGINX_ROOT/src/core/nginx.c \
+        $NGINX_ROOT/src/core/ngx_queue.c \
+        $NGINX_ROOT/src/core/ngx_list.c \
+        $NGINX_ROOT/src/core/ngx_hash.c \
+        $NGINX_ROOT/src/core/ngx_output_chain.c \
+        $NGINX_ROOT/src/core/ngx_string.c \
+        $NGINX_ROOT/src/core/ngx_parse.c \
+        $NGINX_ROOT/src/core/ngx_parse_time.c \
+        $NGINX_ROOT/src/core/ngx_inet.c \
+        $NGINX_ROOT/src/core/ngx_file.c \
+        $NGINX_ROOT/src/core/ngx_crc32.c \
+        $NGINX_ROOT/src/core/ngx_murmurhash.c \
+        $NGINX_ROOT/src/core/ngx_md5.c \
+        $NGINX_ROOT/src/core/ngx_sha1.c \
+        $NGINX_ROOT/src/core/ngx_rbtree.c \
+        $NGINX_ROOT/src/core/ngx_radix_tree.c \
+        $NGINX_ROOT/src/core/ngx_slab.c \
+        $NGINX_ROOT/src/core/ngx_times.c \
+        $NGINX_ROOT/src/core/ngx_shmtx.c \
+        $NGINX_ROOT/src/core/ngx_connection.c \
+        $NGINX_ROOT/src/core/ngx_cycle.c \
+        $NGINX_ROOT/src/core/ngx_spinlock.c \
+        $NGINX_ROOT/src/core/ngx_rwlock.c \
+        $NGINX_ROOT/src/core/ngx_cpuinfo.c \
+        $NGINX_ROOT/src/core/ngx_conf_file.c \
+        $NGINX_ROOT/src/core/ngx_module.c \
+        $NGINX_ROOT/src/core/ngx_resolver.c \
+        $NGINX_ROOT/src/core/ngx_open_file_cache.c \
+        $NGINX_ROOT/src/core/ngx_crypt.c \
+        $NGINX_ROOT/src/core/ngx_proxy_protocol.c \
+        $NGINX_ROOT/src/core/ngx_syslog.c \
+        $NGINX_ROOT/src/event/ngx_event.c \
+        $NGINX_ROOT/src/event/ngx_event_timer.c \
+        $NGINX_ROOT/src/event/ngx_event_posted.c \
+        $NGINX_ROOT/src/event/ngx_event_accept.c \
+        $NGINX_ROOT/src/event/ngx_event_udp.c \
+        $NGINX_ROOT/src/event/ngx_event_connect.c \
+        $NGINX_ROOT/src/event/ngx_event_pipe.c \
+        $NGINX_ROOT/src/os/unix/ngx_time.c \
+        $NGINX_ROOT/src/os/unix/ngx_errno.c \
+        $NGINX_ROOT/src/os/unix/ngx_files.c \
+        $NGINX_ROOT/src/os/unix/ngx_alloc.c \
+        $NGINX_ROOT/src/os/unix/ngx_socket.c \
+        $NGINX_ROOT/src/os/unix/ngx_recv.c \
+        $NGINX_ROOT/src/os/unix/ngx_readv_chain.c \
+        $NGINX_ROOT/src/os/unix/ngx_udp_recv.c \
+        $NGINX_ROOT/src/os/unix/ngx_send.c \
+        $NGINX_ROOT/src/os/unix/ngx_writev_chain.c \
+        $NGINX_ROOT/src/os/unix/ngx_udp_send.c \
+        $NGINX_ROOT/src/os/unix/ngx_udp_sendmsg_chain.c \
+        $NGINX_ROOT/src/os/unix/ngx_channel.c \
+        $NGINX_ROOT/src/os/unix/ngx_shmem.c \
+        $NGINX_ROOT/src/os/unix/ngx_process.c \
+        $NGINX_ROOT/src/os/unix/ngx_daemon.c \
+        $NGINX_ROOT/src/os/unix/ngx_setaffinity.c \
+        $NGINX_ROOT/src/os/unix/ngx_setproctitle.c \
+        $NGINX_ROOT/src/os/unix/ngx_posix_init.c \
+        $NGINX_ROOT/src/os/unix/ngx_user.c \
+        $NGINX_ROOT/src/os/unix/ngx_dlopen.c \
+        $NGINX_ROOT/src/os/unix/ngx_process_cycle.c \
+        $NGINX_ROOT/src/os/unix/ngx_linux_init.c \
+        $NGINX_ROOT/src/event/modules/ngx_epoll_module.c \
+        $NGINX_ROOT/src/os/unix/ngx_linux_sendfile_chain.c \
+        $NGINX_ROOT/src/event/ngx_event_openssl.c \
+        $NGINX_ROOT/src/core/ngx_regex.c \
+        $NGINX_ROOT/src/event/ngx_event_openssl_stapling.c \
+        $NGINX_ROOT/src/http/ngx_http.c \
+        $NGINX_ROOT/src/http/ngx_http_core_module.c \
+        $NGINX_ROOT/src/http/ngx_http_special_response.c \
+        $NGINX_ROOT/src/http/ngx_http_request.c \
+        $NGINX_ROOT/src/http/ngx_http_parse.c \
+        $NGINX_ROOT/src/http/modules/ngx_http_log_module.c \
+        $NGINX_ROOT/src/http/ngx_http_request_body.c \
+        $NGINX_ROOT/src/http/ngx_http_variables.c \
+        $NGINX_ROOT/src/http/ngx_http_script.c \
+        $NGINX_ROOT/src/http/ngx_http_upstream.c \
+        $NGINX_ROOT/src/http/ngx_http_upstream_round_robin.c \
+        $NGINX_ROOT/src/http/ngx_http_file_cache.c \
+        $NGINX_ROOT/src/http/ngx_http_write_filter_module.c \
+        $NGINX_ROOT/src/http/ngx_http_header_filter_module.c \
+        $NGINX_ROOT/src/http/modules/ngx_http_chunked_filter_module.c \
+        $NGINX_ROOT/src/http/modules/ngx_http_range_filter_module.c \
+        $NGINX_ROOT/src/http/modules/ngx_http_gzip_filter_module.c \
+        $NGINX_ROOT/src/http/ngx_http_postpone_filter_module.c \
+        $NGINX_ROOT/src/http/modules/ngx_http_ssi_filter_module.c \
+        $NGINX_ROOT/src/http/modules/ngx_http_charset_filter_module.c \
+        $NGINX_ROOT/src/http/modules/ngx_http_userid_filter_module.c \
+        $NGINX_ROOT/src/http/modules/ngx_http_headers_filter_module.c \
+        $NGINX_ROOT/src/http/ngx_http_copy_filter_module.c \
+        $NGINX_ROOT/src/http/modules/ngx_http_not_modified_filter_module.c \
+        $NGINX_ROOT/src/http/modules/ngx_http_static_module.c \
+        $NGINX_ROOT/src/http/modules/ngx_http_autoindex_module.c \
+        $NGINX_ROOT/src/http/modules/ngx_http_index_module.c \
+        $NGINX_ROOT/src/http/modules/ngx_http_mirror_module.c \
+        $NGINX_ROOT/src/http/modules/ngx_http_try_files_module.c \
+        $NGINX_ROOT/src/http/modules/ngx_http_access_module.c \
+        $NGINX_ROOT/src/http/modules/ngx_http_auth_basic_module.c \
+        $NGINX_ROOT/src/http/modules/ngx_http_limit_conn_module.c \
+        $NGINX_ROOT/src/http/modules/ngx_http_limit_req_module.c \
+        $NGINX_ROOT/src/http/modules/ngx_http_geo_module.c \
+        $NGINX_ROOT/src/http/modules/ngx_http_map_module.c \
+        $NGINX_ROOT/src/http/modules/ngx_http_split_clients_module.c \
+        $NGINX_ROOT/src/http/modules/ngx_http_referer_module.c \
+        $NGINX_ROOT/src/http/modules/ngx_http_rewrite_module.c \
+        $NGINX_ROOT/src/http/modules/ngx_http_proxy_module.c \
+        $NGINX_ROOT/src/http/modules/ngx_http_fastcgi_module.c \
+        $NGINX_ROOT/src/http/modules/ngx_http_uwsgi_module.c \
+        $NGINX_ROOT/src/http/modules/ngx_http_scgi_module.c \
+        $NGINX_ROOT/src/http/modules/ngx_http_memcached_module.c \
+        $NGINX_ROOT/src/http/modules/ngx_http_empty_gif_module.c \
+        $NGINX_ROOT/src/http/modules/ngx_http_browser_module.c \
+        $NGINX_ROOT/src/http/modules/ngx_http_upstream_hash_module.c \
+        $NGINX_ROOT/src/http/modules/ngx_http_upstream_ip_hash_module.c \
+        $NGINX_ROOT/src/http/modules/ngx_http_upstream_least_conn_module.c \
+        $NGINX_ROOT/src/http/modules/ngx_http_upstream_random_module.c \
+        $NGINX_ROOT/src/http/modules/ngx_http_upstream_keepalive_module.c \
+        $NGINX_ROOT/src/http/modules/ngx_http_upstream_zone_module.c \
+        $NGINX_BUILD_DIR/ngx_modules.c \
+        $NGINX_RTMP_ROOT/ngx_rtmp_init.c \
+        $NGINX_RTMP_ROOT/ngx_rtmp.c \
+        $NGINX_RTMP_ROOT/ngx_rtmp_handshake.c \
+        $NGINX_RTMP_ROOT/ngx_rtmp_handler.c \
+        $NGINX_RTMP_ROOT/ngx_rtmp_amf.c \
+        $NGINX_RTMP_ROOT/ngx_rtmp_send.c \
+        $NGINX_RTMP_ROOT/ngx_rtmp_shared.c \
+        $NGINX_RTMP_ROOT/ngx_rtmp_eval.c \
+        $NGINX_RTMP_ROOT/ngx_rtmp_receive.c \
+        $NGINX_RTMP_ROOT/ngx_rtmp_core_module.c \
+        $NGINX_RTMP_ROOT/ngx_rtmp_cmd_module.c \
+        $NGINX_RTMP_ROOT/ngx_rtmp_codec_module.c \
+        $NGINX_RTMP_ROOT/ngx_rtmp_access_module.c \
+        $NGINX_RTMP_ROOT/ngx_rtmp_record_module.c \
+        $NGINX_RTMP_ROOT/ngx_rtmp_play_module.c \
+        $NGINX_RTMP_ROOT/ngx_rtmp_live_module.c \
+        $NGINX_RTMP_ROOT/ngx_rtmp_flv_module.c \
+        $NGINX_RTMP_ROOT/ngx_rtmp_mp4_module.c \
+        $NGINX_RTMP_ROOT/ngx_rtmp_netcall_module.c \
+        $NGINX_RTMP_ROOT/ngx_rtmp_relay_module.c \
+        $NGINX_RTMP_ROOT/ngx_rtmp_bandwidth.c \
+        $NGINX_RTMP_ROOT/ngx_rtmp_exec_module.c \
+        $NGINX_RTMP_ROOT/ngx_rtmp_auto_push_module.c \
+        $NGINX_RTMP_ROOT/ngx_rtmp_notify_module.c \
+        $NGINX_RTMP_ROOT/ngx_rtmp_log_module.c \
+        $NGINX_RTMP_ROOT/ngx_rtmp_limit_module.c \
+        $NGINX_RTMP_ROOT/ngx_rtmp_bitop.c \
+        $NGINX_RTMP_ROOT/ngx_rtmp_proxy_protocol.c \
+        $NGINX_RTMP_ROOT/hls/ngx_rtmp_hls_module.c \
+        $NGINX_RTMP_ROOT/dash/ngx_rtmp_dash_module.c \
+        $NGINX_RTMP_ROOT/hls/ngx_rtmp_mpegts.c \
+        $NGINX_RTMP_ROOT/dash/ngx_rtmp_mp4.c \
+        $NGINX_RTMP_ROOT/ngx_rtmp_stat_module.c \
+        $NGINX_RTMP_ROOT/ngx_rtmp_control_module.c \
+        $NGINX_BUILD_DIR/ngx_rtmp_module_modules.c
+    popd
+    patch -p3 < $REPO_ROOT/external/nginx/nginx.patch
+    pushd $NGINX_RTMP_ROOT; patch -p3 < $REPO_ROOT/external/nginx/nginx_rtmp.patch; popd
+fi

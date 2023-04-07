@@ -14,7 +14,7 @@ RUN: readelf -lW %binary_dir/tests/read_config/libread_config_lib_wrapped.so | F
 INIT_COMPARTMENT(2);
 
 // A custom parsing function for a type defined by the plugin
-__attribute__((used)) static void parse_tuple(char *opt, void *out);
+static void parse_tuple(char *opt, void *out);
 
 // IA2_SHARED_DATA makes all values in this struct shared, which includes the
 // `char *` but not the string literals. This means that the other compartment
@@ -63,7 +63,7 @@ static struct cfg_opt opts[6] IA2_SHARED_DATA = {
 // compartment 2.
 const size_t tuple_size = sizeof(struct tuple);
 
-__attribute__((used)) static void parse_tuple(char *opt, void *out) {
+static void parse_tuple(char *opt, void *out) {
   struct tuple **res = out;
   memcpy(*res, opt, tuple_size);
 }

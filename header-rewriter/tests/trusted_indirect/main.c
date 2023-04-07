@@ -25,7 +25,7 @@ uint32_t multiply(uint32_t x, uint32_t y) {
     return x * y;
 }
 
-__attribute__((used)) static uint32_t divide(uint32_t x, uint32_t y) {
+static uint32_t divide(uint32_t x, uint32_t y) {
     return x / y;
 }
 

@@ -17,6 +17,10 @@ static int sub(int x, int y) {
     return x - y;
 }
 
+struct module {
+    bin_op fn;
+};
+
 int main() {
     int res;
     int *y = &res;
@@ -43,6 +47,19 @@ int main() {
         fn2 = sub;
         call_fn(fn2, 2, 1);
     }
+    struct module mod = { add };
+    if (mod.fn) { }
+
+    struct module *mod_ptr = &mod;
+    if (mod_ptr->fn) { }
+
+    // REWRITER: if (NULL == IA2_ADDR(mod_ptr->fn)) { }
+    if (NULL == mod_ptr->fn) { }
+    // REWRITER: if (IA2_ADDR(mod.fn) != NULL) { }
+    if (mod.fn != NULL) { }
+
+    // REWRITER: if (IA2_ADDR(mod.fn) == IA2_ADDR(mod_ptr->fn)) { }
+    if (mod.fn == mod_ptr->fn) { }
 
     // REWRITER: if (x && IA2_ADDR(fn2)) { }
     if (x && fn2) { }
@@ -50,6 +67,4 @@ int main() {
     if (y || !fn) { }
     // REWRITER: if (x && IA2_ADDR(fn) && y) { }
     if (x && fn && y) { }
-    // REWRITER: if (x && !!IA2_ADDR(fn2) && y) { }
-    if (x && !!fn2 && y) { }
 }

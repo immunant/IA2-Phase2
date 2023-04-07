@@ -267,7 +267,7 @@ public:
                                anyOf(fn_ptr_typedef, hasType(fn_ptr)));
 
     auto assign_null = binaryOperator(
-        hasRHS(null_expr),
+        isAssignmentOperator(), hasRHS(null_expr),
         hasLHS(expr(anyOf(fn_ptr_typedef, hasType(fn_ptr))).bind("ptrLHS")));
 
     refactorer.addMatcher(null_fn_ptr, this);
@@ -553,13 +553,21 @@ public:
 
     auto ptr = expr(anyOf(fn_ptr_typedef, hasType(fn_ptr))).bind("ifPtr");
 
-    auto if_stmt = ifStmt(hasCondition(ptr));
+    auto not_ptr = unaryOperator(hasOperatorName("!"), hasUnaryOperand(ptr));
 
-    auto if_not_stmt = ifStmt(hasCondition(
-        unaryOperator(hasOperatorName("!"), hasUnaryOperand(ptr))));
+    auto ptr_as_bool = anyOf(ptr, not_ptr);
+
+    auto if_stmt = ifStmt(hasCondition(ptr_as_bool));
+    // These need to be two separate matchers since a binary comparison may
+    // match ptr_as_bool twice, but we can only bind "ifPtr" once per matcher
+    auto lhs_ptr_op =
+        binaryOperator(unless(isAssignmentOperator()), hasLHS(ptr_as_bool));
+    auto rhs_ptr_op =
+        binaryOperator(unless(isAssignmentOperator()), hasRHS(ptr_as_bool));
 
     refactorer.addMatcher(if_stmt, this);
-    refactorer.addMatcher(if_not_stmt, this);
+    refactorer.addMatcher(lhs_ptr_op, this);
+    refactorer.addMatcher(rhs_ptr_op, this);
   }
   virtual void run(const MatchFinder::MatchResult &result) {
     auto *if_ptr_expr = result.Nodes.getNodeAs<clang::Expr>("ifPtr");
@@ -586,7 +594,7 @@ public:
       auto expansion_file = sm.getFilename(sm.getExpansionLoc(loc)).str();
       auto expansion_line = sm.getExpansionLineNumber(loc);
       auto spelling_line = sm.getSpellingLineNumber(loc);
-      llvm::errs() << "FnPtrExpr: " << expansion_file << ":" << expansion_line
+      llvm::errs() << "FnPtrEq: " << expansion_file << ":" << expansion_line
                    << " ";
       if (spelling_line != expansion_line) {
         llvm::errs() << filename << ":" << spelling_line << " ";
@@ -602,7 +610,7 @@ public:
     std::string new_expr = "IA2_ADDR(" + orig_expr.str() + ")";
 
     clang::CharSourceRange expansion_range = sm.getExpansionRange(loc);
-    Replacement r{sm, expansion_range, new_expr};
+    Replacement r{sm, char_range, new_expr};
     auto err = file_replacements[filename].add(r);
     if (err) {
       llvm::errs() << "Error adding replacements: " << err << '\n';

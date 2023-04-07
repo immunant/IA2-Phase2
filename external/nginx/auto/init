@@ -47,7 +47,7 @@ cat << END > Makefile
 default:	build
 
 clean:
-	rm -rf Makefile $NGX_OBJS
+	rm -rf Makefile $NGX_OBJS compile_commands.json wrapper.h wrapper_2.ld wrapper.c
 
 .PHONY:	default clean
 END

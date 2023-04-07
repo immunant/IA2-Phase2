@@ -267,7 +267,7 @@ public:
                                anyOf(fn_ptr_typedef, hasType(fn_ptr)));
 
     auto assign_null = binaryOperator(
-        hasRHS(null_expr),
+        isAssignmentOperator(), hasRHS(null_expr),
         hasLHS(expr(anyOf(fn_ptr_typedef, hasType(fn_ptr))).bind("ptrLHS")));
 
     refactorer.addMatcher(null_fn_ptr, this);
@@ -542,6 +542,86 @@ private:
   std::map<std::string, Replacements> &file_replacements;
 };
 
+class FnPtrEq : public RefactoringCallback {
+public:
+  FnPtrEq(ASTMatchRefactorer &refactorer,
+          std::map<std::string, Replacements> &file_replacements)
+      : file_replacements(file_replacements) {
+    auto fn_ptr = pointerType(pointee(ignoringParens(functionType())));
+
+    auto fn_ptr_typedef = hasType(typedefNameDecl(hasType(fn_ptr)));
+
+    auto ptr = expr(anyOf(fn_ptr_typedef, hasType(fn_ptr))).bind("ifPtr");
+
+    auto not_ptr = unaryOperator(hasOperatorName("!"), hasUnaryOperand(ptr));
+
+    auto ptr_as_bool = anyOf(ptr, not_ptr);
+
+    auto if_stmt = ifStmt(hasCondition(ptr_as_bool));
+    // These need to be two separate matchers since a binary comparison may
+    // match ptr_as_bool twice, but we can only bind "ifPtr" once per matcher
+    auto lhs_ptr_op =
+        binaryOperator(unless(isAssignmentOperator()), hasLHS(ptr_as_bool));
+    auto rhs_ptr_op =
+        binaryOperator(unless(isAssignmentOperator()), hasRHS(ptr_as_bool));
+
+    refactorer.addMatcher(if_stmt, this);
+    refactorer.addMatcher(lhs_ptr_op, this);
+    refactorer.addMatcher(rhs_ptr_op, this);
+  }
+  virtual void run(const MatchFinder::MatchResult &result) {
+    auto *if_ptr_expr = result.Nodes.getNodeAs<clang::Expr>("ifPtr");
+    assert(if_ptr_expr != nullptr);
+
+    assert(result.SourceManager != nullptr);
+    auto &sm = *result.SourceManager;
+
+    assert(result.Context != nullptr);
+    auto &ctxt = *result.Context;
+
+    // This pass modifies source files so it should not change files with pkey 0
+    if (get_file_pkey(sm) == 0) {
+      return;
+    }
+
+    clang::SourceLocation loc = if_ptr_expr->getExprLoc();
+    Filename filename = get_filename(loc, sm);
+    if (ignore_file(filename)) {
+      return;
+    }
+
+    if (in_macro_expansion(loc, sm)) {
+      auto expansion_file = sm.getFilename(sm.getExpansionLoc(loc)).str();
+      auto expansion_line = sm.getExpansionLineNumber(loc);
+      auto spelling_line = sm.getSpellingLineNumber(loc);
+      llvm::errs() << "FnPtrEq: " << expansion_file << ":" << expansion_line
+                   << " ";
+      if (spelling_line != expansion_line) {
+        llvm::errs() << filename << ":" << spelling_line << " ";
+      }
+      llvm::errs() << "must be rewritten manually\n";
+      return;
+    }
+
+    auto char_range =
+        clang::CharSourceRange::getTokenRange(if_ptr_expr->getSourceRange());
+    auto orig_expr =
+        clang::Lexer::getSourceText(char_range, sm, ctxt.getLangOpts());
+    std::string new_expr = "IA2_ADDR(" + orig_expr.str() + ")";
+
+    clang::CharSourceRange expansion_range = sm.getExpansionRange(loc);
+    Replacement r{sm, char_range, new_expr};
+    auto err = file_replacements[filename].add(r);
+    if (err) {
+      llvm::errs() << "Error adding replacements: " << err << '\n';
+    }
+    return;
+  }
+
+private:
+  std::map<std::string, Replacements> &file_replacements;
+};
+
 /*
  * Finds function declarations and definitions to determine in which
  * compartment functions are defined in. This is later used to determine what
@@ -739,6 +819,7 @@ int main(int argc, const char **argv) {
   FnPtrExpr ptr_expr_pass(refactorer, tool.getReplacements());
   FnPtrCall ptr_call_pass(refactorer, tool.getReplacements());
   FnPtrNull null_ptr_pass(refactorer, tool.getReplacements());
+  FnPtrEq eq_ptr_pass(refactorer, tool.getReplacements());
 
   auto rc = tool.runAndSave(newFrontendActionFactory(&refactorer).get());
 
@@ -751,6 +832,7 @@ int main(int argc, const char **argv) {
 
   header_out << '\n';
 
+  header_out << "#define IA2_ADDR(opaque) opaque.ptr\n";
   header_out
       << "#define IA2_FN(func) (typeof(__ia2_##func)) { (void*)&__ia2_##func }\n";
 

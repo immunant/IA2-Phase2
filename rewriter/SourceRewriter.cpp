@@ -1077,6 +1077,8 @@ int main(int argc, const char **argv) {
       }
     }
   }
+  header_out << "asm(\"__libia2_abort:\\n\"\n"
+             << "    \"ud2\");\n";
   header_out << static_wrappers.c_str();
 
   for (int i = 0; i < num_pkeys; i++) {

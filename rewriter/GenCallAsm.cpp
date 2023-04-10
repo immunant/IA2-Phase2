@@ -395,6 +395,16 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
     add_asm_line(aw, "pushq %"s + r);
   }
 
+  add_raw_line(aw, "#ifndef LIBIA2_INSECURE");
+  add_comment_line(aw, "Check the current PKRU");
+  add_asm_line(aw, "movq %rcx, %r10");
+  add_asm_line(aw, "xorl %ecx, %ecx");
+  add_asm_line(aw, "rdpkru");
+  uint32_t caller_pkru = ~((0b11 << (2 * caller_pkey)) | 0b11);
+  add_asm_line(aw, llvm::formatv("cmpl ${0:x8}, %eax", caller_pkru));
+  add_asm_line(aw, "jne __libia2_abort");
+  add_asm_line(aw, "movq %r10, %rcx");
+  add_raw_line(aw, "#endif");
   // Change pkru to the intermediate value before copying args
   add_comment_line(aw, "Set PKRU to the intermediate value to move arguments");
   // wrpkru requires zeroing rcx and rdx, but they may have arguments so use r10

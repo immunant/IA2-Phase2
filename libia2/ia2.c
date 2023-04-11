@@ -82,9 +82,9 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
     size_t len = phdr.p_memsz;
 
     void *start_round_down = (void *)((uint64_t)start & ~0xFFFUL);
-    uint64_t start_moved = (uint64_t)start & 0xFFFUL;
+    uint64_t start_moved_by = (uint64_t)start & 0xFFFUL;
     // p_memsz is 0x1000 more than the size of what we actually need to protect
-    size_t len_round_up = (phdr.p_memsz + start_moved) & ~0xFFFUL;
+    size_t len_round_up = (phdr.p_memsz + start_moved_by) & ~0xFFFUL;
     if (len_round_up == 0) {
       const char *libname = basename(info->dlpi_name);
       /* dlpi_name is "" for the main executable */

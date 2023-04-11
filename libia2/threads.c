@@ -47,10 +47,12 @@ void *ia2_thread_begin(void *arg) {
 #endif
       // Push old stack pointer, which aligns the stack.
       "pushq %%rdi\n"
+      "pushq %%rbp\n"
       // Call fn(data).
       "mov %[data], %%rdi\n"
       "call *%[fn]\n"
       // Restore old stack pointer.
+      "popq %%rbp\n"
       "popq %%rsp\n"
       : "=a"(result)
       : [fn] "rm"(fn), [data] "rm"(data), [new_sp_addr] "r"(new_sp_addr)

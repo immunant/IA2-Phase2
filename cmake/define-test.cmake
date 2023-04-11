@@ -57,17 +57,21 @@ function(define_shared_lib)
         list(TRANSFORM ORIGINAL_LIB_HEADERS REPLACE
             ${ORIGINAL_INCLUDE_DIR} ${REWRITTEN_INCLUDE_DIR}
             OUTPUT_VARIABLE COPIED_LIB_HEADERS)
-        add_custom_target(copy_files_${LIBNAME}
-            COMMAND cp ${SHARED_LIB_SRCS} ${CMAKE_CURRENT_BINARY_DIR}/
+        add_custom_command(
+            OUTPUT ${COPIED_SRCS} ${COPIED_LIB_HEADERS}
+            COMMAND cp ${ORIGINAL_SRCS} ${CMAKE_CURRENT_BINARY_DIR}/
             COMMAND mkdir -p ${REWRITTEN_INCLUDE_DIR}
             COMMAND cp ${ORIGINAL_LIB_HEADERS} ${REWRITTEN_INCLUDE_DIR}/
-            BYPRODUCTS ${COPIED_SRCS} ${COPIED_LIB_HEADERS}
+            DEPENDS ${ORIGINAL_SRCS} ${ORIGINAL_LIB_HEADERS}
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+        add_custom_target(copy_files_${LIBNAME} DEPENDS ${COPIED_SRCS} ${COPIED_LIB_HEADERS})
     else()
-        add_custom_target(copy_files_${LIBNAME}
-            COMMAND cp ${SHARED_LIB_SRCS} ${CMAKE_CURRENT_BINARY_DIR}/
-            BYPRODUCTS ${COPIED_SRCS}
+        add_custom_command(
+            OUTPUT ${COPIED_SRCS}
+            COMMAND cp ${ORIGINAL_SRCS} ${CMAKE_CURRENT_BINARY_DIR}/
+            DEPENDS ${ORIGINAL_SRCS}
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+        add_custom_target(copy_files_${LIBNAME} DEPENDS ${COPIED_SRCS})
     endif()
 
     set(PADDING_LINKER_SCRIPT ${libia2_BINARY_DIR}/padding.ld)
@@ -188,12 +192,16 @@ function(define_test)
     list(TRANSFORM ORIGINAL_HEADERS REPLACE
         ${ORIGINAL_INCLUDE_DIR} ${REWRITTEN_INCLUDE_DIR}
         OUTPUT_VARIABLE COPIED_HEADERS)
-    add_custom_target(copy_files_${MAIN}
+    add_custom_command(
+        OUTPUT ${COPIED_SRCS} ${COPIED_HEADERS}
         COMMAND cp ${DEFINE_TEST_SRCS} ${CMAKE_CURRENT_BINARY_DIR}/
         COMMAND mkdir -p ${REWRITTEN_INCLUDE_DIR}
         COMMAND cp ${ORIGINAL_HEADERS} ${REWRITTEN_INCLUDE_DIR}/
-        BYPRODUCTS ${COPIED_SRCS} ${COPIED_HEADERS}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+    add_custom_target(
+        copy_files_${MAIN}
+        DEPENDS ${COPIED_SRCS} ${COPIED_HEADERS}
+    )
 
     set(PADDING_LINKER_SCRIPT ${libia2_BINARY_DIR}/padding.ld)
     set(DYN_SYM ${libia2_BINARY_DIR}/dynsym.syms)

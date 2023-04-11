@@ -36,15 +36,20 @@ function(define_ia2_wrapper)
     set(CALL_GATE_SRC ${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME}_call_gates.c)
     set(CALL_GATE_HDR ${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME}_call_gates.h)
 
-    add_custom_target(
-        ${TEST_NAME}_call_gate_generation
-        BYPRODUCTS ${CALL_GATE_SRC} ${CALL_GATE_HDR} ${LD_ARGS_FILES}
+    add_custom_command(
+        OUTPUT ${CALL_GATE_SRC} ${CALL_GATE_HDR} ${LD_ARGS_FILES}
         COMMAND ia2-header-rewriter
             --output-prefix=${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME}_call_gates
             ${ALL_SRCS}
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-        DEPENDS ia2-header-rewriter
+        DEPENDS ia2-header-rewriter ${ALL_SRCS}
         VERBATIM)
+
+    add_custom_target(
+        ${TEST_NAME}_call_gate_generation
+        DEPENDS ${CALL_GATE_SRC} ${CALL_GATE_HDR} ${LD_ARGS_FILES}
+    )
+
     add_dependencies(${TEST_NAME}_call_gate_generation ${COPY_TARGETS})
 
     set(CALL_GATE_TARGET ${TEST_NAME}_call_gates)

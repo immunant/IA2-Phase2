@@ -55,7 +55,7 @@ void *ia2_thread_begin(void *arg) {
       "popq %%rbp\n"
       "popq %%rsp\n"
       : "=a"(result)
-      : [fn] "rm"(fn), [data] "rm"(data), [new_sp_addr] "r"(new_sp_addr)
+      : [fn] "r"(fn), [data] "r"(data), [new_sp_addr] "r"(new_sp_addr)
       : "rdi");
   /* clang-format on */
   return result;

@@ -7,6 +7,8 @@ execute_process(COMMAND ${CMAKE_C_COMPILER} -print-file-name=include-fixed
   OUTPUT_VARIABLE C_SYSTEM_INCLUDE_FIXED
   OUTPUT_STRIP_TRAILING_WHITESPACE)
 
+set(PADDING_LINKER_SCRIPT ${libia2_BINARY_DIR}/padding.ld)
+
 # Creates wrapped and unmodified shared library targets for a test
 #
 # NEEDS_LD_WRAP - If present pass -Wl,@$LD_ARGS_FILE to the wrapped
@@ -74,8 +76,6 @@ function(define_shared_lib)
         add_custom_target(copy_files_${LIBNAME} DEPENDS ${COPIED_SRCS})
     endif()
 
-    set(PADDING_LINKER_SCRIPT ${libia2_BINARY_DIR}/padding.ld)
-
     # Define two targets
     set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
     add_library(${LIBNAME} SHARED ${COPIED_SRCS})
@@ -132,6 +132,7 @@ function(define_shared_lib)
     if (${SHARED_LIB_PKEY} GREATER 0)
         target_link_libraries(${WRAPPED_LIBNAME} PRIVATE
             "-Wl,-T${PADDING_LINKER_SCRIPT}")
+        set_target_properties(${WRAPPED_LIBNAME} PROPERTIES LINK_DEPENDS ${PADDING_LINKER_SCRIPT})
         target_compile_options(${WRAPPED_LIBNAME} PRIVATE
             "-include${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME}_call_gates.h")
         add_tls_padded_library(
@@ -204,7 +205,6 @@ function(define_test)
         DEPENDS ${COPIED_SRCS} ${COPIED_HEADERS}
     )
 
-    set(PADDING_LINKER_SCRIPT ${libia2_BINARY_DIR}/padding.ld)
     set(DYN_SYM ${libia2_BINARY_DIR}/dynsym.syms)
 
     # Define two targets
@@ -260,6 +260,7 @@ function(define_test)
     target_link_options(${WRAPPED_MAIN} PRIVATE
             "-Wl,-T${PADDING_LINKER_SCRIPT}"
             "-Wl,--dynamic-list=${DYN_SYM}")
+    set_target_properties(${WRAPPED_MAIN} PROPERTIES LINK_DEPENDS ${PADDING_LINKER_SCRIPT})
     target_link_libraries(${WRAPPED_MAIN} PRIVATE
         ${TEST_NAME}_call_gates)
     get_target_property(LIB_PKEY ${DEFINE_TEST_LIBS} PKEY)

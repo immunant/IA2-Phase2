@@ -48,12 +48,13 @@ void *ia2_thread_begin(void *arg) {
       // Push old stack pointer.
       "pushq %%rdi\n"
       "pushq %%rbp\n"
+      // Load argument.
+      "mov %[data], %%rdi\n"
       // Save %rsp before alignment.
       "movq %%rsp, %%rbp\n"
       // Align the stack.
       "andq $0xfffffffffffffff0, %%rsp\n"
       // Call fn(data).
-      "mov %[data], %%rdi\n"
       "call *%[fn]\n"
       // Restore pre-alignment stack pointer.
       "movq %%rbp, %%rsp\n"

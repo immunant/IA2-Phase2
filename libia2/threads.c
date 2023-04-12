@@ -45,13 +45,19 @@ void *ia2_thread_begin(void *arg) {
       // Load the stack pointer for this compartment's stack.
       "mov (%[new_sp_addr]), %%rsp\n"
 #endif
-      // Push old stack pointer, which aligns the stack.
+      // Push old stack pointer.
       "pushq %%rdi\n"
       "pushq %%rbp\n"
+      // Save %rsp before alignment.
+      "movq %%rsp, %%rbp\n"
+      // Align the stack.
+      "andq $0xfffffffffffffff0, %%rsp\n"
       // Call fn(data).
       "mov %[data], %%rdi\n"
       "call *%[fn]\n"
-      // Restore old stack pointer.
+      // Restore pre-alignment stack pointer.
+      "movq %%rbp, %%rsp\n"
+      // Switch stacks back.
       "popq %%rbp\n"
       "popq %%rsp\n"
       : "=a"(result)

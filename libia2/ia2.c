@@ -85,6 +85,8 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
     uint64_t start_moved_by = (uint64_t)start & 0xFFFUL;
     // p_memsz is 0x1000 more than the size of what we actually need to protect
     size_t len_round_up = (phdr.p_memsz + start_moved_by) & ~0xFFFUL;
+    uint64_t end = start_round_down + len_round_up;
+
     if (len_round_up == 0) {
       const char *libname = basename(info->dlpi_name);
       /* dlpi_name is "" for the main executable */
@@ -94,11 +96,38 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
       printf("TLS segment of %s is not padded\n", libname);
       exit(-1);
     }
-    int mprotect_err = pkey_mprotect(start_round_down, len_round_up,
-                                     PROT_READ | PROT_WRITE, search_args->pkey);
-    if (mprotect_err != 0) {
-      printf("pkey_mprotect failed: %s\n", strerror(errno));
+
+    /* Look for the untrusted stack pointer, in case this lib defines it. */
+    void *lib = dlopen(info->dlpi_name, RTLD_NOW);
+    if (!lib)
       exit(-1);
+    uint64_t untrusted_stackptr_addr = (uint64_t)dlsym(lib, "ia2_stackptr_0");
+
+    /* Protect the TLS region except the page of the untrusted stack pointer. */
+    if (untrusted_stackptr_addr > start && untrusted_stackptr_addr < end) {
+      int mprotect_err =
+          pkey_mprotect(start_round_down,
+                        untrusted_stackptr_addr - (uint64_t)start_round_down,
+                        PROT_READ | PROT_WRITE, search_args->pkey);
+      if (mprotect_err != 0) {
+        printf("pkey_mprotect failed: %s\n", strerror(errno));
+        exit(-1);
+      }
+      mprotect_err = pkey_mprotect(untrusted_stackptr_addr + 0x1000,
+                                   end - (untrusted_stackptr_addr + 0x1000),
+                                   PROT_READ | PROT_WRITE, search_args->pkey);
+      if (mprotect_err != 0) {
+        printf("pkey_mprotect failed: %s\n", strerror(errno));
+        exit(-1);
+      }
+    } else {
+      int mprotect_err =
+          pkey_mprotect(start_round_down, len_round_up, PROT_READ | PROT_WRITE,
+                        search_args->pkey);
+      if (mprotect_err != 0) {
+        printf("pkey_mprotect failed: %s\n", strerror(errno));
+        exit(-1);
+      }
     }
   }
 

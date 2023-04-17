@@ -440,10 +440,16 @@ public:
         declRefExpr(hasDeclaration(functionDecl())).bind("fnPtrExpr");
 
     // Matches function calls to filter them out of the previous matcher
-    auto call_expr = hasAncestor(
-        callExpr(callee(expr(ignoringImplicit(equalsBoundNode("fnPtrExpr"))))));
+    auto call_expr = hasParent(implicitCastExpr(hasParent(callExpr(
+        callee(expr(ignoringImplicit(equalsBoundNode("fnPtrExpr"))))))));
 
-    StatementMatcher fn_ptr_expr = expr(fn_expr, unless(call_expr));
+    auto in_bin_op = hasAncestor(
+        binaryOperator(anyOf(hasOperatorName("=="), hasOperatorName("!=")),
+                       hasEitherOperand(expr(
+                           ignoringImplicit(equalsBoundNode("fnPtrExpr"))))));
+
+    StatementMatcher fn_ptr_expr =
+        expr(fn_expr, unless(call_expr), unless(in_bin_op));
 
     refactorer.addMatcher(fn_ptr_expr, this);
   }
@@ -551,7 +557,11 @@ public:
 
     auto fn_ptr_typedef = hasType(typedefNameDecl(hasType(fn_ptr)));
 
-    auto ptr = expr(anyOf(fn_ptr_typedef, hasType(fn_ptr))).bind("ifPtr");
+    auto fn_expr =
+        declRefExpr(hasDeclaration(functionDecl())).bind("comparedFn");
+
+    auto ptr = expr(unless(fn_expr), anyOf(fn_ptr_typedef, hasType(fn_ptr)))
+                   .bind("ifPtr");
 
     auto not_ptr = unaryOperator(hasOperatorName("!"), hasUnaryOperand(ptr));
 
@@ -560,18 +570,36 @@ public:
     auto if_stmt = ifStmt(hasCondition(ptr_as_bool));
     // These need to be two separate matchers since a binary comparison may
     // match ptr_as_bool twice, but we can only bind "ifPtr" once per matcher
-    auto lhs_ptr_op =
-        binaryOperator(unless(isAssignmentOperator()), hasLHS(ptr_as_bool));
-    auto rhs_ptr_op =
-        binaryOperator(unless(isAssignmentOperator()), hasRHS(ptr_as_bool));
+    auto lhs_ptr_op = binaryOperator(unless(isAssignmentOperator()),
+                                     hasLHS(ignoringImpCasts(ptr_as_bool)));
+    auto rhs_ptr_op = binaryOperator(unless(isAssignmentOperator()),
+                                     hasRHS(ignoringImpCasts(ptr_as_bool)));
+
+    auto lhs_cmp_fn =
+        binaryOperator(anyOf(hasOperatorName("=="), hasOperatorName("!=")),
+                       hasLHS(ignoringImpCasts(fn_expr)));
+    auto rhs_cmp_fn =
+        binaryOperator(anyOf(hasOperatorName("=="), hasOperatorName("!=")),
+                       hasRHS(ignoringImpCasts(fn_expr)));
 
     refactorer.addMatcher(if_stmt, this);
     refactorer.addMatcher(lhs_ptr_op, this);
     refactorer.addMatcher(rhs_ptr_op, this);
+    refactorer.addMatcher(lhs_cmp_fn, this);
+    refactorer.addMatcher(rhs_cmp_fn, this);
   }
   virtual void run(const MatchFinder::MatchResult &result) {
-    auto *if_ptr_expr = result.Nodes.getNodeAs<clang::Expr>("ifPtr");
-    assert(if_ptr_expr != nullptr);
+    const clang::Expr *expr = nullptr;
+    bool rewriting_fn;
+    if (auto *cmp_fn_expr = result.Nodes.getNodeAs<clang::Expr>("comparedFn")) {
+      rewriting_fn = true;
+      expr = cmp_fn_expr;
+    } else if (auto *if_ptr_expr =
+                   result.Nodes.getNodeAs<clang::Expr>("ifPtr")) {
+      rewriting_fn = false;
+      expr = if_ptr_expr;
+    }
+    assert(expr != nullptr);
 
     assert(result.SourceManager != nullptr);
     auto &sm = *result.SourceManager;
@@ -584,7 +612,7 @@ public:
       return;
     }
 
-    clang::SourceLocation loc = if_ptr_expr->getExprLoc();
+    clang::SourceLocation loc = expr->getExprLoc();
     Filename filename = get_filename(loc, sm);
     if (ignore_file(filename)) {
       return;
@@ -604,10 +632,15 @@ public:
     }
 
     auto char_range =
-        clang::CharSourceRange::getTokenRange(if_ptr_expr->getSourceRange());
+        clang::CharSourceRange::getTokenRange(expr->getSourceRange());
     auto orig_expr =
         clang::Lexer::getSourceText(char_range, sm, ctxt.getLangOpts());
-    std::string new_expr = "IA2_ADDR(" + orig_expr.str() + ")";
+    std::string new_expr;
+    if (rewriting_fn) {
+      new_expr = "IA2_FN_ADDR(" + orig_expr.str() + ")";
+    } else {
+      new_expr = "IA2_ADDR(" + orig_expr.str() + ")";
+    }
 
     clang::CharSourceRange expansion_range = sm.getExpansionRange(loc);
     Replacement r{sm, char_range, new_expr};
@@ -832,6 +865,7 @@ int main(int argc, const char **argv) {
 
   header_out << '\n';
 
+  header_out << "#define IA2_FN_ADDR(func) (typeof(&func))(&__ia2_##func)\n";
   header_out << "#define IA2_ADDR(opaque) opaque.ptr\n";
   header_out
       << "#define IA2_FN(func) (typeof(__ia2_##func)) { (void*)&__ia2_##func }\n";

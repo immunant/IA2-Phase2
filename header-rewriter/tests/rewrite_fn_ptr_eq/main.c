@@ -61,6 +61,11 @@ int main() {
     // REWRITER: if (IA2_ADDR(mod.fn) == IA2_ADDR(mod_ptr->fn)) { }
     if (mod.fn == mod_ptr->fn) { }
 
+    // REWRITER: if (IA2_ADDR(mod.fn) == IA2_FN_ADDR(add)) { }
+    if (mod.fn == add) { }
+    // REWRITER: if (IA2_FN_ADDR(sub) == IA2_ADDR(mod_ptr->fn)) { }
+    if (sub == mod_ptr->fn) { }
+
     // REWRITER: if (x && IA2_ADDR(fn2)) { }
     if (x && fn2) { }
     // REWRITER: if (y || !IA2_ADDR(fn)) { }

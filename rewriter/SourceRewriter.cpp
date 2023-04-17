@@ -47,6 +47,11 @@ static llvm::cl::opt<std::string>
 // Map each translation unit's filename to its pkey.
 static std::map<Filename, Pkey> file_pkeys;
 
+static Filename get_expansion_filename(const clang::SourceLocation loc,
+                                       const clang::SourceManager &sm) {
+  return sm.getFilename(sm.getExpansionLoc(loc)).str();
+}
+
 static Filename get_filename(const clang::SourceLocation loc,
                              const clang::SourceManager &sm) {
   return sm.getFilename(sm.getSpellingLoc(loc)).str();
@@ -55,6 +60,16 @@ static Filename get_filename(const clang::SourceLocation loc,
 static bool in_macro_expansion(const clang::SourceLocation loc,
                                const clang::SourceManager &sm) {
   return sm.getExpansionLoc(loc) != sm.getSpellingLoc(loc);
+}
+
+static bool in_fn_like_macro(const clang::SourceLocation loc,
+                             const clang::SourceManager &sm) {
+  if (!in_macro_expansion(loc, sm)) {
+    return false;
+  }
+  const clang::SrcMgr::ExpansionInfo &exp =
+      sm.getSLocEntry(sm.getFileID(loc)).getExpansion();
+  return exp.isFunctionMacroExpansion() || exp.isMacroArgExpansion();
 }
 
 static Pkey get_file_pkey(const clang::SourceManager &sm) {
@@ -214,7 +229,7 @@ public:
 
     // This check must come after inserting new_type into fn_ptr_types but
     // before the Replacement is added
-    if (in_macro_expansion(loc, sm)) {
+    if (in_fn_like_macro(loc, sm)) {
       auto expansion_file = sm.getFilename(sm.getExpansionLoc(loc)).str();
       auto expansion_line = sm.getExpansionLineNumber(loc);
       auto spelling_line = sm.getSpellingLineNumber(loc);
@@ -376,7 +391,7 @@ public:
 
     // This check must come after modifying the maps in this pass but before the
     // Replacement is added
-    if (in_macro_expansion(loc, sm)) {
+    if (in_fn_like_macro(loc, sm)) {
       auto expansion_file = sm.getFilename(sm.getExpansionLoc(loc)).str();
       auto expansion_line = sm.getExpansionLineNumber(loc);
       auto spelling_line = sm.getSpellingLineNumber(loc);
@@ -398,6 +413,11 @@ public:
 
     std::string new_expr =
         "IA2_CALL("s + old_expr.str() + ", " + fn_ptr_id + ")";
+
+    if (in_macro_expansion(loc, sm)) {
+      filename = get_expansion_filename(loc, sm);
+      char_range = sm.getExpansionRange(loc);
+    }
 
     Replacement r{sm, char_range, new_expr};
     auto err = file_replacements[filename].add(r);
@@ -514,7 +534,7 @@ public:
 
     // This check must come after modifying the maps in this pass but before the
     // Replacement is added
-    if (in_macro_expansion(loc, sm)) {
+    if (in_fn_like_macro(loc, sm)) {
       auto expansion_file = sm.getFilename(sm.getExpansionLoc(loc)).str();
       auto expansion_line = sm.getExpansionLineNumber(loc);
       auto spelling_line = sm.getSpellingLineNumber(loc);
@@ -614,7 +634,7 @@ public:
       return;
     }
 
-    if (in_macro_expansion(loc, sm)) {
+    if (in_fn_like_macro(loc, sm)) {
       auto expansion_file = sm.getFilename(sm.getExpansionLoc(loc)).str();
       auto expansion_line = sm.getExpansionLineNumber(loc);
       auto spelling_line = sm.getSpellingLineNumber(loc);
@@ -636,6 +656,11 @@ public:
       new_expr = "IA2_FN_ADDR(" + orig_expr.str() + ")";
     } else {
       new_expr = "IA2_ADDR(" + orig_expr.str() + ")";
+    }
+
+    if (in_macro_expansion(loc, sm)) {
+      filename = get_expansion_filename(loc, sm);
+      char_range = sm.getExpansionRange(loc);
     }
 
     Replacement r{sm, char_range, new_expr};

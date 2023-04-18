@@ -53,6 +53,10 @@ int main() {
     struct module *mod_ptr = &mod;
     if (mod_ptr->fn) { }
 
+    bin_op *ptr = &fn;
+    // REWRITER: if (IA2_ADDR(*ptr)) { }
+    if (*ptr) { }
+
     // REWRITER: if (NULL == IA2_ADDR(mod_ptr->fn)) { }
     if (NULL == mod_ptr->fn) { }
     // REWRITER: if (IA2_ADDR(mod.fn) != NULL) { }

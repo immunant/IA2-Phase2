@@ -866,7 +866,7 @@ int main(int argc, const char **argv) {
   header_out << '\n';
 
   header_out << "#define IA2_FN_ADDR(func) (typeof(&func))(&__ia2_##func)\n";
-  header_out << "#define IA2_ADDR(opaque) opaque.ptr\n";
+  header_out << "#define IA2_ADDR(opaque) (void*)((opaque).ptr)\n";
   header_out
       << "#define IA2_FN(func) (typeof(__ia2_##func)) { (void*)&__ia2_##func }\n";
 

@@ -17,6 +17,8 @@ static int sub(int x, int y) {
     return x - y;
 }
 
+bin_op identity(bin_op fn) { return fn; }
+
 struct module {
     bin_op fn;
 };
@@ -67,4 +69,7 @@ int main() {
     if (y || !fn) { }
     // REWRITER: if (x && IA2_ADDR(fn) && y) { }
     if (x && fn && y) { }
+
+    // REWRITER: if (IA2_ADDR(identity(IA2_FN(add)))) { }
+    if (identity(add)) { }
 }

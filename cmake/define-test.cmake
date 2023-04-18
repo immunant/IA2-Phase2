@@ -1,3 +1,4 @@
+include(CMakePrintHelpers)
 # Get system header directories for header rewriter as it needs them explicitly passed
 execute_process(COMMAND ${CMAKE_C_COMPILER} -print-file-name=include
   OUTPUT_VARIABLE C_SYSTEM_INCLUDE
@@ -6,8 +7,6 @@ execute_process(COMMAND ${CMAKE_C_COMPILER} -print-file-name=include
 execute_process(COMMAND ${CMAKE_C_COMPILER} -print-file-name=include-fixed
   OUTPUT_VARIABLE C_SYSTEM_INCLUDE_FIXED
   OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-set(PADDING_LINKER_SCRIPT ${libia2_BINARY_DIR}/padding.ld)
 
 # Creates wrapped and unmodified shared library targets for a test
 #
@@ -76,6 +75,8 @@ function(define_shared_lib)
         add_custom_target(copy_files_${LIBNAME} DEPENDS ${COPIED_SRCS})
     endif()
 
+    set(PADDING_LINKER_SCRIPT ${libia2_BINARY_DIR}/padding.ld)
+
     # Define two targets
     set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
     add_library(${LIBNAME} SHARED ${COPIED_SRCS})
@@ -132,13 +133,39 @@ function(define_shared_lib)
     if (${SHARED_LIB_PKEY} GREATER 0)
         target_link_libraries(${WRAPPED_LIBNAME} PRIVATE
             "-Wl,-T${PADDING_LINKER_SCRIPT}")
-        set_target_properties(${WRAPPED_LIBNAME} PROPERTIES LINK_DEPENDS ${PADDING_LINKER_SCRIPT})
         target_compile_options(${WRAPPED_LIBNAME} PRIVATE
             "-include${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME}_call_gates.h")
         add_tls_padded_library(
             LIB "${WRAPPED_LIBNAME}"
             OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/padded")
     endif()
+endfunction()
+
+function(wrap_system_lib)
+    set(options "")
+    set(oneValueArgs LIBNAME WRAPPED_LIB PKEY)
+    set(multiValueArgs HEADERS)
+    cmake_parse_arguments(SYSTEM_LIB "${options}" "${oneValueArgs}"
+                          "${multiValueArgs}" ${ARGN})
+
+    pkg_check_modules(${SYSTEM_LIB_LIBNAME} REQUIRED ${SYSTEM_LIB_WRAPPED_LIB})
+    add_library(${SYSTEM_LIB_LIBNAME} SHARED IMPORTED)
+    add_library(${SYSTEM_LIB_LIBNAME}_wrapped SHARED IMPORTED)
+    set_target_properties(${SYSTEM_LIB_LIBNAME} PROPERTIES PKEY ${SYSTEM_LIB_PKEY})
+
+    set(ORIGINAL_INCLUDE_DIR ${${SYSTEM_LIB_LIBNAME}_INCLUDE_DIRS})
+
+    set(REWRITTEN_INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR}/include)
+    cmake_print_variables(ORIGINAL_INCLUDE_DIR)
+    list(TRANSFORM SYSTEM_LIB_HEADERS REPLACE
+        ${ORIGINAL_INCLUDE_DIR} ${REWRITTEN_INCLUDE_DIR}
+        OUTPUT_VARIABLE COPIED_SYSTEM_LIB_HEADERS)
+    add_custom_command(
+        OUTPUT ${COPIED_SYSTEM_LIB_HEADERS}
+        COMMAND mkdir -p ${REWRITTEN_INCLUDE_DIR}
+        COMMAND cp ${SYSTEM_LIB_HEADERS} ${REWRITTEN_INCLUDE_DIR}/
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+    add_custom_target(copy_files_${SYSTEM_LIB_LIBNAME} DEPENDS ${COPIED_SYSTEM_LIB_HEADERS})
 endfunction()
 
 
@@ -195,16 +222,16 @@ function(define_test)
         OUTPUT_VARIABLE COPIED_HEADERS)
     add_custom_command(
         OUTPUT ${COPIED_SRCS} ${COPIED_HEADERS}
-        COMMAND cp ${ORIGINAL_SRCS} ${CMAKE_CURRENT_BINARY_DIR}/
+        COMMAND cp ${DEFINE_TEST_SRCS} ${CMAKE_CURRENT_BINARY_DIR}/
         COMMAND mkdir -p ${REWRITTEN_INCLUDE_DIR}
         COMMAND cp ${ORIGINAL_HEADERS} ${REWRITTEN_INCLUDE_DIR}/
-        DEPENDS ${ORIGINAL_SRCS} ${ORIGINAL_HEADERS}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
     add_custom_target(
         copy_files_${MAIN}
         DEPENDS ${COPIED_SRCS} ${COPIED_HEADERS}
     )
 
+    set(PADDING_LINKER_SCRIPT ${libia2_BINARY_DIR}/padding.ld)
     set(DYN_SYM ${libia2_BINARY_DIR}/dynsym.syms)
 
     # Define two targets
@@ -260,9 +287,9 @@ function(define_test)
     target_link_options(${WRAPPED_MAIN} PRIVATE
             "-Wl,-T${PADDING_LINKER_SCRIPT}"
             "-Wl,--dynamic-list=${DYN_SYM}")
-    set_target_properties(${WRAPPED_MAIN} PROPERTIES LINK_DEPENDS ${PADDING_LINKER_SCRIPT})
     target_link_libraries(${WRAPPED_MAIN} PRIVATE
         ${TEST_NAME}_call_gates)
+    # Does this only work when one library is passed?
     get_target_property(LIB_PKEY ${DEFINE_TEST_LIBS} PKEY)
 
     target_link_libraries(${MAIN} PRIVATE ${DEFINE_TEST_LIBS})

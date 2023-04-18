@@ -30,7 +30,7 @@ set_target_properties(check PROPERTIES FOLDER "tests")
 add_subdirectory(function_allowlist)
 add_subdirectory(header_includes)
 add_subdirectory(heap_two_keys)
-# add_subdirectory(libusb)
+add_subdirectory(libusb)
 add_subdirectory(macro_attr)
 add_subdirectory(minimal)
 # TODO: support C++ namespaces

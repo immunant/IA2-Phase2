@@ -102,6 +102,11 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
     if (!lib)
       exit(-1);
     uint64_t untrusted_stackptr_addr = (uint64_t)dlsym(lib, "ia2_stackptr_0");
+    if (untrusted_stackptr_addr & 0xFFF != 0) {
+      printf("address of ia2_stackptr_0 (%p) is not page-aligned\n",
+             (void *)untrusted_stackptr_addr);
+      exit(-1);
+    }
 
     /* Protect the TLS region except the page of the untrusted stack pointer. */
     if (untrusted_stackptr_addr > start && untrusted_stackptr_addr < end) {

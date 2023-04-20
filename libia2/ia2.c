@@ -71,7 +71,7 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
     return 0;
   }
 
-  /* protect TLS segment */
+  // Protect TLS segment.
   for (size_t i = 0; i < info->dlpi_phnum; i++) {
     Elf64_Phdr phdr = info->dlpi_phdr[i];
     if (phdr.p_type != PT_TLS) {
@@ -83,13 +83,15 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
 
     void *start_round_down = (void *)((uint64_t)start & ~0xFFFUL);
     uint64_t start_moved_by = (uint64_t)start & 0xFFFUL;
-    // p_memsz is 0x1000 more than the size of what we actually need to protect
+    // p_memsz is 0x1000 more than the size of what we actually need to protect.
+    // Thus the "rounding up" here is done via p_memsz being larger than it
+    // needs to be, followed by the truncation below.
     size_t len_round_up = (phdr.p_memsz + start_moved_by) & ~0xFFFUL;
     uint64_t end = start_round_down + len_round_up;
 
     if (len_round_up == 0) {
       const char *libname = basename(info->dlpi_name);
-      /* dlpi_name is "" for the main executable */
+      // dlpi_name is "" for the main executable.
       if (libname && libname[0] == '\0') {
         libname = "main";
       }
@@ -97,7 +99,7 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
       exit(-1);
     }
 
-    /* Look for the untrusted stack pointer, in case this lib defines it. */
+    // Look for the untrusted stack pointer, in case this lib defines it.
     void *lib = dlopen(info->dlpi_name, RTLD_NOW);
     if (!lib)
       exit(-1);
@@ -108,7 +110,10 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
       exit(-1);
     }
 
-    /* Protect the TLS region except the page of the untrusted stack pointer. */
+    // Protect the TLS region except the page of the untrusted stack pointer.
+    // The untrusted stack pointer is page-aligned, so it starts its page, and
+    // it is followed by padding that ensures nothing else occupies the rest of
+    // its page.
     if (untrusted_stackptr_addr >= start && untrusted_stackptr_addr < end) {
       int mprotect_err =
           pkey_mprotect(start_round_down,

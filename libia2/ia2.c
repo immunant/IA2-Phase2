@@ -109,7 +109,7 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
     }
 
     /* Protect the TLS region except the page of the untrusted stack pointer. */
-    if (untrusted_stackptr_addr > start && untrusted_stackptr_addr < end) {
+    if (untrusted_stackptr_addr >= start && untrusted_stackptr_addr < end) {
       int mprotect_err =
           pkey_mprotect(start_round_down,
                         untrusted_stackptr_addr - (uint64_t)start_round_down,

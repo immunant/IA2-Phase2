@@ -1,4 +1,5 @@
 /*
+RUN: cat main.c | FileCheck --match-full-lines --check-prefix=REWRITER %s
 RUN: sh -c 'if [ ! -s "trusted_indirect_call_gates_0.ld" ]; then echo "No link args as expected"; exit 0; fi; echo "Unexpected link args"; exit 1;'
 RUN: %binary_dir/tests/trusted_indirect/trusted_indirect_main_wrapped | diff %binary_dir/tests/trusted_indirect/trusted_indirect.out -
 RUN: %binary_dir/tests/trusted_indirect/trusted_indirect_main_wrapped clean_exit | diff %S/Output/trusted_indirect.clean_exit.out -
@@ -35,16 +36,16 @@ void call_fn_ptr() {
     uint32_t x = 987234;
     uint32_t y = 142151;
     // This calls `f.op` with and without parentheses to ensure the rewriter handles both
-    // REWRITER: printf("%s(%d, %d) = %d\n", f.name, x, y, IA2_CALL(f.op)(x, y));
+    // REWRITER: uint32_t res = IA2_CALL(f.op, 0)(x, y);
     uint32_t res = f.op(x, y);
     printf("%s(%d, %d) = %d\n", f.name, x, y, res);
     // REWRITER: f.op = IA2_FN(multiply);
     f.op = multiply;
-    // REWRITER: printf("mul(%d, %d) = %d\n", x, y, IA2_CALL(f.op)(x, y));
+    // REWRITER: printf("mul(%d, %d) = %d\n", x, y, IA2_CALL((f.op), 0)(x, y));
     printf("mul(%d, %d) = %d\n", x, y, (f.op)(x, y));
     // REWRITER: f.op = IA2_FN(divide);
     f.op = divide;
-    // REWRITER: printf("div(%d, %d) = %d\n", x, y, IA2_CALL(f.op)(x, y));
+    // REWRITER: printf("div(%d, %d) = %d\n", x, y, IA2_CALL(f.op, 0)(x, y));
     printf("div(%d, %d) = %d\n", x, y, f.op(x, y));
 }
 
@@ -64,6 +65,6 @@ int main(int argc, char **argv) {
 
     static uint32_t secret = 34;
     leak_secret_address(&secret);
-    // REWRITER: IA2_CALL(f.op, 0, 1)(0, 0);
+    // REWRITER: IA2_CALL((f.op), 0)(0, 0);
     (f.op)(0, 0);
 }

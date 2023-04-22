@@ -316,10 +316,9 @@ private:
 };
 
 /*
- * Rewrites indirect function calls as `IA2_CALL(fn_ptr, ID, pkey)`. fn_ptr is
+ * Rewrites indirect function calls as `IA2_CALL(fn_ptr, ID)`. fn_ptr is
  * the original function pointer expression. ID is an integer assigned by this
- * pass and specific to each function pointer signature. pkey is the caller's
- * pkey.
+ * pass and specific to each function pointer signature.
  */
 class FnPtrCall : public RefactoringCallback {
 public:
@@ -397,11 +396,8 @@ public:
     auto old_expr =
         clang::Lexer::getSourceText(char_range, sm, ctxt.getLangOpts());
 
-    // Get the translation unit's filename to figure out the pkey
-    std::string pkey = std::to_string(get_file_pkey(sm));
-
     std::string new_expr =
-        "IA2_CALL("s + old_expr.str() + ", " + fn_ptr_id + ", " + pkey + ")";
+        "IA2_CALL("s + old_expr.str() + ", " + fn_ptr_id + ")";
 
     Replacement r{sm, char_range, new_expr};
     auto err = file_replacements[filename].add(r);
@@ -875,11 +871,13 @@ int main(int argc, const char **argv) {
    * ptr. Otherwise it sets ia2_fn_ptr to the opaque struct's value then calls
    * an indirect call gate depending on the opaque struct's type.
    */
-  header_out << "#define IA2_CALL(opaque, id, pkey) ({ \\\n";
+  header_out << "#define __IA2_CALL(opaque, id, pkey) ({ \\\n";
   header_out << "  ia2_fn_ptr = opaque.ptr; \\\n";
   header_out
       << "  (IA2_TYPE_##id)&__ia2_indirect_callgate_##id##_pkey_##pkey; \\\n";
   header_out << "})\n";
+  header_out << "#define _IA2_CALL(opaque, id, pkey) __IA2_CALL(opaque, id, pkey)\n";
+  header_out << "#define IA2_CALL(opaque, id) _IA2_CALL(opaque, id, PKEY)\n";
 
   wrapper_out << "#include \"scrub_registers.h\"\n";
   wrapper_out << "#ifdef LIBIA2_INSECURE\n";

@@ -2,6 +2,7 @@
 RUN: cat read_config_call_gates_2.ld | FileCheck --check-prefix=LINKARGS %s
 TODO: %binary_dir/tests/read_config/read_config_main_wrapped | diff %S/Output/read_config.out -
 RUN: readelf -lW %binary_dir/tests/read_config/read_config_main_wrapped | FileCheck --check-prefix=SEGMENTS %s
+RUN: cat main.c | FileCheck --match-full-lines --check-prefix=REWRITER %s
 */
 
 // Check that readelf shows exactly one executable segment
@@ -119,7 +120,7 @@ int main(int arcg, char **argv) {
     // This function pointer may come from the plugin, so drop from pkey 1 to
     // pkey 0 before calling it. If the function is in the built-in module,
     // it'll have a wrapper from pkey 0 to pkey 1.
-    // REWRITER: IA2_CALL(opt->parse, 0, 1)(delim + 1, &shared_entry.value);
+    // REWRITER: IA2_CALL((opt->parse), 0)(delim + 1, &shared_entry.value);
     (opt->parse)(delim + 1, &shared_entry.value);
     // Copy the value from the shared entry to the main binary's stack.
     entries[idx].value = shared_entry.value;

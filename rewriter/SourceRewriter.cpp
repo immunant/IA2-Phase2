@@ -33,6 +33,7 @@ typedef std::string Function;
 typedef std::string Filename;
 typedef int Pkey;
 typedef std::string OpaqueStruct;
+typedef std::string FunctionType;
 
 // Apply a custom category to all command-line options so that they are the
 // only ones displayed.
@@ -109,7 +110,6 @@ public:
   virtual void run(const MatchFinder::MatchResult &result) {
     const clang::Decl *old_decl = nullptr;
     clang::QualType old_type;
-    std::string mangled_type;
     std::function<std::string(std::string &, std::string &)> generate_decl;
 
     // We only need to replace a subset of the source range for some fnPtrVar
@@ -205,12 +205,15 @@ public:
       return;
     }
 
-    mangled_type = mangle_type(ctxt, fpt->getCanonicalTypeInternal());
-    OpaqueStruct new_type = kFnPtrTypePrefix + mangled_type;
+    OpaqueStruct mangled_type_name =
+        mangle_type(ctxt, fpt->getCanonicalTypeInternal());
+    std::string new_type = kFnPtrTypePrefix + mangled_type_name;
     std::string name = llvm::cast<clang::NamedDecl>(old_decl)->getName().str();
     std::string new_decl = generate_decl(new_type, name);
 
-    fn_ptr_types.insert(new_type);
+    std::string old_type_str =
+        type_string(old_type->getCanonicalTypeInternal());
+    fn_ptr_types[old_type_str] = mangled_type_name;
 
     // This check must come after inserting new_type into fn_ptr_types but
     // before the Replacement is added
@@ -238,7 +241,7 @@ public:
     return;
   }
 
-  std::set<OpaqueStruct> fn_ptr_types;
+  std::map<FunctionType, OpaqueStruct> fn_ptr_types;
 
 private:
   std::map<std::string, Replacements> &file_replacements;
@@ -316,7 +319,7 @@ private:
 };
 
 /*
- * Rewrites indirect function calls as `IA2_CALL(fn_ptr, ID)`. fn_ptr is
+ * Rewrites indirect function calls as `IA2_CALL(fn_ptr)`. fn_ptr is
  * the original function pointer expression. ID is an integer assigned by this
  * pass and specific to each function pointer signature.
  */
@@ -325,8 +328,6 @@ public:
   FnPtrCall(ASTMatchRefactorer &refactorer,
             std::map<std::string, Replacements> &file_replacements)
       : file_replacements(file_replacements) {
-    // Initialize the function pointer signature ID counter
-    id_counter = 0;
 
     // This matches expressions that reference declared functions and we use
     // this to filter out direct calls in the following matcher
@@ -362,12 +363,11 @@ public:
 
     // Check if the function pointer type already has an ID
     auto expr_ty = fn_ptr_call->getType()->getCanonicalTypeInternal();
-    auto expr_ty_str = expr_ty.getAsString();
-    if (!fn_ptr_ids.contains(expr_ty_str)) {
-      fn_ptr_ids[expr_ty_str] = id_counter;
-      id_counter += 1;
+    FunctionType expr_ty_str = type_string(expr_ty);
+
+    if (!called_fn_ptr_types.contains(expr_ty_str)) {
+      called_fn_ptr_types.insert(expr_ty_str);
     }
-    auto fn_ptr_id = std::to_string(fn_ptr_ids.at(expr_ty_str));
 
     auto *fpt = expr_ty->castAs<clang::PointerType>()
                     ->getPointeeType()
@@ -385,7 +385,7 @@ public:
       if (spelling_line != expansion_line) {
         llvm::errs() << filename << ":" << spelling_line << " ";
       }
-      llvm::errs() << "must be rewritten manually (ID = " << fn_ptr_id << ")\n";
+      llvm::errs() << "must be rewritten manually\n";
       return;
     }
 
@@ -396,8 +396,7 @@ public:
     auto old_expr =
         clang::Lexer::getSourceText(char_range, sm, ctxt.getLangOpts());
 
-    std::string new_expr =
-        "IA2_CALL("s + old_expr.str() + ", " + fn_ptr_id + ")";
+    std::string new_expr = "IA2_CALL("s + old_expr.str() + ")";
 
     Replacement r{sm, char_range, new_expr};
     auto err = file_replacements[filename].add(r);
@@ -407,12 +406,11 @@ public:
     return;
   }
 
-  std::map<OpaqueStruct, int> fn_ptr_ids;
-  std::map<OpaqueStruct, CAbiSignature> fn_ptr_abi_sig;
+  std::set<FunctionType> called_fn_ptr_types;
+  std::map<FunctionType, CAbiSignature> fn_ptr_abi_sig;
 
 private:
   std::map<std::string, Replacements> &file_replacements;
-  int id_counter;
 };
 
 /*
@@ -850,7 +848,7 @@ int main(int argc, const char **argv) {
 
   auto rc = tool.runAndSave(newFrontendActionFactory(&refactorer).get());
   if (rc != 0) {
-      return rc;
+    return rc;
   }
 
   header_out << "#include \"scrub_registers.h\"\n";
@@ -872,13 +870,11 @@ int main(int argc, const char **argv) {
    * ptr. Otherwise it sets ia2_fn_ptr to the opaque struct's value then calls
    * an indirect call gate depending on the opaque struct's type.
    */
-  header_out << "#define __IA2_CALL(opaque, id, pkey) ({ \\\n";
+  header_out << "#define _IA2_CALL(opaque, pkey) ({ \\\n";
   header_out << "  ia2_fn_ptr = opaque.ptr; \\\n";
-  header_out
-      << "  (IA2_TYPE_##id)&__ia2_indirect_callgate_##id##_pkey_##pkey; \\\n";
+  header_out << "  IA2_SELECT_CALL(opaque, pkey); \\\n";
   header_out << "})\n";
-  header_out << "#define _IA2_CALL(opaque, id, pkey) __IA2_CALL(opaque, id, pkey)\n";
-  header_out << "#define IA2_CALL(opaque, id) _IA2_CALL(opaque, id, PKEY)\n";
+  header_out << "#define IA2_CALL(opaque) _IA2_CALL(opaque, PKEY)\n";
 
   wrapper_out << "#include \"scrub_registers.h\"\n";
   wrapper_out << "#ifdef LIBIA2_INSECURE\n";
@@ -894,20 +890,28 @@ int main(int argc, const char **argv) {
    */
   std::cout << "Generating indirect callsite wrappers\n";
   std::string wrapper_decls;
-  std::set<int> type_id_macros_generated = {};
+  std::string select_call_macro = "#define IA2_SELECT_CALL(opaque, pkey) \\\n"s;
+  int closing_parens = 0;
   for (int caller_pkey = 1; caller_pkey < num_pkeys; caller_pkey++) {
-    for (const auto &[ty, id] : ptr_call_pass.fn_ptr_ids) {
+    for (const auto &fn_ptr_ty : ptr_call_pass.called_fn_ptr_types) {
+      std::string opaque_ty;
+      try {
+        opaque_ty = ptr_types_pass.fn_ptr_types.at(fn_ptr_ty);
+      } catch (std::out_of_range const &exc) {
+        llvm::errs() << "Could not find opaque type for " << fn_ptr_ty.c_str()
+                     << '\n';
+      }
+
       CAbiSignature c_abi_sig;
       try {
-        c_abi_sig = ptr_call_pass.fn_ptr_abi_sig.at(ty);
+        c_abi_sig = ptr_call_pass.fn_ptr_abi_sig.at(fn_ptr_ty);
       } catch (std::out_of_range const &exc) {
-        llvm::errs() << "Opaque struct " << ty.c_str()
+        llvm::errs() << "Opaque struct " << opaque_ty.c_str()
                      << " not found by FnPtrCall pass\n";
         assert(0);
       }
-      std::string wrapper_name = "__ia2_indirect_callgate_"s +
-                                 std::to_string(id) + "_pkey_" +
-                                 std::to_string(caller_pkey);
+      std::string wrapper_name = "__ia2_indirect_callgate_"s + opaque_ty +
+                                 "_pkey_" + std::to_string(caller_pkey);
       std::string asm_wrapper =
           emit_asm_wrapper(c_abi_sig, wrapper_name, std::nullopt,
                            WrapperKind::IndirectCallsite, caller_pkey, 0);
@@ -915,20 +919,28 @@ int main(int argc, const char **argv) {
       wrapper_out << asm_wrapper;
       wrapper_out << ");\n";
 
-      if (!type_id_macros_generated.contains(id)) {
-        header_out << "#define IA2_TYPE_"s << id << " " << ty << "\n";
-        type_id_macros_generated.insert(id);
-      }
       wrapper_decls += "extern char " + wrapper_name + ";\n";
+      auto types_match = "__builtin_types_compatible_p(typeof(opaque), "s +
+                         kFnPtrTypePrefix + opaque_ty + " )";
+      auto call_gate = "("s + fn_ptr_ty + ")&__ia2_indirect_callgate_" +
+                       opaque_ty + "_pkey_##pkey";
+      select_call_macro += "    __builtin_choose_expr(" + types_match + ", " +
+                           call_gate + ", \\\n";
+      closing_parens += 1;
     }
   }
+  select_call_macro += "(void *)0";
+  for (int i = 0; i < closing_parens; i++) {
+    select_call_macro += ")";
+  }
+  header_out << select_call_macro.c_str() << "\n";
   header_out << wrapper_decls.c_str();
 
   std::cout << "Generating opaque function pointer types\n";
   // Define opaque struct types for function pointers e.g.
   // struct IA2_fnptr__ZTSFiiE { char *ptr; };
-  for (const auto &opaque : ptr_types_pass.fn_ptr_types) {
-    header_out << opaque << " { char *ptr; };\n";
+  for (const auto &[fn_type, opaque] : ptr_types_pass.fn_ptr_types) {
+    header_out << kFnPtrTypePrefix << opaque << " { char *ptr; };\n";
   }
 
   // Declare the pointer read by the indirect call gates

@@ -857,10 +857,12 @@ int main(int argc, const char **argv) {
   header_out << "#define IA2_WRPKRU \"wrpkru\"\n";
   header_out << "#define ASSERT_PKRU(pkru) \\\n";
   header_out << "    \"movq %rcx, %r10\\n\" \\\n";
+  header_out << "    \"movq %rdx, %r11\\n\" \\\n";
   header_out << "    \"xorl %ecx, %ecx\\n\" \\\n";
   header_out << "    \"rdpkru\\n\" \\\n";
-  header_out << "    \"cmpl $\" pkru \", %eax\\n\" \\\n";
+  header_out << "    \"cmpl $\" #pkru \", %eax\\n\" \\\n";
   header_out << "    \"jne __libia2_abort\\n\" \\\n";
+  header_out << "    \"movq %r11, %rdx\\n\" \\\n";
   header_out << "    \"movq %r10, %rcx\\n\"\n";
   header_out << "#endif\n";
 
@@ -890,10 +892,12 @@ int main(int argc, const char **argv) {
   wrapper_out << "#define IA2_WRPKRU \"wrpkru\"\n";
   wrapper_out << "#define ASSERT_PKRU(pkru) \\\n";
   wrapper_out << "    \"movq %rcx, %r10\\n\" \\\n";
+  wrapper_out << "    \"movq %rdx, %r11\\n\" \\\n";
   wrapper_out << "    \"xorl %ecx, %ecx\\n\" \\\n";
   wrapper_out << "    \"rdpkru\\n\" \\\n";
-  wrapper_out << "    \"cmpl $\" pkru \", %eax\\n\" \\\n";
+  wrapper_out << "    \"cmpl $\" #pkru \", %eax\\n\" \\\n";
   wrapper_out << "    \"jne __libia2_abort\\n\" \\\n";
+  wrapper_out << "    \"movq %r11, %rdx\\n\" \\\n";
   wrapper_out << "    \"movq %r10, %rcx\\n\"\n";
   wrapper_out << "#endif\n";
 

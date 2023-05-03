@@ -1,6 +1,9 @@
 /*
 RUN: cat main.c | FileCheck --match-full-lines --check-prefix=REWRITER %S/main.c
 */
+
+// clang-format off
+
 #include <stdio.h>
 #include <lib.h>
 #include <ia2.h>

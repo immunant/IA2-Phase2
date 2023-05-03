@@ -245,6 +245,83 @@ private:
 };
 
 /*
+ * Rewrites casts of fn ptrs from one type to another as constructors of the
+ * appropriate opaque structs.
+ */
+class FnPtrCast : public RefactoringCallback {
+public:
+  FnPtrCast(ASTMatchRefactorer &refactorer,
+            std::map<std::string, Replacements> &file_replacements)
+      : file_replacements(file_replacements) {
+
+    auto fn_ptr_type = pointerType(pointee(ignoringParens(functionType())));
+
+    auto fn_ptr_typedef_decl = typedefNameDecl(hasType(fn_ptr_type));
+
+    auto fn_ptr_typedef_type = typedefType(hasDeclaration(fn_ptr_typedef_decl));
+
+    // XXX: do we need to gate on casts that also cast through `void*`?
+    /*
+    auto void_ptr_cast =
+        cStyleCastExpr(hasDestinationType(pointerType(pointee(voidType()))),
+                       hasSourceExpression(expr().bind("castedExpr")))
+            .bind("voidPtrCast");
+    */
+
+    // Matches casts to a typedef'd function pointer type.
+    auto fn_ptr_typedef_cast =
+        cStyleCastExpr(hasDestinationType(fn_ptr_typedef_type),
+                       hasSourceExpression(expr().bind("castedExpr")))
+            .bind("fnPtrTypedefCast");
+
+    // Matches casts to a function pointer type.
+    auto fn_ptr_cast =
+        cStyleCastExpr(hasDestinationType(fn_ptr_type),
+                       hasSourceExpression(expr().bind("castedExpr")))
+            .bind("fnPtrCast");
+
+    refactorer.addMatcher(fn_ptr_cast, this);
+    refactorer.addMatcher(fn_ptr_typedef_cast, this);
+  }
+  virtual void run(const MatchFinder::MatchResult &result) {
+    // All matchers have a "castedExpr" node so this `getNodeAs` can't fail
+    auto *casted_expr = result.Nodes.getNodeAs<clang::Expr>("castedExpr");
+    assert(casted_expr != nullptr);
+
+    assert(result.SourceManager != nullptr);
+    assert(result.Context != nullptr);
+    auto &sm = *result.SourceManager;
+    auto &ctxt = *result.Context;
+
+    // This pass modifies source files so it should not change files with pkey 0
+    if (get_file_pkey(sm) == 0) {
+      return;
+    }
+
+    clang::SourceLocation loc = casted_expr->getExprLoc();
+    Filename filename = sm.getFilename(sm.getExpansionLoc(loc)).str();
+
+    // Construct a string out of the expression wrapped in curly braces.
+    auto char_range =
+        clang::CharSourceRange::getTokenRange(casted_expr->getSourceRange());
+    auto casted_expr_text =
+        clang::Lexer::getSourceText(char_range, sm, ctxt.getLangOpts());
+    std::string new_expr = "{ IA2_FN_ADDR("s + casted_expr_text.str() + ") }";
+
+    // Replace the casted expression with the one wrapped in curly braces.
+    Replacement r{sm, char_range, new_expr};
+    auto err = file_replacements[filename].add(r);
+    if (err) {
+      llvm::errs() << "FnPtrCast: Error adding replacements: " << err << '\n';
+    }
+    return;
+  }
+
+private:
+  std::map<std::string, Replacements> &file_replacements;
+};
+
+/*
  * Rewrites NULL fn ptr expressions as NULL opaque structs (i.e. { NULL }).
  * This matches variable declarations and assignments. For varDecls the opaque
  * struct's type can be inferred from the LHS, but for assignment the type must
@@ -847,6 +924,7 @@ int main(int argc, const char **argv) {
   FnPtrExpr ptr_expr_pass(refactorer, tool.getReplacements());
   FnPtrCall ptr_call_pass(refactorer, tool.getReplacements());
   FnPtrNull null_ptr_pass(refactorer, tool.getReplacements());
+  FnPtrCast ptr_cast_pass(refactorer, tool.getReplacements());
   FnPtrEq eq_ptr_pass(refactorer, tool.getReplacements());
 
   auto rc = tool.runAndSave(newFrontendActionFactory(&refactorer).get());

@@ -849,22 +849,31 @@ int main(int argc, const char **argv) {
     return rc;
   }
 
+  const char *assert_pkru_macro =
+      "#ifdef LIBIA2_DEBUG\n"
+      "#ifdef LIBIA2_INSECURE\n"
+      "#error LIBIA2_DEBUG may not be used with LIBIA2_INSECURE\n"
+      "#endif\n"
+      "#define ASSERT_PKRU(pkru) \\\n"
+      "    \"movq %rcx, %r10\\n\" \\\n"
+      "    \"movq %rdx, %r11\\n\" \\\n"
+      "    \"xorl %ecx, %ecx\\n\" \\\n"
+      "    \"rdpkru\\n\" \\\n"
+      "    \"cmpl $\" #pkru \", %eax\\n\" \\\n"
+      "    \"jne __libia2_abort\\n\" \\\n"
+      "    \"movq %r11, %rdx\\n\" \\\n"
+      "    \"movq %r10, %rcx\\n\"\n"
+      "#else\n"
+      "#define ASSERT_PKRU(pkru)\n"
+      "#endif\n";
+
   header_out << "#include \"scrub_registers.h\"\n";
   header_out << "#ifdef LIBIA2_INSECURE\n";
   header_out << "#define IA2_WRPKRU\n";
-  header_out << "#define ASSERT_PKRU(pkru)\n";
   header_out << "#else\n";
   header_out << "#define IA2_WRPKRU \"wrpkru\"\n";
-  header_out << "#define ASSERT_PKRU(pkru) \\\n";
-  header_out << "    \"movq %rcx, %r10\\n\" \\\n";
-  header_out << "    \"movq %rdx, %r11\\n\" \\\n";
-  header_out << "    \"xorl %ecx, %ecx\\n\" \\\n";
-  header_out << "    \"rdpkru\\n\" \\\n";
-  header_out << "    \"cmpl $\" #pkru \", %eax\\n\" \\\n";
-  header_out << "    \"jne __libia2_abort\\n\" \\\n";
-  header_out << "    \"movq %r11, %rdx\\n\" \\\n";
-  header_out << "    \"movq %r10, %rcx\\n\"\n";
   header_out << "#endif\n";
+  header_out << assert_pkru_macro;
 
   header_out << '\n';
 
@@ -887,19 +896,10 @@ int main(int argc, const char **argv) {
   wrapper_out << "#include \"scrub_registers.h\"\n";
   wrapper_out << "#ifdef LIBIA2_INSECURE\n";
   wrapper_out << "#define IA2_WRPKRU\n";
-  wrapper_out << "#define ASSERT_PKRU(pkru)\n";
   wrapper_out << "#else\n";
   wrapper_out << "#define IA2_WRPKRU \"wrpkru\"\n";
-  wrapper_out << "#define ASSERT_PKRU(pkru) \\\n";
-  wrapper_out << "    \"movq %rcx, %r10\\n\" \\\n";
-  wrapper_out << "    \"movq %rdx, %r11\\n\" \\\n";
-  wrapper_out << "    \"xorl %ecx, %ecx\\n\" \\\n";
-  wrapper_out << "    \"rdpkru\\n\" \\\n";
-  wrapper_out << "    \"cmpl $\" #pkru \", %eax\\n\" \\\n";
-  wrapper_out << "    \"jne __libia2_abort\\n\" \\\n";
-  wrapper_out << "    \"movq %r11, %rdx\\n\" \\\n";
-  wrapper_out << "    \"movq %r10, %rcx\\n\"\n";
   wrapper_out << "#endif\n";
+  wrapper_out << assert_pkru_macro;
 
   /*
    * Define wrappers for IA2_CALL. These switch from the caller's pkey to pkey 0

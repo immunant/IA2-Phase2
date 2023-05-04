@@ -38,11 +38,11 @@ function(define_ia2_wrapper)
 
     add_custom_command(
         OUTPUT ${CALL_GATE_SRC} ${CALL_GATE_HDR} ${LD_ARGS_FILES}
-        COMMAND ia2-header-rewriter
+        COMMAND ia2-rewriter
             --output-prefix=${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME}_call_gates
             ${ALL_SRCS}
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-        DEPENDS ia2-header-rewriter ${ALL_SRCS}
+        DEPENDS ia2-rewriter ${ALL_SRCS}
         VERBATIM)
 
     add_custom_target(

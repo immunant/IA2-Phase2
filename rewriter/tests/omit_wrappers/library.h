@@ -1,6 +1,6 @@
 /*
 RUN: cp %s %t.h
-RUN: ia2-header-rewriter --omit-wrappers %t.c %t.h -- -I%resource_dir
+RUN: ia2-rewriter --omit-wrappers %t.c %t.h -- -I%resource_dir
 RUN: sh -c "[ ! -e %t.c.args ]"
 */
 

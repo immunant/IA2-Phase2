@@ -23,7 +23,7 @@ config.excludes = ['Inputs', 'CMakeLists.txt', 'README.txt', 'LICENSE.txt', 'lib
 # test_source_root: The root path where tests are located.
 config.test_source_root = os.path.dirname(__file__)
 
-llvm_config.add_tool_substitutions([ToolSubst('ia2-header-rewriter')], search_dirs=config.ia2_obj_root)
+llvm_config.add_tool_substitutions([ToolSubst('ia2-rewriter')], search_dirs=config.ia2_obj_root)
 
 llvm_config.use_default_substitutions()
 llvm_config.use_clang()

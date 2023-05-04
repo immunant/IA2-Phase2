@@ -24,6 +24,7 @@ set_target_properties(ia2-rewriter PROPERTIES
     CXX_STANDARD 20
     CXX_STANDARD_REQUIRED ON)
 
+target_compile_options(ia2-rewriter PRIVATE "-Wunused")
 target_link_libraries(ia2-rewriter PRIVATE
     clang-cpp
     LLVM

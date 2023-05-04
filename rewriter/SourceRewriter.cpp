@@ -638,7 +638,6 @@ public:
       new_expr = "IA2_ADDR(" + orig_expr.str() + ")";
     }
 
-    clang::CharSourceRange expansion_range = sm.getExpansionRange(loc);
     Replacement r{sm, char_range, new_expr};
     auto err = file_replacements[filename].add(r);
     if (err) {
@@ -759,7 +758,6 @@ int main(int argc, const char **argv) {
     // the file is not found in the compilation database then there's a problem
     // with it.
     auto has_pkey_define = [](const CompileCommand &cc) {
-      bool pre_rewriter = false;
       bool has_pkey_define = false;
       for (const auto &flag : cc.CommandLine) {
         if (flag.starts_with(PKEY_DEFINE)) {
@@ -851,6 +849,9 @@ int main(int argc, const char **argv) {
   FnPtrEq eq_ptr_pass(refactorer, tool.getReplacements());
 
   auto rc = tool.runAndSave(newFrontendActionFactory(&refactorer).get());
+  if (rc != 0) {
+      return rc;
+  }
 
   header_out << "#include \"scrub_registers.h\"\n";
   header_out << "#ifdef LIBIA2_INSECURE\n";

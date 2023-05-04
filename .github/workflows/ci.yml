@@ -17,6 +17,7 @@ jobs:
         build-type: [Release, Debug]
         compiler: [clang, gcc]
         linker: [lld, bfd]
+        ia2-debug: [ON, OFF]
     steps:
       - name: Check out code
         uses: actions/checkout@v2
@@ -33,6 +34,7 @@ jobs:
             -DClang_DIR=$Clang_DIR                                       \
             -DLLVM_DIR=$LLVM_DIR                                         \
             -DLLVM_EXTERNAL_LIT=$HOME/.local/bin/lit                     \
+            -DLIBIA2_DEBUG=${{ matrix.ia2-debug }}                       \
             -G Ninja
           ninja
           popd

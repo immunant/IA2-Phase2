@@ -901,6 +901,9 @@ int main(int argc, const char **argv) {
   wrapper_out << "#endif\n";
   wrapper_out << assert_pkru_macro;
 
+  wrapper_out << "asm(\"__libia2_abort:\\n\"\n"
+              << "    \"ud2\");\n";
+
   /*
    * Define wrappers for IA2_CALL. These switch from the caller's pkey to pkey 0
    * so we don't need to generate them for caller_pkey = 0. When IA2_CALL has

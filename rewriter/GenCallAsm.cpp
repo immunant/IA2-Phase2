@@ -184,8 +184,6 @@ static void emit_reg_pop(AsmWriter &aw, const ParamLocation &loc) {
   }
 }
 
-static int stack_offset(int pkey) { return pkey * 8; }
-
 // Emit code to set the PKRU. Clobbers eax, ecx and edx.
 // \p pkey is a std::string of an assembly literal without a $ prefix.
 static void emit_wrpkru(AsmWriter &aw, int pkey) {
@@ -206,11 +204,6 @@ static void emit_mixed_wrpkru(AsmWriter &aw, int pkey0, int pkey1) {
   add_asm_line(aw, "xorl %edx, %edx");
   add_asm_line(aw, llvm::formatv("movl ${0:x8}, %eax", pkru));
   add_raw_line(aw, "IA2_WRPKRU \"\\n\"");
-}
-
-static void emit_load_pkey(AsmWriter &aw, const std::string &pkey,
-                           const std::string &reg) {
-  add_asm_line(aw, llvm::formatv("mov $\" XSTR({0}) \", %{1}", pkey, reg));
 }
 
 // Emit code to load the address of a compartment's stack from ia2_stackptr_##n.

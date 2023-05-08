@@ -36,8 +36,7 @@
 
 #endif
 
-#define IA2_DEFINE_SIGHANDLER(function)               \
-    void ia2_sighandler_##function(int);              \
+#define _IA2_DEFINE_SIGNAL_HANDLER(function)          \
     __asm__(".global ia2_sighandler_" #function "\n"  \
             "ia2_sighandler_" #function ":\n"         \
             "movq %rcx, %r10\n"                       \
@@ -49,6 +48,14 @@
             "movq %r11, %rdx\n"                       \
             "movq %r10, %rcx\n"                       \
             "jmp " #function "\n")
+
+#define IA2_DEFINE_SIGACTION(function)                      \
+    void ia2_sighandler_##function(int, siginfo_t*, void*); \
+    _IA2_DEFINE_SIGNAL_HANDLER(function)
+
+#define IA2_DEFINE_SIGHANDLER(function)  \
+    void ia2_sighandler_##function(int); \
+    _IA2_DEFINE_SIGNAL_HANDLER(function)
 
 /// Protect pages in the given shared object
 ///

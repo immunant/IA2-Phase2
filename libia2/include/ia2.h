@@ -36,6 +36,20 @@
 
 #endif
 
+#define IA2_DEFINE_SIGHANDLER(function)               \
+    void ia2_sighandler_##function(int);              \
+    __asm__(".global ia2_sighandler_" #function "\n"  \
+            "ia2_sighandler_" #function ":\n"         \
+            "movq %rcx, %r10\n"                       \
+            "movq %rdx, %r11\n"                       \
+            "xorl %ecx, %ecx\n"                       \
+            "xorl %edx, %edx\n"                       \
+            "xorl %eax, %eax\n"                       \
+            "wrpkru\n"                                \
+            "movq %r11, %rdx\n"                       \
+            "movq %r10, %rcx\n"                       \
+            "jmp " #function "\n")
+
 /// Protect pages in the given shared object
 ///
 /// \param info dynamic linker information for the current object

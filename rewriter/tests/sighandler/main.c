@@ -8,23 +8,43 @@
 INIT_RUNTIME(2);
 INIT_COMPARTMENT(1);
 
+
+struct handler {
+    IA2_IGNORE_FIELD(void (*handler)(int sig));
+};
+
 void trap_handler(int sig) {
-    const char *msg = "got here\n";
+    const char *msg = "called trap_handler\n";
     write(1, msg, strlen(msg));
 };
 
 IA2_DEFINE_SIGHANDLER(trap_handler);
 
-void install_sighandler(void) {
+void install_sighandler(struct handler *h) {
     static struct sigaction sa;
     memset(&sa, 0, sizeof(struct sigaction));
-    sa.sa_handler = ia2_sighandler_trap_handler;
     sigemptyset(&(sa.sa_mask));
+
+    if (h) {
+        sa.sa_handler = h->handler;
+    } else {
+        sa.sa_handler = ia2_sighandler_trap_handler;
+    }
     sigaction(SIGTRAP, &sa, NULL);
 }
 
-int main() {
-    install_sighandler();
+void test_handler(void) {
     raise(SIGTRAP);
+    test_handler_from_lib();
+}
+
+int main() {
+    install_sighandler(NULL);
+    test_handler();
+
+    static struct handler h = {
+        .handler = ia2_sighandler_trap_handler,
+    };
+    install_sighandler(&h);
     test_handler();
 }

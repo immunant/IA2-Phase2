@@ -57,6 +57,9 @@
     void ia2_sighandler_##function(int); \
     _IA2_DEFINE_SIGNAL_HANDLER(function)
 
+#define IA2_IGNORE_FIELD(decl) decl
+
+
 /// Protect pages in the given shared object
 ///
 /// \param info dynamic linker information for the current object

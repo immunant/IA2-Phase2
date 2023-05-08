@@ -4,6 +4,6 @@
 
 INIT_COMPARTMENT(2);
 
-void test_handler(void) {
+void test_handler_from_lib(void) {
     raise(SIGTRAP);
 }

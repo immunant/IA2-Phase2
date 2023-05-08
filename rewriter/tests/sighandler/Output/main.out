@@ -1,0 +1,2 @@
+trap_handler: main_secret is 3
+trap_handler: lib_secret is CHECK_VIOLATION: seg faulted as expected

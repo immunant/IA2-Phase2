@@ -47,6 +47,41 @@ static uint32_t ia2_get_pkru() {
   return pkru;
 }
 
+#define STACK_SIZE (4 * 1024 * 1024)
+
+#ifdef LIBIA2_INSECURE
+#define _IA2_DEFINE_SIGNAL_HANDLER(function, pkey)    \
+    __asm__(".global ia2_sighandler_" #function "\n"  \
+            "ia2_sighandler_" #function ":\n"         \
+            "jmp " #function "\n")
+#else
+#define _IA2_DEFINE_SIGNAL_HANDLER(function, pkey)    \
+    __asm__(".global ia2_sighandler_" #function "\n"  \
+            "ia2_sighandler_" #function ":\n"         \
+            "movq %rcx, %r10\n"                       \
+            "movq %rdx, %r11\n"                       \
+            "movq %rax, %r12\n"                       \
+            "xorl %ecx, %ecx\n"                       \
+            "xorl %edx, %edx\n"                       \
+            "mov_pkru_eax " #pkey "\n"                \
+            "wrpkru\n"                                \
+            "movq %r12, %rax\n"                       \
+            "movq %r11, %rdx\n"                       \
+            "movq %r10, %rcx\n"                       \
+            "jmp " #function "\n")
+#endif
+
+#define IA2_DEFINE_SIGACTION(function, pkey)                \
+    void ia2_sighandler_##function(int, siginfo_t*, void*); \
+    _IA2_DEFINE_SIGNAL_HANDLER(function, pkey)
+
+#define IA2_DEFINE_SIGHANDLER(function, pkey)  \
+    void ia2_sighandler_##function(int);       \
+    _IA2_DEFINE_SIGNAL_HANDLER(function, pkey)
+
+#define IA2_IGNORE_FIELD(decl) decl
+
+
 /// Protect pages in the given shared object
 ///
 /// \param info dynamic linker information for the current object
@@ -112,8 +147,6 @@ asm(".macro mov_pkru_eax pkey\n"
 
 // Obtain a string corresponding to errno in a threadsafe fashion.
 #define errno_s (strerror_l(errno, uselocale((locale_t)0)))
-
-#define STACK_SIZE (4 * 1024 * 1024)
 
 #define PAGE_SIZE 4096
 #define PTRS_PER_PAGE (PAGE_SIZE / sizeof(void *))

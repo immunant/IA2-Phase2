@@ -1,4 +1,5 @@
 #include <pthread.h>
+#include <signal.h>
 
 #include "ia2.h"
 
@@ -11,15 +12,23 @@ struct ia2_thread_thunk {
   void *data;
 };
 
+/* __thread char ia2_signal_stack[STACK_SIZE]; */
+
 void *ia2_thread_begin(void *arg) {
   struct ia2_thread_thunk *thunk = (struct ia2_thread_thunk *)arg;
   void *(*fn)(void *) = thunk->fn;
   void *data = thunk->data;
+  /* stack_t alt_stack = { */
+  /*     .ss_sp = ia2_signal_stack, .ss_flags = 0, .ss_size = STACK_SIZE}; */
+
   /* Free the thunk. */
   munmap(arg, sizeof(struct ia2_thread_thunk));
 
   protect_tls();
   init_stacks();
+  /* TODO: Set up alternate stack when we have per-thread shared compartment
+   * data. */
+  /*  sigaltstack(&alt_stack, NULL); */
 
   /* Determine the current compartment so know which stack to use. */
   uint32_t pkru = 0;

@@ -500,6 +500,15 @@ public:
     assert(fn_decl != nullptr);
 
     Function fn_name = fn_decl->getName().str();
+
+    // Unlike the macro expansion check below, this check should go before
+    // modifying the maps in this pass because we don't want to treat the signal
+    // handlers as functions that have their address-taken and thus require
+    // wrappers. We modify the PKRU register directly in the signal handler and
+    // can't assume that the PKRU starts with pkey 0.
+    if (fn_name.starts_with("ia2_sighandler_")) {
+        return;
+    }
     std::string new_expr = "IA2_FN("s + fn_name + ")";
 
     Filename filename = sm.getFilename(sm.getExpansionLoc(loc)).str();

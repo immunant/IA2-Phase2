@@ -13,12 +13,22 @@ struct handler {
     IA2_IGNORE_FIELD(void (*handler)(int sig));
 };
 
+int main_secret = 3;
+
 void trap_handler(int sig) {
-    const char *msg = "called trap_handler\n";
-    write(1, msg, strlen(msg));
+    const char *main_msg = "trap_handler: main_secret is ";
+    const char *lib_msg = "trap_handler: lib_secret is ";
+    write(1, main_msg, strlen(main_msg));
+    char num = '0' + main_secret;
+    write(1, &num, 1);
+    write(1, "\n", 1);
+    write(1, lib_msg, strlen(lib_msg));
+    num = '0' + CHECK_VIOLATION(lib_secret);
+    write(1, &num, 1);
+    write(1, "\n", 1);
 };
 
-IA2_DEFINE_SIGHANDLER(trap_handler);
+IA2_DEFINE_SIGHANDLER(trap_handler, 1);
 
 void install_sighandler(struct handler *h) {
     static struct sigaction sa;
@@ -39,6 +49,7 @@ void test_handler(void) {
 }
 
 int main() {
+    setbuf(stdout, NULL);
     install_sighandler(NULL);
     test_handler();
 

@@ -36,26 +36,26 @@
 
 #endif
 
-#define _IA2_DEFINE_SIGNAL_HANDLER(function)          \
+#define _IA2_DEFINE_SIGNAL_HANDLER(function, pkey)    \
     __asm__(".global ia2_sighandler_" #function "\n"  \
             "ia2_sighandler_" #function ":\n"         \
             "movq %rcx, %r10\n"                       \
             "movq %rdx, %r11\n"                       \
             "xorl %ecx, %ecx\n"                       \
             "xorl %edx, %edx\n"                       \
-            "xorl %eax, %eax\n"                       \
+            "mov_pkru_eax " #pkey "\n"                \
             "wrpkru\n"                                \
             "movq %r11, %rdx\n"                       \
             "movq %r10, %rcx\n"                       \
             "jmp " #function "\n")
 
-#define IA2_DEFINE_SIGACTION(function)                      \
+#define IA2_DEFINE_SIGACTION(function, pkey)                \
     void ia2_sighandler_##function(int, siginfo_t*, void*); \
-    _IA2_DEFINE_SIGNAL_HANDLER(function)
+    _IA2_DEFINE_SIGNAL_HANDLER(function, pkey)
 
-#define IA2_DEFINE_SIGHANDLER(function)  \
-    void ia2_sighandler_##function(int); \
-    _IA2_DEFINE_SIGNAL_HANDLER(function)
+#define IA2_DEFINE_SIGHANDLER(function, pkey)  \
+    void ia2_sighandler_##function(int);       \
+    _IA2_DEFINE_SIGNAL_HANDLER(function, pkey)
 
 #define IA2_IGNORE_FIELD(decl) decl
 

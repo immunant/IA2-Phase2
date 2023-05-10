@@ -233,7 +233,7 @@ public:
     Replacement r{sm, expansion_range, new_decl};
     auto err = file_replacements[file_name].add(r);
     if (err) {
-      llvm::errs() << "Error adding replacement: " << err << '\n';
+      llvm::errs() << "FnPtrTypes: Error adding replacement: " << err << '\n';
     }
     return;
   }
@@ -306,7 +306,7 @@ public:
     Replacement r{sm, expansion_range, new_expr};
     auto err = file_replacements[filename].add(r);
     if (err) {
-      llvm::errs() << "Error adding replacements: " << err << '\n';
+      llvm::errs() << "FnPtrNull: Error adding replacements: " << err << '\n';
     }
     return;
   }
@@ -402,7 +402,7 @@ public:
     Replacement r{sm, char_range, new_expr};
     auto err = file_replacements[filename].add(r);
     if (err) {
-      llvm::errs() << "Error adding replacements: " << err << '\n';
+      llvm::errs() << "FnPtrCall: Error adding replacements: " << err << '\n';
     }
     return;
   }
@@ -502,7 +502,8 @@ public:
                               llvm::StringRef("__attribute__((used))"));
         auto err = file_replacements[filename].add(used_attr);
         if (err) {
-          llvm::errs() << "Error adding replacements: " << err << '\n';
+          llvm::errs() << "FnPtrExpr: Error adding replacements: " << err
+                       << '\n';
         }
       }
 
@@ -531,7 +532,7 @@ public:
     Replacement r{sm, expansion_range, new_expr};
     auto err = file_replacements[filename].add(r);
     if (err) {
-      llvm::errs() << "Error adding replacements: " << err << '\n';
+      llvm::errs() << "FnPtrExpr: Error adding replacements: " << err << '\n';
     }
     return;
   }
@@ -641,7 +642,7 @@ public:
     Replacement r{sm, char_range, new_expr};
     auto err = file_replacements[filename].add(r);
     if (err) {
-      llvm::errs() << "Error adding replacements: " << err << '\n';
+      llvm::errs() << "FnPtrEq: Error adding replacements: " << err << '\n';
     }
     return;
   }

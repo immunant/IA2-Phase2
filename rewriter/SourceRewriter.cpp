@@ -261,25 +261,29 @@ public:
     auto fn_ptr_typedef_type = typedefType(hasDeclaration(fn_ptr_typedef_decl));
 
     // XXX: do we need to gate on casts that also cast through `void*`?
-    /*
     auto void_ptr_cast =
-        cStyleCastExpr(hasDestinationType(pointerType(pointee(voidType()))),
-                       hasSourceExpression(expr().bind("castedExpr")))
+        cStyleCastExpr(
+            hasDestinationType(pointerType(pointee(voidType()))),
+            hasSourceExpression(
+                expr(anyOf(hasType(fn_ptr_typedef_type), hasType(fn_ptr_type)))
+                    .bind("castedExpr")))
             .bind("voidPtrCast");
-    */
 
     // Matches casts to a typedef'd function pointer type.
     auto fn_ptr_typedef_cast =
         cStyleCastExpr(hasDestinationType(fn_ptr_typedef_type),
-                       hasSourceExpression(expr().bind("castedExpr")))
+                       hasSourceExpression(expr().bind("castedExpr")),
+                       unless(hasSourceExpression(void_ptr_cast)))
             .bind("fnPtrTypedefCast");
 
     // Matches casts to a function pointer type.
     auto fn_ptr_cast =
         cStyleCastExpr(hasDestinationType(fn_ptr_type),
-                       hasSourceExpression(expr().bind("castedExpr")))
+                       hasSourceExpression(expr().bind("castedExpr")),
+                       unless(hasSourceExpression(void_ptr_cast)))
             .bind("fnPtrCast");
 
+    refactorer.addMatcher(void_ptr_cast, this);
     refactorer.addMatcher(fn_ptr_cast, this);
     refactorer.addMatcher(fn_ptr_typedef_cast, this);
   }

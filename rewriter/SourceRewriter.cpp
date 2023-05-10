@@ -308,12 +308,19 @@ public:
     // Construct a string out of the expression wrapped in curly braces.
     auto char_range =
         clang::CharSourceRange::getTokenRange(casted_expr->getSourceRange());
+    auto range_to_replace = char_range;
+    if (auto *void_ptr_cast =
+            result.Nodes.getNodeAs<clang::Expr>("voidPtrCast")) {
+      range_to_replace = clang::CharSourceRange::getTokenRange(
+          void_ptr_cast->getSourceRange());
+    }
+
     auto casted_expr_text =
         clang::Lexer::getSourceText(char_range, sm, ctxt.getLangOpts());
     std::string new_expr = "{ IA2_FN_ADDR("s + casted_expr_text.str() + ") }";
 
     // Replace the casted expression with the one wrapped in curly braces.
-    Replacement r{sm, char_range, new_expr};
+    Replacement r{sm, range_to_replace, new_expr};
     auto err = file_replacements[filename].add(r);
     if (err) {
       llvm::errs() << "FnPtrCast: Error adding replacements: " << err << '\n';

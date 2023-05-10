@@ -525,8 +525,39 @@ public:
                        hasEitherOperand(expr(
                            ignoringImplicit(equalsBoundNode("fnPtrExpr"))))));
 
-    StatementMatcher fn_ptr_expr =
-        expr(fn_expr, unless(call_expr), unless(in_bin_op));
+    //
+    auto fn_ptr_type = pointerType(pointee(ignoringParens(functionType())));
+
+    auto fn_ptr_typedef_decl = typedefNameDecl(hasType(fn_ptr_type));
+
+    auto fn_ptr_typedef_type = typedefType(hasDeclaration(fn_ptr_typedef_decl));
+
+    // XXX: do we need to gate on casts that also cast through `void*`?
+    /*
+    auto void_ptr_cast =
+        cStyleCastExpr(hasDestinationType(pointerType(pointee(voidType()))),
+                       hasSourceExpression(expr().bind("castedExpr")))
+            .bind("voidPtrCast");
+    */
+
+    // Matches casts to a typedef'd function pointer type.
+    auto fn_ptr_typedef_cast =
+        cStyleCastExpr(hasDestinationType(fn_ptr_typedef_type)/*,
+                       hasSourceExpression(expr().bind("castedExpr"))*/)
+            ;//.bind("fnPtrTypedefCast");
+
+    // Matches casts to a function pointer type.
+    auto fn_ptr_cast =
+        cStyleCastExpr(hasDestinationType(fn_ptr_type)/*,
+                       hasSourceExpression(expr().bind("castedExpr"))*/)
+            ;//.bind("fnPtrCast");
+    //
+
+    StatementMatcher fn_ptr_expr = expr(
+        fn_expr, unless(call_expr), unless(in_bin_op),
+        unless(hasParent(implicitCastExpr())),
+        // w/ only this 1, 3 conflict:
+        unless(hasParent(implicitCastExpr(hasParent(fn_ptr_typedef_cast)))));
 
     refactorer.addMatcher(fn_ptr_expr, this);
   }

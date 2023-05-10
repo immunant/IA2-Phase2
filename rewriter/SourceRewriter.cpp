@@ -319,8 +319,9 @@ private:
 };
 
 /*
- * Rewrites indirect function calls as `IA2_CALL(fn_ptr)` where fn_ptr is the
- * original function pointer expression.
+ * Rewrites indirect function calls as `IA2_CALL(fn_ptr)`. fn_ptr is
+ * the original function pointer expression. ID is an integer assigned by this
+ * pass and specific to each function pointer signature.
  */
 class FnPtrCall : public RefactoringCallback {
 public:
@@ -360,6 +361,7 @@ public:
       return;
     }
 
+    // Check if the function pointer type already has an ID
     auto expr_ty = fn_ptr_call->getType()->getCanonicalTypeInternal();
     FunctionType expr_ty_str = type_string(expr_ty);
 
@@ -941,41 +943,16 @@ int main(int argc, const char **argv) {
       wrapper_out << ");\n";
 
       wrapper_decls += "extern char " + wrapper_name + ";\n";
-      /*
-       * This is the first argument to choose_expr below which checks if the
-       * opaque struct expression passed to IA2_SELECT_CALL has the same type as
-       * any of the indirect callsites that we are looping over
-       */
       auto types_match = "__builtin_types_compatible_p(typeof(opaque), "s +
                          kFnPtrTypePrefix + opaque_ty + " )";
-      /*
-       * This is the second argument to choose_expr which expands to the address
-       * of the indirect callgate we generated in this iteration of the loop
-       * cast to the appropriate type
-       */
       auto call_gate = "("s + fn_ptr_ty + ")&__ia2_indirect_callgate_" +
                        opaque_ty + "_pkey_##pkey";
-      /*
-       * Add a new line to the IA2_SELECT_CALL macro. Each line has a
-       * choose_expr call with the two arguments described above. The third
-       * argument to every choose_expr is the following line which is added in
-       * the next iteration of this loop. For the last iteration we generate an
-       * expression after the loop.
-       */
       select_call_macro += "    __builtin_choose_expr(" + types_match + ", " +
                            call_gate + ", \\\n";
       closing_parens += 1;
     }
   }
-  /*
-   * This is the third argument for the last choose_expr in the loop. Since
-   * IA2_SELECT_CALL is only added at callsites (indirectly through the IA2_CALL
-   * macro), this expression will give a compiler error if evaluated. We want a
-   * compiler error in this case because if it's reached, it means an opaque
-   * struct without a corresponding call gate was passed to IA2_CALL
-   */
-  select_call_macro += "    (void *)0";
-  // Add closing parentheses for each choose_expr call in the loop
+  select_call_macro += "(void *)0";
   for (int i = 0; i < closing_parens; i++) {
     select_call_macro += ")";
   }

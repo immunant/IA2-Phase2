@@ -8,6 +8,10 @@
 #include <ngx_config.h>
 #include <ngx_core.h>
 #include <nginx.h>
+#include <ia2.h>
+
+INIT_RUNTIME(2);
+INIT_COMPARTMENT(1);
 
 
 static void ngx_show_version_info(void);

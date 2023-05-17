@@ -45,8 +45,13 @@ IA2_CFLAGS = \\
 	-include \$(NGINX_ROOT)/wrapper.h \\
 	-I \$(REPO_ROOT)/libia2/include
 
+IA2_PREREWRITER_LDFLAGS = \\
+	-Wl,--wrap=pthread_create
+
 IA2_LDFLAGS = \\
 	\$(IA2_CALLGATES) \\
+	-pthread \\
+	-Wl,--wrap=main \\
 	-Wl,-z,now \\
 	-Wl,-T\$(IA2_ROOT)/libia2/padding.ld \\
 	-Wl,--dynamic-list=\$(IA2_ROOT)/libia2/dynsym.syms \\
@@ -65,6 +70,8 @@ IA2_MODULE_CFLAGS = \\
 
 IA2_MODULE_LDFLAGS = \\
 	-Wl,-z,now \\
+	-pthread \\
+	-Wl,--wrap=pthread_create \\
 	-Wl,@\$(NGINX_ROOT)/wrapper_2.ld \\
 	-Wl,-T\$(IA2_ROOT)/libia2/padding.ld
 
@@ -279,7 +286,7 @@ $NGX_OBJS/ngx_rtmp_module_tls_padded.so: $NGX_OBJS/ngx_rtmp_module.so
 	\$(PAD_TLS) --allow-no-tls $NGX_OBJS/ngx_rtmp_module_tls_padded.so
 
 $NGX_OBJS${ngx_dirsep}nginx$ngx_binext:	$ngx_deps \$(IA2_CALLGATES) $NGX_OBJS/ngx_rtmp_module_tls_padded.so$ngx_spacer
-	\$(LINK) $ngx_long_start\$(IA2_LDFLAGS)$ngx_long_cont$ngx_binout$NGX_OBJS${ngx_dirsep}nginx$ngx_binext$ngx_long_cont$ngx_objs$ngx_libs$ngx_link$ngx_main_link \$(IA2_ROOT)/libia2/liblibia2.a $NGX_OBJS/ngx_rtmp_module_tls_padded.so
+	\$(LINK) $ngx_long_start\$(IA2_LDFLAGS)$ngx_long_cont\$(IA2_PREREWRITER_LDFLAGS)$ngx_long_cont$ngx_binout$NGX_OBJS${ngx_dirsep}nginx$ngx_binext$ngx_long_cont$ngx_objs$ngx_libs$ngx_link$ngx_main_link \$(IA2_ROOT)/libia2/liblibia2.a $NGX_OBJS/ngx_rtmp_module_tls_padded.so
 	$ngx_rcc
 $ngx_long_end
 

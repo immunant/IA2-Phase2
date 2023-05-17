@@ -729,6 +729,10 @@ public:
       return;
     }
 
+    if (fn_node->isVariadic()) {
+        return;
+    }
+
     Function fn_name = fn_node->getNameAsString();
     CAbiSignature fn_sig = determineAbiForDecl(*fn_node);
     abi_signatures[fn_name] = fn_sig;

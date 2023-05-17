@@ -17,6 +17,7 @@
 #include "llvm/Support/FormatVariadic.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
+#include <clang/AST/PrettyPrinter.h>
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -719,6 +720,15 @@ public:
     // Calls to compiler builtins produce an inline declaration that should
     // not be wrapped; we also don't want to wrap explicit decls of builtins
     if (fn_node->getBuiltinID() != 0) {
+      return;
+    }
+
+    if (fn_node->isVariadic()) {
+      llvm::errs()
+          << "Wrapping variadic functions is not yet supported, skipping ";
+      fn_node->getNameForDiagnostic(
+          llvm::errs(), fn_node->getASTContext().getPrintingPolicy(), true);
+      llvm::errs() << "\n";
       return;
     }
 

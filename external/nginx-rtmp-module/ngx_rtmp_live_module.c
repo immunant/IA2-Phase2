@@ -9,6 +9,7 @@
 #include "ngx_rtmp_live_module.h"
 #include "ngx_rtmp_cmd_module.h"
 #include "ngx_rtmp_codec_module.h"
+#include <ia2.h>
 
 
 static ngx_rtmp_publish_pt              next_publish;
@@ -124,7 +125,7 @@ static ngx_rtmp_module_t  ngx_rtmp_live_module_ctx = {
 };
 
 
-ngx_module_t  ngx_rtmp_live_module = {
+ngx_module_t  ngx_rtmp_live_module IA2_SHARED_DATA = {
     NGX_MODULE_V1,
     &ngx_rtmp_live_module_ctx,              /* module context */
     ngx_rtmp_live_commands,                 /* module directives */

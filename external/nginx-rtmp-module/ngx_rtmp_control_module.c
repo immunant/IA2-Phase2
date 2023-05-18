@@ -10,6 +10,7 @@
 #include "ngx_rtmp.h"
 #include "ngx_rtmp_live_module.h"
 #include "ngx_rtmp_record_module.h"
+#include <ia2.h>
 
 
 static char *ngx_rtmp_control(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
@@ -86,7 +87,7 @@ static ngx_http_module_t  ngx_rtmp_control_module_ctx = {
 };
 
 
-ngx_module_t  ngx_rtmp_control_module = {
+ngx_module_t  ngx_rtmp_control_module IA2_SHARED_DATA = {
     NGX_MODULE_V1,
     &ngx_rtmp_control_module_ctx,       /* module context */
     ngx_rtmp_control_commands,          /* module directives */

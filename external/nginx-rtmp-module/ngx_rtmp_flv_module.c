@@ -9,6 +9,7 @@
 #include "ngx_rtmp_play_module.h"
 #include "ngx_rtmp_codec_module.h"
 #include "ngx_rtmp_streams.h"
+#include <ia2.h>
 
 
 static ngx_int_t ngx_rtmp_flv_postconfiguration(ngx_conf_t *cf);
@@ -70,7 +71,7 @@ static ngx_rtmp_module_t  ngx_rtmp_flv_module_ctx = {
 };
 
 
-ngx_module_t  ngx_rtmp_flv_module = {
+ngx_module_t  ngx_rtmp_flv_module IA2_SHARED_DATA = {
     NGX_MODULE_V1,
     &ngx_rtmp_flv_module_ctx,               /* module context */
     NULL,                                   /* module directives */

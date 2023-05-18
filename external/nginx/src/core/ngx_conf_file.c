@@ -7,6 +7,7 @@
 
 #include <ngx_config.h>
 #include <ngx_core.h>
+#include <ia2.h>
 
 #define NGX_CONF_BUFFER  4096
 
@@ -29,7 +30,7 @@ static ngx_command_t  ngx_conf_commands[] = {
 };
 
 
-ngx_module_t  ngx_conf_module = {
+ngx_module_t  ngx_conf_module IA2_SHARED_DATA = {
     NGX_MODULE_V1,
     NULL,                                  /* module context */
     ngx_conf_commands,                     /* module directives */

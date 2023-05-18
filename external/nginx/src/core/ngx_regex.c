@@ -7,6 +7,7 @@
 
 #include <ngx_config.h>
 #include <ngx_core.h>
+#include <ia2.h>
 
 
 typedef struct {
@@ -56,7 +57,7 @@ static ngx_core_module_t  ngx_regex_module_ctx = {
 };
 
 
-ngx_module_t  ngx_regex_module = {
+ngx_module_t  ngx_regex_module IA2_SHARED_DATA = {
     NGX_MODULE_V1,
     &ngx_regex_module_ctx,                 /* module context */
     ngx_regex_commands,                    /* module directives */

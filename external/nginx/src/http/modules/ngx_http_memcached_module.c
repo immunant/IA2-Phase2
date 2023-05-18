@@ -8,6 +8,7 @@
 #include <ngx_config.h>
 #include <ngx_core.h>
 #include <ngx_http.h>
+#include <ia2.h>
 
 
 typedef struct {
@@ -149,7 +150,7 @@ static ngx_http_module_t  ngx_http_memcached_module_ctx = {
 };
 
 
-ngx_module_t  ngx_http_memcached_module = {
+ngx_module_t  ngx_http_memcached_module IA2_SHARED_DATA = {
     NGX_MODULE_V1,
     &ngx_http_memcached_module_ctx,        /* module context */
     ngx_http_memcached_commands,           /* module directives */

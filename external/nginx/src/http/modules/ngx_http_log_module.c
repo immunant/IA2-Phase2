@@ -13,6 +13,8 @@
 #include <zlib.h>
 #endif
 
+#include <ia2.h>
+
 
 typedef struct ngx_http_log_op_s  ngx_http_log_op_t;
 
@@ -205,7 +207,7 @@ static ngx_http_module_t  ngx_http_log_module_ctx = {
 };
 
 
-ngx_module_t  ngx_http_log_module = {
+ngx_module_t  ngx_http_log_module IA2_SHARED_DATA = {
     NGX_MODULE_V1,
     &ngx_http_log_module_ctx,              /* module context */
     ngx_http_log_commands,                 /* module directives */

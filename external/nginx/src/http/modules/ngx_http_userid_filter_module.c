@@ -8,6 +8,7 @@
 #include <ngx_config.h>
 #include <ngx_core.h>
 #include <ngx_http.h>
+#include <ia2.h>
 
 
 #define NGX_HTTP_USERID_OFF   0
@@ -201,7 +202,7 @@ static ngx_http_module_t  ngx_http_userid_filter_module_ctx = {
 };
 
 
-ngx_module_t  ngx_http_userid_filter_module = {
+ngx_module_t  ngx_http_userid_filter_module IA2_SHARED_DATA = {
     NGX_MODULE_V1,
     &ngx_http_userid_filter_module_ctx,    /* module context */
     ngx_http_userid_commands,              /* module directives */

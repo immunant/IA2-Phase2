@@ -9,6 +9,7 @@
 #include <ngx_core.h>
 #include <ngx_event.h>
 #include <ngx_channel.h>
+#include <ia2.h>
 
 
 static void ngx_start_worker_processes(ngx_cycle_t *cycle, ngx_int_t n,
@@ -28,7 +29,7 @@ static void ngx_cache_manager_process_handler(ngx_event_t *ev);
 static void ngx_cache_loader_process_handler(ngx_event_t *ev);
 
 
-ngx_uint_t    ngx_process;
+ngx_uint_t    ngx_process IA2_SHARED_DATA;
 ngx_uint_t    ngx_worker;
 ngx_pid_t     ngx_pid;
 ngx_pid_t     ngx_parent;

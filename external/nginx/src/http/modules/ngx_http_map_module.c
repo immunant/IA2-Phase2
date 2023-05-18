@@ -8,6 +8,7 @@
 #include <ngx_config.h>
 #include <ngx_core.h>
 #include <ngx_http.h>
+#include <ia2.h>
 
 
 typedef struct {
@@ -88,7 +89,7 @@ static ngx_http_module_t  ngx_http_map_module_ctx = {
 };
 
 
-ngx_module_t  ngx_http_map_module = {
+ngx_module_t  ngx_http_map_module IA2_SHARED_DATA = {
     NGX_MODULE_V1,
     &ngx_http_map_module_ctx,              /* module context */
     ngx_http_map_commands,                 /* module directives */

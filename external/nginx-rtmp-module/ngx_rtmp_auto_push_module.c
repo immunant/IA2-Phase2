@@ -106,7 +106,7 @@ static ngx_rtmp_module_t  ngx_rtmp_auto_push_index_module_ctx = {
 };
 
 
-ngx_module_t  ngx_rtmp_auto_push_index_module = {
+ngx_module_t  ngx_rtmp_auto_push_index_module IA2_SHARED_DATA = {
     NGX_MODULE_V1,
     &ngx_rtmp_auto_push_index_module_ctx,   /* module context */
     NULL,                                   /* module directives */

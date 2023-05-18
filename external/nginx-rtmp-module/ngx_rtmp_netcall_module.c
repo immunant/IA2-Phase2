@@ -7,6 +7,7 @@
 #include <ngx_config.h>
 #include <ngx_core.h>
 #include "ngx_rtmp_netcall_module.h"
+#include <ia2.h>
 
 
 static ngx_int_t ngx_rtmp_netcall_postconfiguration(ngx_conf_t *cf);
@@ -83,7 +84,7 @@ static ngx_rtmp_module_t  ngx_rtmp_netcall_module_ctx = {
 };
 
 
-ngx_module_t  ngx_rtmp_netcall_module = {
+ngx_module_t  ngx_rtmp_netcall_module IA2_SHARED_DATA = {
     NGX_MODULE_V1,
     &ngx_rtmp_netcall_module_ctx,           /* module context */
     ngx_rtmp_netcall_commands,              /* module directives */

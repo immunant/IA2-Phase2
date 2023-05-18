@@ -10,6 +10,7 @@
 #include "ngx_rtmp_record_module.h"
 #include "ngx_rtmp_eval.h"
 #include <stdlib.h>
+#include <ia2.h>
 
 #ifdef NGX_LINUX
 #include <unistd.h>
@@ -268,7 +269,7 @@ static ngx_rtmp_module_t  ngx_rtmp_exec_module_ctx = {
 };
 
 
-ngx_module_t  ngx_rtmp_exec_module = {
+ngx_module_t  ngx_rtmp_exec_module IA2_SHARED_DATA = {
     NGX_MODULE_V1,
     &ngx_rtmp_exec_module_ctx,              /* module context */
     ngx_rtmp_exec_commands,                 /* module directives */

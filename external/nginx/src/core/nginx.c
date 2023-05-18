@@ -9,6 +9,7 @@
 #include <ngx_core.h>
 #include <nginx.h>
 #include <ia2.h>
+#include <permissive_mode.h>
 
 INIT_RUNTIME(2);
 INIT_COMPARTMENT(1);

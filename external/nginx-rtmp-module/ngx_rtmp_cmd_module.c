@@ -8,6 +8,7 @@
 #include <ngx_core.h>
 #include "ngx_rtmp_cmd_module.h"
 #include "ngx_rtmp_streams.h"
+#include <ia2.h>
 
 
 #define NGX_RTMP_FMS_VERSION        "FMS/3,0,1,123"
@@ -78,7 +79,7 @@ static ngx_rtmp_module_t  ngx_rtmp_cmd_module_ctx = {
 };
 
 
-ngx_module_t  ngx_rtmp_cmd_module = {
+ngx_module_t  ngx_rtmp_cmd_module IA2_SHARED_DATA = {
     NGX_MODULE_V1,
     &ngx_rtmp_cmd_module_ctx,               /* module context */
     NULL,                                   /* module directives */

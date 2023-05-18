@@ -11,6 +11,7 @@
 #include "ngx_rtmp_cmd_module.h"
 #include "ngx_rtmp_netcall_module.h"
 #include "ngx_rtmp_streams.h"
+#include <ia2.h>
 
 
 static ngx_rtmp_play_pt                 next_play;
@@ -94,7 +95,7 @@ static ngx_rtmp_module_t  ngx_rtmp_play_module_ctx = {
 };
 
 
-ngx_module_t  ngx_rtmp_play_module = {
+ngx_module_t  ngx_rtmp_play_module IA2_SHARED_DATA = {
     NGX_MODULE_V1,
     &ngx_rtmp_play_module_ctx,              /* module context */
     ngx_rtmp_play_commands,                 /* module directives */

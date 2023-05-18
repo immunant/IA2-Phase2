@@ -9,6 +9,7 @@
 #include <ngx_event.h>
 #include <nginx.h>
 #include "ngx_rtmp.h"
+#include <ia2.h>
 
 
 static void *ngx_rtmp_core_create_main_conf(ngx_conf_t *cf);
@@ -173,7 +174,7 @@ static ngx_rtmp_module_t  ngx_rtmp_core_module_ctx = {
 };
 
 
-ngx_module_t  ngx_rtmp_core_module = {
+ngx_module_t  ngx_rtmp_core_module IA2_SHARED_DATA = {
     NGX_MODULE_V1,
     &ngx_rtmp_core_module_ctx,             /* module context */
     ngx_rtmp_core_commands,                /* module directives */

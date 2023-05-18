@@ -10,6 +10,7 @@
 #include "ngx_rtmp_live_module.h"
 #include "ngx_rtmp_cmd_module.h"
 #include "ngx_rtmp_bitop.h"
+#include <ia2.h>
 
 
 #define NGX_RTMP_CODEC_META_OFF     0
@@ -74,7 +75,7 @@ static ngx_rtmp_module_t  ngx_rtmp_codec_module_ctx = {
 };
 
 
-ngx_module_t  ngx_rtmp_codec_module = {
+ngx_module_t  ngx_rtmp_codec_module IA2_SHARED_DATA = {
     NGX_MODULE_V1,
     &ngx_rtmp_codec_module_ctx,             /* module context */
     ngx_rtmp_codec_commands,                /* module directives */

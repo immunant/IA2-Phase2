@@ -571,6 +571,7 @@ do
 
 #include <ngx_config.h>
 #include <ngx_core.h>
+#include <ia2.h>
 
 END
 
@@ -580,7 +581,7 @@ END
     done
 
     echo                                          >> $ngx_modules_c
-    echo 'ngx_module_t *ngx_modules[] = {'        >> $ngx_modules_c
+    echo 'ngx_module_t *ngx_modules[] IA2_SHARED_DATA = {'        >> $ngx_modules_c
 
     for mod in $ngx_module_modules
     do
@@ -593,7 +594,7 @@ END
 
 END
 
-    echo 'char *ngx_module_names[] = {'           >> $ngx_modules_c
+    echo 'char *ngx_module_names[] IA2_SHARED_DATA = {'           >> $ngx_modules_c
 
     for mod in $ngx_module_modules
     do
@@ -606,7 +607,7 @@ END
 
 END
 
-    echo 'char *ngx_module_order[] = {'           >> $ngx_modules_c
+    echo 'char *ngx_module_order[] IA2_SHARED_DATA = {'           >> $ngx_modules_c
 
     for mod in $ngx_module_order
     do

@@ -7,11 +7,12 @@
 
 #include <ngx_config.h>
 #include <ngx_core.h>
+#include <ia2.h>
 
 
 ngx_uint_t  ngx_pagesize;
 ngx_uint_t  ngx_pagesize_shift;
-ngx_uint_t  ngx_cacheline_size;
+ngx_uint_t  ngx_cacheline_size IA2_SHARED_DATA;
 
 
 void *

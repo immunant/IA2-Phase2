@@ -9,6 +9,7 @@
 #include <ngx_core.h>
 #include <ngx_http.h>
 #include <nginx.h>
+#include <ia2.h>
 
 
 static ngx_int_t ngx_http_header_filter_init(ngx_conf_t *cf);
@@ -30,7 +31,7 @@ static ngx_http_module_t  ngx_http_header_filter_module_ctx = {
 };
 
 
-ngx_module_t  ngx_http_header_filter_module = {
+ngx_module_t  ngx_http_header_filter_module IA2_SHARED_DATA = {
     NGX_MODULE_V1,
     &ngx_http_header_filter_module_ctx,    /* module context */
     NULL,                                  /* module directives */

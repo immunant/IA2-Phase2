@@ -8,6 +8,7 @@
 #include <ngx_config.h>
 #include <ngx_core.h>
 #include <ngx_event.h>
+#include <ia2.h>
 
 
 #if (NGX_TEST_BUILD_EPOLL)
@@ -199,7 +200,7 @@ static ngx_event_module_t  ngx_epoll_module_ctx = {
     }
 };
 
-ngx_module_t  ngx_epoll_module = {
+ngx_module_t  ngx_epoll_module IA2_SHARED_DATA = {
     NGX_MODULE_V1,
     &ngx_epoll_module_ctx,               /* module context */
     ngx_epoll_commands,                  /* module directives */

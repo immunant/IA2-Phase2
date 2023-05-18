@@ -7,6 +7,7 @@
 
 #include <ngx_config.h>
 #include <ngx_core.h>
+#include <ia2.h>
 
 
 static char *ngx_error_log(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
@@ -51,7 +52,7 @@ static ngx_core_module_t  ngx_errlog_module_ctx = {
 };
 
 
-ngx_module_t  ngx_errlog_module = {
+ngx_module_t  ngx_errlog_module IA2_SHARED_DATA = {
     NGX_MODULE_V1,
     &ngx_errlog_module_ctx,                /* module context */
     ngx_errlog_commands,                   /* module directives */

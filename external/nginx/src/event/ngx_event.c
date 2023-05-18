@@ -8,6 +8,7 @@
 #include <ngx_config.h>
 #include <ngx_core.h>
 #include <ngx_event.h>
+#include <ia2.h>
 
 
 #define DEFAULT_CONNECTIONS  512
@@ -99,7 +100,7 @@ static ngx_core_module_t  ngx_events_module_ctx = {
 };
 
 
-ngx_module_t  ngx_events_module = {
+ngx_module_t  ngx_events_module IA2_SHARED_DATA = {
     NGX_MODULE_V1,
     &ngx_events_module_ctx,                /* module context */
     ngx_events_commands,                   /* module directives */
@@ -175,7 +176,7 @@ static ngx_event_module_t  ngx_event_core_module_ctx = {
 };
 
 
-ngx_module_t  ngx_event_core_module = {
+ngx_module_t  ngx_event_core_module IA2_SHARED_DATA = {
     NGX_MODULE_V1,
     &ngx_event_core_module_ctx,            /* module context */
     ngx_event_core_commands,               /* module directives */

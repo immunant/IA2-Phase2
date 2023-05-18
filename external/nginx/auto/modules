@@ -1387,6 +1387,7 @@ cat << END                                    > $NGX_MODULES_C
 
 #include <ngx_config.h>
 #include <ngx_core.h>
+#include <ia2.h>
 
 $NGX_PRAGMA
 
@@ -1398,7 +1399,7 @@ do
 done
 
 echo                                          >> $NGX_MODULES_C
-echo 'ngx_module_t *ngx_modules[] = {'        >> $NGX_MODULES_C
+echo 'ngx_module_t *ngx_modules[] IA2_SHARED_DATA = {'        >> $NGX_MODULES_C
 
 for mod in $modules
 do
@@ -1411,7 +1412,7 @@ cat << END                                    >> $NGX_MODULES_C
 
 END
 
-echo 'char *ngx_module_names[] = {'           >> $NGX_MODULES_C
+echo 'char *ngx_module_names[] IA2_SHARED_DATA = {'           >> $NGX_MODULES_C
 
 for mod in $modules
 do

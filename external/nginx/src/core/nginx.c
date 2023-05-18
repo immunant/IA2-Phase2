@@ -168,7 +168,7 @@ static ngx_core_module_t  ngx_core_module_ctx = {
 };
 
 
-ngx_module_t  ngx_core_module = {
+ngx_module_t  ngx_core_module IA2_SHARED_DATA = {
     NGX_MODULE_V1,
     &ngx_core_module_ctx,                  /* module context */
     ngx_core_commands,                     /* module directives */

@@ -10,6 +10,7 @@
 #include <ngx_config.h>
 #include <ngx_core.h>
 #include <ngx_http.h>
+#include <ia2.h>
 
 
 typedef struct {
@@ -140,7 +141,7 @@ static ngx_conf_post_t  ngx_http_uwsgi_ssl_conf_command_post =
 #endif
 
 
-ngx_module_t  ngx_http_uwsgi_module;
+ngx_module_t  ngx_http_uwsgi_module IA2_SHARED_DATA;
 
 
 static ngx_command_t ngx_http_uwsgi_commands[] = {
@@ -592,7 +593,7 @@ static ngx_http_module_t ngx_http_uwsgi_module_ctx = {
 };
 
 
-ngx_module_t ngx_http_uwsgi_module = {
+ngx_module_t ngx_http_uwsgi_module IA2_SHARED_DATA = {
     NGX_MODULE_V1,
     &ngx_http_uwsgi_module_ctx,            /* module context */
     ngx_http_uwsgi_commands,               /* module directives */

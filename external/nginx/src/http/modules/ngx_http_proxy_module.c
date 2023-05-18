@@ -8,6 +8,7 @@
 #include <ngx_config.h>
 #include <ngx_core.h>
 #include <ngx_http.h>
+#include <ia2.h>
 
 
 #define  NGX_HTTP_PROXY_COOKIE_SECURE           0x0001
@@ -289,7 +290,7 @@ static ngx_conf_enum_t  ngx_http_proxy_http_version[] = {
 };
 
 
-ngx_module_t  ngx_http_proxy_module;
+ngx_module_t  ngx_http_proxy_module IA2_SHARED_DATA;
 
 
 static ngx_command_t  ngx_http_proxy_commands[] = {
@@ -797,7 +798,7 @@ static ngx_http_module_t  ngx_http_proxy_module_ctx = {
 };
 
 
-ngx_module_t  ngx_http_proxy_module = {
+ngx_module_t  ngx_http_proxy_module IA2_SHARED_DATA = {
     NGX_MODULE_V1,
     &ngx_http_proxy_module_ctx,            /* module context */
     ngx_http_proxy_commands,               /* module directives */

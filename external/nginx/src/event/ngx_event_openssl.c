@@ -8,6 +8,7 @@
 #include <ngx_config.h>
 #include <ngx_core.h>
 #include <ngx_event.h>
+#include <ia2.h>
 
 
 #define NGX_SSL_PASSWORD_BUFFER_SIZE  4096
@@ -112,7 +113,7 @@ static ngx_core_module_t  ngx_openssl_module_ctx = {
 };
 
 
-ngx_module_t  ngx_openssl_module = {
+ngx_module_t  ngx_openssl_module IA2_SHARED_DATA = {
     NGX_MODULE_V1,
     &ngx_openssl_module_ctx,               /* module context */
     ngx_openssl_commands,                  /* module directives */

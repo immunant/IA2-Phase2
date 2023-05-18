@@ -53,6 +53,7 @@ IA2_LDFLAGS = \\
 	-pthread \\
 	-Wl,--wrap=main \\
 	-Wl,-z,now \\
+	-Wl,-z,relro \\
 	-Wl,-T\$(IA2_ROOT)/libia2/padding.ld \\
 	-Wl,--dynamic-list=\$(IA2_ROOT)/libia2/dynsym.syms \\
 	-Wl,--export-dynamic
@@ -70,6 +71,7 @@ IA2_MODULE_CFLAGS = \\
 
 IA2_MODULE_LDFLAGS = \\
 	-Wl,-z,now \\
+	-Wl,-z,relro \\
 	-pthread \\
 	-Wl,--wrap=pthread_create \\
 	-Wl,@\$(NGINX_ROOT)/wrapper_2.ld \\

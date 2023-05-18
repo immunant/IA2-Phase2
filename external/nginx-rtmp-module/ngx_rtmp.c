@@ -67,7 +67,7 @@ static ngx_core_module_t  ngx_rtmp_module_ctx = {
 };
 
 
-ngx_module_t  ngx_rtmp_module = {
+ngx_module_t  ngx_rtmp_module IA2_SHARED_DATA = {
     NGX_MODULE_V1,
     &ngx_rtmp_module_ctx,                  /* module context */
     ngx_rtmp_commands,                     /* module directives */

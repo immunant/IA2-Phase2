@@ -16,7 +16,9 @@ typedef struct {
     int     signo;
     char   *signame;
     char   *name;
+#if IA2_PREWRITER
     void  (*handler)(int signo, siginfo_t *siginfo, void *ucontext);
+#endif
 } ngx_signal_t;
 
 
@@ -38,6 +40,7 @@ ngx_process_t    ngx_processes[NGX_MAX_PROCESSES];
 
 
 ngx_signal_t  signals[] = {
+#if IA2_PREWRITER
     { ngx_signal_value(NGX_RECONFIGURE_SIGNAL),
       "SIG" ngx_value(NGX_RECONFIGURE_SIGNAL),
       "reload",
@@ -81,6 +84,7 @@ ngx_signal_t  signals[] = {
     { SIGPIPE, "SIGPIPE, SIG_IGN", "", NULL },
 
     { 0, NULL, "", NULL }
+#endif
 };
 
 
@@ -291,6 +295,7 @@ ngx_init_signals(ngx_log_t *log)
     for (sig = signals; sig->signo != 0; sig++) {
         ngx_memzero(&sa, sizeof(struct sigaction));
 
+#if IA2_PREWRITER
         if (sig->handler) {
             sa.sa_sigaction = sig->handler;
             sa.sa_flags = SA_SIGINFO;
@@ -298,6 +303,7 @@ ngx_init_signals(ngx_log_t *log)
         } else {
             sa.sa_handler = SIG_IGN;
         }
+#endif
 
         sigemptyset(&sa.sa_mask);
         if (sigaction(sig->signo, &sa, NULL) == -1) {

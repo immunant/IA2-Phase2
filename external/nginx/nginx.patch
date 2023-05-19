@@ -520,17 +520,3 @@ index 4b8831a77..20fd57481 100644
                                              IA2_FN(ngx_http_upstream_init_round_robin);
  
          if (IA2_CALL(init, 58)(cf, uscfp[i]) != NGX_OK) {
-diff --git a/external/nginx/src/os/unix/ngx_process.c b/external/nginx/src/os/unix/ngx_process.c
-index e34674af4..c613870ce 100644
---- a/external/nginx/src/os/unix/ngx_process.c
-+++ b/external/nginx/src/os/unix/ngx_process.c
-@@ -291,7 +291,7 @@ ngx_init_signals(ngx_log_t *log)
-         ngx_memzero(&sa, sizeof(struct sigaction));
- 
-         if (IA2_ADDR(sig->handler)) {
--            sa.sa_sigaction = sig->handler;
-+            sa.sa_sigaction = IA2_ADDR(sig->handler);
-             sa.sa_flags = SA_SIGINFO;
- 
-         } else {
--- 

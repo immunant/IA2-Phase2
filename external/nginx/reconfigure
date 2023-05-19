@@ -76,7 +76,7 @@ fi
 
 touch "$BUILD_DIR/wrapper.h"
 if [ ! -f $NGINX_ROOT/compile_commands.json ]; then
-    bear -- make IA2_LDFLAGS= IA2_MODULE_LDFLAGS= IA2_CALLGATES= build
+    bear -- make IA2_LDFLAGS= IA2_MODULE_LDFLAGS= IA2_CALLGATES= IA2_PREWRITER=1 build
 fi
 
 if [ ! -f $BUILD_DIR/wrapper.c ] ||

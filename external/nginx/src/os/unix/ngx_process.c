@@ -24,7 +24,7 @@ typedef struct {
 
 
 static void ngx_execute_proc(ngx_cycle_t *cycle, void *data);
-static void ngx_signal_handler(int signo, siginfo_t *siginfo, void *ucontext);
+__attribute__((used)) static void ngx_signal_handler(int signo, siginfo_t *siginfo, void *ucontext);
 static void ngx_process_get_status(void);
 static void ngx_unlock_mutexes(ngx_pid_t pid);
 
@@ -38,6 +38,7 @@ ngx_socket_t     ngx_channel;
 ngx_int_t        ngx_last_process;
 ngx_process_t    ngx_processes[NGX_MAX_PROCESSES];
 
+IA2_DEFINE_SIGACTION(ngx_signal_handler, 1);
 
 ngx_signal_t  signals[] = {
 #if IA2_PREWRITER

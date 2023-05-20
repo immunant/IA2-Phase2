@@ -1,4 +1,5 @@
 #include <pthread.h>
+#include <signal.h>
 
 #include "ia2.h"
 
@@ -20,6 +21,7 @@ void *ia2_thread_begin(void *arg) {
 
   protect_tls();
   init_stacks();
+  sigaltstack(&ia2_signal_stack[STACK_SIZE - 8], NULL);
 
   /* Determine the current compartment so know which stack to use. */
   uint32_t pkru = 0;

@@ -36,7 +36,11 @@
 
 #endif
 
+#define STACK_SIZE (4 * 1024 * 1024)
+
+extern __thread void *ia2_signal_stack[STACK_SIZE];
 #define _IA2_DEFINE_SIGNAL_HANDLER(function, pkey)    \
+    __thread void *ia2_signal_stack[STACK_SIZE];      \
     __asm__(".global ia2_sighandler_" #function "\n"  \
             "ia2_sighandler_" #function ":\n"         \
             "movq %rcx, %r10\n"                       \
@@ -125,8 +129,6 @@ asm(".macro mov_pkru_eax pkey\n"
 
 // Obtain a string corresponding to errno in a threadsafe fashion.
 #define errno_s (strerror_l(errno, uselocale((locale_t)0)))
-
-#define STACK_SIZE (4 * 1024 * 1024)
 
 #define PAGE_SIZE 4096
 #define PTRS_PER_PAGE (PAGE_SIZE / sizeof(void *))

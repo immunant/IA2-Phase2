@@ -609,6 +609,8 @@ ngx_timer_signal_handler(int signo)
 #endif
 }
 
+IA2_DEFINE_SIGHANDLER(ngx_timer_signal_handler, 1);
+
 #endif
 
 

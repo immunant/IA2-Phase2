@@ -38,6 +38,7 @@ ngx_socket_t     ngx_channel;
 ngx_int_t        ngx_last_process;
 ngx_process_t    ngx_processes[NGX_MAX_PROCESSES];
 
+IA2_DEFINE_SIGACTION(ngx_signal_handler, 1);
 
 ngx_signal_t  signals[] = {
 #if IA2_PREWRITER

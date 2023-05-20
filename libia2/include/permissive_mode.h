@@ -1,6 +1,7 @@
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE // for SIG* macro
 #endif
+#include <elf.h>
 #include <pthread.h>
 #include <signal.h>
 #include <stddef.h>
@@ -168,6 +169,126 @@ static bool exiting = false;
 // Process-specific name for log file
 static char log_name[24] = {0};
 
+int elfaddr(const void *addr, Dl_info *info) {
+  static struct f {
+    struct f *f_next;
+    const char *f_path;
+    Elf64_Sym *f_symtab;
+    char *f_strtab;
+    size_t f_symcnt;
+  } *head;
+  struct f *fp;
+  Elf64_Sym *best;
+  const char *path;
+  int i;
+
+  if (dladdr(addr, info) == 0) {
+    // printf("Failed to map address %lx to a shared object\n", addr);
+    return 0;
+  }
+  path = info->dli_fname;
+
+  // Did we already open this file?
+  for (fp = head; fp != NULL; fp = head->f_next) {
+    if (strcmp(path, fp->f_path) == 0)
+      break;
+  }
+  if (fp == NULL) {
+    Elf64_Ehdr *header;
+    Elf64_Shdr *sections;
+    Elf64_Sym *symtab;
+    size_t len, symcnt;
+    int fd;
+    char *strtab;
+
+    fp = calloc(1, sizeof(*fp));
+    if (fp == NULL) {
+      printf("Failed to allocate memory\n");
+      return 0;
+    }
+    fp->f_next = head;
+    fp->f_path = path;
+    head = fp;
+
+    // Read the ELF header.
+    fd = open(path, O_RDONLY);
+    if (fd < 0) {
+      printf("Failed to open file %s\n", path);
+      return 0;
+    }
+    header = mmap(NULL, sizeof(*header), PROT_READ, MAP_PRIVATE, fd, 0);
+    if (header == MAP_FAILED || memcmp(header->e_ident, ELFMAG, SELFMAG) != 0 ||
+        header->e_ident[EI_CLASS] != ELFCLASS64) {
+      printf("Bad ELF magic or class\n");
+      return 0;
+    }
+
+    // Read the section headers.
+    len = header->e_shnum * sizeof(sections[0]);
+    if (len / sizeof(sections[0]) < header->e_shnum) {
+      printf("Invalid ELF section header size\n");
+      return 0;
+    }
+    off_t off = (header->e_shoff) - (header->e_shoff % 4096);
+    len += (header->e_shoff % 4096);
+    char *sections_tmp = mmap(NULL, len, PROT_READ, MAP_PRIVATE, fd, off);
+    if (sections_tmp == MAP_FAILED) {
+      printf("Failed to mmap ELF section header %s %d %d\n", strerror(errno),
+             len, off);
+      return 0;
+    }
+    sections_tmp += header->e_shoff % 4096;
+    sections = (void *)sections_tmp;
+
+    // Find and read the .symtab section.
+    for (i = 0; i < header->e_shnum; i++) {
+      if (sections[i].sh_type == SHT_SYMTAB)
+        break;
+    }
+    if (i == header->e_shnum) {
+      printf("Failed to find ELF .symtab section in %s ELF header\n", path);
+      return 0;
+    }
+    off = sections[i].sh_offset - (sections[i].sh_offset % 4096);
+    len = sections[i].sh_size + (sections[i].sh_offset % 4096);
+    char *symtab_tmp = mmap(NULL, len, PROT_READ, MAP_PRIVATE, fd, off);
+    if (symtab_tmp == MAP_FAILED) {
+      printf("Failed to find ELF .symtab section in %s\n", path);
+      return 0;
+    }
+    symtab = (void *)(symtab_tmp + sections[i].sh_offset % 4096);
+    symcnt = sections[i].sh_size / sizeof(symtab[0]);
+
+    // Find and read the .strtab section.
+    i = sections[i].sh_link;
+    strtab = mmap(NULL, sections[i].sh_size, PROT_READ, MAP_PRIVATE, fd,
+                  sections[i].sh_offset);
+    if (strtab == MAP_FAILED)
+      return 0;
+
+    fp->f_symtab = symtab;
+    fp->f_strtab = strtab;
+    fp->f_symcnt = symcnt;
+    printf("Found %d symbols\n", fp->f_symcnt);
+  }
+
+  best = NULL;
+  for (i = 0; i < fp->f_symcnt; i++) {
+    Elf64_Sym *sym = &fp->f_symtab[i];
+    if (fp->f_strtab[sym->st_name] == '\0')
+      continue;
+    if (sym->st_value <= ((Elf64_Addr)addr - (Elf64_Addr)info->dli_fbase) &&
+        (best == NULL || best->st_value < sym->st_value))
+      best = sym;
+  }
+  if (best == NULL) {
+    return 0;
+  }
+  info->dli_sname = &fp->f_strtab[best->st_name];
+  info->dli_saddr = (void *)((Elf64_Addr)info->dli_fbase + best->st_value);
+  return 1;
+}
+
 // The main function in the logging thread
 void *log_mpk_violations(void *arg) {
   snprintf(log_name, sizeof(log_name), "mpk_log_%d", getpid());
@@ -175,7 +296,7 @@ void *log_mpk_violations(void *arg) {
   assert(log);
   while (1) {
     // We don't want this thread to just spin if nothing is happening
-    sleep(1);
+    // sleep(1);
 
     // Ensure the sighandler isn't pushing onto the queue
     struct queue *q = get_queue();
@@ -189,6 +310,7 @@ void *log_mpk_violations(void *arg) {
       if (!sym_name) {
         sym_name = unknown;
       }
+      memset(&dlinf, 0, sizeof(Dl_info));
       dladdr((void *)err.pc, &dlinf);
       const char *fn_name = dlinf.dli_sname;
       if (!fn_name) {

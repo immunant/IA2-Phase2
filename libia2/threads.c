@@ -21,7 +21,8 @@ void *ia2_thread_begin(void *arg) {
 
   protect_tls();
   init_stacks();
-  sigaltstack(&ia2_signal_stack[STACK_SIZE - 8], NULL);
+  //stack_t x = {.ss_sp = ia2_signal_stack, .ss_size = STACK_SIZE};
+  //sigaltstack(&x, NULL);
 
   /* Determine the current compartment so know which stack to use. */
   uint32_t pkru = 0;
@@ -81,6 +82,7 @@ int __wrap_pthread_create(pthread_t *restrict thread,
   provided thread body function. We cannot use malloc()/free() here because the
   newly-started thread needs to free the allocation that this thread makes,
   which is not permitted by all allocators (we see segfaults). */
+  printf("Called __wrap_pthread_create from pid %d and thread %p\n", getpid(), pthread_self());
   void *mmap_res = mmap(NULL, sizeof(struct ia2_thread_thunk),
                         PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
   if (mmap_res == MAP_FAILED) {

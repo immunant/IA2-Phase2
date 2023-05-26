@@ -1,3 +1,4 @@
+#if !IA2_PREREWRITER
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE // for SIG* macro
 #endif
@@ -60,7 +61,7 @@ int pkru_offset(void) {
   unsigned int ebx, edx;
   asm volatile("cpuid"
                : "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx)
-               : "0"(eax), "2"(ebx));
+               : "0"(eax), "2"(ecx));
   return ebx;
 }
 
@@ -70,12 +71,17 @@ int pkru_offset(void) {
  * could use dynamic allocation by periodically increasing the capacity when the
  * logging thread pops but there's not much benefit to this for debugging.
  */
-#define QUEUE_SIZE 1024
+#define QUEUE_SIZE 8192
 
 // The entries in the queue
 typedef struct mpk_err {
   uint64_t addr;
+  uint64_t val;
   uint64_t pc;
+  uint64_t sp;
+  uint64_t fp;
+  uint32_t pkru;
+  uint64_t local_addr;
 } mpk_err;
 
 struct queue {
@@ -90,7 +96,7 @@ struct queue {
  * with a spinlock.
  */
 struct queue *get_queue(void) {
-  static struct queue mpk_violations = {0};
+  static struct queue mpk_violations IA2_SHARED_DATA = {0};
   while (!__sync_bool_compare_and_swap(&mpk_violations.locked, 0, 1))
     ;
   return &mpk_violations;
@@ -126,10 +132,10 @@ bool pop_queue(struct queue *q, mpk_err *e) {
 void permissive_mode_handler(int sig, siginfo_t *info, void *ctxt) {
   bool handling_pkuerr = sig == SIGSEGV && info && info->si_code == SEGV_PKUERR;
   bool handling_trap = sig == SIGTRAP;
+  ucontext_t *uctxt = (ucontext_t *)ctxt;
   if (!handling_pkuerr && !handling_trap) {
     return;
   }
-  ucontext_t *uctxt = (ucontext_t *)ctxt;
   uint64_t *eflags = (uint64_t *)(&uctxt->uc_mcontext.gregs[REG_EFL]);
 
   // Calculate the offset of the PKRU within fpregs in ucontext
@@ -142,18 +148,22 @@ void permissive_mode_handler(int sig, siginfo_t *info, void *ctxt) {
   if (handling_pkuerr) {
     // Set the EFLAGS trap bit when the handler returns
     *eflags |= trap_bit;
+
+    // Push the memory address and progam counter onto the queue
+    uint64_t pc = (uint64_t)uctxt->uc_mcontext.gregs[REG_RIP];
+    uint64_t sp = (uint64_t)uctxt->uc_mcontext.gregs[REG_RSP];
+    uint64_t fp = (uint64_t)uctxt->uc_mcontext.gregs[REG_RBP];
+    // Ensure that the logging thread is not popping values
+    //struct queue *q = get_queue();
+    //uint64_t val = *(uint64_t *)info->si_addr;
+    //mpk_err err = {.addr = (uint64_t)info->si_addr, .val = val, .pc = pc, .sp = sp, .fp = fp, .pkru = old_pkru, .local_addr = (uint64_t)&pc};
+    //push_queue(q, err);
+    //release_queue(q);
+
     // Save the PKRU in the ucontext
     old_pkru = *pkru;
     // Set the PKRU for when the handler returns
     *pkru = 0;
-
-    // Push the memory address and progam counter onto the queue
-    uint64_t pc = (uint64_t)uctxt->uc_mcontext.gregs[REG_RIP];
-    // Ensure that the logging thread is not popping values
-    struct queue *q = get_queue();
-    mpk_err err = {.addr = (uint64_t)info->si_addr, .pc = pc};
-    push_queue(q, err);
-    release_queue(q);
 
   } else if (handling_trap) {
     // Restore the PKRU for when the handler returns
@@ -164,10 +174,10 @@ void permissive_mode_handler(int sig, siginfo_t *info, void *ctxt) {
 }
 
 // Flag to notify logging thread that the process is exiting
-static bool exiting = false;
+static bool exiting IA2_SHARED_DATA = false;
 
 // Process-specific name for log file
-static char log_name[24] = {0};
+static char log_name[256] IA2_SHARED_DATA = {0};
 
 int elfaddr(const void *addr, Dl_info *info) {
   static struct f {
@@ -291,33 +301,32 @@ int elfaddr(const void *addr, Dl_info *info) {
 
 // The main function in the logging thread
 void *log_mpk_violations(void *arg) {
-  snprintf(log_name, sizeof(log_name), "mpk_log_%d", getpid());
+  snprintf(log_name, sizeof(log_name), "/home/ayrton/ia2/IA2-Phase2/external/nginx/mpk_log_%d", getpid());
   FILE *log = fopen(log_name, "w");
   assert(log);
   while (1) {
     // We don't want this thread to just spin if nothing is happening
-    // sleep(1);
+    sleep(1);
 
     // Ensure the sighandler isn't pushing onto the queue
     struct queue *q = get_queue();
     mpk_err err;
     // Pop everything currently in the queue
     while (pop_queue(q, &err)) {
-      const char *unknown = "<unknown>";
-      Dl_info dlinf = {0};
-      dladdr((void *)err.addr, &dlinf);
-      const char *sym_name = dlinf.dli_sname;
-      if (!sym_name) {
-        sym_name = unknown;
+#define ENTRY_NUM 6
+      void *names[ENTRY_NUM] = {"addr", "val", "pc", "sp", "fp", "local_addr"};
+      void *addresses[ENTRY_NUM] = {err.addr, err.val, err.pc, err.sp, err.fp, err.local_addr};
+      for (int i = 0; i < ENTRY_NUM; i++) {
+          Dl_info dlinf = {0};
+          dladdr((void *)addresses[i], &dlinf);
+          const char *name = dlinf.dli_sname;
+          if (name) {
+            fprintf(log, "%s: %s (%lx),", names[i], name, addresses[i]);
+          } else {
+            fprintf(log, "%s: %lx,", names[i], addresses[i]);
+          }
       }
-      memset(&dlinf, 0, sizeof(Dl_info));
-      dladdr((void *)err.pc, &dlinf);
-      const char *fn_name = dlinf.dli_sname;
-      if (!fn_name) {
-        fn_name = unknown;
-      }
-      fprintf(log, "MPK error accessing %s (%lx) from %s (%lx)\n", sym_name,
-              err.addr, fn_name, err.pc);
+      fprintf(log, " pkru: %lx\n", err.pkru);
     }
     release_queue(q);
 
@@ -341,6 +350,7 @@ __attribute__((naked)) void permissive_mode_trampoline(int sig, siginfo_t *info,
       // rcx and rdx may arguments so preserve them across the wrpkru
       "movq %rcx, %r10\n"
       "movq %rdx, %r11\n"
+      "movq %rax, %r12\n"
       // zero the PKRU to allow access to all compartments
       "xorl %ecx, %ecx\n"
       "xorl %edx, %edx\n"
@@ -348,10 +358,11 @@ __attribute__((naked)) void permissive_mode_trampoline(int sig, siginfo_t *info,
       "wrpkru\n"
       "movq %r10, %rcx\n"
       "movq %r11, %rdx\n"
+      "movq %r12, %rax\n"
       "jmp permissive_mode_handler");
 }
 
-static pthread_t logging_thread;
+static pthread_t logging_thread IA2_SHARED_DATA;
 
 /*
  * The logging thread is created from a constructor which happens before the
@@ -365,16 +376,20 @@ typeof(IA2_IGNORE(pthread_create)) __real_pthread_create;
 
 // The constructor that installs the signal handlers
 __attribute__((constructor)) void install_permissive_mode_handler(void) {
-  static struct sigaction act = {
+    //extern __thread void *ia2_signal_stack[STACK_SIZE];
+    //stack_t x = {.ss_sp = ia2_signal_stack, .ss_size = STACK_SIZE };
+    //sigaltstack(&x, NULL);
+  static struct sigaction act IA2_SHARED_DATA = {
       .sa_sigaction = IA2_IGNORE(permissive_mode_trampoline),
       .sa_flags = SA_SIGINFO,
   };
   sigemptyset(&(act.sa_mask));
   // mask SIGTRAP in SIGSEGV handler
   sigaddset(&(act.sa_mask), SIGTRAP);
+  //sigaddset(&(act.sa_mask), SIGSEGV);
   sigaction(SIGSEGV, &act, NULL);
 
-  static struct sigaction act2 = {
+  static struct sigaction act2 IA2_SHARED_DATA = {
       .sa_sigaction = IA2_IGNORE(permissive_mode_trampoline),
       .sa_flags = SA_SIGINFO,
   };
@@ -382,8 +397,8 @@ __attribute__((constructor)) void install_permissive_mode_handler(void) {
   sigaction(SIGTRAP, &act2, NULL);
 
   // Create the logging thread
-  __real_pthread_create(&logging_thread, NULL, IA2_IGNORE(log_mpk_violations),
-                        NULL);
+  //__real_pthread_create(&logging_thread, NULL, IA2_IGNORE(log_mpk_violations),
+  //                      NULL);
   // When the process forks call this function again to reinstall these signal
   // handlers and call pthread_atfork again
   pthread_atfork(NULL, NULL, IA2_IGNORE(install_permissive_mode_handler));
@@ -393,18 +408,19 @@ __attribute__((constructor)) void install_permissive_mode_handler(void) {
  * Constructor to wait for the logging thread to finish and log the memory map.
  * If a process forks and execve's this function will not be called.
  */
-__attribute((destructor)) void wait_logging_thread(void) {
-  exiting = true;
-  pthread_join(logging_thread, NULL);
-  FILE *log = fopen(log_name, "a");
-  assert(log);
-  FILE *maps = fopen("/proc/self/maps", "r");
-  assert(maps);
-  char tmp[256] = {0};
-  while (fgets(tmp, sizeof(tmp), maps)) {
-    fprintf(log, "%s", tmp);
-    memset(tmp, 0, sizeof(tmp));
-  }
-  fclose(log);
-  fclose(maps);
-}
+//__attribute((destructor)) void wait_logging_thread(void) {
+//  exiting = true;
+//  pthread_join(logging_thread, NULL);
+//  FILE *log = fopen(log_name, "a");
+//  assert(log);
+//  FILE *maps = fopen("/proc/self/maps", "r");
+//  assert(maps);
+//  char tmp[256] = {0};
+//  while (fgets(tmp, sizeof(tmp), maps)) {
+//    fprintf(log, "%s", tmp);
+//    memset(tmp, 0, sizeof(tmp));
+//  }
+//  fclose(log);
+//  fclose(maps);
+//}
+#endif

@@ -40,25 +40,29 @@
 
 extern __thread void *ia2_signal_stack[STACK_SIZE];
 #define _IA2_DEFINE_SIGNAL_HANDLER(function, pkey)    \
-    __thread void *ia2_signal_stack[STACK_SIZE];      \
     __asm__(".global ia2_sighandler_" #function "\n"  \
             "ia2_sighandler_" #function ":\n"         \
             "movq %rcx, %r10\n"                       \
             "movq %rdx, %r11\n"                       \
+            "movq %rax, %r12\n"                       \
             "xorl %ecx, %ecx\n"                       \
             "xorl %edx, %edx\n"                       \
             "mov_pkru_eax " #pkey "\n"                \
+            "xorl %eax, %eax\n"                       \
             "wrpkru\n"                                \
+            "movq %r12, %rax\n"                       \
             "movq %r11, %rdx\n"                       \
             "movq %r10, %rcx\n"                       \
             "jmp " #function "\n")
 
 #define IA2_DEFINE_SIGACTION(function, pkey)                \
     void ia2_sighandler_##function(int, siginfo_t*, void*); \
+     __attribute__((used)) static void function(int, siginfo_t*, void*); \
     _IA2_DEFINE_SIGNAL_HANDLER(function, pkey)
 
 #define IA2_DEFINE_SIGHANDLER(function, pkey)  \
     void ia2_sighandler_##function(int);       \
+     __attribute__((used)) static void function(int); \
     _IA2_DEFINE_SIGNAL_HANDLER(function, pkey)
 
 #define IA2_IGNORE_FIELD(decl) decl

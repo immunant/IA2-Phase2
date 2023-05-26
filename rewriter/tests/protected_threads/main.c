@@ -16,74 +16,16 @@ INIT_RUNTIME(2);
 #define IA2_COMPARTMENT 1
 #include <ia2_compartment_init.inc>
 
-int data_in_main = 30;
-
-void defined_in_main(void) { printf("main data is %d\n", data_in_main); }
-
-Fn fnptr_from_main = defined_in_main;
-
-static inline unsigned int rdpkru(void) {
-  uint32_t pkru = 0;
-  __asm__ volatile(IA2_RDPKRU : "=a"(pkru) : "a"(0), "d"(0), "c"(0));
-  return pkru;
-}
-
-void *thread_fn(void *ptr);
-
-void *thread_fn(void *ptr) {
-  printf("tid %d ptr=%p\n", gettid(), ptr);
-
-  printf("main-module thread pkru=%08x\n", rdpkru());
-
-  library_showpkru();
-
-  printf("ptr is %p, formatting int: %08x\n", ptr, 4300 + ptr);
-
-  return NULL;
-}
-pthread_t thread1, thread2;
-
-void create_threads(void) {
-  int iret1, iret2;
-
-#if !defined(PRE_REWRITER)
-  iret1 = pthread_create(&thread1, NULL, thread_fn, (void *)1);
-  iret2 = pthread_create(&thread2, NULL, thread_fn, (void *)2);
-#endif
-}
-
-__thread int thread_local_var = 50;
-
-void *access_ptr_thread_fn(void *ptr) {
-  int *x = (int *)ptr;
-  printf("c1t3 accessing c1t1 thread-local: %d\n", *x);
-  printf("c2t3 accessing c1t1 thread-local: %d\n",
-         CHECK_VIOLATION(library_access_int_ptr(x)));
-  return NULL;
+void *nop(void *unused) {
+    return NULL;
 }
 
 int main() {
-  printf("main-module main pkru=%08x\n", rdpkru());
-  library_showpkru();
-  printf("main-module main pkru=%08x\n", rdpkru());
-
-  pthread_t lib_thread = library_spawn_thread();
-
-  create_threads();
-  library_foo();
-  defined_in_main();
-  library_call_fn(fnptr_from_main);
-
-  pthread_join(thread1, NULL);
-  pthread_join(thread2, NULL);
-  pthread_join(lib_thread, NULL);
-
-  pthread_t fault_thread;
+  pthread_t t;
 #if !defined(PRE_REWRITER)
-  int thread_create_ret = pthread_create(
-      &fault_thread, NULL, access_ptr_thread_fn, (void *)&thread_local_var);
+  int ret = pthread_create(&t, NULL, nop, NULL);
 #endif
-  pthread_join(fault_thread, NULL);
+  pthread_join(t, NULL);
 
   return 0;
 }

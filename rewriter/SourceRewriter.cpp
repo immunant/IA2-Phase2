@@ -45,6 +45,11 @@ static llvm::cl::opt<std::string>
                  llvm::cl::cat(SourceRewriterCategory),
                  llvm::cl::desc("<prefix for output files>"));
 
+static llvm::cl::opt<bool>
+    BackupSources("backup-sources", llvm::cl::Optional,
+                  llvm::cl::cat(SourceRewriterCategory),
+                  llvm::cl::desc("Back up source files before rewriting"));
+
 // Map each translation unit's filename to its pkey.
 static std::map<Filename, Pkey> file_pkeys;
 
@@ -853,11 +858,13 @@ int main(int argc, const char **argv) {
     num_pkeys += 1;
   }
 
-  for (auto s : options_parser.getSourcePathList()) {
-    // Make a copy of each original input sources
-    std::ifstream src(s, std::ios::binary);
-    std::ofstream dst(s + ".orig", std::ios::binary);
-    dst << src.rdbuf();
+  if (BackupSources) {
+    for (auto s : options_parser.getSourcePathList()) {
+      // Make a copy of each original input sources
+      std::ifstream src(s, std::ios::binary);
+      std::ofstream dst(s + ".orig", std::ios::binary);
+      dst << src.rdbuf();
+    }
   }
 
   /* Create the wrapper source and function pointer header */

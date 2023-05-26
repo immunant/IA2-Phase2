@@ -854,12 +854,12 @@ int main(int argc, const char **argv) {
     num_pkeys += 1;
   }
 
-  for (auto s : options_parser.getSourcePathList()) {
-    // Make a copy of each original input sources
-    std::ifstream src(s, std::ios::binary);
-    std::ofstream dst(s + ".orig", std::ios::binary);
-    dst << src.rdbuf();
-  }
+  //for (auto s : options_parser.getSourcePathList()) {
+  //  // Make a copy of each original input sources
+  //  std::ifstream src(s, std::ios::binary);
+  //  std::ofstream dst(s + ".orig", std::ios::binary);
+  //  dst << src.rdbuf();
+  //}
 
   /* Create the wrapper source and function pointer header */
   std::error_code EC;

@@ -1,6 +1,6 @@
 /*
-RUN: sh -c 'if [ ! -s "threads_call_gates_0.ld" ]; then echo "No link args as expected"; exit 0; fi; echo "Unexpected link args"; exit 1;'
-RUN: %binary_dir/tests/threads/threads_main_wrapped | FileCheck --dump-input=always -v %binary_dir/tests/threads/threads.out
+RUN: sh -c 'if [ ! -s "protected_threads_call_gates_0.ld" ]; then echo "No link args as expected"; exit 0; fi; echo "Unexpected link args"; exit 1;'
+RUN: %binary_dir/tests/protected_threads/protected_threads_main_wrapped
 */
 #include "library.h"
 #include <assert.h>
@@ -16,9 +16,7 @@ INIT_RUNTIME(2);
 #define IA2_COMPARTMENT 1
 #include <ia2_compartment_init.inc>
 
-void *nop(void *unused) {
-    return NULL;
-}
+void *nop(void *unused) { return NULL; }
 
 int main() {
   pthread_t t;

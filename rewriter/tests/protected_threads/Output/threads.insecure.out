@@ -1,0 +1,18 @@
+main-module main pkru=00000000
+CHECK: library pkru 00000000
+CHECK-NEXT: main-module main pkru=00000000
+CHECK-DAG: library pkru 00000000
+tid 2 ptr=0x1
+CHECK-DAG: main-module thread pkru=00000000
+CHECK-DAG: library pkru 00000000
+ptr is 0x1, formatting int: 000010cd
+CHECK-DAG: data in library: 900
+CHECK-DAG: main data is 30
+in lib, about to call fnptr; lib data: 900
+CHECK-DAG: main data is 30
+tid 3 ptr=0x2
+CHECK-DAG: main-module thread pkru=00000000
+CHECK-DAG: library pkru 00000000
+ptr is 0x2, formatting int: 000010ce
+CHECK-DAG: c1t3 accessing c1t1 thread-local: 50
+CHECK-NEXT: CHECK_VIOLATION: did not seg fault as expected

@@ -1,6 +1,6 @@
 /*
 RUN: cat read_config_call_gates_2.ld | FileCheck --check-prefix=LINKARGS %s
-TODO: %binary_dir/tests/read_config/read_config_main_wrapped | diff %S/Output/read_config.out -
+RUN: %binary_dir/tests/read_config/read_config_main_wrapped | diff %S/Output/read_config.out -
 RUN: readelf -lW %binary_dir/tests/read_config/read_config_main_wrapped | FileCheck --check-prefix=SEGMENTS %s
 RUN: cat main.c | FileCheck --match-full-lines --check-prefix=REWRITER %s
 */

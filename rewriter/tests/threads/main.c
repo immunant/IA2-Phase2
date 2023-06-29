@@ -36,7 +36,7 @@ void *thread_fn(void *ptr) {
 
   library_showpkru();
 
-  printf("ptr is %p, formatting int: %08x\n", ptr, 4300 + ptr);
+  printf("ptr is %p, formatting int: %08zx\n", ptr, 4300 + (size_t)ptr);
 
   return NULL;
 }

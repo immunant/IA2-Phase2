@@ -78,11 +78,11 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
       continue;
     }
 
-    void *start = info->dlpi_tls_data;
+    uint64_t start = (uint64_t)info->dlpi_tls_data;
     size_t len = phdr.p_memsz;
 
-    void *start_round_down = (void *)((uint64_t)start & ~0xFFFUL);
-    uint64_t start_moved_by = (uint64_t)start & 0xFFFUL;
+    uint64_t start_round_down = start & ~0xFFFUL;
+    uint64_t start_moved_by = start & 0xFFFUL;
     // p_memsz is 0x1000 more than the size of what we actually need to protect.
     // Thus the "rounding up" here is done via p_memsz being larger than it
     // needs to be, followed by the truncation below.
@@ -115,15 +115,14 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
     // it is followed by padding that ensures nothing else occupies the rest of
     // its page.
     if (untrusted_stackptr_addr >= start && untrusted_stackptr_addr < end) {
-      int mprotect_err =
-          pkey_mprotect(start_round_down,
-                        untrusted_stackptr_addr - (uint64_t)start_round_down,
-                        PROT_READ | PROT_WRITE, search_args->pkey);
+      int mprotect_err = pkey_mprotect(
+          (void *)start_round_down, untrusted_stackptr_addr - start_round_down,
+          PROT_READ | PROT_WRITE, search_args->pkey);
       if (mprotect_err != 0) {
         printf("pkey_mprotect failed: %s\n", strerror(errno));
         exit(-1);
       }
-      mprotect_err = pkey_mprotect(untrusted_stackptr_addr + 0x1000,
+      mprotect_err = pkey_mprotect((void *)untrusted_stackptr_addr + 0x1000,
                                    end - (untrusted_stackptr_addr + 0x1000),
                                    PROT_READ | PROT_WRITE, search_args->pkey);
       if (mprotect_err != 0) {
@@ -132,8 +131,8 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
       }
     } else {
       int mprotect_err =
-          pkey_mprotect(start_round_down, len_round_up, PROT_READ | PROT_WRITE,
-                        search_args->pkey);
+          pkey_mprotect((void *)start_round_down, len_round_up,
+                        PROT_READ | PROT_WRITE, search_args->pkey);
       if (mprotect_err != 0) {
         printf("pkey_mprotect failed: %s\n", strerror(errno));
         exit(-1);

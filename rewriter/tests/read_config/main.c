@@ -101,19 +101,18 @@ int main(int arcg, char **argv) {
     // the plugin has its options marked as shared data
     entries[idx].ty = opt->ty;
 
-
-    // The `entries[idx].value` which we want to fill out by calling `opt->parse` is
-    // on this compartment's stack. Since `opt->parse` may be a function in the
-    // plugin, we need to use a shared buffer. We only need a shared buffer for
-    // the entry's `value` field but that type is anonymously defined within the
-    // cfg_entry struct so let's just make a whole `struct cfg_entry` since it's
-    // small.
+    // The `entries[idx].value` which we want to fill out by calling
+    // `opt->parse` is on this compartment's stack. Since `opt->parse` may be a
+    // function in the plugin, we need to use a shared buffer. We only need a
+    // shared buffer for the entry's `value` field but that type is anonymously
+    // defined within the cfg_entry struct so let's just make a whole `struct
+    // cfg_entry` since it's small.
     static struct cfg_entry shared_entry IA2_SHARED_DATA;
 
     // These derefs are fine since the plugin sent a pointer to shared data.
     if (opt->ty == str) {
-       // Depending on the option's type, we may need to allocate space for a
-       // string
+      // Depending on the option's type, we may need to allocate space for a
+      // string
       shared_entry.value.str = (char *)shared_malloc(strlen(delim + 1));
     } else if (opt->ty == other) {
       shared_entry.value.other = shared_malloc(strlen(delim + 1));

@@ -5,8 +5,8 @@ RUN: readelf -lW %binary_dir/tests/read_config/libread_config_lib_wrapped.so | F
 // Check that readelf shows exactly one executable segment
 // SEGMENTS-COUNT-1: LOAD{{.*}}R E
 // SEGMENTS-NOT:     LOAD{{.*}}R E
-#include "core.h"
 #include "plugin.h"
+#include "core.h"
 #include <ia2.h>
 #include <stdio.h>
 #include <string.h>

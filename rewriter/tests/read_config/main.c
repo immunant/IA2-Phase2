@@ -10,6 +10,7 @@ RUN: cat main.c | FileCheck --match-full-lines --check-prefix=REWRITER %s
 // SEGMENTS-NOT:     LOAD{{.*}}R E
 #include "plugin.h"
 #include <ia2.h>
+#include <ia2_allocator.h>
 #include <stdio.h>
 #include <string.h>
 // TODO: Add the `#include output_header.h` to shared headers since they may
@@ -68,7 +69,7 @@ void parse_u32(char *opt, void *out) {
 
 int main(int arcg, char **argv) {
   // Pretend that the heap is intentionally shared for now
-  char *cfg = (char *)malloc(strlen(config_file));
+  char *cfg = (char *)shared_malloc(strlen(config_file));
   if (!cfg) {
     return -1;
   }
@@ -83,7 +84,7 @@ int main(int arcg, char **argv) {
     char *delim = strchr(tok, '=');
     *delim = '\0';
 
-    entries[idx].name = (char *)malloc(strlen(tok));
+    entries[idx].name = (char *)shared_malloc(strlen(tok));
     strcpy(entries[idx].name, tok);
 
     struct cfg_opt *opt;
@@ -112,9 +113,9 @@ int main(int arcg, char **argv) {
     if (opt->ty == str) {
        // Depending on the option's type, we may need to allocate space for a
        // string
-      shared_entry.value.str = (char *)malloc(strlen(delim + 1));
+      shared_entry.value.str = (char *)shared_malloc(strlen(delim + 1));
     } else if (opt->ty == other) {
-      shared_entry.value.other = malloc(strlen(delim + 1));
+      shared_entry.value.other = shared_malloc(strlen(delim + 1));
     }
 
     // This function pointer may come from the plugin, so drop from pkey 1 to
@@ -151,7 +152,8 @@ int main(int arcg, char **argv) {
     case other: {
       printf("at %p ", entries[i].value.other);
       if (i < PLUGIN_ENTRIES) {
-        // Passing this pointer to the plugin is fine since the heap is shared.
+        // Passing this pointer to the plugin is fine since we allocate via
+        // shared_malloc.
         print_tuple(entries[i].value.other);
       } else {
         // This passes a pointer to the builtin module, so it's not an issue.

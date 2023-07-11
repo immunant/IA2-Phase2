@@ -9,6 +9,9 @@
 #include <ngx_core.h>
 #include <ngx_http.h>
 #include <ngx_http_perl_module.h>
+#include <ia2.h>
+
+INIT_COMPARTMENT(2);
 
 
 typedef struct {

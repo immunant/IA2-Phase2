@@ -523,15 +523,15 @@ public:
       // TODO: Note that this only checks if a function is added to the
       // internal_addr_taken_fns map. To make the rewriter idempotent we should
       // check for an existing used attribute.
-      if (new_fn) {
-        auto decl_start = fn_decl->getBeginLoc();
-        Replacement used_attr(sm, decl_start, 0,
-                              llvm::StringRef("__attribute__((used))"));
-        auto err = file_replacements[filename].add(used_attr);
-        if (err) {
-          llvm::errs() << "Error adding replacements: " << err << '\n';
-        }
-      }
+      //if (new_fn) {
+      //  auto decl_start = fn_decl->getBeginLoc();
+      //  Replacement used_attr(sm, decl_start, 0,
+      //                        llvm::StringRef("__attribute__((used))"));
+      //  auto err = file_replacements[filename].add(used_attr);
+      //  if (err) {
+      //    llvm::errs() << "Error adding replacements: " << err << '\n';
+      //  }
+      //}
 
     } else {
       llvm::errs()

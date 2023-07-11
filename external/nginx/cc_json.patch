@@ -1,0 +1,52 @@
+diff --git a/external/nginx/compile_commands.json b/external/nginx/compile_commands.json
+index 65026b07b..26bc50e40 100644
+--- a/external/nginx/compile_commands.json
++++ b/external/nginx/compile_commands.json
+@@ -5728,23 +5728,28 @@
+       "/usr/bin/cc",
+       "-c",
+       "-I",
+-      "../../../../../src/core",
++      "src/core",
+       "-I",
+-      "../../../../../src/event",
++      "src/event",
+       "-I",
+-      "../../../../../src/event/modules",
++      "src/event/modules",
+       "-I",
+-      "../../../../../src/os/unix",
++      "src/os/unix",
+       "-I",
+-      "../../../../../src/http/modules/perl",
++      "src/http/modules/perl",
+       "-I",
+       "/home/ayrton/immunant/IA2-Phase2/external/nginx/build",
+       "-I",
+-      "../../../../../src/http",
++      "src/http",
+       "-I",
+-      "../../../../../src/http/modules",
++      "src/http/modules",
+       "-D_REENTRANT",
+       "-D_GNU_SOURCE",
++      "-DPKEY=2",
++      "-I",
++      "/usr/lib/gcc/x86_64-pc-linux-gnu/12.2.1/include",
++      "-I",
++      "/usr/lib/gcc/x86_64-pc-linux-gnu/12.2.1/include-fixed",
+       "-fwrapv",
+       "-fno-strict-aliasing",
+       "-pipe",
+@@ -5759,9 +5764,9 @@
+       "-DXS_VERSION=\"1.21.7\"",
+       "-fPIC",
+       "-I/usr/lib/perl5/5.36/core_perl/CORE",
+-      "nginx.c"
++      "/home/ayrton/immunant/IA2-Phase2/external/nginx/build/src/http/modules/perl/nginx.c"
+     ],
+-    "directory": "/home/ayrton/immunant/IA2-Phase2/external/nginx/build/src/http/modules/perl",
++    "directory": "/home/ayrton/immunant/IA2-Phase2/external/nginx",
+     "file": "/home/ayrton/immunant/IA2-Phase2/external/nginx/build/src/http/modules/perl/nginx.c"
+   },
+   {

@@ -15,7 +15,8 @@ jobs:
     strategy:
       matrix:
         build-type: [Release, Debug]
-        compiler: [clang, gcc]
+        c_compiler: [clang, gcc]
+        cxx_compiler: [clang++, g++]
         linker: [lld, bfd]
     steps:
       - name: Check out code
@@ -28,7 +29,8 @@ jobs:
           pushd build
           cmake ..                                                       \
             -DCMAKE_BUILD_TYPE=${{ matrix.build-type }}                  \
-            -DCMAKE_C_COMPILER=${{ matrix.compiler }}                    \
+            -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}                  \
+            -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }}              \
             -DCMAKE_C_FLAGS="-fuse-ld=${{ matrix.linker }}"              \
             -DClang_DIR=$Clang_DIR                                       \
             -DLLVM_DIR=$LLVM_DIR                                         \

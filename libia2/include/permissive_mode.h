@@ -1,10 +1,15 @@
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE // for SIG* macro
 #endif
+#include <assert.h>
+#include <dlfcn.h>
 #include <pthread.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 /*
  * PKRU is defined to be bit 9 in the XSAVE state component bitmap (Intel SDM

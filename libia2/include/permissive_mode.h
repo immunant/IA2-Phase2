@@ -7,6 +7,19 @@
 #include <stdio.h>
 
 /*
+ * PKRU is defined to be bit 9 in the XSAVE state component bitmap (Intel SDM
+ * Section 13.1).
+ */
+#define XFEATURE_PKRU 9
+#define XFEATURE_MASK_PKRU		(1 << XFEATURE_PKRU)
+
+/*
+ * Offset of the XSAVE header in bytes from the XSAVE area base (Intel SDM
+ * Section 13.4.2)
+ */
+#define XSAVE_HEADER_OFFSET 512
+
+/*
  * This header implements an signal handler to allow running compartmentalized
  * programs in a "permissive mode" which logs cross-compartment memory accesses
  * instead of terminating the process. To use it, just #include this header from
@@ -135,6 +148,12 @@ void permissive_mode_handler(int sig, siginfo_t *info, void *ctxt) {
   int offset = pkru_offset();
   char *fpregs = (char *)uctxt->uc_mcontext.fpregs;
   uint32_t *pkru = (uint32_t *)(&fpregs[offset]);
+
+  // Set bit 9 (PKRU) in the xfeatures so that the PKRU register always gets
+  // restored from the XSAVE state after the signal handler. See
+  // copy_uabi_to_xstate() in the kernel xstate handling.
+  uint64_t *xsave_header = (uint64_t *)(&fpregs[XSAVE_HEADER_OFFSET]);
+  *xsave_header |= XFEATURE_MASK_PKRU;
 
   const uint64_t trap_bit = 0x100;
   static __thread uint32_t old_pkru = 0;

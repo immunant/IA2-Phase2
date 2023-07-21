@@ -3,6 +3,7 @@ project(IA2Phase2)
 
 find_package(PkgConfig REQUIRED)
 
+include(CTest)
 
 set(EXTERNAL_DIR ${PROJECT_SOURCE_DIR}/external)
 

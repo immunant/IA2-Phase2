@@ -77,7 +77,7 @@ int pkru_offset(void) {
   unsigned int ebx, edx;
   asm volatile("cpuid"
                : "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx)
-               : "0"(eax), "2"(ebx));
+               : "0"(eax), "2"(ecx));
   return ebx;
 }
 

@@ -11,6 +11,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "ia2.h"
+
 /*
  * PKRU is defined to be bit 9 in the XSAVE state component bitmap (Intel SDM
  * Section 13.1).
@@ -107,7 +109,7 @@ struct queue {
  * with a spinlock.
  */
 struct queue *get_queue(void) {
-  static struct queue mpk_violations = {0};
+  static struct queue mpk_violations IA2_SHARED_DATA = {0};
   while (!__sync_bool_compare_and_swap(&mpk_violations.locked, 0, 1))
     ;
   return &mpk_violations;
@@ -187,10 +189,10 @@ void permissive_mode_handler(int sig, siginfo_t *info, void *ctxt) {
 }
 
 // Flag to notify logging thread that the process is exiting
-static bool exiting = false;
+static bool exiting IA2_SHARED_DATA = false;
 
 // Process-specific name for log file
-static char log_name[24] = {0};
+static char log_name[24] IA2_SHARED_DATA = {0};
 
 // The main function in the logging thread
 void *log_mpk_violations(void *arg) {
@@ -253,7 +255,7 @@ __attribute__((naked)) void permissive_mode_trampoline(int sig, siginfo_t *info,
       "jmp permissive_mode_handler");
 }
 
-static pthread_t logging_thread;
+static pthread_t logging_thread IA2_SHARED_DATA;
 
 /*
  * The logging thread is created from a constructor which happens before the
@@ -267,7 +269,7 @@ typeof(IA2_IGNORE(pthread_create)) __real_pthread_create;
 
 // The constructor that installs the signal handlers
 __attribute__((constructor)) void install_permissive_mode_handler(void) {
-  static struct sigaction act = {
+  struct sigaction act = {
       .sa_sigaction = IA2_IGNORE(permissive_mode_trampoline),
       .sa_flags = SA_SIGINFO,
   };
@@ -276,7 +278,7 @@ __attribute__((constructor)) void install_permissive_mode_handler(void) {
   sigaddset(&(act.sa_mask), SIGTRAP);
   sigaction(SIGSEGV, &act, NULL);
 
-  static struct sigaction act2 = {
+  struct sigaction act2 = {
       .sa_sigaction = IA2_IGNORE(permissive_mode_trampoline),
       .sa_flags = SA_SIGINFO,
   };

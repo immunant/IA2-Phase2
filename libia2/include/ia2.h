@@ -36,6 +36,13 @@
 
 #endif
 
+/// Helper to get the PKRU register value
+static uint32_t ia2_get_pkru() {
+  uint32_t pkru;
+  __asm__ volatile("rdpkru" : "=a"(pkru) : "a"(0), "d"(0), "c"(0));
+  return pkru;
+}
+
 /// Protect pages in the given shared object
 ///
 /// \param info dynamic linker information for the current object

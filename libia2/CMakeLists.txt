@@ -15,6 +15,8 @@ target_link_options(libia2
         "-Wl,--wrap=main"
 )
 
+target_link_libraries(libia2 PRIVATE dl)
+
 target_include_directories(libia2 PUBLIC include)
 target_compile_definitions(libia2 PRIVATE _GNU_SOURCE)
 

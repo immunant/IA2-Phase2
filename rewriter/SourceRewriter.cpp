@@ -889,7 +889,9 @@ int main(int argc, const char **argv) {
       "    \"xorl %ecx, %ecx\\n\" \\\n"
       "    \"rdpkru\\n\" \\\n"
       "    \"cmpl $\" #pkru \", %eax\\n\" \\\n"
-      "    \"jne __libia2_abort\\n\" \\\n"
+      "    \"je 1f\\n\" \\\n"
+      "    \"ud2\\n\" \\\n"
+      "\"1:\\n\" \\\n"
       "    \"movq %r11, %rdx\\n\" \\\n"
       "    \"movq %r10, %rcx\\n\"\n"
       "#else\n"
@@ -931,9 +933,6 @@ int main(int argc, const char **argv) {
   wrapper_out << "#define IA2_WRPKRU \"wrpkru\"\n";
   wrapper_out << "#endif\n";
   wrapper_out << assert_pkru_macro;
-
-  wrapper_out << "asm(\"__libia2_abort:\\n\"\n"
-              << "    \"ud2\");\n";
 
   /*
    * Define wrappers for IA2_CALL. These switch from the caller's pkey to pkey 0

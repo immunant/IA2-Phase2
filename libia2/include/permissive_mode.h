@@ -196,6 +196,8 @@ static char log_name[24] IA2_SHARED_DATA = {0};
 
 // The main function in the logging thread
 void *log_mpk_violations(void *arg) {
+  /* Explicitly enter compartment 1, because this function isn't wrapped. */
+  __asm__("wrpkru\n" : : "a"(0xFFFFFFF0), "d"(0), "c"(0));
   snprintf(log_name, sizeof(log_name), "mpk_log_%d", getpid());
   FILE *log = fopen(log_name, "w");
   assert(log);

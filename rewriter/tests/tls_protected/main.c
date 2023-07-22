@@ -13,12 +13,6 @@ RUN: %binary_dir/tests/tls_protected/tls_protected_main_wrapped print_lib_secret
 #include "test_fault_handler.h"
 #include <threads.h>
 
-uint32_t rdpkru() {
-  uint32_t old_pkru = 0;
-  __asm__ volatile(IA2_RDPKRU : "=a"(old_pkru) : "a"(0), "d"(0), "c"(0));
-  return old_pkru;
-}
-
 INIT_RUNTIME(2);
 INIT_COMPARTMENT(1);
 
@@ -34,23 +28,23 @@ volatile void *addr;
 int main(int argc, char **argv) {
 
   errno = 5;
-  printf("errno=%d, pkru=%08x\n", errno, rdpkru());
+  printf("errno=%d, pkru=%08x\n", errno, ia2_get_pkru());
 
   lib_print_lib_secret();
 
   // Access to thread-local from the same compartment should work.
   printf("main: main secret is %x\n", main_secret);
-  printf("errno=%d, pkru=%08x\n", errno, rdpkru());
+  printf("errno=%d, pkru=%08x\n", errno, ia2_get_pkru());
   lib_print_lib_secret();
 
-  printf("errno=%d, pkru=%08x\n", errno, rdpkru());
+  printf("errno=%d, pkru=%08x\n", errno, ia2_get_pkru());
   // If we have an argument, test the "main accessing lib" direction;
   // otherwise test the "lib accessing main" direction. Both should
   // exit with an MPK violation.
   bool access_lib_secret = argc > 1;
 
   errno = 5;
-  printf("pkru=%08x\n", rdpkru());
+  printf("pkru=%08x\n", ia2_get_pkru());
   printf("errno=%d\n", errno);
 
   // Perform forbidden access.

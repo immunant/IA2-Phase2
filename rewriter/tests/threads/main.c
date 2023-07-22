@@ -21,18 +21,12 @@ void defined_in_main(void) { printf("main data is %d\n", data_in_main); }
 
 Fn fnptr_from_main = defined_in_main;
 
-static inline unsigned int rdpkru(void) {
-  uint32_t pkru = 0;
-  __asm__ volatile(IA2_RDPKRU : "=a"(pkru) : "a"(0), "d"(0), "c"(0));
-  return pkru;
-}
-
 void *thread_fn(void *ptr);
 
 void *thread_fn(void *ptr) {
   printf("tid %d ptr=%p\n", gettid(), ptr);
 
-  printf("main-module thread pkru=%08x\n", rdpkru());
+  printf("main-module thread pkru=%08x\n", ia2_get_pkru());
 
   library_showpkru();
 
@@ -62,9 +56,9 @@ void *access_ptr_thread_fn(void *ptr) {
 }
 
 int main() {
-  printf("main-module main pkru=%08x\n", rdpkru());
+  printf("main-module main pkru=%08x\n", ia2_get_pkru());
   library_showpkru();
-  printf("main-module main pkru=%08x\n", rdpkru());
+  printf("main-module main pkru=%08x\n", ia2_get_pkru());
 
   pthread_t lib_thread = library_spawn_thread();
 

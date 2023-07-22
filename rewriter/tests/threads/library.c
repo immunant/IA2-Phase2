@@ -28,14 +28,8 @@ void library_memset(void *ptr, uint8_t byte, size_t n) {
   }
 }
 
-static inline unsigned int rdpkru(void) {
-  uint32_t pkru = 0;
-  __asm__ volatile(IA2_RDPKRU : "=a"(pkru) : "a"(0), "d"(0), "c"(0));
-  return pkru;
-}
-
 // LINKARGS: --wrap=library_showpkru
-void library_showpkru(void) { printf("library pkru %08x\n", rdpkru()); }
+void library_showpkru(void) { printf("library pkru %08x\n", ia2_get_pkru()); }
 
 static void *library_showpkru_thread_main(void *unused) {
   library_showpkru();

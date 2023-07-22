@@ -38,8 +38,8 @@
 
 /// Helper to get the PKRU register value
 static uint32_t ia2_get_pkru() {
-  uint32_t pkru;
-  __asm__ volatile("rdpkru" : "=a"(pkru) : "a"(0), "d"(0), "c"(0));
+  uint32_t pkru = 0;
+  __asm__ volatile(IA2_RDPKRU : "=a"(pkru) : "a"(0), "d"(0), "c"(0));
   return pkru;
 }
 

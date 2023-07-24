@@ -6,8 +6,8 @@ index 0baedf9fd..e5e7d0b75 100644
                  goto failed;
              }
  
--            rv = IA2_CALL((*cf->handler), 18)(cf, NULL, cf->handler_conf);
-+            rv = IA2_CALL((cf->handler), 18)(cf, NULL, cf->handler_conf);
+-            rv = IA2_CALL((*cf->handler), 17)(cf, NULL, cf->handler_conf);
++            rv = IA2_CALL((cf->handler), 17)(cf, NULL, cf->handler_conf);
              if (rv == NGX_CONF_OK) {
                  continue;
              }
@@ -47,7 +47,7 @@ index be18abd05..c036e251f 100644
  
 -    handler = ev->data;
 +    handler.ptr = ev->data;
-     IA2_CALL(handler, 13)(ev);
+     IA2_CALL(handler, 12)(ev);
  }
  
 @@ -766,7 +766,7 @@ ngx_epoll_notify(ngx_event_handler_pt handler)

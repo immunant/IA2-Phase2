@@ -146,9 +146,16 @@ ngx_log_error_core(ngx_uint_t level, ngx_log_t *log, ngx_err_t err,
         p = ngx_log_errno(p, last, err);
     }
 
+    /* HACK: Disable calling handler.
+     *
+     * ngx_log_error_core is variadic and therefore may not be wrapped. As such,
+     * it may be running in the wrong compartment. If we try to switch from the
+     * expected compartment here we will corrupt the stack point on returning
+     * back.
     if (level != NGX_LOG_DEBUG && log->handler) {
         p = log->handler(log, p, last - p);
     }
+     */
 
     if (p > last - NGX_LINEFEED_SIZE) {
         p = last - NGX_LINEFEED_SIZE;

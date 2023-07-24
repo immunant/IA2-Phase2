@@ -247,6 +247,7 @@ __attribute__((naked)) void permissive_mode_trampoline(int sig, siginfo_t *info,
       // rcx and rdx may arguments so preserve them across the wrpkru
       "movq %rcx, %r10\n"
       "movq %rdx, %r11\n"
+      "movq %rax, %r12\n"
       // zero the PKRU to allow access to all compartments
       "xorl %ecx, %ecx\n"
       "xorl %edx, %edx\n"
@@ -254,6 +255,7 @@ __attribute__((naked)) void permissive_mode_trampoline(int sig, siginfo_t *info,
       "wrpkru\n"
       "movq %r10, %rcx\n"
       "movq %r11, %rdx\n"
+      "movq %r12, %rax\n"
       "jmp permissive_mode_handler");
 }
 

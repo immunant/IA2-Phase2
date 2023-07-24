@@ -1,3 +1,4 @@
+#if !IA2_PREREWRITER
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE // for SIG* macro
 #endif
@@ -91,12 +92,17 @@ int pkru_offset(void) {
  * could use dynamic allocation by periodically increasing the capacity when the
  * logging thread pops but there's not much benefit to this for debugging.
  */
-#define QUEUE_SIZE 1024
+#define QUEUE_SIZE 8192
 
 // The entries in the queue
 typedef struct mpk_err {
   uint64_t addr;
+  uint64_t val;
   uint64_t pc;
+  uint64_t sp;
+  uint64_t fp;
+  uint32_t pkru;
+  uint64_t local_addr;
 } mpk_err;
 
 struct queue {
@@ -147,10 +153,10 @@ bool pop_queue(struct queue *q, mpk_err *e) {
 void permissive_mode_handler(int sig, siginfo_t *info, void *ctxt) {
   bool handling_pkuerr = sig == SIGSEGV && info && info->si_code == SEGV_PKUERR;
   bool handling_trap = sig == SIGTRAP;
+  ucontext_t *uctxt = (ucontext_t *)ctxt;
   if (!handling_pkuerr && !handling_trap) {
     return;
   }
-  ucontext_t *uctxt = (ucontext_t *)ctxt;
   uint64_t *eflags = (uint64_t *)(&uctxt->uc_mcontext.gregs[REG_EFL]);
 
   // Calculate the offset of the PKRU within fpregs in ucontext
@@ -169,6 +175,7 @@ void permissive_mode_handler(int sig, siginfo_t *info, void *ctxt) {
   if (handling_pkuerr) {
     // Set the EFLAGS trap bit when the handler returns
     *eflags |= trap_bit;
+
     // Save the PKRU in the ucontext
     old_pkru = *pkru;
     // Set the PKRU for when the handler returns
@@ -176,12 +183,14 @@ void permissive_mode_handler(int sig, siginfo_t *info, void *ctxt) {
 
     // Push the memory address and progam counter onto the queue
     uint64_t pc = (uint64_t)uctxt->uc_mcontext.gregs[REG_RIP];
+    uint64_t sp = (uint64_t)uctxt->uc_mcontext.gregs[REG_RSP];
+    uint64_t fp = (uint64_t)uctxt->uc_mcontext.gregs[REG_RBP];
     // Ensure that the logging thread is not popping values
     struct queue *q = get_queue();
-    mpk_err err = {.addr = (uint64_t)info->si_addr, .pc = pc};
+    uint64_t val = *(uint64_t *)info->si_addr;
+    mpk_err err = {.addr = (uint64_t)info->si_addr, .val = val, .pc = pc, .sp = sp, .fp = fp, .pkru = old_pkru, .local_addr = (uint64_t)&pc};
     push_queue(q, err);
     release_queue(q);
-
   } else if (handling_trap) {
     // Restore the PKRU for when the handler returns
     *pkru = old_pkru;
@@ -194,7 +203,7 @@ void permissive_mode_handler(int sig, siginfo_t *info, void *ctxt) {
 static bool exiting IA2_SHARED_DATA = false;
 
 // Process-specific name for log file
-static char log_name[24] IA2_SHARED_DATA = {0};
+static char log_name[256] IA2_SHARED_DATA = {0};
 
 int elfaddr(const void *addr, Dl_info *info) {
   static struct f {
@@ -325,28 +334,27 @@ void *log_mpk_violations(void *arg) {
   assert(log);
   while (1) {
     // We don't want this thread to just spin if nothing is happening
-    // sleep(1);
+    sleep(1);
 
     // Ensure the sighandler isn't pushing onto the queue
     struct queue *q = get_queue();
     mpk_err err;
     // Pop everything currently in the queue
     while (pop_queue(q, &err)) {
-      const char *unknown = "<unknown>";
-      Dl_info dlinf = {0};
-      dladdr((void *)err.addr, &dlinf);
-      const char *sym_name = dlinf.dli_sname;
-      if (!sym_name) {
-        sym_name = unknown;
+#define ENTRY_NUM 6
+      void *names[ENTRY_NUM] = {"addr", "val", "pc", "sp", "fp", "local_addr"};
+      void *addresses[ENTRY_NUM] = {err.addr, err.val, err.pc, err.sp, err.fp, err.local_addr};
+      for (int i = 0; i < ENTRY_NUM; i++) {
+          Dl_info dlinf = {0};
+          dladdr((void *)addresses[i], &dlinf);
+          const char *name = dlinf.dli_sname;
+          if (name) {
+            fprintf(log, "%s: %s (%lx),", names[i], name, addresses[i]);
+          } else {
+            fprintf(log, "%s: %lx,", names[i], addresses[i]);
+          }
       }
-      memset(&dlinf, 0, sizeof(Dl_info));
-      dladdr((void *)err.pc, &dlinf);
-      const char *fn_name = dlinf.dli_sname;
-      if (!fn_name) {
-        fn_name = unknown;
-      }
-      fprintf(log, "MPK error accessing %s (%lx) from %s (%lx)\n", sym_name,
-              err.addr, fn_name, err.pc);
+      fprintf(log, " pkru: %lx\n", err.pkru);
     }
     release_queue(q);
 
@@ -439,3 +447,4 @@ __attribute((destructor)) void wait_logging_thread(void) {
   fclose(log);
   fclose(maps);
 }
+#endif

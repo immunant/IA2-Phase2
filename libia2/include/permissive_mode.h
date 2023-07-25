@@ -343,7 +343,7 @@ void *log_mpk_violations(void *arg) {
     while (pop_queue(q, &err)) {
 #define ENTRY_NUM 6
       void *names[ENTRY_NUM] = {"addr", "val", "pc", "sp", "fp", "local_addr"};
-      void *addresses[ENTRY_NUM] = {err.addr, err.val, err.pc, err.sp, err.fp, err.local_addr};
+      uint64_t addresses[ENTRY_NUM] = {err.addr, err.val, err.pc, err.sp, err.fp, err.local_addr};
       for (int i = 0; i < ENTRY_NUM; i++) {
           Dl_info dlinf = {0};
           dladdr((void *)addresses[i], &dlinf);

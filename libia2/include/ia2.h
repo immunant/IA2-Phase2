@@ -11,6 +11,9 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
+/* Supress unused warning */
+#define __IA2_UNUSED __attribute__((__unused__))
+
 #define INIT_COMPARTMENT_COMMON(n)                                             \
   __thread void *ia2_stackptr_##n __attribute__((used));
 
@@ -37,7 +40,7 @@
 #endif
 
 /// Helper to get the PKRU register value
-__attribute__((unused))
+__IA2_UNUSED
 static uint32_t ia2_get_pkru() {
   uint32_t pkru = 0;
   __asm__ volatile(IA2_RDPKRU : "=a"(pkru) : "a"(0), "d"(0), "c"(0));
@@ -135,7 +138,7 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
 /* Allocate and protect the stack for this thread's i'th compartment. */
 #define ALLOCATE_COMPARTMENT_STACK(i)                                          \
   {                                                                            \
-    extern __thread void *ia2_stackptr_##i;                                    \
+    __IA2_UNUSED extern __thread void *ia2_stackptr_##i;                       \
                                                                                \
     register void *stack asm("rax") = allocate_stack(i);                       \
                                                                                \
@@ -171,7 +174,7 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
   }
 /* clang-format on */
 
-#define PKRU(pkey) (~((3 << (2 * pkey)) | 3))
+#define PKRU(pkey) (~((3U << (2 * pkey)) | 3))
 
 #define return_stackptr_if_compartment(compartment)                            \
   if (pkru == PKRU(compartment)) {                                             \
@@ -254,34 +257,49 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
     }                                                                          \
     goto compartment##n;                                                       \
   compartment15:                                                               \
+    __IA2_UNUSED;                                                              \
     protect_tls_for_compartment(15);                                           \
   compartment14:                                                               \
+    __IA2_UNUSED;                                                              \
     protect_tls_for_compartment(14);                                           \
   compartment13:                                                               \
+    __IA2_UNUSED;                                                              \
     protect_tls_for_compartment(13);                                           \
   compartment12:                                                               \
+    __IA2_UNUSED;                                                              \
     protect_tls_for_compartment(12);                                           \
   compartment11:                                                               \
+    __IA2_UNUSED;                                                              \
     protect_tls_for_compartment(11);                                           \
   compartment10:                                                               \
+    __IA2_UNUSED;                                                              \
     protect_tls_for_compartment(10);                                           \
   compartment9:                                                                \
+    __IA2_UNUSED;                                                              \
     protect_tls_for_compartment(9);                                            \
   compartment8:                                                                \
+    __IA2_UNUSED;                                                              \
     protect_tls_for_compartment(8);                                            \
   compartment7:                                                                \
+    __IA2_UNUSED;                                                              \
     protect_tls_for_compartment(7);                                            \
   compartment6:                                                                \
+    __IA2_UNUSED;                                                              \
     protect_tls_for_compartment(6);                                            \
   compartment5:                                                                \
+    __IA2_UNUSED;                                                              \
     protect_tls_for_compartment(5);                                            \
   compartment4:                                                                \
+    __IA2_UNUSED;                                                              \
     protect_tls_for_compartment(4);                                            \
   compartment3:                                                                \
+    __IA2_UNUSED;                                                              \
     protect_tls_for_compartment(3);                                            \
   compartment2:                                                                \
+    __IA2_UNUSED;                                                              \
     protect_tls_for_compartment(2);                                            \
   compartment1:                                                                \
+    __IA2_UNUSED;                                                              \
     protect_tls_for_compartment(1);                                            \
   }                                                                            \
   /* Ensure that all required pkeys are allocated. */                          \
@@ -314,36 +332,52 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
   void **ia2_stackptr_for_pkru(uint32_t pkru) {                                \
     goto compartment##n;                                                       \
   compartment15:                                                               \
+    __IA2_UNUSED;                                                              \
     return_stackptr_if_compartment(15);                                        \
   compartment14:                                                               \
+    __IA2_UNUSED;                                                              \
     return_stackptr_if_compartment(14);                                        \
   compartment13:                                                               \
+    __IA2_UNUSED;                                                              \
     return_stackptr_if_compartment(13);                                        \
   compartment12:                                                               \
+    __IA2_UNUSED;                                                              \
     return_stackptr_if_compartment(12);                                        \
   compartment11:                                                               \
+    __IA2_UNUSED;                                                              \
     return_stackptr_if_compartment(11);                                        \
   compartment10:                                                               \
+    __IA2_UNUSED;                                                              \
     return_stackptr_if_compartment(10);                                        \
   compartment9:                                                                \
+    __IA2_UNUSED;                                                              \
     return_stackptr_if_compartment(9);                                         \
   compartment8:                                                                \
+    __IA2_UNUSED;                                                              \
     return_stackptr_if_compartment(8);                                         \
   compartment7:                                                                \
+    __IA2_UNUSED;                                                              \
     return_stackptr_if_compartment(7);                                         \
   compartment6:                                                                \
+    __IA2_UNUSED;                                                              \
     return_stackptr_if_compartment(6);                                         \
   compartment5:                                                                \
+    __IA2_UNUSED;                                                              \
     return_stackptr_if_compartment(5);                                         \
   compartment4:                                                                \
+    __IA2_UNUSED;                                                              \
     return_stackptr_if_compartment(4);                                         \
   compartment3:                                                                \
+    __IA2_UNUSED;                                                              \
     return_stackptr_if_compartment(3);                                         \
   compartment2:                                                                \
+    __IA2_UNUSED;                                                              \
     return_stackptr_if_compartment(2);                                         \
   compartment1:                                                                \
+    __IA2_UNUSED;                                                              \
     return_stackptr_if_compartment(1);                                         \
   compartment0:                                                                \
+    __IA2_UNUSED;                                                              \
     return_stackptr_if_compartment(0);                                         \
     return NULL;                                                               \
   }                                                                            \
@@ -351,36 +385,52 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
   __attribute__((weak)) void init_stacks(void) {                               \
     goto compartment##n;                                                       \
   compartment15:                                                               \
+    __IA2_UNUSED;                                                              \
     ALLOCATE_COMPARTMENT_STACK(15)                                             \
   compartment14:                                                               \
+    __IA2_UNUSED;                                                              \
     ALLOCATE_COMPARTMENT_STACK(14)                                             \
   compartment13:                                                               \
+    __IA2_UNUSED;                                                              \
     ALLOCATE_COMPARTMENT_STACK(13)                                             \
   compartment12:                                                               \
+    __IA2_UNUSED;                                                              \
     ALLOCATE_COMPARTMENT_STACK(12)                                             \
   compartment11:                                                               \
+    __IA2_UNUSED;                                                              \
     ALLOCATE_COMPARTMENT_STACK(11)                                             \
   compartment10:                                                               \
+    __IA2_UNUSED;                                                              \
     ALLOCATE_COMPARTMENT_STACK(10)                                             \
   compartment9:                                                                \
+    __IA2_UNUSED;                                                              \
     ALLOCATE_COMPARTMENT_STACK(9)                                              \
   compartment8:                                                                \
+    __IA2_UNUSED;                                                              \
     ALLOCATE_COMPARTMENT_STACK(8)                                              \
   compartment7:                                                                \
+    __IA2_UNUSED;                                                              \
     ALLOCATE_COMPARTMENT_STACK(7)                                              \
   compartment6:                                                                \
+    __IA2_UNUSED;                                                              \
     ALLOCATE_COMPARTMENT_STACK(6)                                              \
   compartment5:                                                                \
+    __IA2_UNUSED;                                                              \
     ALLOCATE_COMPARTMENT_STACK(5)                                              \
   compartment4:                                                                \
+    __IA2_UNUSED;                                                              \
     ALLOCATE_COMPARTMENT_STACK(4)                                              \
   compartment3:                                                                \
+    __IA2_UNUSED;                                                              \
     ALLOCATE_COMPARTMENT_STACK(3)                                              \
   compartment2:                                                                \
+    __IA2_UNUSED;                                                              \
     ALLOCATE_COMPARTMENT_STACK(2)                                              \
   compartment1:                                                                \
+    __IA2_UNUSED;                                                              \
     ALLOCATE_COMPARTMENT_STACK(1)                                              \
   compartment0:                                                                \
+    __IA2_UNUSED;                                                              \
     /* allocate an unprotected stack for the untrusted compartment */          \
     ia2_stackptr_0 = allocate_stack(0);                                        \
   }                                                                            \

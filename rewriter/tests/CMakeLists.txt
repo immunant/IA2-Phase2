@@ -34,6 +34,7 @@ add_subdirectory(heap_two_keys)
 # add_subdirectory(libusb)
 add_subdirectory(macro_attr)
 add_subdirectory(minimal)
+add_subdirectory(mmap_loop)
 # TODO: support C++ namespaces
 #add_subdirectory(namespaces)
 add_subdirectory(recursion)

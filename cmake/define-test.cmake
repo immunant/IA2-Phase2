@@ -89,18 +89,9 @@ function(define_shared_lib)
     foreach(target ${LIBNAME} ${WRAPPED_LIBNAME})
         set_target_properties(${target} PROPERTIES PKEY ${SHARED_LIB_PKEY})
 
-        add_dependencies(${target} libia2)
-
-        if(LIBIA2_INSECURE)
-            target_compile_definitions(${target} PUBLIC LIBIA2_INSECURE=1)
-        endif()
-        if(LIBIA2_DEBUG)
-            target_compile_definitions(${target} PUBLIC LIBIA2_DEBUG=1)
-        endif()
         if (DEFINED SHARED_LIB_PKEY)
             target_compile_definitions(${target} PRIVATE PKEY=${SHARED_LIB_PKEY})
         endif()
-        target_compile_definitions(${target} PRIVATE _GNU_SOURCE)
         target_compile_options(${target} PRIVATE
             "-Werror=incompatible-pointer-types"
             "-fsanitize=undefined"
@@ -223,18 +214,9 @@ function(define_test)
     foreach(target ${MAIN} ${WRAPPED_MAIN})
         set_target_properties(${target} PROPERTIES PKEY ${DEFINE_TEST_PKEY})
 
-        add_dependencies(${target} libia2)
-
-        if(LIBIA2_INSECURE)
-            target_compile_definitions(${target} PUBLIC LIBIA2_INSECURE=1)
-        endif()
-        if(LIBIA2_DEBUG)
-            target_compile_definitions(${target} PUBLIC LIBIA2_DEBUG=1)
-        endif()
         if(DEFINED DEFINE_TEST_PKEY)
             target_compile_definitions(${target} PRIVATE PKEY=${DEFINE_TEST_PKEY})
         endif()
-        target_compile_definitions(${target} PRIVATE _GNU_SOURCE)
         target_compile_options(${target} PRIVATE
             "-Werror=incompatible-pointer-types"
             "-fsanitize=undefined"

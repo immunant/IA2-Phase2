@@ -107,7 +107,6 @@ function(define_shared_lib)
             "-isystem${C_SYSTEM_INCLUDE}"
             "-isystem${C_SYSTEM_INCLUDE_FIXED}")
         target_link_options(${target} PRIVATE
-            "-Wl,-z,now"
             # UBSAN requires passing this as both a compiler and linker flag
             "-fsanitize=undefined")
         target_link_libraries(${target} PRIVATE
@@ -232,7 +231,6 @@ function(define_test)
             "-isystem${C_SYSTEM_INCLUDE}"
             "-isystem${C_SYSTEM_INCLUDE_FIXED}")
         target_link_options(${target} PRIVATE
-            "-Wl,-z,now"
             # UBSAN requires passing this as both a compiler and linker flag
             "-fsanitize=undefined"
             "-Wl,--export-dynamic")

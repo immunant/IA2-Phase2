@@ -16,6 +16,11 @@ target_link_options(libia2
         "-pthread"
         "-Wl,--wrap=pthread_create"
         "-Wl,--wrap=main"
+
+        # Eagerly resolve GOT relocations
+        "-Wl,-z,now"
+        # So that we can mark all relocatable data as read-only after relocation
+        "-Wl,-z,relro"
 )
 
 target_link_libraries(libia2 PRIVATE dl)

@@ -14,6 +14,33 @@
 /* Supress unused warning */
 #define __IA2_UNUSED __attribute__((__unused__))
 
+/* clang-format off */
+#define REPEATB0(fn, basefn) basefn(0)
+#define REPEATB1(fn, basefn) fn(1); REPEATB0(fn, basefn)
+#define REPEATB2(fn, basefn) fn(2); REPEATB1(fn, basefn)
+#define REPEATB3(fn, basefn) fn(3); REPEATB2(fn, basefn)
+#define REPEATB4(fn, basefn) fn(4); REPEATB3(fn, basefn)
+#define REPEATB5(fn, basefn) fn(5); REPEATB4(fn, basefn)
+#define REPEATB6(fn, basefn) fn(6); REPEATB5(fn, basefn)
+#define REPEATB7(fn, basefn) fn(7); REPEATB6(fn, basefn)
+#define REPEATB8(fn, basefn) fn(8); REPEATB7(fn, basefn)
+#define REPEATB9(fn, basefn) fn(9); REPEATB8(fn, basefn)
+#define REPEATB10(fn, basefn) fn(10); REPEATB9(fn, basefn)
+#define REPEATB11(fn, basefn) fn(11); REPEATB10(fn, basefn)
+#define REPEATB12(fn, basefn) fn(12); REPEATB11(fn, basefn)
+#define REPEATB13(fn, basefn) fn(13); REPEATB12(fn, basefn)
+#define REPEATB14(fn, basefn) fn(14); REPEATB13(fn, basefn)
+#define REPEATB15(fn, basefn) fn(15); REPEATB14(fn, basefn)
+/* clang-format on */
+
+/* Macro to repeatedly apply a function or function-like macro `fn` a given
+number of times, passing the index to each invocation. The passed index `n` is
+first, followed by n-1 and so on. For the base case of 0, `basefn` is applied
+instead of `fn`. */
+#define REPEATB(n, fn, basefn) REPEATB##n(fn, basefn)
+/* Handy as the base-case for repeating from N to 1, excluding 1. */
+#define nop_macro(x)
+
 #define INIT_COMPARTMENT_COMMON(n)                                             \
   __thread void *ia2_stackptr_##n __attribute__((used));
 
@@ -221,6 +248,8 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
     return out;                                                                \
   }
 
+#define declare_init_tls_fn(n) void init_tls_##n(void);
+
 #define INIT_RUNTIME_COMMON(n)                                                 \
   /* Allocate a fixed-size stack and protect it with the ith pkey. */          \
   /* Returns the top of the stack, not the base address of the allocation. */  \
@@ -251,31 +280,7 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
   /* pkey_mprotected by the next compartment depending on sizes/alignment. */  \
   __thread char ia2_threadlocal_padding[PAGE_SIZE] __attribute__((used));      \
                                                                                \
-  /* Static dispatch hack: */                                                  \
-  /* We declare an init_tls_N function for each possible compartment, but */   \
-  /* each compartment's shared library is responsible for providing the  */    \
-  /* definition of its respective function. As such, only those */             \
-  /* corresponding to actual compartments in the program will have a*/         \
-  /* definition at load-time. We skip the ones that don't exist with */        \
-  /* statically-determined control flow (goto based on macro arg), so the */   \
-  /* compiler will remove references to the ones that don't exist and give */  \
-  /* us clean, straight-line code calling only the functions for */            \
-  /* compartments that do exist. */                                            \
-  void init_tls_15(void);                                                      \
-  void init_tls_14(void);                                                      \
-  void init_tls_13(void);                                                      \
-  void init_tls_12(void);                                                      \
-  void init_tls_11(void);                                                      \
-  void init_tls_10(void);                                                      \
-  void init_tls_9(void);                                                       \
-  void init_tls_8(void);                                                       \
-  void init_tls_7(void);                                                       \
-  void init_tls_6(void);                                                       \
-  void init_tls_5(void);                                                       \
-  void init_tls_4(void);                                                       \
-  void init_tls_3(void);                                                       \
-  void init_tls_2(void);                                                       \
-  void init_tls_1(void);                                                       \
+  REPEATB(n, declare_init_tls_fn, nop_macro);                                  \
   /* Ensure that TLS is protected in a new thread. */                          \
   void protect_tls(void) {                                                     \
     /* Confirm that stack pointers for compartments 0 and 1 are at least 4K */ \
@@ -288,52 +293,8 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
       printf("ia2_stackptr_1 is too close to ia2_stackptr_0\n");               \
       exit(1);                                                                 \
     }                                                                          \
-    goto compartment##n;                                                       \
-  compartment15:                                                               \
-    __IA2_UNUSED;                                                              \
-    protect_tls_for_compartment(15);                                           \
-  compartment14:                                                               \
-    __IA2_UNUSED;                                                              \
-    protect_tls_for_compartment(14);                                           \
-  compartment13:                                                               \
-    __IA2_UNUSED;                                                              \
-    protect_tls_for_compartment(13);                                           \
-  compartment12:                                                               \
-    __IA2_UNUSED;                                                              \
-    protect_tls_for_compartment(12);                                           \
-  compartment11:                                                               \
-    __IA2_UNUSED;                                                              \
-    protect_tls_for_compartment(11);                                           \
-  compartment10:                                                               \
-    __IA2_UNUSED;                                                              \
-    protect_tls_for_compartment(10);                                           \
-  compartment9:                                                                \
-    __IA2_UNUSED;                                                              \
-    protect_tls_for_compartment(9);                                            \
-  compartment8:                                                                \
-    __IA2_UNUSED;                                                              \
-    protect_tls_for_compartment(8);                                            \
-  compartment7:                                                                \
-    __IA2_UNUSED;                                                              \
-    protect_tls_for_compartment(7);                                            \
-  compartment6:                                                                \
-    __IA2_UNUSED;                                                              \
-    protect_tls_for_compartment(6);                                            \
-  compartment5:                                                                \
-    __IA2_UNUSED;                                                              \
-    protect_tls_for_compartment(5);                                            \
-  compartment4:                                                                \
-    __IA2_UNUSED;                                                              \
-    protect_tls_for_compartment(4);                                            \
-  compartment3:                                                                \
-    __IA2_UNUSED;                                                              \
-    protect_tls_for_compartment(3);                                            \
-  compartment2:                                                                \
-    __IA2_UNUSED;                                                              \
-    protect_tls_for_compartment(2);                                            \
-  compartment1:                                                                \
-    __IA2_UNUSED;                                                              \
-    protect_tls_for_compartment(1);                                            \
+    /* Protect TLS for compartments other than 0. */                           \
+    REPEATB(n, protect_tls_for_compartment, nop_macro);                        \
   }                                                                            \
   /* Ensure that all required pkeys are allocated. */                          \
   void ensure_pkeys_allocated(int *n_to_alloc) {                               \
@@ -363,107 +324,13 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
                                                                                \
   /* Returns `&ia2_stackptr_N` given a pkru value for the Nth compartment. */  \
   void **ia2_stackptr_for_pkru(uint32_t pkru) {                                \
-    goto compartment##n;                                                       \
-  compartment15:                                                               \
-    __IA2_UNUSED;                                                              \
-    return_stackptr_if_compartment(15);                                        \
-  compartment14:                                                               \
-    __IA2_UNUSED;                                                              \
-    return_stackptr_if_compartment(14);                                        \
-  compartment13:                                                               \
-    __IA2_UNUSED;                                                              \
-    return_stackptr_if_compartment(13);                                        \
-  compartment12:                                                               \
-    __IA2_UNUSED;                                                              \
-    return_stackptr_if_compartment(12);                                        \
-  compartment11:                                                               \
-    __IA2_UNUSED;                                                              \
-    return_stackptr_if_compartment(11);                                        \
-  compartment10:                                                               \
-    __IA2_UNUSED;                                                              \
-    return_stackptr_if_compartment(10);                                        \
-  compartment9:                                                                \
-    __IA2_UNUSED;                                                              \
-    return_stackptr_if_compartment(9);                                         \
-  compartment8:                                                                \
-    __IA2_UNUSED;                                                              \
-    return_stackptr_if_compartment(8);                                         \
-  compartment7:                                                                \
-    __IA2_UNUSED;                                                              \
-    return_stackptr_if_compartment(7);                                         \
-  compartment6:                                                                \
-    __IA2_UNUSED;                                                              \
-    return_stackptr_if_compartment(6);                                         \
-  compartment5:                                                                \
-    __IA2_UNUSED;                                                              \
-    return_stackptr_if_compartment(5);                                         \
-  compartment4:                                                                \
-    __IA2_UNUSED;                                                              \
-    return_stackptr_if_compartment(4);                                         \
-  compartment3:                                                                \
-    __IA2_UNUSED;                                                              \
-    return_stackptr_if_compartment(3);                                         \
-  compartment2:                                                                \
-    __IA2_UNUSED;                                                              \
-    return_stackptr_if_compartment(2);                                         \
-  compartment1:                                                                \
-    __IA2_UNUSED;                                                              \
-    return_stackptr_if_compartment(1);                                         \
-  compartment0:                                                                \
-    __IA2_UNUSED;                                                              \
-    return_stackptr_if_compartment(0);                                         \
+    REPEATB(n, return_stackptr_if_compartment,                                 \
+            return_stackptr_if_compartment);                                   \
     return NULL;                                                               \
   }                                                                            \
                                                                                \
   __attribute__((weak)) void init_stacks(void) {                               \
-    goto compartment##n;                                                       \
-  compartment15:                                                               \
-    __IA2_UNUSED;                                                              \
-    ALLOCATE_COMPARTMENT_STACK(15)                                             \
-  compartment14:                                                               \
-    __IA2_UNUSED;                                                              \
-    ALLOCATE_COMPARTMENT_STACK(14)                                             \
-  compartment13:                                                               \
-    __IA2_UNUSED;                                                              \
-    ALLOCATE_COMPARTMENT_STACK(13)                                             \
-  compartment12:                                                               \
-    __IA2_UNUSED;                                                              \
-    ALLOCATE_COMPARTMENT_STACK(12)                                             \
-  compartment11:                                                               \
-    __IA2_UNUSED;                                                              \
-    ALLOCATE_COMPARTMENT_STACK(11)                                             \
-  compartment10:                                                               \
-    __IA2_UNUSED;                                                              \
-    ALLOCATE_COMPARTMENT_STACK(10)                                             \
-  compartment9:                                                                \
-    __IA2_UNUSED;                                                              \
-    ALLOCATE_COMPARTMENT_STACK(9)                                              \
-  compartment8:                                                                \
-    __IA2_UNUSED;                                                              \
-    ALLOCATE_COMPARTMENT_STACK(8)                                              \
-  compartment7:                                                                \
-    __IA2_UNUSED;                                                              \
-    ALLOCATE_COMPARTMENT_STACK(7)                                              \
-  compartment6:                                                                \
-    __IA2_UNUSED;                                                              \
-    ALLOCATE_COMPARTMENT_STACK(6)                                              \
-  compartment5:                                                                \
-    __IA2_UNUSED;                                                              \
-    ALLOCATE_COMPARTMENT_STACK(5)                                              \
-  compartment4:                                                                \
-    __IA2_UNUSED;                                                              \
-    ALLOCATE_COMPARTMENT_STACK(4)                                              \
-  compartment3:                                                                \
-    __IA2_UNUSED;                                                              \
-    ALLOCATE_COMPARTMENT_STACK(3)                                              \
-  compartment2:                                                                \
-    __IA2_UNUSED;                                                              \
-    ALLOCATE_COMPARTMENT_STACK(2)                                              \
-  compartment1:                                                                \
-    __IA2_UNUSED;                                                              \
-    ALLOCATE_COMPARTMENT_STACK(1)                                              \
-  compartment0:                                                                \
-    __IA2_UNUSED;                                                              \
+    REPEATB(n, ALLOCATE_COMPARTMENT_STACK, nop_macro);                         \
     /* allocate an unprotected stack for the untrusted compartment */          \
     ia2_stackptr_0 = allocate_stack(0);                                        \
   }                                                                            \

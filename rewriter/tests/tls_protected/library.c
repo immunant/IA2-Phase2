@@ -1,7 +1,10 @@
 /*
-RUN: sh -c 'if [ ! -s "tls_protected_call_gates_2.ld" ]; then echo "No link args as expected"; exit 0; fi; echo "Unexpected link args"; exit 1;'
+RUN: readelf -lW %binary_dir/tests/tls_protected/libtls_protected_lib_wrapped.so | FileCheck --check-prefix=SEGMENTS %s
 */
 
+// Check that readelf shows exactly one executable segment
+// SEGMENTS-COUNT-1: LOAD{{.*}}R E
+// SEGMENTS-NOT:     LOAD{{.*}}R E
 #include "library.h"
 #include "test_fault_handler.h"
 #include <ia2.h>

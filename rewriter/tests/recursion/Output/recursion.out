@@ -4,4 +4,3 @@ recursion_main: 3
 recursion_dso: 2
 recursion_main: 1
 recursion_dso: 0
-CHECK_VIOLATION: seg faulted as expected

@@ -120,6 +120,8 @@ asm(".macro mov_pkru_eax pkey\n"
 #define PTRS_PER_PAGE (PAGE_SIZE / sizeof(void *))
 #define IA2_MAX_THREADS (PTRS_PER_PAGE)
 
+#define IA2_ROUND_DOWN(x, y) ((x) & ~((y)-1))
+
 /* clang-format can't handle inline asm in macros */
 /* clang-format off */
 /* Allocate and protect the stack for this thread's i'th compartment. */
@@ -192,6 +194,9 @@ asm(".macro mov_pkru_eax pkey\n"
   }
 
 #define declare_init_tls_fn(n) void init_tls_##n(void);
+#define setup_destructors_for_compartment(n)                                   \
+  void ia2_setup_destructors_##n(void);                                        \
+  ia2_setup_destructors_##n();
 
 #define _IA2_INIT_RUNTIME(n)                                                   \
   int ia2_n_pkeys_to_alloc = n;                                                \
@@ -282,4 +287,5 @@ asm(".macro mov_pkru_eax pkey\n"
     ensure_pkeys_allocated(&ia2_n_pkeys_to_alloc);                             \
     /* Initialize stacks for the main thread/ */                               \
     init_stacks_and_setup_tls();                                               \
+    REPEATB##n(setup_destructors_for_compartment, nop_macro);                  \
   }

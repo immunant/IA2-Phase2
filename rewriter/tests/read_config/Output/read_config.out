@@ -6,4 +6,3 @@ random_seed 42
 name builtin_config
 num_options 3
 array [11, 22, 33]
-CHECK_VIOLATION: seg faulted as expected

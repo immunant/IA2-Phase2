@@ -1,6 +1,5 @@
 /*
 RUN: sh -c 'if [ ! -s "heap_two_keys_call_gates_0.ld" ]; then echo "No link args as expected"; exit 0; fi; echo "Unexpected link args"; exit 1;'
-RUN: sh -c 'if [ ! -s "heap_two_keys_call_gates_2.ld" ]; then echo "No link args as expected"; exit 0; fi; echo "Unexpected link args"; exit 1;'
 TODO: %binary_dir/tests/heap_two_keys/heap_two_keys_main_wrapped 0 | diff %S/Output/plugin.out -
 // TODO(src_rewriter_wip): had to change the output here, why?
 RUN: %binary_dir/tests/heap_two_keys/heap_two_keys_main_wrapped 1 | diff %S/Output/main.out -

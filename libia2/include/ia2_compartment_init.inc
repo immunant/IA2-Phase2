@@ -4,6 +4,11 @@
 #error Missing IA2_COMPARTMENT
 #endif
 
+#include <elf.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <sys/mman.h>
+
 #include <ia2.h>
 
 #define CONCAT_(x, y) x##y
@@ -59,4 +64,137 @@ void COMPARTMENT_IDENT(init_tls)(void) {
       .address = &COMPARTMENT_IDENT(init_tls),
   };
   dl_iterate_phdr(protect_tls_pages, &args);
+}
+
+/* Magic symbol from the linker that marks the start of the ELF headers */
+extern Elf64_Ehdr __ehdr_start __attribute__((weak));
+
+struct FinalizerInfo {
+  uint64_t fini_offset;
+  uint64_t fini_array_offset;
+  uint64_t fini_array_size;
+};
+
+/* Filled in by runtime initialization with contents of  .fini_array and
+ * .fini */
+static volatile struct FinalizerInfo finalizers
+    __attribute__((__section__(".data.rel.ro.1"))) = {0};
+
+extern void COMPARTMENT_IDENT(__wrap_ia2_compartment_destructor)(void);
+
+__attribute__((no_sanitize("undefined"))) __attribute__((used)) void
+COMPARTMENT_IDENT(ia2_compartment_destructor)(void) {
+  static bool ran_destructors = false;
+  if (ran_destructors)
+    return;
+  assert(&__ehdr_start);
+
+  void (**fini_array)(void) = (void (**)(void))(((uint8_t *)&__ehdr_start) +
+                                                finalizers.fini_array_offset);
+  for (int i = 0; i < (finalizers.fini_array_size / sizeof(void *)); i++) {
+    fini_array[i]();
+  }
+  if (finalizers.fini_offset) {
+    void (*fini)(void) =
+        (void (*)(void))(((uint8_t *)&__ehdr_start) + finalizers.fini_offset);
+    fini();
+  }
+
+  ran_destructors = true;
+}
+
+/* This pointer MUST be in a read-only (.data.rel.ro) section. */
+/* TODO: Check this in the resulting binary */
+static void (*const compartment_destructor_ptr)(void) =
+    COMPARTMENT_IDENT(__wrap_ia2_compartment_destructor);
+
+void COMPARTMENT_IDENT(ia2_setup_destructors)(void) {
+  int res = 0;
+  Elf64_Ehdr *ehdr = &__ehdr_start;
+  Elf64_Phdr *phdr = (Elf64_Phdr *)((uint8_t *)ehdr + __ehdr_start.e_phoff);
+  assert(sizeof(Elf64_Phdr) == ehdr->e_phentsize);
+  Elf64_Phdr *dynamic_phdr = NULL;
+  for (int i = 0; i < ehdr->e_phnum; i++) {
+    if (phdr[i].p_type == PT_DYNAMIC) {
+      dynamic_phdr = &phdr[i];
+      break;
+    }
+  }
+  if (!dynamic_phdr) {
+    return;
+  }
+  Elf64_Dyn *dynamic =
+      (Elf64_Dyn *)((uintptr_t)&__ehdr_start + dynamic_phdr->p_vaddr);
+  void *rewrite_base = NULL;
+  void *finalizers_region =
+      (void *)IA2_ROUND_DOWN((uintptr_t)&finalizers, PAGE_SIZE);
+  size_t finalizers_region_size =
+      IA2_ROUND_DOWN(((uintptr_t)&finalizers) + sizeof(finalizers) + PAGE_SIZE,
+                     PAGE_SIZE) -
+      (uintptr_t)finalizers_region;
+  res = mprotect(finalizers_region, finalizers_region_size,
+                 PROT_READ | PROT_WRITE);
+  if (res != 0) {
+    fprintf(stderr, "Failed to set relro section writable: %d\n", res);
+    exit(1);
+  }
+  for (int i = 0; i < dynamic_phdr->p_memsz / sizeof(Elf64_Dyn); i++) {
+    if (dynamic[i].d_tag == DT_FINI || dynamic[i].d_tag == DT_FINI_ARRAY ||
+        dynamic[i].d_tag == DT_FINI_ARRAYSZ) {
+      uintptr_t dynamic_entry_addr = (uintptr_t)&dynamic[i].d_un.d_val;
+      bool in_finalizers_mapping =
+          dynamic_entry_addr >= (uintptr_t)finalizers_region &&
+          (uintptr_t)&dynamic[i + 1] <=
+              (uintptr_t)finalizers_region + finalizers_region_size;
+      bool in_dynamic_mapping =
+          rewrite_base &&
+          (uintptr_t)rewrite_base + PAGE_SIZE <= dynamic_entry_addr;
+      if (!in_finalizers_mapping && !in_dynamic_mapping) {
+        if (rewrite_base) {
+          res = mprotect(rewrite_base, PAGE_SIZE, PROT_READ);
+          if (res != 0) {
+            fprintf(stderr,
+                    "Failed to reset dynamic section to read-only: %d\n", res);
+            exit(1);
+          }
+        }
+        rewrite_base = (void *)IA2_ROUND_DOWN((uintptr_t)&dynamic[i].d_un.d_val,
+                                              PAGE_SIZE);
+        /* ensure that we don't cross a page boundary. */
+        assert(((uintptr_t)&dynamic[i + 1] - (uintptr_t)rewrite_base) <=
+               PAGE_SIZE);
+        res = mprotect(rewrite_base, PAGE_SIZE, PROT_READ | PROT_WRITE);
+        if (res != 0) {
+          fprintf(stderr, "Failed to set dynamic section writable: %d\n", res);
+          exit(1);
+        }
+      }
+      if (dynamic[i].d_tag == DT_FINI) {
+        finalizers.fini_offset = dynamic[i].d_un.d_val;
+        dynamic[i].d_un.d_val =
+            (Elf64_Xword)&COMPARTMENT_IDENT(__wrap_ia2_compartment_destructor) -
+            (Elf64_Xword)&__ehdr_start;
+      } else if (dynamic[i].d_tag == DT_FINI_ARRAY) {
+        finalizers.fini_array_offset = dynamic[i].d_un.d_val;
+        dynamic[i].d_un.d_val = (Elf64_Xword)&compartment_destructor_ptr -
+                                (Elf64_Xword)&__ehdr_start;
+      } else if (dynamic[i].d_tag == DT_FINI_ARRAYSZ) {
+        finalizers.fini_array_size = dynamic[i].d_un.d_val;
+        dynamic[i].d_un.d_val = 1;
+      }
+    }
+  }
+  if (rewrite_base) {
+    res = mprotect(rewrite_base, PAGE_SIZE, PROT_READ);
+    if (res != 0) {
+      fprintf(stderr, "Failed to reset dynamic section to read-only: %d\n",
+              res);
+      exit(1);
+    }
+  }
+  res = mprotect(finalizers_region, finalizers_region_size, PROT_READ);
+  if (res != 0) {
+    fprintf(stderr, "Failed to reset relro section to read-only: %d\n", res);
+    exit(1);
+  }
 }

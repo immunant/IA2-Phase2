@@ -27,6 +27,15 @@ __attribute__((naked)) int __wrap_main(int argc, char **argv) {
       "call __real_main\n"
       // Restore the old stack pointer before returning.
       "mov main_sp(%%rip), %%rsp\n"
+      // Save return value
+      "mov %%rax,%%r10\n"
+      // Switch pkey to untrusted compartment
+      "xor %%ecx,%%ecx\n"
+      "xor %%edx,%%edx\n"
+      "mov_pkru_eax 0\n"
+      "wrpkru\n"
+      // Restore return value
+      "mov %%r10,%%rax\n"
       "popq %%rbp\n"
       "ret\n"
       /* clang-format on */

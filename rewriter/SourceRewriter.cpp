@@ -23,6 +23,7 @@
 #include <iostream>
 #include <map>
 #include <optional>
+#include <string>
 #include <sys/stat.h>
 #include <sys/types.h>
 
@@ -128,6 +129,13 @@ static Pkey get_file_pkey(const clang::SourceManager &sm) {
 
 static bool ignore_file(const Filename &filename) {
   return !filename.starts_with(OutputDirectory) && !filename.starts_with(RootDirectory);
+}
+
+static bool ignore_function(const Filename &filename, const Function &function) {
+  if (function.starts_with("ia2_compartment_destructor")) {
+    return false;
+  }
+  return ignore_file(filename);
 }
 
 static std::string append_name_if_nonempty(const std::string &new_type,
@@ -768,8 +776,10 @@ public:
     assert(result.SourceManager != nullptr);
     auto &sm = *result.SourceManager;
 
+    Function fn_name = fn_node->getNameAsString();
+
     // Ignore declarations in libc and libia2 headers
-    if (ignore_file(get_filename(fn_node->getLocation(), sm))) {
+    if (ignore_function(get_filename(fn_node->getLocation(), sm), fn_name)) {
       return;
     }
 
@@ -778,8 +788,6 @@ public:
     if (fn_node->getBuiltinID() != 0) {
       return;
     }
-
-    Function fn_name = fn_node->getNameAsString();
 
     if (fn_node->isVariadic()) {
       static std::set<Function> variadic_warnings_printed = {};
@@ -1103,6 +1111,22 @@ int main(int argc, const char **argv) {
 
       write_to_ld_file(ld_args_out, caller_pkey, "--wrap="s + fn_name + '\n');
     }
+  }
+
+  // Create wrapper for compartment destructor
+  for (int compartment_pkey = 1; compartment_pkey < num_pkeys; compartment_pkey++) {
+    std::string fn_name = "ia2_compartment_destructor_" + std::to_string(compartment_pkey);
+    auto c_abi_sig = fn_decl_pass.abi_signatures.at(fn_name);
+    std::string wrapper_name = "__wrap_"s + fn_name;
+    std::string asm_wrapper =
+        emit_asm_wrapper(c_abi_sig, wrapper_name, fn_name, WrapperKind::Direct,
+                         0, compartment_pkey);
+    wrapper_out << "asm(\n";
+    wrapper_out << asm_wrapper;
+    wrapper_out << ");\n";
+
+    write_to_ld_file(ld_args_out, compartment_pkey,
+                     "--wrap="s + fn_name + '\n');
   }
 
   std::cout << "Generating function pointer wrappers\n";

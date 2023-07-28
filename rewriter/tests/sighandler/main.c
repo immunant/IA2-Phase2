@@ -9,7 +9,8 @@ RUN: %binary_dir/tests/sighandler/sighandler_main_wrapped | diff %binary_dir/tes
 #include <test_fault_handler.h>
 
 INIT_RUNTIME(2);
-INIT_COMPARTMENT(1);
+#define IA2_COMPARTMENT 1
+#include <ia2_compartment_init.inc>
 
 
 struct handler {

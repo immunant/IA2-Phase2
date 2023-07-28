@@ -16,7 +16,8 @@ TODO: %binary_dir/tests/heap_two_keys/heap_two_keys_main_wrapped 2 | diff %sourc
 
 // This test uses two protection keys
 INIT_RUNTIME(2);
-INIT_COMPARTMENT(1);
+#define IA2_COMPARTMENT 1
+#include <ia2_compartment_init.inc>
 
 // Test that the program can exit without error
 // TODO(#112): it cannot.

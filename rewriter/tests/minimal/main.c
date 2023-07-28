@@ -12,7 +12,8 @@ RUN: readelf -lW %binary_dir/tests/minimal/minimal_main_wrapped | FileCheck --ch
 #include <ia2.h>
 
 INIT_RUNTIME(1);
-INIT_COMPARTMENT(1);
+#define IA2_COMPARTMENT 1
+#include <ia2_compartment_init.inc>
 
 int main() {
     foo();

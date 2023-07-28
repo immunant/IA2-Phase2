@@ -12,7 +12,8 @@
 #include <permissive_mode.h>
 
 INIT_RUNTIME(2);
-INIT_COMPARTMENT(1);
+#define IA2_COMPARTMENT 1
+#include <ia2_compartment_init.inc>
 
 
 static void ngx_show_version_info(void);

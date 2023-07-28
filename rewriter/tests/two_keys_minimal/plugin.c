@@ -12,7 +12,8 @@ RUN: readelf -lW %binary_dir/tests/two_keys_minimal/libtwo_keys_minimal_lib_wrap
 #include "exported_fn.h"
 #include "test_fault_handler.h"
 
-INIT_COMPARTMENT(2);
+#define IA2_COMPARTMENT 2
+#include <ia2_compartment_init.inc>
 
 uint32_t plugin_secret = 0x78341244;
 

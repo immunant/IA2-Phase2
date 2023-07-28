@@ -5,7 +5,8 @@ RUN: sh -c 'if [ ! -s "macro_attr_call_gates_0.ld" ]; then echo "No link args as
 #include <ia2.h>
 
 INIT_RUNTIME(1);
-INIT_COMPARTMENT(1);
+#define IA2_COMPARTMENT 1
+#include <ia2_compartment_init.inc>
 
 int main() {
     f();

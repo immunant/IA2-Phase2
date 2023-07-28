@@ -9,7 +9,8 @@ RUN: sh -c 'if [ ! -s "tls_protected_call_gates_2.ld" ]; then echo "No link args
 #include <stdio.h>
 #include <stdlib.h>
 
-INIT_COMPARTMENT(2);
+#define IA2_COMPARTMENT 2
+#include <ia2_compartment_init.inc>
 
 thread_local uint32_t lib_secret = 0x1eaf1e55;
 

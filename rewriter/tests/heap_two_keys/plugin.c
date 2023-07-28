@@ -6,7 +6,8 @@ RUN: cat heap_two_keys_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 #include "exported_fn.h"
 #include "test_fault_handler.h"
 
-INIT_COMPARTMENT(2);
+#define IA2_COMPARTMENT 2
+#include <ia2_compartment_init.inc>
 
 // LINKARGS: --wrap=trigger_compartment_init
 void trigger_compartment_init(void) {}

@@ -93,7 +93,8 @@ the object's source files.
 INIT_RUNTIME(1);
 
 // Assign protection key 1 to the main binary.
-INIT_COMPARTMENT(1);
+#define IA2_COMPARTMENT 1
+#include <ia2_compartment_init.inc>
 ```
 
 Then we rebuild the library and ensure it's linked against the main shim. We
@@ -196,7 +197,8 @@ IA2_WRAPPER(target_fn, target_pkey)
 #include "ptr.h"
 
 INIT_RUNTIME(1);
-INIT_COMPARTMENT(1);
+#define IA2_COMPARTMENT 1
+#include <ia2_compartment_init.inc>
 
 // This creates an opaque struct set to NULL.
 Fn uninit = IA2_NULL_FNPTR(_ZTSPFiiE);

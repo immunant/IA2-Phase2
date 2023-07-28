@@ -11,7 +11,8 @@
 #include "ngx_rtmp.h"
 #include <ia2.h>
 
-INIT_COMPARTMENT(2);
+#define IA2_COMPARTMENT 2
+#include <ia2_compartment_init.inc>
 
 
 static char *ngx_rtmp_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);

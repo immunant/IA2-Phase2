@@ -18,7 +18,8 @@ RUN: %binary_dir/tests/trusted_direct/trusted_direct_main_wrapped clean_exit | d
 // passed in. Otherwise the program exits cleanly.
 
 INIT_RUNTIME(1);
-INIT_COMPARTMENT(1);
+#define IA2_COMPARTMENT 1
+#include <ia2_compartment_init.inc>
 
 uint32_t secret = 0x09431233;
 

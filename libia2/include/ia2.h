@@ -41,12 +41,7 @@ instead of `fn`. */
 /* Handy as the base-case for repeating from N to 1, excluding 1. */
 #define nop_macro(x)
 
-#define INIT_COMPARTMENT_COMMON(n)                                             \
-  __thread void *ia2_stackptr_##n __attribute__((used));
-
 #ifdef LIBIA2_INSECURE
-
-#define INIT_COMPARTMENT(n) INIT_COMPARTMENT_COMMON(n)
 
 #if !defined(IA2_WRPKRU)
 #define IA2_WRPKRU ""
@@ -54,10 +49,6 @@ instead of `fn`. */
 #define IA2_RDPKRU ""
 
 #else
-
-#define INIT_COMPARTMENT(n)                                                    \
-  INIT_COMPARTMENT_COMMON(n)                                                   \
-  _INIT_COMPARTMENT(n)
 
 #if !defined(IA2_WRPKRU)
 #define IA2_WRPKRU "wrpkru"
@@ -116,8 +107,8 @@ static uint32_t ia2_get_pkru() {
 /// \param data pointer to a PhdrSearchArgs structure
 ///
 /// The callback passed to dl_iterate_phdr in the constructor inserted by
-/// INIT_COMPARTMENT to pkey_mprotect the pages corresponding to the
-/// compartment's loaded segments.
+/// ia2_compartment_init.inc to pkey_mprotect the pages corresponding to the compartment's
+/// loaded segments.
 ///
 /// Iterates over shared objects until an object containing the address \p
 /// data->address is found. Protect the pages in that object according to the
@@ -148,29 +139,6 @@ asm(".macro mov_pkru_eax pkey\n"
 #else
 #define protect_tls_for_compartment(n) init_tls_##n();
 #endif
-
-// Initializes a compartment with protection key `n` when the ELF invoking this
-// macro is loaded. This must only be called once for each key. The compartment
-// includes all segments in the ELF except the `ia2_shared_data` section, if one
-// exists.
-#define _INIT_COMPARTMENT(n)                                                   \
-  extern int ia2_n_pkeys_to_alloc;                                             \
-  void ensure_pkeys_allocated(int *n_to_alloc);                                \
-  __attribute__((constructor)) static void init_pkey_##n##_ctor() {            \
-    ensure_pkeys_allocated(&ia2_n_pkeys_to_alloc);                             \
-    struct PhdrSearchArgs args = {                                             \
-        .pkey = n,                                                             \
-        .address = &init_pkey_##n##_ctor,                                      \
-    };                                                                         \
-    dl_iterate_phdr(protect_pages, &args);                                     \
-  }                                                                            \
-  void init_tls_##n(void) {                                                    \
-    struct PhdrSearchArgs args = {                                             \
-        .pkey = n,                                                             \
-        .address = &init_pkey_##n##_ctor,                                      \
-    };                                                                         \
-    dl_iterate_phdr(protect_tls_pages, &args);                                 \
-  }
 
 // Obtain a string corresponding to errno in a threadsafe fashion.
 #define errno_s (strerror_l(errno, uselocale((locale_t)0)))
@@ -272,7 +240,7 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
   }                                                                            \
   /* The 0th compartment is unprivileged and does not protect its memory, */   \
   /* so declare its stack pointer in the shared object that sets up the */     \
-  /* runtime instead of using the INIT_COMPARTMENT macro for it. */            \
+  /* runtime. */                                                               \
   __thread void *ia2_stackptr_0 __attribute__((aligned(4096)));                \
   /* Include one page of padding after ia2_stackptr_0 to ensure that the */    \
   /* last page of the TLS segment of compartment 0 does not contain any */     \

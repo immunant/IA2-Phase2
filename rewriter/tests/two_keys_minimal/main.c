@@ -20,7 +20,8 @@ RUN: readelf -lW %binary_dir/tests/two_keys_minimal/two_keys_minimal_main_wrappe
 
 // This test uses two protection keys
 INIT_RUNTIME(2);
-INIT_COMPARTMENT(1);
+#define IA2_COMPARTMENT 1
+#include <ia2_compartment_init.inc>
 
 uint32_t secret = 0x09431233;
 

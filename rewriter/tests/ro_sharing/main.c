@@ -17,7 +17,8 @@ RUN: %binary_dir/tests/ro_sharing/ro_sharing_main_wrapped main | diff %binary_di
 
 // This test uses two protection keys
 INIT_RUNTIME(2);
-INIT_COMPARTMENT(1);
+#define IA2_COMPARTMENT 1
+#include <ia2_compartment_init.inc>
 
 // All string literals should be in .rodata
 const char *main_str = "this is the main binary's string\n";

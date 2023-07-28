@@ -6,7 +6,8 @@ RUN: cat main.c | FileCheck --match-full-lines --check-prefix=REWRITER %s
 #include <ia2.h>
 
 INIT_RUNTIME(1);
-INIT_COMPARTMENT(1);
+#define IA2_COMPARTMENT 1
+#include <ia2_compartment_init.inc>
 
 int main() {
     init_actions();

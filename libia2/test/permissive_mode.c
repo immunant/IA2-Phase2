@@ -3,7 +3,8 @@
 #include <permissive_mode.h>
 
 INIT_RUNTIME(1);
-INIT_COMPARTMENT(1);
+#define IA2_COMPARTMENT 1
+#include <ia2_compartment_init.inc>
 
 int main(int argc, char** argv) {
     char* buffer = NULL;

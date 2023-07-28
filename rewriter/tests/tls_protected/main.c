@@ -14,7 +14,8 @@ RUN: %binary_dir/tests/tls_protected/tls_protected_main_wrapped print_lib_secret
 #include <threads.h>
 
 INIT_RUNTIME(2);
-INIT_COMPARTMENT(1);
+#define IA2_COMPARTMENT 1
+#include <ia2_compartment_init.inc>
 
 thread_local uint32_t main_secret = 0xdeadbeef;
 

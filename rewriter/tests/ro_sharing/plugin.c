@@ -7,7 +7,8 @@ RUN: cat ro_sharing_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 #include <stdio.h>
 #include <string.h>
 
-INIT_COMPARTMENT(2);
+#define IA2_COMPARTMENT 2
+#include <ia2_compartment_init.inc>
 
 // All string literals should be in .rodata
 const char *plugin_str = "this is the plugin's string\n";

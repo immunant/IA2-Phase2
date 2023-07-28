@@ -11,7 +11,8 @@ RUN: readelf -lW %binary_dir/tests/read_config/libread_config_lib_wrapped.so | F
 #include <stdio.h>
 #include <string.h>
 
-INIT_COMPARTMENT(2);
+#define IA2_COMPARTMENT 2
+#include <ia2_compartment_init.inc>
 
 // A custom parsing function for a type defined by the plugin
 static void parse_tuple(char *opt, void *out);

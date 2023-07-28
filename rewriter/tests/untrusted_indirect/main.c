@@ -9,7 +9,8 @@ RUN: sh -c 'if [ ! -s "untrusted_indirect_call_gates_0.ld" ]; then echo "No link
 #include "test_fault_handler.h"
 
 INIT_RUNTIME(1);
-INIT_COMPARTMENT(1);
+#define IA2_COMPARTMENT 1
+#include <ia2_compartment_init.inc>
 
 /*
     This program tests that a trusted binary can pass function pointers to an untrusted shared

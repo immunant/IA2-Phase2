@@ -12,7 +12,8 @@ RUN: %binary_dir/tests/should_segfault/should_segfault_main_wrapped early_fault 
 #include "test_fault_handler.h"
 
 INIT_RUNTIME(1);
-INIT_COMPARTMENT(1);
+#define IA2_COMPARTMENT 1
+#include <ia2_compartment_init.inc>
 
 uint32_t secret = 0xdeadbeef;
 

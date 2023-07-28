@@ -19,7 +19,8 @@ RUN: readelf -lW %binary_dir/tests/two_shared_ranges/two_shared_ranges_main_wrap
 
 // This test uses two protection keys
 INIT_RUNTIME(2);
-INIT_COMPARTMENT(1);
+#define IA2_COMPARTMENT 1
+#include <ia2_compartment_init.inc>
 
 uint32_t secret = 0x09431233;
 uint32_t shared IA2_SHARED_DATA = 0xb75784ee;

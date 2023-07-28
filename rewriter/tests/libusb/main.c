@@ -25,7 +25,8 @@
 #include "usb-1.0_fn_ptr_ia2.h"
 
 INIT_RUNTIME(1);
-INIT_COMPARTMENT(1);
+#define IA2_COMPARTMENT 1
+#include <ia2_compartment_init.inc>
 
 static void print_devs(libusb_device **devs)
 {

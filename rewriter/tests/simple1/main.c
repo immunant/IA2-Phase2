@@ -12,7 +12,8 @@ RUN: cat simple1_call_gates_0.ld | FileCheck --check-prefix=LINKARGS %s
 #include "simple1.h"
 
 INIT_RUNTIME(1);
-INIT_COMPARTMENT(1);
+#define IA2_COMPARTMENT 1
+#include <ia2_compartment_init.inc>
 
 // libsimple1 checks if the function pointer is NULL. To initialize this to a
 // function defined in this binary, we'd need to define a wrapper with

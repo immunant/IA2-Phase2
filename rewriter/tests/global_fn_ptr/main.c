@@ -10,7 +10,8 @@ uint16_t sub(uint16_t x, uint16_t y) { return x - y; }
 uint32_t mul(uint32_t x, uint32_t y) { return x * y; }
 
 INIT_RUNTIME(1);
-INIT_COMPARTMENT(1);
+#define IA2_COMPARTMENT 1
+#include <ia2_compartment_init.inc>
 
 // `sum` can't be set to __ia2_add since it's defined in asm so the compiler doesn't know it's a valid initializer
 //static WordFn sum = __ia2_add;

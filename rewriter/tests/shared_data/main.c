@@ -8,7 +8,8 @@ RUN: %binary_dir/tests/shared_data/shared_data_main_wrapped | diff %S/Output/sha
 #include "access_shared.h"
 
 INIT_RUNTIME(1);
-INIT_COMPARTMENT(1);
+#define IA2_COMPARTMENT 1
+#include <ia2_compartment_init.inc>
 
 uint8_t shared_val[4097] IA2_SHARED_DATA = { 0 };
 

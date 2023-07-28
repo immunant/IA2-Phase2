@@ -13,7 +13,8 @@ RUN: %binary_dir/tests/threads/threads_main_wrapped | FileCheck --dump-input=alw
 #include <unistd.h>
 
 INIT_RUNTIME(1);
-INIT_COMPARTMENT(1);
+#define IA2_COMPARTMENT 1
+#include <ia2_compartment_init.inc>
 
 int data_in_main = 30;
 

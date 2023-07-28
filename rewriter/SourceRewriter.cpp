@@ -92,6 +92,7 @@ static Pkey get_file_pkey(const clang::SourceManager &sm) {
 
 static bool ignore_file(const Filename &filename) {
   return filename.starts_with("/usr/") || filename.ends_with("ia2.h") ||
+         filename.ends_with("ia2_compartment_init.inc") ||
          filename.ends_with("test_fault_handler.h") || filename == "";
 }
 

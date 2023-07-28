@@ -16,7 +16,8 @@ RUN: %binary_dir/tests/trusted_indirect/trusted_indirect_main_wrapped clean_exit
 */
 
 INIT_RUNTIME(1);
-INIT_COMPARTMENT(1);
+#define IA2_COMPARTMENT 1
+#include <ia2_compartment_init.inc>
 
 bool clean_exit IA2_SHARED_DATA = false;
 

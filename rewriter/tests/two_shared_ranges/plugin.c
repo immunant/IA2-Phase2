@@ -12,7 +12,8 @@ RUN: readelf -lW %binary_dir/tests/two_shared_ranges/libtwo_shared_ranges_lib_wr
 #include "exported_fn.h"
 #include "test_fault_handler.h"
 
-INIT_COMPARTMENT(2);
+#define IA2_COMPARTMENT 2
+#include <ia2_compartment_init.inc>
 
 uint32_t plugin_secret = 0x78341244;
 uint32_t plugin_shared IA2_SHARED_DATA = 0x415ea635;

@@ -14,7 +14,8 @@ RUN: %binary_dir/tests/structs/structs_main_wrapped | diff %S/Output/structs.out
 */
 
 INIT_RUNTIME(1);
-INIT_COMPARTMENT(1);
+#define IA2_COMPARTMENT 1
+#include <ia2_compartment_init.inc>
 
 #define check_close_float(name, val) { printf("%s(s) = %.4f (expected %.4f)\n", #name, name(s), val); }
 #define check_field_float(name, val) { printf("s.%s = %.4f (expected %.4f)\n", #name, s.name, val); }

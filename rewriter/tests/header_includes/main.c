@@ -7,7 +7,8 @@ RUN: sh -c 'if [ ! -s "header_includes_call_gates_0.ld" ]; then echo "No link ar
 #include <ia2.h>
 
 INIT_RUNTIME(1);
-INIT_COMPARTMENT(1);
+#define IA2_COMPARTMENT 1
+#include <ia2_compartment_init.inc>
 
 int main() {
     Option x = Some(3);

@@ -6,7 +6,8 @@ RUN: %binary_dir/tests/function_allowlist/function_allowlist_main_wrapped | diff
 #include <ia2.h>
 
 INIT_RUNTIME(1);
-INIT_COMPARTMENT(1);
+#define IA2_COMPARTMENT 1
+#include <ia2_compartment_init.inc>
 
 int data_in_main = 30;
 

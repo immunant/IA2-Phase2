@@ -31,7 +31,8 @@ RUN: cat main.c | FileCheck --match-full-lines --check-prefix=REWRITER %s
 */
 
 INIT_RUNTIME(2);
-INIT_COMPARTMENT(1);
+#define IA2_COMPARTMENT 1
+#include <ia2_compartment_init.inc>
 
 // The first 5 entries are plugin options and the rest are builtin
 #define PLUGIN_ENTRIES 5

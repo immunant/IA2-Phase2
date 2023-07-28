@@ -5,7 +5,8 @@ RUN: cat recursion_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 #include <ia2.h>
 #include <stdio.h>
 
-INIT_COMPARTMENT(2);
+#define IA2_COMPARTMENT 2
+#include <ia2_compartment_init.inc>
 
 // LINKARGS: --wrap=recurse_dso
 void recurse_dso(int count) {

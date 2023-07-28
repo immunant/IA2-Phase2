@@ -5,6 +5,7 @@ BUILD_DIR=${PWD}/build
 IA2_BUILD_DIR=${BUILD_DIR}/ia2
 NGINX_BUILD_DIR=${BUILD_DIR}/nginx
 NGINX_ROOT=${BUILD_DIR}
+NGINX_PERL_ROOT=${NGINX_BUILD_DIR}/src/http/modules/perl
 NGINX_RTMP_ROOT=${BUILD_DIR}/nginx-rtmp-module-rewritten
 SRC_REWRITER=$IA2_BUILD_DIR/rewriter/ia2-rewriter
 LIBIA2=$IA2_BUILD_DIR/libia2/liblibia2.a
@@ -55,6 +56,15 @@ if [ ! -d $NGINX_RTMP_ROOT ]; then
     popd
 fi
 
+if [ ! -d $NGINX_PERL_ROOT ]; then
+    mkdir -p $NGINX_PERL_ROOT
+    pushd "$NGINX_ROOT/src/http/modules/perl"
+    find . -type f \
+            -exec sh -c "mkdir -p $NGINX_PERL_ROOT/\$(dirname {})" ';' \
+            -exec cp '{}' "$NGINX_PERL_ROOT/{}" ';'
+    popd
+fi
+
 # Transition into the new source root
 cd "$NGINX_ROOT"
 
@@ -71,7 +81,8 @@ if [ ! -f $BUILD_DIR/Makefile ]; then
         --http-fastcgi-temp-path=$NGINX_BUILD_DIR/fastcgi_temp \
         --http-uwsgi-temp-path=$NGINX_BUILD_DIR/uwsgi_temp \
         --http-scgi-temp-path=$NGINX_BUILD_DIR/scgi_temp \
-        --add-dynamic-module=$NGINX_RTMP_ROOT
+        --add-dynamic-module=$NGINX_RTMP_ROOT \
+        --with-http_perl_module=dynamic
 fi
 
 touch "$BUILD_DIR/wrapper.h"
@@ -240,7 +251,10 @@ if [ ! -f $BUILD_DIR/wrapper.c ] ||
         $NGINX_RTMP_ROOT/dash/ngx_rtmp_mp4.c \
         $NGINX_RTMP_ROOT/ngx_rtmp_stat_module.c \
         $NGINX_RTMP_ROOT/ngx_rtmp_control_module.c \
-        $NGINX_BUILD_DIR/ngx_rtmp_module_modules.c
+        $NGINX_BUILD_DIR/ngx_rtmp_module_modules.c \
+        $NGINX_BUILD_DIR/src/http/modules/perl/nginx.c \
+        $NGINX_BUILD_DIR/src/http/modules/perl/ngx_http_perl_module.c \
+        $NGINX_BUILD_DIR/ngx_http_perl_module_modules.c
     popd
     patch -p3 < $REPO_ROOT/external/nginx/nginx.patch
     pushd $NGINX_RTMP_ROOT; patch -p3 < $REPO_ROOT/external/nginx/nginx_rtmp.patch; popd

@@ -1,4 +1,9 @@
+/*
+RUN: %binary_dir/tests/permissive_mode/permissive_mode_main_wrapped
+*/
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 #include <ia2.h>
 #include <permissive_mode.h>
 

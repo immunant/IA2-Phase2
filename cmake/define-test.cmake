@@ -122,7 +122,8 @@ endfunction()
 # NOT_IN_CHECK_IA2 - If present, skip adding this target to check-ia2.
 # PKEY (optional) - The pkey for the wrapped library (defaults to 1).
 # LIBS (optional) - libraries to link the unmodified build against (defaults to
-#       ${TEST_NAME}_lib which is the default set by define_shared_lib).
+#       ${TEST_NAME}_lib which is the default set by define_shared_lib). If
+#       NO_LIBS is set, no libraries will be used.
 # SRCS (required) - The set of source files
 # INCLUDE_DIR (optional) - include directory used to build the executable. If
 #       specified, this must be relative to the source directory for the test.
@@ -134,7 +135,7 @@ endfunction()
 # UNWRAPPED_LIBS (optional) - extra libraries that are not wrapped.
 function(define_test)
     # Parse options
-    set(options NEEDS_LD_WRAP NOT_IN_CHECK_IA2)
+    set(options NEEDS_LD_WRAP NOT_IN_CHECK_IA2 NO_LIBS)
     set(oneValueArgs PKEY)
     set(multiValueArgs LIBS SRCS INCLUDE_DIR
         UNWRAPPED_INCLUDE_DIRS UNWRAPPED_LIBRARY_DIRS UNWRAPPED_LIBS)
@@ -150,7 +151,7 @@ function(define_test)
         set(DEFINE_TEST_PKEY "1")
     endif()
 
-    if (NOT DEFINED DEFINE_TEST_LIBS)
+    if (NOT DEFINED DEFINE_TEST_LIBS AND NOT DEFINE_TEST_NO_LIBS)
         set(DEFINE_TEST_LIBS ${TEST_NAME}_lib)
     endif()
 
@@ -224,15 +225,21 @@ function(define_test)
     set_target_properties(${WRAPPED_MAIN} PROPERTIES LINK_DEPENDS ${PADDING_LINKER_SCRIPT})
     target_link_libraries(${WRAPPED_MAIN} PRIVATE
         ${TEST_NAME}_call_gates)
-    get_target_property(LIB_PKEY ${DEFINE_TEST_LIBS} PKEY)
-
-    target_link_libraries(${MAIN} PRIVATE ${DEFINE_TEST_LIBS})
-    if (${LIB_PKEY} GREATER 0)
-        target_link_libraries(${WRAPPED_MAIN} PRIVATE
-            ${DEFINE_TEST_LIBS}_wrapped_padded)
+    if (DEFINED DEFINE_TEST_LIBS)
+        get_target_property(LIB_PKEY ${DEFINE_TEST_LIBS} PKEY)
     else()
-        target_link_libraries(${WRAPPED_MAIN} PRIVATE
-            ${DEFINE_TEST_LIBS}_wrapped)
+        set(LIB_PKEY 0)
+    endif()
+
+    if (DEFINED DEFINE_TEST_LIBS)
+        target_link_libraries(${MAIN} PRIVATE ${DEFINE_TEST_LIBS})
+        if (${LIB_PKEY} GREATER 0)
+            target_link_libraries(${WRAPPED_MAIN} PRIVATE
+                ${DEFINE_TEST_LIBS}_wrapped_padded)
+        else()
+            target_link_libraries(${WRAPPED_MAIN} PRIVATE
+                ${DEFINE_TEST_LIBS}_wrapped)
+        endif()
     endif()
 
     if (DEFINE_TEST_NEEDS_LD_WRAP)

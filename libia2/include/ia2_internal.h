@@ -222,22 +222,22 @@ asm(".macro mov_pkru_eax pkey\n"
   /* The 0th compartment is unprivileged and does not protect its memory, */   \
   /* so declare its stack pointer in the shared object that sets up the */     \
   /* runtime. */                                                               \
-  __thread void *ia2_stackptr_0 __attribute__((aligned(4096)));                \
-  /* Include one page of padding after ia2_stackptr_0 to ensure that the */    \
+  /* Ensure that ia2_stackptr_0 is at least a page long to ensure that the */  \
   /* last page of the TLS segment of compartment 0 does not contain any */     \
   /* variables that will be used, because the last page-1 bytes may be */      \
   /* pkey_mprotected by the next compartment depending on sizes/alignment. */  \
-  __thread char ia2_threadlocal_padding[PAGE_SIZE] __attribute__((used));      \
+  __thread void *ia2_stackptr_0[PAGE_SIZE / sizeof(void *)]                    \
+      __attribute__((aligned(4096)));                                          \
                                                                                \
   REPEATB(n, declare_init_tls_fn, nop_macro);                                  \
-  /* Confirm that stack pointers for compartments 0 and 1 are at least 4K */   \
-  /* apart. */                                                                 \
+  /* Confirm that stack pointers for compartments 0 and 1 are on separate */   \
+  /* pages. */                                                                 \
   void verify_tls_padding(void) {                                              \
     /* It's safe to depend on ia2_stackptr_1 existing because all users of */  \
     /* IA2 will have at least one compartment other than the untrusted one. */ \
     extern __thread void *ia2_stackptr_1;                                      \
-    if (labs((intptr_t)&ia2_stackptr_1 - (intptr_t)&ia2_stackptr_0) <          \
-        0x1000) {                                                              \
+    if (IA2_ROUND_DOWN((uintptr_t)&ia2_stackptr_1, PAGE_SIZE) ==               \
+        IA2_ROUND_DOWN((uintptr_t)ia2_stackptr_0, PAGE_SIZE)) {                \
       printf("ia2_stackptr_1 is too close to ia2_stackptr_0\n");               \
       exit(1);                                                                 \
     }                                                                          \
@@ -279,7 +279,7 @@ asm(".macro mov_pkru_eax pkey\n"
     verify_tls_padding();                                                      \
     REPEATB(n, ALLOCATE_COMPARTMENT_STACK_AND_SETUP_TLS, nop_macro);           \
     /* allocate an unprotected stack for the untrusted compartment */          \
-    ia2_stackptr_0 = allocate_stack(0);                                        \
+    ia2_stackptr_0[0] = allocate_stack(0);                                     \
   }                                                                            \
                                                                                \
   __attribute__((constructor)) static void ia2_init(void) {                    \

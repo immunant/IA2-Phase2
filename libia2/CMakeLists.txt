@@ -28,5 +28,3 @@ set_target_properties(libia2 PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/padding.ld ${CMAKE_CURRENT_BINARY_DIR}/)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/dynsym.syms ${CMAKE_CURRENT_BINARY_DIR}/)
-
-add_subdirectory(test)

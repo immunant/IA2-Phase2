@@ -3,8 +3,7 @@
 
 #include "ia2.h"
 
-void init_stacks(void);
-void protect_tls(void);
+void init_stacks_and_setup_tls(void);
 void **ia2_stackptr_for_pkru(uint32_t pkey);
 
 struct ia2_thread_thunk {
@@ -24,8 +23,7 @@ void *ia2_thread_begin(void *arg) {
   /* Free the thunk. */
   munmap(arg, sizeof(struct ia2_thread_thunk));
 
-  protect_tls();
-  init_stacks();
+  init_stacks_and_setup_tls();
   /* TODO: Set up alternate stack when we have per-thread shared compartment
    * data. */
   /*  sigaltstack(&alt_stack, NULL); */

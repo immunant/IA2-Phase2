@@ -142,11 +142,28 @@ asm(".macro mov_pkru_eax pkey\n"
 // compartments.
 #define IA2_SHARED_DATA __attribute__((section("ia2_shared_data")))
 
-#ifdef LIBIA2_INSECURE
-#define protect_tls_for_compartment(n)
-#else
-#define protect_tls_for_compartment(n) init_tls_##n();
-#endif
+// Initializes a compartment with protection key `n` when the ELF invoking this
+// macro is loaded. This must only be called once for each key. The compartment
+// includes all segments in the ELF except the `ia2_shared_data` section, if one
+// exists.
+#define _INIT_COMPARTMENT(n)                                                   \
+  extern int ia2_n_pkeys_to_alloc;                                             \
+  void ensure_pkeys_allocated(int *n_to_alloc);                                \
+  __attribute__((constructor)) static void init_pkey_##n##_ctor() {            \
+    ensure_pkeys_allocated(&ia2_n_pkeys_to_alloc);                             \
+    struct PhdrSearchArgs args = {                                             \
+        .pkey = n,                                                             \
+        .address = &init_pkey_##n##_ctor,                                      \
+    };                                                                         \
+    dl_iterate_phdr(protect_pages, &args);                                     \
+  }                                                                            \
+  void init_tls_##n(void) {                                                    \
+    struct PhdrSearchArgs args = {                                             \
+        .pkey = n,                                                             \
+        .address = &init_pkey_##n##_ctor,                                      \
+    };                                                                         \
+    dl_iterate_phdr(protect_tls_pages, &args);                                 \
+  }
 
 // Obtain a string corresponding to errno in a threadsafe fashion.
 #define errno_s (strerror_l(errno, uselocale((locale_t)0)))
@@ -172,7 +189,7 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
 /* clang-format can't handle inline asm in macros */
 /* clang-format off */
 /* Allocate and protect the stack for this thread's i'th compartment. */
-#define ALLOCATE_COMPARTMENT_STACK(i)                                          \
+#define ALLOCATE_COMPARTMENT_STACK_AND_SETUP_TLS(i)                            \
   {                                                                            \
     __IA2_UNUSED extern __thread void *ia2_stackptr_##i;                       \
                                                                                \
@@ -186,11 +203,26 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
         "xor %%ecx,%%ecx\n"                                                    \
         "# eax = old pkru; also zeroes edx, which is required for wrpkru\n"    \
         IA2_RDPKRU "\n"                                                        \
-        "# save pkru in r12d\n"                                                \
+        "# save pkru in r12d. XXX: if a callee here spills r12, it could\n"    \
+        "# be corrupted by another thread subsequently corrupt the pkru\n"     \
+        "# when we restore it from r12d\n"                                     \
         "mov %%eax,%%r12d\n"                                                   \
         "# write new pkru\n"                                                   \
         "mov_pkru_eax " #i "\n"                                                \
         IA2_WRPKRU "\n"                                                        \
+        "# save current rsp onto compartment stack\n"                          \
+        "mov %%rsp,(%%r10)\n"                                                  \
+        "# switch onto compartment stack\n"                                    \
+        "mov %%r10,%%rsp\n"                                                    \
+        "# align stack\n"                                                      \
+        "sub $0x8,%%rsp\n"                                                     \
+        "# run init_tls_i on the compartment's stack\n"                        \
+        "call init_tls_" #i "\n"                                               \
+        "# undo stack align\n"                                                 \
+        "add $0x8,%%rsp\n"                                                     \
+        "# switch to old stack and restore recently-alloc'd stack to r10\n"    \
+        "mov %%rsp,%%r10\n"                                                    \
+        "mov (%%r10),%%rsp\n"                                                  \
         "mov ia2_stackptr_" #i "@GOTTPOFF(%%rip),%%r11\n"                      \
         "# check that stack pointer holds NULL\n"                              \
         "cmpq $0x0,%%fs:(%%r11)\n"                                             \
@@ -203,6 +235,9 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
         "mov %%r10,%%fs:(%%r11)\n"                                             \
         "# restore old pkru\n"                                                 \
         "mov %%r12d,%%eax\n"                                                   \
+        "# zero ecx+edx as precondition of wrpkru\n"                           \
+        "xor %%ecx,%%ecx\n"                                                    \
+        "xor %%edx,%%edx\n"                                                    \
         IA2_WRPKRU "\n"                                                        \
         :                                                                      \
         : "rax"(stack)                                                         \
@@ -224,7 +259,14 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
     return out;                                                                \
   }
 
+#ifdef LIBIA2_INSECURE
+/* in insecure mode, stub out init_tls_N functions because _INIT_COMPARTMENT
+never gets called to define them */
+#define declare_init_tls_fn(n)                                                 \
+  void init_tls_##n(void) {}
+#else
 #define declare_init_tls_fn(n) void init_tls_##n(void);
+#endif
 
 #define INIT_RUNTIME_COMMON(n)                                                 \
   /* Allocate a fixed-size stack and protect it with the ith pkey. */          \
@@ -257,10 +299,9 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
   __thread char ia2_threadlocal_padding[PAGE_SIZE] __attribute__((used));      \
                                                                                \
   REPEATB(n, declare_init_tls_fn, nop_macro);                                  \
-  /* Ensure that TLS is protected in a new thread. */                          \
-  void protect_tls(void) {                                                     \
-    /* Confirm that stack pointers for compartments 0 and 1 are at least 4K */ \
-    /* apart. */                                                               \
+  /* Confirm that stack pointers for compartments 0 and 1 are at least 4K */   \
+  /* apart. */                                                                 \
+  void verify_tls_padding(void) {                                              \
     /* It's safe to depend on ia2_stackptr_1 existing because all users of */  \
     /* IA2 will have at least one compartment other than the untrusted one. */ \
     extern __thread void *ia2_stackptr_1;                                      \
@@ -269,8 +310,6 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
       printf("ia2_stackptr_1 is too close to ia2_stackptr_0\n");               \
       exit(1);                                                                 \
     }                                                                          \
-    /* Protect TLS for compartments other than 0. */                           \
-    REPEATB(n, protect_tls_for_compartment, nop_macro);                        \
   }                                                                            \
   /* Ensure that all required pkeys are allocated. */                          \
   void ensure_pkeys_allocated(int *n_to_alloc) {                               \
@@ -305,8 +344,9 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
     return NULL;                                                               \
   }                                                                            \
                                                                                \
-  __attribute__((weak)) void init_stacks(void) {                               \
-    REPEATB(n, ALLOCATE_COMPARTMENT_STACK, nop_macro);                         \
+  __attribute__((weak)) void init_stacks_and_setup_tls(void) {                 \
+    verify_tls_padding();                                                      \
+    REPEATB(n, ALLOCATE_COMPARTMENT_STACK_AND_SETUP_TLS, nop_macro);           \
     /* allocate an unprotected stack for the untrusted compartment */          \
     ia2_stackptr_0 = allocate_stack(0);                                        \
   }                                                                            \
@@ -315,8 +355,7 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
     /* Set up global resources. */                                             \
     ensure_pkeys_allocated(&ia2_n_pkeys_to_alloc);                             \
     /* Initialize stacks for the main thread/ */                               \
-    protect_tls();                                                             \
-    init_stacks();                                                             \
+    init_stacks_and_setup_tls();                                               \
   }
 
 #ifdef __cplusplus

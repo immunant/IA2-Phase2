@@ -173,10 +173,8 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
     }
 
     // Look for the untrusted stack pointer, in case this lib defines it.
-    void *lib = dlopen(info->dlpi_name, RTLD_NOW);
-    if (!lib)
-      exit(-1);
-    uint64_t untrusted_stackptr_addr = (uint64_t)dlsym(lib, "ia2_stackptr_0");
+    extern __thread void *ia2_stackptr_0;
+    uint64_t untrusted_stackptr_addr = (uint64_t)&ia2_stackptr_0;
     if (untrusted_stackptr_addr & 0xFFF != 0) {
       printf("address of ia2_stackptr_0 (%p) is not page-aligned\n",
              (void *)untrusted_stackptr_addr);

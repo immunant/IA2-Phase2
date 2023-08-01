@@ -362,7 +362,7 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
         // we finish protecting these pages, no other compartment may re-protect
         // them because it cannot read from the pages at this probe.
         for (size_t i = 0; i < cur_end - start; i += PAGE_SIZE) {
-          volatile char* cur = (volatile char*)start + i;
+          volatile char *cur = (volatile char *)start + i;
           (void)*cur;
         }
         // TODO: Inline pkey_mprotect call and make sure the pkey is in a

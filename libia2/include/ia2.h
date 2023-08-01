@@ -92,16 +92,15 @@ static uint32_t ia2_get_pkru() {
 #endif
 /* clang-format on */
 
-#define IA2_DEFINE_SIGACTION(function, pkey)                \
-    void ia2_sighandler_##function(int, siginfo_t*, void*); \
-    _IA2_DEFINE_SIGNAL_HANDLER(function, pkey)
+#define IA2_DEFINE_SIGACTION(function, pkey)                                   \
+  void ia2_sighandler_##function(int, siginfo_t *, void *);                    \
+  _IA2_DEFINE_SIGNAL_HANDLER(function, pkey)
 
-#define IA2_DEFINE_SIGHANDLER(function, pkey)  \
-    void ia2_sighandler_##function(int);       \
-    _IA2_DEFINE_SIGNAL_HANDLER(function, pkey)
+#define IA2_DEFINE_SIGHANDLER(function, pkey)                                  \
+  void ia2_sighandler_##function(int);                                         \
+  _IA2_DEFINE_SIGNAL_HANDLER(function, pkey)
 
 #define IA2_IGNORE_FIELD(decl) decl
-
 
 #ifdef __cplusplus
 extern "C" {
@@ -116,8 +115,8 @@ size_t ia2_get_pkey();
 /// \param data pointer to a PhdrSearchArgs structure
 ///
 /// The callback passed to dl_iterate_phdr in the constructor inserted by
-/// ia2_compartment_init.inc to pkey_mprotect the pages corresponding to the compartment's
-/// loaded segments.
+/// ia2_compartment_init.inc to pkey_mprotect the pages corresponding to the
+/// compartment's loaded segments.
 ///
 /// Iterates over shared objects until an object containing the address \p
 /// data->address is found. Protect the pages in that object according to the

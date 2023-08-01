@@ -67,6 +67,8 @@ static uint32_t ia2_get_pkru() {
 
 #define STACK_SIZE (4 * 1024 * 1024)
 
+/* clang-format can't handle inline asm in macros */
+/* clang-format off */
 #ifdef LIBIA2_INSECURE
 #define _IA2_DEFINE_SIGNAL_HANDLER(function, pkey)    \
     __asm__(".global ia2_sighandler_" #function "\n"  \
@@ -88,6 +90,7 @@ static uint32_t ia2_get_pkru() {
             "movq %r10, %rcx\n"                       \
             "jmp " #function "\n")
 #endif
+/* clang-format on */
 
 #define IA2_DEFINE_SIGACTION(function, pkey)                \
     void ia2_sighandler_##function(int, siginfo_t*, void*); \

@@ -82,3 +82,5 @@ target_link_options(partition-alloc
     PRIVATE
         "-Wl,-z,now"
 )
+
+target_link_libraries(partition-alloc libia2)

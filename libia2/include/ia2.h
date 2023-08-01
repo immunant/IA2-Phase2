@@ -191,16 +191,16 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
         "# write new pkru\n"                                                   \
         "mov_pkru_eax " #i "\n"                                                \
         IA2_WRPKRU "\n"                                                        \
-        "mov ia2_stackptr_" #i "@GOTTPOFF(%%rip), %%r11\n"                     \
+        "mov ia2_stackptr_" #i "@GOTTPOFF(%%rip),%%r11\n"                      \
         "# check that stack pointer holds NULL\n"                              \
         "cmpq $0x0,%%fs:(%%r11)\n"                                             \
         "je .Lfresh_init" #i "\n"                                              \
-        "mov $" #i ", %%rdi\n"                                                 \
+        "mov $" #i ",%%rdi\n"                                                  \
         "call ia2_reinit_stack_err\n"                                          \
         "ud2\n"                                                                \
         ".Lfresh_init" #i ":\n"                                                \
         "# store the stack addr in the stack pointer\n"                        \
-        "mov %%r10, %%fs:(%%r11)\n"                                            \
+        "mov %%r10,%%fs:(%%r11)\n"                                             \
         "# restore old pkru\n"                                                 \
         "mov %%r12d,%%eax\n"                                                   \
         IA2_WRPKRU "\n"                                                        \

@@ -59,10 +59,6 @@ add_library(partition-alloc SHARED
 
 target_link_libraries(partition-alloc libia2)
 
-if(LIBIA2_INSECURE)
-    target_compile_definitions(partition-alloc PUBLIC LIBIA2_INSECURE=1)
-endif()
-
 target_include_directories(partition-alloc BEFORE
     INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/include

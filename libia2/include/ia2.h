@@ -41,21 +41,10 @@ instead of `fn`. */
 /* Handy as the base-case for repeating from N to 1, excluding 1. */
 #define nop_macro(x)
 
-#ifdef LIBIA2_INSECURE
-
-#if !defined(IA2_WRPKRU)
-#define IA2_WRPKRU ""
-#endif
-#define IA2_RDPKRU ""
-
-#else
-
 #if !defined(IA2_WRPKRU)
 #define IA2_WRPKRU "wrpkru"
 #endif
 #define IA2_RDPKRU "rdpkru"
-
-#endif
 
 /// Helper to get the PKRU register value
 __IA2_UNUSED
@@ -69,12 +58,6 @@ static uint32_t ia2_get_pkru() {
 
 /* clang-format can't handle inline asm in macros */
 /* clang-format off */
-#ifdef LIBIA2_INSECURE
-#define _IA2_DEFINE_SIGNAL_HANDLER(function, pkey)    \
-    __asm__(".global ia2_sighandler_" #function "\n"  \
-            "ia2_sighandler_" #function ":\n"         \
-            "jmp " #function "\n")
-#else
 #define _IA2_DEFINE_SIGNAL_HANDLER(function, pkey)    \
     __asm__(".global ia2_sighandler_" #function "\n"  \
             "ia2_sighandler_" #function ":\n"         \
@@ -89,7 +72,6 @@ static uint32_t ia2_get_pkru() {
             "movq %r11, %rdx\n"                       \
             "movq %r10, %rcx\n"                       \
             "jmp " #function "\n")
-#endif
 /* clang-format on */
 
 #define IA2_DEFINE_SIGACTION(function, pkey)                                   \
@@ -148,20 +130,6 @@ asm(".macro mov_pkru_eax pkey\n"
 #define PAGE_SIZE 4096
 #define PTRS_PER_PAGE (PAGE_SIZE / sizeof(void *))
 #define IA2_MAX_THREADS (PTRS_PER_PAGE)
-
-#ifdef LIBIA2_INSECURE
-#define pkey_mprotect insecure_pkey_mprotect
-static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
-  return 0;
-}
-#define INIT_RUNTIME(n)                                                        \
-  int ia2_n_pkeys_to_alloc = 0;                                                \
-  INIT_RUNTIME_COMMON(n)
-#else
-#define INIT_RUNTIME(n)                                                        \
-  int ia2_n_pkeys_to_alloc = n;                                                \
-  INIT_RUNTIME_COMMON(n)
-#endif
 
 /* clang-format can't handle inline asm in macros */
 /* clang-format off */
@@ -236,16 +204,10 @@ static int insecure_pkey_mprotect(void *ptr, size_t len, int prot, int pkey) {
     return out;                                                                \
   }
 
-#ifdef LIBIA2_INSECURE
-/* in insecure mode, stub out init_tls_N functions because _INIT_COMPARTMENT
-never gets called to define them */
-#define declare_init_tls_fn(n)                                                 \
-  void init_tls_##n(void) {}
-#else
 #define declare_init_tls_fn(n) void init_tls_##n(void);
-#endif
 
-#define INIT_RUNTIME_COMMON(n)                                                 \
+#define INIT_RUNTIME(n)                                                 \
+  int ia2_n_pkeys_to_alloc = n;                                                \
   /* Allocate a fixed-size stack and protect it with the ith pkey. */          \
   /* Returns the top of the stack, not the base address of the allocation. */  \
   char *allocate_stack(int i) {                                                \

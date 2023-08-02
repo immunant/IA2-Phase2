@@ -10,9 +10,6 @@
 // TODO: Do we want to use sysconf(3) here?
 #define PAGE_SIZE 4096
 
-#ifdef LIBIA2_INSECURE
-size_t ia2_get_pkey() { return 0; }
-#else
 size_t ia2_get_pkey() {
   uint32_t pkru;
   __asm__("rdpkru" : "=a"(pkru) : "a"(0), "d"(0), "c"(0));
@@ -76,7 +73,6 @@ size_t ia2_get_pkey() {
   }
   }
 }
-#endif // LIBIA2_INSECURE
 
 static const char *shared_sections[][2] = {
     {"__start_ia2_shared_data", "__stop_ia2_shared_data"},

@@ -45,13 +45,8 @@ void *ia2_thread_begin(void *arg) {
       /* clang-format off */
       // Copy stack pointer to rdi.
       "movq %%rsp, %%rdi\n"
-      // In insecure mode, we can't read pkru to know which compartment the
-      // thread started in (inherited from the parent thread), so we don't know
-      // which stack it would be appropriate to switch to here.
-#ifndef LIBIA2_INSECURE
       // Load the stack pointer for this compartment's stack.
       "mov (%[new_sp_addr]), %%rsp\n"
-#endif
       // Push old stack pointer.
       "pushq %%rdi\n"
       "pushq %%rbp\n"

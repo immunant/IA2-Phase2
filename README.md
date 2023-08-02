@@ -18,7 +18,7 @@ rustup install nightly
 
 ### Configure with CMake
 
-*Note*: Adjust paths to your version of Clang/LLVM and set `LIBIA2_INSECURE` to `ON` if MPK is not available.
+*Note*: Adjust paths to your version of Clang/LLVM
 
 ```
 mkdir build && pushd build
@@ -26,7 +26,6 @@ cmake ..                                        \
             -DClang_DIR=/usr/lib/cmake/clang-12 \
             -DLLVM_DIR=/usr/lib/llvm-12/cmake   \
             -DLLVM_EXTERNAL_LIT=`which lit`     \
-            -DLIBIA2_INSECURE=OFF               \
             -G Ninja
 ```
 

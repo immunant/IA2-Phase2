@@ -90,4 +90,12 @@ jobs:
           pushd build
           ninja -v check-ia2
           popd
-
+      - name: Save tests
+        uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: build
+          path: |
+            build/libia2/
+            build/partition-alloc/
+            build/rewriter/tests/

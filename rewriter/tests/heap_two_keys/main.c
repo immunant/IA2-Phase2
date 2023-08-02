@@ -1,10 +1,10 @@
 /*
 RUN: sh -c 'if [ ! -s "heap_two_keys_call_gates_0.ld" ]; then echo "No link args as expected"; exit 0; fi; echo "Unexpected link args"; exit 1;'
 RUN: sh -c 'if [ ! -s "heap_two_keys_call_gates_2.ld" ]; then echo "No link args as expected"; exit 0; fi; echo "Unexpected link args"; exit 1;'
-TODO: %binary_dir/tests/heap_two_keys/heap_two_keys_main_wrapped 0 | diff %binary_dir/tests/heap_two_keys/plugin.out -
+TODO: %binary_dir/tests/heap_two_keys/heap_two_keys_main_wrapped 0 | diff %S/Output/plugin.out -
 // TODO(src_rewriter_wip): had to change the output here, why?
-RUN: %binary_dir/tests/heap_two_keys/heap_two_keys_main_wrapped 1 | diff %binary_dir/tests/heap_two_keys/main.out -
-TODO: %binary_dir/tests/heap_two_keys/heap_two_keys_main_wrapped 2 | diff %source_dir/tests/heap_two_keys/Output/clean_exit.out -
+RUN: %binary_dir/tests/heap_two_keys/heap_two_keys_main_wrapped 1 | diff %S/Output/main.out -
+TODO: %binary_dir/tests/heap_two_keys/heap_two_keys_main_wrapped 2 | diff %S/Output/clean_exit.out -
 */
 #include <stdio.h>
 #include <unistd.h>

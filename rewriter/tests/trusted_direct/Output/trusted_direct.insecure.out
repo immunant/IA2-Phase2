@@ -1,3 +1,0 @@
-start_plugin: this is defined in the plugin
-print_message: the secret 0x9431233 is defined in the main binary
-CHECK_VIOLATION: did not seg fault as expected

@@ -1,6 +1,6 @@
 /*
 RUN: cat recursion_call_gates_2.ld | FileCheck --check-prefix=LINKARGS %s
-RUN: %binary_dir/tests/recursion/recursion_main_wrapped | diff %binary_dir/tests/recursion/recursion.out -
+RUN: %binary_dir/tests/recursion/recursion_main_wrapped | diff %S/Output/recursion.out -
 */
 
 #include <ia2.h>

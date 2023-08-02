@@ -1,10 +1,3 @@
-if(LIBIA2_INSECURE)
-    set(STDOUT_REF ${CMAKE_CURRENT_SOURCE_DIR}/Output/trusted_direct.insecure.out)
-else()
-    set(STDOUT_REF ${CMAKE_CURRENT_SOURCE_DIR}/Output/trusted_direct.out)
-endif()
-configure_file(${STDOUT_REF} ${CMAKE_CURRENT_BINARY_DIR}/trusted_direct.out)
-
 # Build the plugin lib
 define_shared_lib(
     SRCS plugin.c

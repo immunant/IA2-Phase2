@@ -1,7 +1,0 @@
-CHECK: library: lib secret is 1eaf1e55
-CHECK-next: main: main secret is deadbeef
-CHECK: library: lib secret is 1eaf1e55
-CHECK: errno=5
-CHECK: library: going to access main secret
-CHECK: library: accessing main secret at 
-CHECK: CHECK_VIOLATION: did not seg fault as expected

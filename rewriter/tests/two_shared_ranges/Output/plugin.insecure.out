@@ -1,8 +1,0 @@
-main: checking if the plugin secret is safe
-start_plugin: this is defined in the plugin
-start_plugin: the plugin secret is 78341244
-start_plugin: the main shared data is b75784ee
-print_message: this is defined in the main binary
-print_message: the main secret is 9431233
-print_message: the plugin shared data is 415ea635
-CHECK_VIOLATION: did not seg fault as expected

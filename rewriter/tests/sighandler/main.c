@@ -1,5 +1,5 @@
 /*
-RUN: %binary_dir/tests/sighandler/sighandler_main_wrapped | diff %binary_dir/tests/sighandler/main.out -
+RUN: %binary_dir/tests/sighandler/sighandler_main_wrapped | diff %S/Output/main.out -
 */
 #include "lib.h"
 #include <stddef.h>

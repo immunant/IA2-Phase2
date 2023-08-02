@@ -1,9 +1,9 @@
 /*
 RUN: sh -c 'if [ ! -s "should_segfault_call_gates_0.ld" ]; then echo "No link args as expected"; exit 0; fi; echo "Unexpected link args"; exit 1;'
 RUN: cat two_keys_minimal_call_gates_2.ld | FileCheck --check-prefix=LINKARGS %s
-RUN: %binary_dir/tests/two_keys_minimal/two_keys_minimal_main_wrapped plugin | diff %binary_dir/tests/two_keys_minimal/plugin.out -
-RUN: %binary_dir/tests/two_keys_minimal/two_keys_minimal_main_wrapped main | diff %binary_dir/tests/two_keys_minimal/main.out -
-TODO: %binary_dir/tests/two_keys_minimal/two_keys_minimal_main_wrapped clean_exit | diff %source_dir/tests/two_keys_minimal/Output/clean_exit.out -
+RUN: %binary_dir/tests/two_keys_minimal/two_keys_minimal_main_wrapped plugin | diff %S/Output/plugin.out -
+RUN: %binary_dir/tests/two_keys_minimal/two_keys_minimal_main_wrapped main | diff %S/Output/main.out -
+TODO: %binary_dir/tests/two_keys_minimal/two_keys_minimal_main_wrapped clean_exit | diff %S/Output/clean_exit.out -
 RUN: readelf -lW %binary_dir/tests/two_keys_minimal/two_keys_minimal_main_wrapped | FileCheck --check-prefix=SEGMENTS %s
 */
 

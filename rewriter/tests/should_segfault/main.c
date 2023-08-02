@@ -1,7 +1,7 @@
 /*
 RUN: sh -c 'if [ ! -s "should_segfault_call_gates_0.ld" ]; then echo "No link args as expected"; exit 0; fi; echo "Unexpected link args"; exit 1;'
-RUN: %binary_dir/tests/should_segfault/should_segfault_main_wrapped | diff %binary_dir/tests/should_segfault/should_segfault.out -
-RUN: %binary_dir/tests/should_segfault/should_segfault_main_wrapped early_fault | diff %binary_dir/tests/should_segfault/early_segfault.out -
+RUN: %binary_dir/tests/should_segfault/should_segfault_main_wrapped | diff %S/Output/should_segfault.out -
+RUN: %binary_dir/tests/should_segfault/should_segfault_main_wrapped early_fault | diff %S/Output/early_segfault.out -
 */
 #include <stdio.h>
 #include <unistd.h>

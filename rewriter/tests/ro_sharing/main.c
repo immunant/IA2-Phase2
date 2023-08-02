@@ -1,8 +1,8 @@
 /*
 RUN: sh -c 'if [ ! -s "ro_sharing_call_gates_0.ld" ]; then echo "No link args as expected"; exit 0; fi; echo "Unexpected link args"; exit 1;'
 RUN: sh -c 'if [ ! -s "ro_sharing_call_gates_2.ld" ]; then echo "No link args as expected"; exit 0; fi; echo "Unexpected link args"; exit 1;'
-RUN: %binary_dir/tests/ro_sharing/ro_sharing_main_wrapped plugin | diff %binary_dir/tests/ro_sharing/plugin.out -
-RUN: %binary_dir/tests/ro_sharing/ro_sharing_main_wrapped main | diff %binary_dir/tests/ro_sharing/main.out -
+RUN: %binary_dir/tests/ro_sharing/ro_sharing_main_wrapped plugin | diff %S/Output/plugin.out -
+RUN: %binary_dir/tests/ro_sharing/ro_sharing_main_wrapped main | diff %S/Output/main.out -
 */
 #include "plugin.h"
 #include <ia2.h>

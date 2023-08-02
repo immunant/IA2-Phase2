@@ -1,7 +1,7 @@
 /*
 RUN: cat main.c | FileCheck --match-full-lines --check-prefix=REWRITER %s
 RUN: sh -c 'if [ ! -s "trusted_indirect_call_gates_0.ld" ]; then echo "No link args as expected"; exit 0; fi; echo "Unexpected link args"; exit 1;'
-RUN: %binary_dir/tests/trusted_indirect/trusted_indirect_main_wrapped | diff %binary_dir/tests/trusted_indirect/trusted_indirect.out -
+RUN: %binary_dir/tests/trusted_indirect/trusted_indirect_main_wrapped | diff %S/Output/trusted_indirect.out -
 RUN: %binary_dir/tests/trusted_indirect/trusted_indirect_main_wrapped clean_exit | diff %S/Output/trusted_indirect.clean_exit.out -
 */
 #include <stdio.h>

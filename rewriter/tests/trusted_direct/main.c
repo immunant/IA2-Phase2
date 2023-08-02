@@ -1,7 +1,7 @@
 /*
 RUN: cat trusted_direct_call_gates_0.ld | FileCheck --check-prefix=LINKARGS %s
-RUN: %binary_dir/tests/trusted_direct/trusted_direct_main_wrapped | diff %binary_dir/tests/trusted_direct/trusted_direct.out -
-RUN: %binary_dir/tests/trusted_direct/trusted_direct_main_wrapped clean_exit | diff %source_dir/tests/trusted_direct/Output/trusted_direct.clean_exit.out -
+RUN: %binary_dir/tests/trusted_direct/trusted_direct_main_wrapped | diff %S/Output/trusted_direct.out -
+RUN: %binary_dir/tests/trusted_direct/trusted_direct_main_wrapped clean_exit | diff %S/Output/trusted_direct.clean_exit.out -
 */
 #include <inttypes.h>
 #include <stdio.h>

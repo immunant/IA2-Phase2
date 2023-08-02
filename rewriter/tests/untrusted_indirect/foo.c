@@ -1,7 +1,7 @@
 /*
 RUN: cat untrusted_indirect_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
-RUN: %binary_dir/tests/untrusted_indirect/untrusted_indirect_main_wrapped | diff %binary_dir/tests/untrusted_indirect/untrusted_indirect.out -
-RUN: %binary_dir/tests/untrusted_indirect/untrusted_indirect_main_wrapped clean_exit | diff %source_dir/tests/untrusted_indirect/Output/untrusted_indirect.clean_exit.out -
+RUN: %binary_dir/tests/untrusted_indirect/untrusted_indirect_main_wrapped | diff %S/Output/untrusted_indirect.out -
+RUN: %binary_dir/tests/untrusted_indirect/untrusted_indirect_main_wrapped clean_exit | diff %S/Output/untrusted_indirect.clean_exit.out -
 */
 #include <signal.h>
 #include "foo.h"

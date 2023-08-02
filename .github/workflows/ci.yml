@@ -21,7 +21,7 @@ jobs:
         ia2-debug: [ON, OFF]
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Build
         run: |
           LLVM_DIR=`llvm-config --cmakedir`
@@ -72,7 +72,7 @@ jobs:
           sudo apt install -y clang-${{ matrix.clang-version }} \
             libclang-${{ matrix.clang-version }}-dev
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Build
         run: |
           mkdir build

@@ -142,29 +142,6 @@ asm(".macro mov_pkru_eax pkey\n"
 // compartments.
 #define IA2_SHARED_DATA __attribute__((section("ia2_shared_data")))
 
-// Initializes a compartment with protection key `n` when the ELF invoking this
-// macro is loaded. This must only be called once for each key. The compartment
-// includes all segments in the ELF except the `ia2_shared_data` section, if one
-// exists.
-#define _INIT_COMPARTMENT(n)                                                   \
-  extern int ia2_n_pkeys_to_alloc;                                             \
-  void ensure_pkeys_allocated(int *n_to_alloc);                                \
-  __attribute__((constructor)) static void init_pkey_##n##_ctor() {            \
-    ensure_pkeys_allocated(&ia2_n_pkeys_to_alloc);                             \
-    struct PhdrSearchArgs args = {                                             \
-        .pkey = n,                                                             \
-        .address = &init_pkey_##n##_ctor,                                      \
-    };                                                                         \
-    dl_iterate_phdr(protect_pages, &args);                                     \
-  }                                                                            \
-  void init_tls_##n(void) {                                                    \
-    struct PhdrSearchArgs args = {                                             \
-        .pkey = n,                                                             \
-        .address = &init_pkey_##n##_ctor,                                      \
-    };                                                                         \
-    dl_iterate_phdr(protect_tls_pages, &args);                                 \
-  }
-
 // Obtain a string corresponding to errno in a threadsafe fashion.
 #define errno_s (strerror_l(errno, uselocale((locale_t)0)))
 

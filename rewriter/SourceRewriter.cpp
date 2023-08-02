@@ -907,9 +907,6 @@ int main(int argc, const char **argv) {
 
   const char *assert_pkru_macro =
       "#ifdef LIBIA2_DEBUG\n"
-      "#ifdef LIBIA2_INSECURE\n"
-      "#error LIBIA2_DEBUG may not be used with LIBIA2_INSECURE\n"
-      "#endif\n"
       "#define ASSERT_PKRU(pkru) \\\n"
       "    \"movq %rcx, %r10\\n\" \\\n"
       "    \"movq %rdx, %r11\\n\" \\\n"
@@ -926,11 +923,7 @@ int main(int argc, const char **argv) {
       "#endif\n";
 
   header_out << "#include \"scrub_registers.h\"\n";
-  header_out << "#ifdef LIBIA2_INSECURE\n";
-  header_out << "#define IA2_WRPKRU\n";
-  header_out << "#else\n";
   header_out << "#define IA2_WRPKRU \"wrpkru\"\n";
-  header_out << "#endif\n";
   header_out << assert_pkru_macro;
 
   header_out << '\n';
@@ -954,11 +947,7 @@ int main(int argc, const char **argv) {
   header_out << "#define IA2_CALL(opaque, id) _IA2_CALL(opaque, id, PKEY)\n";
 
   wrapper_out << "#include \"scrub_registers.h\"\n";
-  wrapper_out << "#ifdef LIBIA2_INSECURE\n";
-  wrapper_out << "#define IA2_WRPKRU\n";
-  wrapper_out << "#else\n";
   wrapper_out << "#define IA2_WRPKRU \"wrpkru\"\n";
-  wrapper_out << "#endif\n";
   wrapper_out << assert_pkru_macro;
 
   /*

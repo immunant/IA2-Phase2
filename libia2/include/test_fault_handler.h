@@ -55,15 +55,13 @@ __attribute__((naked)) void handle_segfault(int sig) {
   // This asm must preserve %rdi which contains the argument since
   // print_mpk_message reads it
   __asm__(
-  // Signal handlers are defined in the main binary, but they don't run with the
-  // same pkru state as the interrupted context. This means we have to remove
-  // all MPK restrictions to ensure can run it correctly.
-#ifndef LIBIA2_INSECURE
+      // Signal handlers are defined in the main binary, but they don't run with
+      // the same pkru state as the interrupted context. This means we have to
+      // remove all MPK restrictions to ensure can run it correctly.
       "xorl %ecx, %ecx\n"
       "xorl %edx, %edx\n"
       "xorl %eax, %eax\n"
       "wrpkru\n"
-#endif
       // Switch the stack to a shared buffer. There's only one u32 argument and
       // no returns so we don't need a full wrapper here.
       "movq sighandler_sp@GOTPCREL(%rip), %rsp\n"

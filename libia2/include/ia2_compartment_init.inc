@@ -16,8 +16,6 @@
 
 __thread void *COMPARTMENT_IDENT(ia2_stackptr) __attribute__((used));
 
-#ifndef LIBIA2_INSECURE
-
 /*
 ** Initializes a compartment with protection key `n`. Called automatically as a
 ** constructor when the ELF defining this symbol is loaded. This must only be
@@ -62,5 +60,3 @@ void COMPARTMENT_IDENT(init_tls)(void) {
   };
   dl_iterate_phdr(protect_tls_pages, &args);
 }
-
-#endif /* LIBIA2_INSECURE not defined */

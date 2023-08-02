@@ -9,7 +9,10 @@
 #include <ngx_core.h>
 #include <ngx_http.h>
 #include <ngx_http_perl_module.h>
+#include <ia2.h>
 
+#define IA2_COMPARTMENT 2
+#include <ia2_compartment_init.inc>
 
 typedef struct {
     PerlInterpreter   *perl;

@@ -13,7 +13,7 @@ WriteMakefile(
     ABSTRACT_FROM     => 'nginx.pm',     # retrieve abstract from module
     AUTHOR            => 'Igor Sysoev',
 
-    CCFLAGS           => "$ENV{NGX_PM_CFLAGS}",
+    CCFLAGS           => "$ENV{NGX_PM_CFLAGS} -DPKEY=3",
     OPTIMIZE          => '-O',
 
     LDDLFLAGS         => "$ENV{NGX_PM_LDFLAGS}",

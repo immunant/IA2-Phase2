@@ -78,10 +78,6 @@ size_t ia2_get_pkey() {
 }
 #endif // LIBIA2_INSECURE
 
-static const char *shared_sections[][2] = {
-    {"__start_ia2_shared_data", "__stop_ia2_shared_data"},
-};
-
 // The number of special ELF sections that may be shared by protect_pages
 #define NUM_SHARED_SECTIONS                                                    \
   (sizeof(shared_sections) / sizeof(shared_sections[0]))
@@ -219,6 +215,10 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
     printf("Passed invalid args to dl_iterate_phdr callback\n");
     exit(-1);
   }
+
+  const char *shared_sections[][2] = {
+      {"__start_ia2_shared_data", "__stop_ia2_shared_data"},
+  };
 
   struct PhdrSearchArgs *search_args = (struct PhdrSearchArgs *)data;
 

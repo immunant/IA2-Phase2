@@ -923,7 +923,6 @@ int main(int argc, const char **argv) {
       "#endif\n";
 
   header_out << "#include \"scrub_registers.h\"\n";
-  header_out << "#define IA2_WRPKRU \"wrpkru\"\n";
   header_out << assert_pkru_macro;
 
   header_out << '\n';
@@ -947,7 +946,6 @@ int main(int argc, const char **argv) {
   header_out << "#define IA2_CALL(opaque, id) _IA2_CALL(opaque, id, PKEY)\n";
 
   wrapper_out << "#include \"scrub_registers.h\"\n";
-  wrapper_out << "#define IA2_WRPKRU \"wrpkru\"\n";
   wrapper_out << assert_pkru_macro;
 
   /*

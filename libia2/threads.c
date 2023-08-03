@@ -33,7 +33,7 @@ void *ia2_thread_begin(void *arg) {
   __asm__ volatile(
       /* clang-format off */
       "xor %%ecx,%%ecx\n"
-      IA2_RDPKRU "\n"
+      "rdpkru\n"
       /* clang-format on */
       : "=a"(pkru)::"ecx", "edx");
   /* returns NULL in insecure mode, because we can't read a pkru there. */

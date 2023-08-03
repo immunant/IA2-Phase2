@@ -37,7 +37,7 @@ __attribute__((constructor)) static void COMPARTMENT_IDENT(init_pkey)() {
       "xorl %%ecx, %%ecx\n"
       "xorl %%edx, %%edx\n"
       "mov_pkru_eax " XSTR(IA2_COMPARTMENT) "\n"
-      IA2_WRPKRU "\n"
+      "wrpkru\n"
       :
       :
       : "rax", "rcx", "rdx");
@@ -47,7 +47,7 @@ __attribute__((constructor)) static void COMPARTMENT_IDENT(init_pkey)() {
       "xorl %%ecx, %%ecx\n"
       "xorl %%edx, %%edx\n"
       "xorl %%eax, %%eax\n"
-      IA2_WRPKRU "\n"
+      "wrpkru\n"
       :
       :
       : "rax", "rcx", "rdx");

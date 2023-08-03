@@ -192,7 +192,7 @@ static void emit_wrpkru(AsmWriter &aw, int pkey) {
   add_asm_line(aw, "xorl %ecx, %ecx");
   add_asm_line(aw, "xorl %edx, %edx");
   add_asm_line(aw, llvm::formatv("movl ${0:x8}, %eax", pkru));
-  add_raw_line(aw, "IA2_WRPKRU \"\\n\"");
+  add_raw_line(aw, "\"wrpkru\\n\"");
 }
 
 // Emit code to set the PKRU. Clobbers eax, ecx and edx.
@@ -203,7 +203,7 @@ static void emit_mixed_wrpkru(AsmWriter &aw, int pkey0, int pkey1) {
   add_asm_line(aw, "xorl %ecx, %ecx");
   add_asm_line(aw, "xorl %edx, %edx");
   add_asm_line(aw, llvm::formatv("movl ${0:x8}, %eax", pkru));
-  add_raw_line(aw, "IA2_WRPKRU \"\\n\"");
+  add_raw_line(aw, "\"wrpkru\\n\"");
 }
 
 // Emit code to load the address of a compartment's stack from ia2_stackptr_##n.

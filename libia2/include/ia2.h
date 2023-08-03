@@ -41,16 +41,11 @@ instead of `fn`. */
 /* Handy as the base-case for repeating from N to 1, excluding 1. */
 #define nop_macro(x)
 
-#if !defined(IA2_WRPKRU)
-#define IA2_WRPKRU "wrpkru"
-#endif
-#define IA2_RDPKRU "rdpkru"
-
 /// Helper to get the PKRU register value
 __IA2_UNUSED
 static uint32_t ia2_get_pkru() {
   uint32_t pkru = 0;
-  __asm__ volatile(IA2_RDPKRU : "=a"(pkru) : "a"(0), "d"(0), "c"(0));
+  __asm__ volatile("rdpkru" : "=a"(pkru) : "a"(0), "d"(0), "c"(0));
   return pkru;
 }
 
@@ -147,14 +142,14 @@ asm(".macro mov_pkru_eax pkey\n"
         "# zero ecx as precondition of rdpkru\n"                               \
         "xor %%ecx,%%ecx\n"                                                    \
         "# eax = old pkru; also zeroes edx, which is required for wrpkru\n"    \
-        IA2_RDPKRU "\n"                                                        \
+        "rdpkru\n"                                                             \
         "# save pkru in r12d. XXX: if a callee here spills r12, it could\n"    \
         "# be corrupted by another thread subsequently corrupt the pkru\n"     \
         "# when we restore it from r12d\n"                                     \
         "mov %%eax,%%r12d\n"                                                   \
         "# write new pkru\n"                                                   \
         "mov_pkru_eax " #i "\n"                                                \
-        IA2_WRPKRU "\n"                                                        \
+        "wrpkru\n"                                                             \
         "# save current rsp onto compartment stack\n"                          \
         "mov %%rsp,(%%r10)\n"                                                  \
         "# switch onto compartment stack\n"                                    \
@@ -183,7 +178,7 @@ asm(".macro mov_pkru_eax pkey\n"
         "# zero ecx+edx as precondition of wrpkru\n"                           \
         "xor %%ecx,%%ecx\n"                                                    \
         "xor %%edx,%%edx\n"                                                    \
-        IA2_WRPKRU "\n"                                                        \
+        "wrpkru\n"                                                             \
         :                                                                      \
         : "rax"(stack)                                                         \
         : "rdi", "rcx", "rdx", "r10", "r11", "r12");                           \

@@ -36,7 +36,6 @@ void *ia2_thread_begin(void *arg) {
       "rdpkru\n"
       /* clang-format on */
       : "=a"(pkru)::"ecx", "edx");
-  /* returns NULL in insecure mode, because we can't read a pkru there. */
   void **new_sp_addr = ia2_stackptr_for_pkru(pkru);
 
   /* Switch to the stack for this compartment, then call `fn(data)`. */

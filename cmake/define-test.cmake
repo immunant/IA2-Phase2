@@ -160,6 +160,7 @@ function(define_test)
     get_filename_component(TEST_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)
     set(MAIN ${TEST_NAME}_main)
     set(WRAPPED_MAIN ${TEST_NAME}_main_wrapped)
+    set(REWRAPPED_MAIN ${TEST_NAME}_main_rewrapped)
 
     if (NOT DEFINED DEFINE_TEST_PKEY)
         set(DEFINE_TEST_PKEY "1")
@@ -174,13 +175,17 @@ function(define_test)
     else()
         set(RELATIVE_INCLUDE_DIR include)
     endif()
+    set(REWRAPPED_DIR "${CMAKE_CURRENT_BINARY_DIR}/rewrapped")
     set(ORIGINAL_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/${RELATIVE_INCLUDE_DIR})
     set(REWRITTEN_INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR}/${RELATIVE_INCLUDE_DIR})
+    set(REWRAPPED_INCLUDE_DIR ${REWRAPPED_DIR}/${RELATIVE_INCLUDE_DIR})
 
     set(ORIGINAL_SRCS ${DEFINE_TEST_SRCS})
     list(TRANSFORM ORIGINAL_SRCS PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/)
     set(COPIED_SRCS ${DEFINE_TEST_SRCS})
     list(TRANSFORM COPIED_SRCS PREPEND ${CMAKE_CURRENT_BINARY_DIR}/)
+    set(COPIED_SRCS_2 ${DEFINE_TEST_SRCS})
+    list(TRANSFORM COPIED_SRCS_2 PREPEND ${REWRAPPED_DIR}/)
 
     file(GLOB ORIGINAL_HEADERS "${ORIGINAL_INCLUDE_DIR}/*.h")
     list(TRANSFORM ORIGINAL_HEADERS REPLACE
@@ -197,10 +202,25 @@ function(define_test)
         copy_files_${MAIN}
         DEPENDS ${COPIED_SRCS} ${COPIED_HEADERS}
     )
+    list(TRANSFORM ORIGINAL_HEADERS REPLACE
+        ${ORIGINAL_INCLUDE_DIR} ${REWRAPPED_INCLUDE_DIR}
+        OUTPUT_VARIABLE COPIED_HEADERS_2)
+    add_custom_command(
+        OUTPUT ${COPIED_SRCS_2} ${COPIED_HEADERS_2}
+        COMMAND cp ${COPIED_SRCS} ${REWRAPPED_DIR}/
+        COMMAND mkdir -p ${REWRAPPED_INCLUDE_DIR}
+        COMMAND cp ${COPIED_HEADERS} ${REWRAPPED_INCLUDE_DIR}
+        DEPENDS ${COPIED_SRCS} ${COPIED_HEADERS}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+    add_custom_target(
+        copy_files_2_${MAIN}
+        DEPENDS ${COPIED_SRCS_2} ${COPIED_HEADERS_2}
+    )
+    add_dependencies(copy_files_2_${MAIN} ${TEST_NAME}_call_gate_generation)
 
     set(DYN_SYM ${libia2_BINARY_DIR}/dynsym.syms)
 
-    # Define two targets
+    # Define two targets per wrapped target
     set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
     add_executable(${MAIN} ${COPIED_SRCS})
     set(CMAKE_EXPORT_COMPILE_COMMANDS OFF)
@@ -208,9 +228,16 @@ function(define_test)
     add_dependencies(${WRAPPED_MAIN} ${TEST_NAME}_call_gate_generation)
     set_target_properties(${MAIN} PROPERTIES EXCLUDE_FROM_ALL 1)
 
+    set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+    add_executable(${WRAPPED_MAIN}_broken ${COPIED_SRCS_2})
+    set(CMAKE_EXPORT_COMPILE_COMMANDS OFF)
+    add_executable(${REWRAPPED_MAIN} ${COPIED_SRCS_2})
+    add_dependencies(${REWRAPPED_MAIN} ${TEST_NAME}_call_gate_generation_2)
+    set_target_properties(${WRAPPED_MAIN}_broken PROPERTIES EXCLUDE_FROM_ALL 1)
+
     target_compile_definitions(${MAIN} PRIVATE PRE_REWRITER=1)
-    # Define options common to both targets
-    foreach(target ${MAIN} ${WRAPPED_MAIN})
+    # Define options common to all targets
+    foreach(target ${MAIN} ${WRAPPED_MAIN} ${WRAPPED_MAIN}_broken ${REWRAPPED_MAIN})
         set_target_properties(${target} PROPERTIES PKEY ${DEFINE_TEST_PKEY})
 
         if(DEFINED DEFINE_TEST_PKEY)

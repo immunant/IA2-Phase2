@@ -241,8 +241,6 @@ function(define_test)
     endforeach()
     add_dependencies(check-ia2 ${WRAPPED_MAIN})
 
-    target_link_libraries(${MAIN} PRIVATE ${DEFINE_TEST_LIBS})
-
     target_link_options(${WRAPPED_MAIN} PRIVATE
             "-Wl,-T${PADDING_LINKER_SCRIPT}"
             "-Wl,--dynamic-list=${DYN_SYM}")

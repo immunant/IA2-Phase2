@@ -348,7 +348,7 @@ public:
             std::map<std::string, Replacements> &file_replacements)
       : file_replacements(file_replacements) {
     // Initialize the function pointer signature ID counter
-    id_counter = 0;
+    id_counter = fn_ptr_ids.size();
 
     // This matches expressions that reference declared functions and we use
     // this to filter out direct calls in the following matcher
@@ -385,6 +385,7 @@ public:
     // Check if the function pointer type already has an ID
     auto expr_ty = fn_ptr_call->getType()->getCanonicalTypeInternal();
     auto expr_ty_str = expr_ty.getAsString();
+    llvm::outs() << "Found " << expr_ty_str << '\n';
     if (!fn_ptr_ids.contains(expr_ty_str)) {
       fn_ptr_ids[expr_ty_str] = id_counter;
       id_counter += 1;
@@ -877,6 +878,59 @@ int main(int argc, const char **argv) {
     }
   }
 
+  //
+  //std::set<OpaqueStruct> old_fn_ptr_types;
+  std::map<OpaqueStruct, int> old_fn_ptr_ids;
+  std::string header_name = OutputPrefix + ".h";
+  llvm::outs() << "opening " << header_name.c_str() << '\n';
+  bool header_exists = access(header_name.c_str(), F_OK) == 0;
+  FILE *header_fd = fopen(header_name.c_str(), "a+");
+  assert(header_fd);
+  char *line = NULL;
+  size_t len = 0;
+  while (getline(&line, &len, header_fd) != -1) {
+        char *getline_buf = line;
+#define IA2_TYPE_MACRO "#define IA2_TYPE_"
+#define IA2_FNPTR_TYPE "struct IA2_fnptr__"
+      if (!strncmp(line, IA2_TYPE_MACRO, sizeof(IA2_TYPE_MACRO) - 1)) {
+        line += sizeof(IA2_TYPE_MACRO) - 1;
+        char *mangled_ty = NULL;
+        int id = strtol(line, &mangled_ty, 10);
+        mangled_ty++;
+        std::string mangled_ty_str(mangled_ty);
+        mangled_ty_str.pop_back();
+        llvm::outs() << id << " maps to " << mangled_ty_str.c_str();
+        old_fn_ptr_ids[mangled_ty_str] = id;
+      //} else if (!strncmp(line, IA2_FNPTR_TYPE, sizeof(IA2_FNPTR_TYPE) - 1)) {
+      //  line += sizeof(IA2_FNPTR_TYPE) - 1;
+      //  std::string fn_ptr_ty(line);
+      //  fn_ptr_ty.resize(fn_ptr_ty.size() - sizeof(" { char *ptr; }"));
+      //  llvm::outs() << "Found existing type " << fn_ptr_ty.c_str() << '\n';
+      //  old_fn_ptr_types.insert(fn_ptr_ty);
+      }
+      if (!getline_buf) {
+          free(getline_buf);
+      }
+  }
+  //fclose(header_fd);
+  //
+
+  ASTMatchRefactorer refactorer(tool.getReplacements());
+  FnDecl fn_decl_pass(refactorer, tool.getReplacements());
+  FnPtrTypes ptr_types_pass(refactorer, tool.getReplacements());
+
+  FnPtrExpr ptr_expr_pass(refactorer, tool.getReplacements());
+
+  FnPtrCall ptr_call_pass(refactorer, tool.getReplacements());
+  ptr_call_pass.fn_ptr_ids = old_fn_ptr_ids;
+
+  FnPtrNull null_ptr_pass(refactorer, tool.getReplacements());
+  FnPtrEq eq_ptr_pass(refactorer, tool.getReplacements());
+
+  auto rc = tool.runAndSave(newFrontendActionFactory(&refactorer).get());
+  if (rc != 0) {
+      return rc;
+  }
   /* Create the wrapper source and function pointer header */
   std::error_code EC;
   llvm::raw_fd_ostream wrapper_out(OutputPrefix + ".c", EC);
@@ -885,25 +939,13 @@ int main(int argc, const char **argv) {
                  << "\n";
     return EC.value();
   }
-  llvm::raw_fd_ostream header_out(OutputPrefix + ".h", EC);
+  llvm::raw_fd_ostream header_out(OutputPrefix + ".h", EC, llvm::sys::fs::OpenFlags::OF_Append);
   if (EC) {
     llvm::errs() << "Error opening output header file: " << EC.message()
                  << "\n";
     return EC.value();
   }
 
-  ASTMatchRefactorer refactorer(tool.getReplacements());
-  FnDecl fn_decl_pass(refactorer, tool.getReplacements());
-  FnPtrTypes ptr_types_pass(refactorer, tool.getReplacements());
-  FnPtrExpr ptr_expr_pass(refactorer, tool.getReplacements());
-  FnPtrCall ptr_call_pass(refactorer, tool.getReplacements());
-  FnPtrNull null_ptr_pass(refactorer, tool.getReplacements());
-  FnPtrEq eq_ptr_pass(refactorer, tool.getReplacements());
-
-  auto rc = tool.runAndSave(newFrontendActionFactory(&refactorer).get());
-  if (rc != 0) {
-      return rc;
-  }
 
   const char *assert_pkru_macro =
       "#ifdef LIBIA2_DEBUG\n"
@@ -922,28 +964,30 @@ int main(int argc, const char **argv) {
       "#define ASSERT_PKRU(pkru)\n"
       "#endif\n";
 
-  header_out << "#include \"scrub_registers.h\"\n";
-  header_out << assert_pkru_macro;
+  if (!header_exists) {
+    header_out << "#include \"scrub_registers.h\"\n";
+    header_out << assert_pkru_macro;
 
-  header_out << '\n';
+    header_out << '\n';
 
-  header_out << "#define IA2_FN_ADDR(func) (typeof(&func))(&__ia2_##func)\n";
-  header_out << "#define IA2_ADDR(opaque) (void*)((opaque).ptr)\n";
-  header_out
-      << "#define IA2_FN(func) (typeof(__ia2_##func)) { (void*)&__ia2_##func }\n";
+    header_out << "#define IA2_FN_ADDR(func) (typeof(&func))(&__ia2_##func)\n";
+    header_out << "#define IA2_ADDR(opaque) (void*)((opaque).ptr)\n";
+    header_out
+        << "#define IA2_FN(func) (typeof(__ia2_##func)) { (void*)&__ia2_##func }\n";
 
-  /*
-   * When IA2_CALL has caller pkey = 0, it just casts the opaque struct to an fn
-   * ptr. Otherwise it sets ia2_fn_ptr to the opaque struct's value then calls
-   * an indirect call gate depending on the opaque struct's type.
-   */
-  header_out << "#define __IA2_CALL(opaque, id, pkey) ({ \\\n";
-  header_out << "  ia2_fn_ptr = opaque.ptr; \\\n";
-  header_out
-      << "  (IA2_TYPE_##id)&__ia2_indirect_callgate_##id##_pkey_##pkey; \\\n";
-  header_out << "})\n";
-  header_out << "#define _IA2_CALL(opaque, id, pkey) __IA2_CALL(opaque, id, pkey)\n";
-  header_out << "#define IA2_CALL(opaque, id) _IA2_CALL(opaque, id, PKEY)\n";
+    /*
+     * When IA2_CALL has caller pkey = 0, it just casts the opaque struct to an fn
+     * ptr. Otherwise it sets ia2_fn_ptr to the opaque struct's value then calls
+     * an indirect call gate depending on the opaque struct's type.
+     */
+    header_out << "#define __IA2_CALL(opaque, id, pkey) ({ \\\n";
+    header_out << "  ia2_fn_ptr = opaque.ptr; \\\n";
+    header_out
+        << "  (IA2_TYPE_##id)&__ia2_indirect_callgate_##id##_pkey_##pkey; \\\n";
+    header_out << "})\n";
+    header_out << "#define _IA2_CALL(opaque, id, pkey) __IA2_CALL(opaque, id, pkey)\n";
+    header_out << "#define IA2_CALL(opaque, id) _IA2_CALL(opaque, id, PKEY)\n";
+  }
 
   wrapper_out << "#include \"scrub_registers.h\"\n";
   wrapper_out << assert_pkru_macro;
@@ -958,29 +1002,31 @@ int main(int argc, const char **argv) {
   std::set<int> type_id_macros_generated = {};
   for (int caller_pkey = 1; caller_pkey < num_pkeys; caller_pkey++) {
     for (const auto &[ty, id] : ptr_call_pass.fn_ptr_ids) {
-      CAbiSignature c_abi_sig;
-      try {
-        c_abi_sig = ptr_call_pass.fn_ptr_abi_sig.at(ty);
-      } catch (std::out_of_range const &exc) {
-        llvm::errs() << "Opaque struct " << ty.c_str()
-                     << " not found by FnPtrCall pass\n";
-        assert(0);
-      }
-      std::string wrapper_name = "__ia2_indirect_callgate_"s +
-                                 std::to_string(id) + "_pkey_" +
-                                 std::to_string(caller_pkey);
-      std::string asm_wrapper =
-          emit_asm_wrapper(c_abi_sig, wrapper_name, std::nullopt,
-                           WrapperKind::IndirectCallsite, caller_pkey, 0);
-      wrapper_out << "asm(\n";
-      wrapper_out << asm_wrapper;
-      wrapper_out << ");\n";
+      if (!old_fn_ptr_ids.contains(ty)) {
+        CAbiSignature c_abi_sig;
+        try {
+          c_abi_sig = ptr_call_pass.fn_ptr_abi_sig.at(ty);
+        } catch (std::out_of_range const &exc) {
+          llvm::errs() << "Opaque struct " << ty.c_str()
+                       << " not found by FnPtrCall pass\n";
+          assert(0);
+        }
+        std::string wrapper_name = "__ia2_indirect_callgate_"s +
+                                   std::to_string(id) + "_pkey_" +
+                                   std::to_string(caller_pkey);
+        std::string asm_wrapper =
+            emit_asm_wrapper(c_abi_sig, wrapper_name, std::nullopt,
+                             WrapperKind::IndirectCallsite, caller_pkey, 0);
+        wrapper_out << "asm(\n";
+        wrapper_out << asm_wrapper;
+        wrapper_out << ");\n";
 
-      if (!type_id_macros_generated.contains(id)) {
-        header_out << "#define IA2_TYPE_"s << id << " " << ty << "\n";
-        type_id_macros_generated.insert(id);
+        if (!type_id_macros_generated.contains(id)) {
+          header_out << "#define IA2_TYPE_"s << id << " " << ty << "\n";
+          type_id_macros_generated.insert(id);
+        }
+        wrapper_decls += "extern char " + wrapper_name + ";\n";
       }
-      wrapper_decls += "extern char " + wrapper_name + ";\n";
     }
   }
   header_out << wrapper_decls.c_str();
@@ -992,8 +1038,10 @@ int main(int argc, const char **argv) {
     header_out << opaque << " { char *ptr; };\n";
   }
 
-  // Declare the pointer read by the indirect call gates
-  header_out << "extern void *ia2_fn_ptr;\n";
+  if (!header_exists) {
+    // Declare the pointer read by the indirect call gates
+    header_out << "extern void *ia2_fn_ptr;\n";
+  }
   // Define the pointer read by indirect call gates
   wrapper_out << "void *ia2_fn_ptr;\n";
 
@@ -1103,9 +1151,11 @@ int main(int argc, const char **argv) {
       }
     }
   }
-  header_out << "asm(\"__libia2_abort:\\n\"\n"
-             << "    \"ud2\");\n";
-  header_out << static_wrappers.c_str();
+  if (!header_exists) {
+    header_out << "asm(\"__libia2_abort:\\n\"\n"
+               << "    \"ud2\");\n";
+    header_out << static_wrappers.c_str();
+  }
 
   for (int i = 0; i < num_pkeys; i++) {
     if (ld_args_out[i] != nullptr) {

@@ -160,6 +160,7 @@ function(define_test)
     get_filename_component(TEST_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)
     set(MAIN ${TEST_NAME}_main)
     set(WRAPPED_MAIN ${TEST_NAME}_main_wrapped)
+    set(REWRAPPED_MAIN ${TEST_NAME}_main_rewrapped)
 
     if (NOT DEFINED DEFINE_TEST_PKEY)
         set(DEFINE_TEST_PKEY "1")
@@ -174,13 +175,17 @@ function(define_test)
     else()
         set(RELATIVE_INCLUDE_DIR include)
     endif()
+    set(REWRAPPED_DIR "${CMAKE_CURRENT_BINARY_DIR}/rewrapped")
     set(ORIGINAL_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/${RELATIVE_INCLUDE_DIR})
     set(REWRITTEN_INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR}/${RELATIVE_INCLUDE_DIR})
+    set(REWRAPPED_INCLUDE_DIR ${REWRAPPED_DIR}/${RELATIVE_INCLUDE_DIR})
 
     set(ORIGINAL_SRCS ${DEFINE_TEST_SRCS})
     list(TRANSFORM ORIGINAL_SRCS PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/)
     set(COPIED_SRCS ${DEFINE_TEST_SRCS})
     list(TRANSFORM COPIED_SRCS PREPEND ${CMAKE_CURRENT_BINARY_DIR}/)
+    set(COPIED_SRCS_2 ${DEFINE_TEST_SRCS})
+    list(TRANSFORM COPIED_SRCS_2 PREPEND ${REWRAPPED_DIR}/)
 
     file(GLOB ORIGINAL_HEADERS "${ORIGINAL_INCLUDE_DIR}/*.h")
     list(TRANSFORM ORIGINAL_HEADERS REPLACE
@@ -197,10 +202,27 @@ function(define_test)
         copy_files_${MAIN}
         DEPENDS ${COPIED_SRCS} ${COPIED_HEADERS}
     )
+    list(TRANSFORM ORIGINAL_HEADERS REPLACE
+        ${ORIGINAL_INCLUDE_DIR} ${REWRAPPED_INCLUDE_DIR}
+        OUTPUT_VARIABLE COPIED_HEADERS_2)
+    add_custom_command(
+        OUTPUT ${COPIED_SRCS_2} ${COPIED_HEADERS_2}
+        COMMAND cp ${COPIED_SRCS} ${REWRAPPED_DIR}/
+        COMMAND mkdir -p ${REWRAPPED_INCLUDE_DIR}
+        COMMAND cp ${COPIED_HEADERS} ${REWRAPPED_INCLUDE_DIR}
+        DEPENDS ${COPIED_SRCS} ${COPIED_HEADERS}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+    add_custom_target(
+        copy_files_2_${MAIN}
+        DEPENDS ${COPIED_SRCS_2} ${COPIED_HEADERS_2}
+    )
+    add_dependencies(copy_files_2_${MAIN} ${TEST_NAME}_call_gate_generation)
 
     set(DYN_SYM ${libia2_BINARY_DIR}/dynsym.syms)
 
-    # Define two targets
+    # Define two targets per rewriter run. The targets that go into the compile
+    # commands JSON are not intended to be built by CMake so we exclude them
+    # from build-all.
     set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
     add_executable(${MAIN} ${COPIED_SRCS})
     set(CMAKE_EXPORT_COMPILE_COMMANDS OFF)
@@ -208,9 +230,20 @@ function(define_test)
     add_dependencies(${WRAPPED_MAIN} ${TEST_NAME}_call_gate_generation)
     set_target_properties(${MAIN} PROPERTIES EXCLUDE_FROM_ALL 1)
 
+    set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+    # We can't use the ${WRAPPED_MAIN} target here because the source paths
+    # differ from the ${REWRAPPED_MAIN} paths
+    add_executable(${WRAPPED_MAIN}_ccjson ${COPIED_SRCS_2})
+    set(CMAKE_EXPORT_COMPILE_COMMANDS OFF)
+    add_executable(${REWRAPPED_MAIN} ${COPIED_SRCS_2})
+    add_dependencies(${REWRAPPED_MAIN} ${TEST_NAME}_call_gate_generation_2)
+    set_target_properties(${WRAPPED_MAIN}_ccjson PROPERTIES EXCLUDE_FROM_ALL 1)
+
+    # TODO: Some tests use this macro to simulate changes that need to be made
+    # manually. Do we need this for the wrapped ccjson target?
     target_compile_definitions(${MAIN} PRIVATE PRE_REWRITER=1)
-    # Define options common to both targets
-    foreach(target ${MAIN} ${WRAPPED_MAIN})
+    # Define options common to all targets
+    foreach(target ${MAIN} ${WRAPPED_MAIN} ${WRAPPED_MAIN}_ccjson ${REWRAPPED_MAIN})
         set_target_properties(${target} PROPERTIES PKEY ${DEFINE_TEST_PKEY})
 
         if(DEFINED DEFINE_TEST_PKEY)
@@ -221,12 +254,6 @@ function(define_test)
             "-fsanitize=undefined"
             "-fPIC"
             "-g")
-
-        if (${DEFINE_TEST_PKEY} GREATER 0)
-            target_include_directories(${target} BEFORE PRIVATE ${REWRITTEN_INCLUDE_DIR})
-        else()
-            target_include_directories(${target} BEFORE PRIVATE ${ORIGINAL_INCLUDE_DIR})
-        endif()
         target_compile_options(${target} PRIVATE
             "-isystem${C_SYSTEM_INCLUDE}"
             "-isystem${C_SYSTEM_INCLUDE_FIXED}")
@@ -239,35 +266,65 @@ function(define_test)
             libia2
             partition-alloc)
     endforeach()
-    add_dependencies(check-ia2 ${WRAPPED_MAIN})
+    # Define options common to both targets for the first rewriter run
+    foreach(target ${MAIN} ${WRAPPED_MAIN})
+        if (${DEFINE_TEST_PKEY} GREATER 0)
+            target_include_directories(${target} BEFORE PRIVATE ${REWRITTEN_INCLUDE_DIR})
+        else()
+            target_include_directories(${target} BEFORE PRIVATE ${ORIGINAL_INCLUDE_DIR})
+        endif()
+    endforeach()
+    # Define options common to both targets for the second rewriter run
+    foreach(target ${WRAPPED_MAIN}_ccjson ${REWRAPPED_MAIN})
+        if (${DEFINE_TEST_PKEY} GREATER 0)
+            target_include_directories(${target} BEFORE PRIVATE ${REWRAPPED_INCLUDE_DIR})
+        else()
+            target_include_directories(${target} BEFORE PRIVATE ${ORIGINAL_INCLUDE_DIR})
+        endif()
+    endforeach()
+    add_dependencies(check-ia2 ${WRAPPED_MAIN} ${REWRAPPED_MAIN})
 
-    target_link_options(${WRAPPED_MAIN} PRIVATE
-            "-Wl,-T${PADDING_LINKER_SCRIPT}"
-            "-Wl,--dynamic-list=${DYN_SYM}")
-    set_target_properties(${WRAPPED_MAIN} PROPERTIES LINK_DEPENDS ${PADDING_LINKER_SCRIPT})
+    # Define options common to the wrapped targets
+    foreach(target ${WRAPPED_MAIN} ${REWRAPPED_MAIN})
+        target_link_options(${target} PRIVATE
+                "-Wl,-T${PADDING_LINKER_SCRIPT}"
+                "-Wl,--dynamic-list=${DYN_SYM}")
+        set_target_properties(${WRAPPED_MAIN} PROPERTIES LINK_DEPENDS ${PADDING_LINKER_SCRIPT})
+    endforeach()
     target_link_libraries(${WRAPPED_MAIN} PRIVATE
         ${TEST_NAME}_call_gates)
+    target_link_libraries(${REWRAPPED_MAIN} PRIVATE
+        ${TEST_NAME}_call_gates_2)
     get_target_property(LIB_PKEY ${DEFINE_TEST_LIBS} PKEY)
 
     target_link_libraries(${MAIN} PRIVATE ${DEFINE_TEST_LIBS})
+    target_link_libraries(${WRAPPED_MAIN}_ccjson PRIVATE ${DEFINE_TEST_LIBS})
     if (${LIB_PKEY} GREATER 0)
         target_link_libraries(${WRAPPED_MAIN} PRIVATE
             ${DEFINE_TEST_LIBS}_wrapped_padded)
+        target_link_libraries(${REWRAPPED_MAIN} PRIVATE
+            ${DEFINE_TEST_LIBS}_rewrapped_padded)
     else()
         target_link_libraries(${WRAPPED_MAIN} PRIVATE
             ${DEFINE_TEST_LIBS}_wrapped)
+        target_link_libraries(${REWRAPPED_MAIN} PRIVATE
+            ${DEFINE_TEST_LIBS}_rewrapped)
     endif()
 
     if (DEFINE_TEST_NEEDS_LD_WRAP)
         set_target_properties(${WRAPPED_MAIN} PROPERTIES NEEDS_LD_WRAP YES)
         target_link_options(${WRAPPED_MAIN} PRIVATE
             "-Wl,@${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME}_call_gates_${DEFINE_TEST_PKEY}.ld")
+        target_link_options(${REWRAPPED_MAIN} PRIVATE
+            "-Wl,@${REWRAPPED_DIR}/${TEST_NAME}_call_gates_${DEFINE_TEST_PKEY}.ld")
     else()
         set_target_properties(${WRAPPED_MAIN} PROPERTIES NEEDS_LD_WRAP NO)
     endif()
     if (${DEFINE_TEST_PKEY} GREATER 0)
         target_compile_options(${WRAPPED_MAIN} PRIVATE
             "-include${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME}_call_gates.h")
+        target_compile_options(${REWRAPPED_MAIN} PRIVATE
+            "-include${REWRAPPED_DIR}/${TEST_NAME}_call_gates.h")
     endif()
 
     # Find libc. We cannot simply do `find_library(LIBC c REQUIRED)` because
@@ -298,4 +355,5 @@ function(define_test)
 
     # Use libc in wrapper
     add_dependencies(${WRAPPED_MAIN} ${TEST_NAME}-libc)
+    add_dependencies(${REWRAPPED_MAIN} ${TEST_NAME}-libc)
 endfunction()

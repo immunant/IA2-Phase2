@@ -905,48 +905,13 @@ int main(int argc, const char **argv) {
       return rc;
   }
 
-  const char *assert_pkru_macro =
-      "#ifdef LIBIA2_DEBUG\n"
-      "#define ASSERT_PKRU(pkru) \\\n"
-      "    \"movq %rcx, %r10\\n\" \\\n"
-      "    \"movq %rdx, %r11\\n\" \\\n"
-      "    \"xorl %ecx, %ecx\\n\" \\\n"
-      "    \"rdpkru\\n\" \\\n"
-      "    \"cmpl $\" #pkru \", %eax\\n\" \\\n"
-      "    \"je 1f\\n\" \\\n"
-      "    \"ud2\\n\" \\\n"
-      "\"1:\\n\" \\\n"
-      "    \"movq %r11, %rdx\\n\" \\\n"
-      "    \"movq %r10, %rcx\\n\"\n"
-      "#else\n"
-      "#define ASSERT_PKRU(pkru)\n"
-      "#endif\n";
-
-  header_out << "#include \"scrub_registers.h\"\n";
-  header_out << assert_pkru_macro;
+  header_out << "#include <ia2.h>\n";
+  header_out << "#include <scrub_registers.h>\n";
 
   header_out << '\n';
 
-  header_out << "#define IA2_FN_ADDR(func) (typeof(&func))(&__ia2_##func)\n";
-  header_out << "#define IA2_ADDR(opaque) (void*)((opaque).ptr)\n";
-  header_out
-      << "#define IA2_FN(func) (typeof(__ia2_##func)) { (void*)&__ia2_##func }\n";
-
-  /*
-   * When IA2_CALL has caller pkey = 0, it just casts the opaque struct to an fn
-   * ptr. Otherwise it sets ia2_fn_ptr to the opaque struct's value then calls
-   * an indirect call gate depending on the opaque struct's type.
-   */
-  header_out << "#define __IA2_CALL(opaque, id, pkey) ({ \\\n";
-  header_out << "  ia2_fn_ptr = opaque.ptr; \\\n";
-  header_out
-      << "  (IA2_TYPE_##id)&__ia2_indirect_callgate_##id##_pkey_##pkey; \\\n";
-  header_out << "})\n";
-  header_out << "#define _IA2_CALL(opaque, id, pkey) __IA2_CALL(opaque, id, pkey)\n";
-  header_out << "#define IA2_CALL(opaque, id) _IA2_CALL(opaque, id, PKEY)\n";
-
-  wrapper_out << "#include \"scrub_registers.h\"\n";
-  wrapper_out << assert_pkru_macro;
+  wrapper_out << "#include <ia2.h>\n";
+  wrapper_out << "#include <scrub_registers.h>\n";
 
   /*
    * Define wrappers for IA2_CALL. These switch from the caller's pkey to pkey 0

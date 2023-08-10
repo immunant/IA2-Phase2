@@ -7,8 +7,11 @@
 
 #include "ia2.h"
 
-// TODO: Do we want to use sysconf(3) here?
-#define PAGE_SIZE 4096
+__attribute__((__used__)) uint32_t ia2_get_pkru() {
+  uint32_t pkru = 0;
+  __asm__ volatile("rdpkru" : "=a"(pkru) : "a"(0), "d"(0), "c"(0));
+  return pkru;
+}
 
 size_t ia2_get_pkey() {
   uint32_t pkru;

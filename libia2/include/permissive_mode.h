@@ -270,7 +270,7 @@ int elfaddr(const void *addr, Dl_info *info) {
     len += (header->e_shoff % 4096);
     char *sections_tmp = mmap(NULL, len, PROT_READ, MAP_PRIVATE, fd, off);
     if (sections_tmp == MAP_FAILED) {
-      printf("Failed to mmap ELF section header %s %d %d\n", strerror(errno),
+      printf("Failed to mmap ELF section header %s %zu %ld\n", strerror(errno),
              len, off);
       return 0;
     }
@@ -306,7 +306,7 @@ int elfaddr(const void *addr, Dl_info *info) {
     fp->f_symtab = symtab;
     fp->f_strtab = strtab;
     fp->f_symcnt = symcnt;
-    printf("Found %d symbols\n", fp->f_symcnt);
+    printf("Found %zu symbols\n", fp->f_symcnt);
   }
 
   best = NULL;
@@ -343,7 +343,7 @@ void *log_mpk_violations(void *arg) {
     // Pop everything currently in the queue
     while (pop_queue(q, &err)) {
 #define ENTRY_NUM 6
-      void *names[ENTRY_NUM] = {"addr", "val", "pc", "sp", "fp", "local_addr"};
+      char *names[ENTRY_NUM] = {"addr", "val", "pc", "sp", "fp", "local_addr"};
       uint64_t addresses[ENTRY_NUM] = {err.addr, err.val, err.pc, err.sp, err.fp, err.local_addr};
       for (int i = 0; i < ENTRY_NUM; i++) {
           Dl_info dlinf = {0};
@@ -355,7 +355,7 @@ void *log_mpk_violations(void *arg) {
             fprintf(log, "%s: %lx,", names[i], addresses[i]);
           }
       }
-      fprintf(log, " pkru: %lx\n", err.pkru);
+      fprintf(log, " pkru: %x\n", err.pkru);
     }
     release_queue(q);
 

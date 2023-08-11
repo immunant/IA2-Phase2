@@ -174,7 +174,7 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
     // Look for the untrusted stack pointer, in case this lib defines it.
     extern __thread void *ia2_stackptr_0;
     uint64_t untrusted_stackptr_addr = (uint64_t)&ia2_stackptr_0;
-    if (untrusted_stackptr_addr & 0xFFF != 0) {
+    if ((untrusted_stackptr_addr & 0xFFF) != 0) {
       printf("address of ia2_stackptr_0 (%p) is not page-aligned\n",
              (void *)untrusted_stackptr_addr);
       exit(-1);
@@ -223,7 +223,7 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
 
   size_t cur_pkey = ia2_get_pkey();
   if (cur_pkey != search_args->pkey) {
-    fprintf(stderr, "Invalid pkey, expected %" PRId32 ", found %" PRId32 "\n",
+    fprintf(stderr, "Invalid pkey, expected %" PRId32 ", found %zu\n",
             search_args->pkey, cur_pkey);
     abort();
   }

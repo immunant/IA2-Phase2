@@ -28,29 +28,31 @@ function(define_ia2_wrapper)
             get_target_property(PKEY ${target}_wrapped PKEY)
             list(APPEND LD_ARGS_FILES ${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME}_call_gates_${PKEY}.ld)
         endif()
-
     endforeach()
-    set(COPY_TARGETS ${DEFINE_IA2_WRAPPER_ORIGINAL_TARGETS})
-    list(TRANSFORM COPY_TARGETS PREPEND "copy_files_")
+    set(ORIGINAL_SRCS ${ALL_SRCS})
+    list(TRANSFORM ORIGINAL_SRCS REPLACE ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
 
     set(CALL_GATE_SRC ${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME}_call_gates.c)
     set(CALL_GATE_HDR ${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME}_call_gates.h)
 
     add_custom_command(
         OUTPUT ${CALL_GATE_SRC} ${CALL_GATE_HDR} ${LD_ARGS_FILES}
+               ${ALL_SRCS}
         COMMAND ia2-rewriter
             --output-prefix=${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME}_call_gates
-            ${ALL_SRCS}
+            --root-directory=${CMAKE_CURRENT_SOURCE_DIR}
+            --output-directory=${CMAKE_CURRENT_BINARY_DIR}
+            # Set the build path so the rewriter can find the compile_commands JSON
+            -p=${CMAKE_BINARY_DIR}
+            ${ORIGINAL_SRCS}
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-        DEPENDS ia2-rewriter ${ALL_SRCS}
+        DEPENDS ia2-rewriter ${ORIGINAL_SRCS}
         VERBATIM)
 
     add_custom_target(
         ${TEST_NAME}_call_gate_generation
         DEPENDS ${CALL_GATE_SRC} ${CALL_GATE_HDR} ${LD_ARGS_FILES}
     )
-
-    add_dependencies(${TEST_NAME}_call_gate_generation ${COPY_TARGETS})
 
     set(CALL_GATE_TARGET ${TEST_NAME}_call_gates)
     add_library(${CALL_GATE_TARGET} SHARED ${CALL_GATE_SRC})

@@ -18,10 +18,13 @@
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 #include <clang/AST/PrettyPrinter.h>
+#include <dirent.h>
 #include <fstream>
 #include <iostream>
 #include <map>
 #include <optional>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #define PKEY_DEFINE "-DPKEY="
 #define MAX_PKEYS 16
@@ -41,26 +44,53 @@ static llvm::cl::OptionCategory
     SourceRewriterCategory("Source rewriter options");
 
 static llvm::cl::opt<std::string>
+    RootDirectory("root-directory", llvm::cl::Required,
+                  llvm::cl::cat(SourceRewriterCategory),
+                  llvm::cl::desc("<root directory for input files>"));
+
+static llvm::cl::opt<std::string>
+    OutputDirectory("output-directory", llvm::cl::Required,
+                    llvm::cl::cat(SourceRewriterCategory),
+                    llvm::cl::desc("<root directory for output files>"));
+
+static llvm::cl::opt<std::string>
     OutputPrefix("output-prefix", llvm::cl::Required,
                  llvm::cl::cat(SourceRewriterCategory),
                  llvm::cl::desc("<prefix for output files>"));
 
-static llvm::cl::opt<bool>
-    BackupSources("backup-sources", llvm::cl::Optional,
-                  llvm::cl::cat(SourceRewriterCategory),
-                  llvm::cl::desc("Back up source files before rewriting"));
-
 // Map each translation unit's filename to its pkey.
 static std::map<Filename, Pkey> file_pkeys;
 
+static std::map<Filename, Filename> rel_path_to_full;
+
 static Filename get_expansion_filename(const clang::SourceLocation loc,
                                        const clang::SourceManager &sm) {
-  return sm.getFilename(sm.getExpansionLoc(loc)).str();
+  llvm::SmallString<256> s(sm.getFilename(sm.getExpansionLoc(loc)));
+  if (llvm::sys::path::is_relative(s) && s != "") {
+      try {
+        return rel_path_to_full.at(s.str().str());
+      } catch(std::out_of_range const &exc) {
+          llvm::errs() << "get_filename failed to find full path for " << s.str().str() << '\n';
+          assert(0);
+      }
+  }
+  llvm::sys::path::replace_path_prefix(s, RootDirectory, OutputDirectory);
+  return s.str().str();
 }
 
 static Filename get_filename(const clang::SourceLocation loc,
                              const clang::SourceManager &sm) {
-  return sm.getFilename(sm.getSpellingLoc(loc)).str();
+  llvm::SmallString<256> s(sm.getFilename(sm.getSpellingLoc(loc)));
+  if (llvm::sys::path::is_relative(s) && s != "") {
+      try {
+        return rel_path_to_full.at(s.str().str());
+      } catch(std::out_of_range const &exc) {
+          llvm::errs() << "get_filename failed to find full path for " << s.str().str() << '\n';
+          assert(0);
+      }
+  }
+  llvm::sys::path::replace_path_prefix(s, RootDirectory, OutputDirectory);
+  return s.str().str();
 }
 
 static bool in_macro_expansion(const clang::SourceLocation loc,
@@ -78,6 +108,12 @@ static bool in_fn_like_macro(const clang::SourceLocation loc,
   return exp.isFunctionMacroExpansion() || exp.isMacroArgExpansion();
 }
 
+static Replacement replace_new_file(const Filename &filename,
+                                    const Replacement &old_r) {
+  return {llvm::StringRef(filename), old_r.getOffset(), old_r.getLength(),
+          old_r.getReplacementText()};
+}
+
 static Pkey get_file_pkey(const clang::SourceManager &sm) {
   auto file_entry = sm.getFileEntryForID(sm.getMainFileID());
   auto filename = file_entry->tryGetRealPathName().str();
@@ -91,9 +127,7 @@ static Pkey get_file_pkey(const clang::SourceManager &sm) {
 }
 
 static bool ignore_file(const Filename &filename) {
-  return filename.starts_with("/usr/") || filename.ends_with("ia2.h") ||
-         filename.ends_with("ia2_compartment_init.inc") ||
-         filename.ends_with("test_fault_handler.h") || filename == "";
+  return !filename.starts_with(OutputDirectory) && !filename.starts_with(RootDirectory);
 }
 
 static std::string append_name_if_nonempty(const std::string &new_type,
@@ -206,8 +240,8 @@ public:
     }
 
     auto loc = old_decl->getLocation();
-    Filename file_name = get_filename(loc, sm);
-    if (ignore_file(file_name)) {
+    Filename filename = get_filename(loc, sm);
+    if (ignore_file(filename)) {
       return;
     }
 
@@ -237,13 +271,13 @@ public:
     // This check must come after inserting new_type into fn_ptr_types but
     // before the Replacement is added
     if (in_fn_like_macro(loc, sm)) {
-      auto expansion_file = sm.getFilename(sm.getExpansionLoc(loc)).str();
+      auto expansion_file = get_expansion_filename(loc, sm);
       auto expansion_line = sm.getExpansionLineNumber(loc);
       auto spelling_line = sm.getSpellingLineNumber(loc);
       llvm::errs() << "FnPtrTypes: " << expansion_file << ":" << expansion_line
                    << " ";
       if (expansion_line != spelling_line) {
-        llvm::errs() << file_name << ":" << spelling_line << " ";
+        llvm::errs() << filename << ":" << spelling_line << " ";
       }
       llvm::errs() << "must be rewritten manually\n";
       return;
@@ -252,8 +286,10 @@ public:
     // Replace the old decl with the new one. Make sure to include any macro
     // expansions in the SourceRange being replaced
     clang::CharSourceRange expansion_range = sm.getExpansionRange(*range);
-    Replacement r{sm, expansion_range, new_decl};
-    auto err = file_replacements[file_name].add(r);
+    Replacement old_r{sm, expansion_range, new_decl};
+    Replacement r = replace_new_file(filename, old_r);
+
+    auto err = file_replacements[filename].add(r);
     if (err) {
       llvm::errs() << "Error adding replacement: " << err << '\n';
     }
@@ -311,7 +347,7 @@ public:
     }
 
     clang::SourceLocation loc = null_fn_ptr->getExprLoc();
-    Filename filename = sm.getFilename(sm.getExpansionLoc(loc)).str();
+    Filename filename = get_expansion_filename(loc, sm);
 
     std::string new_expr = "{ NULL }";
     // If the matcher found an assignment add the type of the LHS variable to
@@ -325,7 +361,8 @@ public:
     }
 
     clang::CharSourceRange expansion_range = sm.getExpansionRange(loc);
-    Replacement r{sm, expansion_range, new_expr};
+    Replacement old_r{sm, expansion_range, new_expr};
+    Replacement r = replace_new_file(filename, old_r);
     auto err = file_replacements[filename].add(r);
     if (err) {
       llvm::errs() << "Error adding replacements: " << err << '\n';
@@ -399,7 +436,7 @@ public:
     // This check must come after modifying the maps in this pass but before the
     // Replacement is added
     if (in_fn_like_macro(loc, sm)) {
-      auto expansion_file = sm.getFilename(sm.getExpansionLoc(loc)).str();
+      auto expansion_file = get_expansion_filename(loc, sm);
       auto expansion_line = sm.getExpansionLineNumber(loc);
       auto spelling_line = sm.getSpellingLineNumber(loc);
       llvm::errs() << "FnPtrCall: " << expansion_file << ":" << expansion_line
@@ -426,7 +463,8 @@ public:
       char_range = sm.getExpansionRange(loc);
     }
 
-    Replacement r{sm, char_range, new_expr};
+    Replacement old_r{sm, char_range, new_expr};
+    Replacement r = replace_new_file(filename, old_r);
     auto err = file_replacements[filename].add(r);
     if (err) {
       llvm::errs() << "Error adding replacements: " << err << '\n';
@@ -512,7 +550,7 @@ public:
     }
     std::string new_expr = "IA2_FN("s + fn_name + ")";
 
-    Filename filename = sm.getFilename(sm.getExpansionLoc(loc)).str();
+    Filename filename = get_expansion_filename(loc, sm);
 
     auto old_type = fn_decl->getFunctionType();
     assert(old_type != nullptr);
@@ -534,8 +572,9 @@ public:
       // check for an existing used attribute.
       if (new_fn) {
         auto decl_start = fn_decl->getBeginLoc();
-        Replacement used_attr(sm, decl_start, 0,
-                              llvm::StringRef("__attribute__((used))"));
+        Replacement old_used_attr(sm, decl_start, 0,
+                                  llvm::StringRef("__attribute__((used)) "));
+        Replacement used_attr = replace_new_file(filename, old_used_attr);
         auto err = file_replacements[filename].add(used_attr);
         if (err) {
           llvm::errs() << "Error adding replacements: " << err << '\n';
@@ -551,7 +590,7 @@ public:
     // This check must come after modifying the maps in this pass but before the
     // Replacement is added
     if (in_fn_like_macro(loc, sm)) {
-      auto expansion_file = sm.getFilename(sm.getExpansionLoc(loc)).str();
+      auto expansion_file = get_expansion_filename(loc, sm);
       auto expansion_line = sm.getExpansionLineNumber(loc);
       auto spelling_line = sm.getSpellingLineNumber(loc);
       llvm::errs() << "FnPtrExpr: " << expansion_file << ":" << expansion_line
@@ -564,7 +603,8 @@ public:
     }
 
     clang::CharSourceRange expansion_range = sm.getExpansionRange(loc);
-    Replacement r{sm, expansion_range, new_expr};
+    Replacement old_r{sm, expansion_range, new_expr};
+    Replacement r = replace_new_file(filename, old_r);
     auto err = file_replacements[filename].add(r);
     if (err) {
       llvm::errs() << "Error adding replacements: " << err << '\n';
@@ -651,7 +691,7 @@ public:
     }
 
     if (in_fn_like_macro(loc, sm)) {
-      auto expansion_file = sm.getFilename(sm.getExpansionLoc(loc)).str();
+      auto expansion_file = get_expansion_filename(loc, sm);
       auto expansion_line = sm.getExpansionLineNumber(loc);
       auto spelling_line = sm.getSpellingLineNumber(loc);
       llvm::errs() << "FnPtrEq: " << expansion_file << ":" << expansion_line
@@ -679,7 +719,8 @@ public:
       char_range = sm.getExpansionRange(loc);
     }
 
-    Replacement r{sm, char_range, new_expr};
+    Replacement old_r{sm, char_range, new_expr};
+    Replacement r = replace_new_file(filename, old_r);
     auto err = file_replacements[filename].add(r);
     if (err) {
       llvm::errs() << "Error adding replacements: " << err << '\n';
@@ -804,6 +845,66 @@ int main(int argc, const char **argv) {
                        options_parser.getSourcePathList());
   CompilationDatabase &comp_db = options_parser.getCompilations();
 
+  std::set<llvm::SmallString<256>> copied_files;
+  auto asts = std::vector<std::unique_ptr<clang::ASTUnit>>();
+  auto sources_full_paths = options_parser.getSourcePathList();
+  tool.buildASTs(asts);
+  for (auto &ast : asts) {
+    auto &sm = ast->getSourceManager();
+    for (auto file_it = sm.fileinfo_begin(); file_it != sm.fileinfo_end();
+         file_it++) {
+
+      llvm::SmallString<256> input_file(file_it->getFirst()->getName());
+      llvm::SmallString<256> output_file(input_file);
+      bool needs_copy = false;
+      if (llvm::sys::path::is_relative(input_file)) {
+          // FileManager::makeAbsolutePath just prepends the working directory
+          // which is not what we want here. Luckily we only have to
+          // canonicalize paths once then we can reuse the same results.
+
+          auto main_c_file = ast->getMainFileName().str();
+          auto cc_cmd = comp_db.getCompileCommands(main_c_file);
+
+          assert(cc_cmd.size() == 1);
+
+          auto rel_path = file_it->getFirst()->getName().str();
+          input_file = cc_cmd[0].Directory;
+          input_file.append("/" + rel_path);
+          output_file = input_file;
+          llvm::sys::path::replace_path_prefix(output_file, RootDirectory, OutputDirectory);
+
+          rel_path_to_full[rel_path] = output_file.str().str();
+          needs_copy = true;
+      } else {
+          needs_copy = llvm::sys::path::replace_path_prefix(output_file, RootDirectory, OutputDirectory);
+      }
+      if (needs_copy && !copied_files.contains(input_file)) {
+        copied_files.insert(input_file);
+
+        std::vector<std::string> subdirs = {};
+        auto parent_dir = llvm::sys::path::parent_path(output_file.str());
+
+        while (!opendir(parent_dir.str().c_str())) {
+          subdirs.push_back(parent_dir.str());
+          parent_dir = llvm::sys::path::parent_path(parent_dir);
+        }
+
+        for (auto subdir_it = subdirs.rbegin(); subdir_it != subdirs.rend();
+             subdir_it++) {
+          int mkdir_rc = mkdir(subdir_it->c_str(), 0766);
+          if (mkdir_rc != 0) {
+              llvm::errs() << "Failed to create dir " << subdir_it->c_str() << ": " << strerror(errno) << '\n';
+          }
+          assert(mkdir_rc == 0);
+        }
+
+        std::ifstream src(input_file.str().str(), std::ios::binary);
+        std::ofstream dst(output_file.str().str(), std::ios::binary);
+        dst << src.rdbuf();
+      }
+    }
+  }
+
   std::set<Pkey> pkeys_used;
   for (auto s : options_parser.getSourcePathList()) {
     // Get the compile commands for each input source
@@ -872,15 +973,6 @@ int main(int argc, const char **argv) {
   assert(config_0 || config_1);
   if (min_pkey == 1) {
     num_pkeys += 1;
-  }
-
-  if (BackupSources) {
-    for (auto s : options_parser.getSourcePathList()) {
-      // Make a copy of each original input sources
-      std::ifstream src(s, std::ios::binary);
-      std::ofstream dst(s + ".orig", std::ios::binary);
-      dst << src.rdbuf();
-    }
   }
 
   /* Create the wrapper source and function pointer header */

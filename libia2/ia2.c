@@ -74,7 +74,7 @@ size_t ia2_get_pkey() {
   }
 }
 
-static const char *shared_sections[][2] = {
+static const char *const shared_sections[][2] = {
     {"__start_ia2_shared_data", "__stop_ia2_shared_data"},
 };
 

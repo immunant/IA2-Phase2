@@ -54,37 +54,21 @@ function(define_shared_lib)
     set(COPIED_SRCS ${SHARED_LIB_SRCS})
     list(TRANSFORM COPIED_SRCS PREPEND ${CMAKE_CURRENT_BINARY_DIR}/)
 
-    if(DEFINED SHARED_LIB_INCLUDE_DIR)
-        file(GLOB ORIGINAL_LIB_HEADERS "${ORIGINAL_INCLUDE_DIR}/*.h")
-        list(TRANSFORM ORIGINAL_LIB_HEADERS REPLACE
-            ${ORIGINAL_INCLUDE_DIR} ${REWRITTEN_INCLUDE_DIR}
-            OUTPUT_VARIABLE COPIED_LIB_HEADERS)
-        add_custom_command(
-            OUTPUT ${COPIED_SRCS} ${COPIED_LIB_HEADERS}
-            COMMAND cp ${ORIGINAL_SRCS} ${CMAKE_CURRENT_BINARY_DIR}/
-            COMMAND mkdir -p ${REWRITTEN_INCLUDE_DIR}
-            COMMAND cp ${ORIGINAL_LIB_HEADERS} ${REWRITTEN_INCLUDE_DIR}/
-            DEPENDS ${ORIGINAL_SRCS} ${ORIGINAL_LIB_HEADERS}
-            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
-        add_custom_target(copy_files_${LIBNAME} DEPENDS ${COPIED_SRCS} ${COPIED_LIB_HEADERS})
-    else()
-        add_custom_command(
-            OUTPUT ${COPIED_SRCS}
-            COMMAND cp ${ORIGINAL_SRCS} ${CMAKE_CURRENT_BINARY_DIR}/
-            DEPENDS ${ORIGINAL_SRCS}
-            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
-        add_custom_target(copy_files_${LIBNAME} DEPENDS ${COPIED_SRCS})
-    endif()
-
     # Define two targets
     set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-    add_library(${LIBNAME} SHARED ${COPIED_SRCS})
+    add_library(${LIBNAME} SHARED ${ORIGINAL_SRCS})
     set(CMAKE_EXPORT_COMPILE_COMMANDS OFF)
     add_library(${WRAPPED_LIBNAME} SHARED ${COPIED_SRCS})
     add_dependencies(${WRAPPED_LIBNAME} ${TEST_NAME}_call_gate_generation)
     set_target_properties(${LIBNAME} PROPERTIES EXCLUDE_FROM_ALL 1)
 
     target_compile_definitions(${LIBNAME} PRIVATE PRE_REWRITER=1)
+    target_include_directories(${LIBNAME} BEFORE PRIVATE ${ORIGINAL_INCLUDE_DIR})
+    if (${SHARED_LIB_PKEY} GREATER 0)
+        target_include_directories(${WRAPPED_LIBNAME} BEFORE PRIVATE ${REWRITTEN_INCLUDE_DIR})
+    else()
+        target_include_directories(${WRAPPED_LIBNAME} BEFORE PRIVATE ${ORIGINAL_INCLUDE_DIR})
+    endif()
     # Define options common to both targets
     foreach(target ${LIBNAME} ${WRAPPED_LIBNAME})
         set_target_properties(${target} PROPERTIES PKEY ${SHARED_LIB_PKEY})
@@ -98,11 +82,6 @@ function(define_shared_lib)
             "-fPIC"
             "-g")
 
-        if (${SHARED_LIB_PKEY} GREATER 0)
-            target_include_directories(${target} BEFORE PRIVATE ${REWRITTEN_INCLUDE_DIR})
-        else()
-            target_include_directories(${target} BEFORE PRIVATE ${ORIGINAL_INCLUDE_DIR})
-        endif()
         target_compile_options(${target} PRIVATE
             "-isystem${C_SYSTEM_INCLUDE}"
             "-isystem${C_SYSTEM_INCLUDE_FIXED}")
@@ -182,33 +161,23 @@ function(define_test)
     set(COPIED_SRCS ${DEFINE_TEST_SRCS})
     list(TRANSFORM COPIED_SRCS PREPEND ${CMAKE_CURRENT_BINARY_DIR}/)
 
-    file(GLOB ORIGINAL_HEADERS "${ORIGINAL_INCLUDE_DIR}/*.h")
-    list(TRANSFORM ORIGINAL_HEADERS REPLACE
-        ${ORIGINAL_INCLUDE_DIR} ${REWRITTEN_INCLUDE_DIR}
-        OUTPUT_VARIABLE COPIED_HEADERS)
-    add_custom_command(
-        OUTPUT ${COPIED_SRCS} ${COPIED_HEADERS}
-        COMMAND cp ${ORIGINAL_SRCS} ${CMAKE_CURRENT_BINARY_DIR}/
-        COMMAND mkdir -p ${REWRITTEN_INCLUDE_DIR}
-        COMMAND cp ${ORIGINAL_HEADERS} ${REWRITTEN_INCLUDE_DIR}/
-        DEPENDS ${ORIGINAL_SRCS} ${ORIGINAL_HEADERS}
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
-    add_custom_target(
-        copy_files_${MAIN}
-        DEPENDS ${COPIED_SRCS} ${COPIED_HEADERS}
-    )
-
     set(DYN_SYM ${libia2_BINARY_DIR}/dynsym.syms)
 
     # Define two targets
     set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-    add_executable(${MAIN} ${COPIED_SRCS})
+    add_executable(${MAIN} ${ORIGINAL_SRCS})
     set(CMAKE_EXPORT_COMPILE_COMMANDS OFF)
     add_executable(${WRAPPED_MAIN} ${COPIED_SRCS})
     add_dependencies(${WRAPPED_MAIN} ${TEST_NAME}_call_gate_generation)
     set_target_properties(${MAIN} PROPERTIES EXCLUDE_FROM_ALL 1)
 
     target_compile_definitions(${MAIN} PRIVATE PRE_REWRITER=1)
+    target_include_directories(${MAIN} BEFORE PRIVATE ${ORIGINAL_INCLUDE_DIR})
+    if (${DEFINE_TEST_PKEY} GREATER 0)
+        target_include_directories(${WRAPPED_MAIN} BEFORE PRIVATE ${REWRITTEN_INCLUDE_DIR})
+    else()
+        target_include_directories(${WRAPPED_MAIN} BEFORE PRIVATE ${ORIGINAL_INCLUDE_DIR})
+    endif()
     # Define options common to both targets
     foreach(target ${MAIN} ${WRAPPED_MAIN})
         set_target_properties(${target} PROPERTIES PKEY ${DEFINE_TEST_PKEY})
@@ -222,11 +191,6 @@ function(define_test)
             "-fPIC"
             "-g")
 
-        if (${DEFINE_TEST_PKEY} GREATER 0)
-            target_include_directories(${target} BEFORE PRIVATE ${REWRITTEN_INCLUDE_DIR})
-        else()
-            target_include_directories(${target} BEFORE PRIVATE ${ORIGINAL_INCLUDE_DIR})
-        endif()
         target_compile_options(${target} PRIVATE
             "-isystem${C_SYSTEM_INCLUDE}"
             "-isystem${C_SYSTEM_INCLUDE_FIXED}")

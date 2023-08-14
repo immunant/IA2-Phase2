@@ -19,10 +19,11 @@ function(add_tls_padded_library)
     # Abbreviate options
     if(DEFINED ADD_TLS_PADDED_LIBRARY_LIB)
         set(LIB ${ADD_TLS_PADDED_LIBRARY_LIB})
-        set(LIB_PADDED "${LIB}_padded")
     else()
         message(FATAL_ERROR "add-tls-padded-library requires a LIB argument")
     endif()
+
+    set(PADDED_TARGET ${LIB}-padded)
 
     if(DEFINED ADD_TLS_PADDED_LIBRARY_OUTPUT_DIR)
         set(OUTPUT_DIR ${ADD_TLS_PADDED_LIBRARY_OUTPUT_DIR})
@@ -32,7 +33,7 @@ function(add_tls_padded_library)
 
     # Use system path for system libs and current binary dir for in-tree libs
     if(${ADD_TLS_PADDED_LIBRARY_SYSTEM})
-        pkg_check_modules(LIB REQUIRED lib${WRAPPED_LIB})
+        pkg_check_modules(LIB REQUIRED lib${LIB})
         set(LIB_DIR ${LIB_LIBDIR})
     else()
         set(LIB_DIR ${CMAKE_CURRENT_BINARY_DIR})
@@ -40,15 +41,14 @@ function(add_tls_padded_library)
 
     # Add command and target to generate the padded, sonamed library
     add_custom_command(
-        OUTPUT ${OUTPUT_DIR}/lib${LIB_PADDED}.so
-        COMMAND ${CMAKE_COMMAND} -E copy ${LIB_DIR}/lib${LIB}.so ${OUTPUT_DIR}/lib${LIB_PADDED}.so
-        COMMAND pad-tls --allow-no-tls ${OUTPUT_DIR}/lib${LIB_PADDED}.so
-        COMMAND patchelf --set-soname lib${LIB_PADDED}.so ${OUTPUT_DIR}/lib${LIB_PADDED}.so
-        DEPENDS pad-tls ${LIB_DIR}/lib${LIB}.so
+        OUTPUT ${OUTPUT_DIR}/lib${LIB}.so
+        COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${LIB}> ${OUTPUT_DIR}/lib${LIB}.so
+        COMMAND pad-tls --allow-no-tls ${OUTPUT_DIR}/lib${LIB}.so
+        DEPENDS pad-tls $<TARGET_FILE:${LIB}>
         COMMENT "Padding TLS segment of wrapped library"
     )
-    add_custom_target(${LIB_PADDED}-tgt DEPENDS "${OUTPUT_DIR}/lib${LIB_PADDED}.so")
-    add_library(${LIB_PADDED} SHARED IMPORTED)
-    set_property(TARGET ${LIB_PADDED} PROPERTY IMPORTED_LOCATION "${OUTPUT_DIR}/lib${LIB_PADDED}.so")
-    add_dependencies(${LIB_PADDED} ${LIB_PADDED}-tgt)
+    add_custom_target(${LIB}-tgt DEPENDS "${OUTPUT_DIR}/lib${LIB}.so")
+    add_library(${PADDED_TARGET} SHARED IMPORTED)
+    set_property(TARGET ${PADDED_TARGET} PROPERTY IMPORTED_LOCATION "${OUTPUT_DIR}/lib${LIB}.so")
+    add_dependencies(${PADDED_TARGET} ${LIB}-tgt)
 endfunction()

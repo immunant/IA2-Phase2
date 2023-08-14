@@ -57,6 +57,10 @@ function(define_shared_lib)
     add_library(${WRAPPED_LIBNAME} SHARED ${COPIED_SRCS})
     add_dependencies(${WRAPPED_LIBNAME} ${TEST_NAME}_call_gate_generation)
     set_target_properties(${LIBNAME} PROPERTIES EXCLUDE_FROM_ALL 1)
+    if (${SHARED_LIB_PKEY} GREATER 0)
+        set_target_properties(${WRAPPED_LIBNAME} PROPERTIES
+            LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/unaligned)
+    endif()
 
     target_compile_definitions(${LIBNAME} PRIVATE PRE_REWRITER=1)
     target_include_directories(${LIBNAME} BEFORE PRIVATE ${ORIGINAL_INCLUDE_DIR})
@@ -109,7 +113,7 @@ function(define_shared_lib)
             "-include${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME}_call_gates.h")
         add_tls_padded_library(
             LIB "${WRAPPED_LIBNAME}"
-            OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/padded")
+            OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
     endif()
 endfunction()
 
@@ -235,7 +239,7 @@ function(define_test)
         target_link_libraries(${MAIN} PRIVATE ${DEFINE_TEST_LIBS})
         if (${LIB_PKEY} GREATER 0)
             target_link_libraries(${WRAPPED_MAIN} PRIVATE
-                ${DEFINE_TEST_LIBS}_wrapped_padded)
+                ${DEFINE_TEST_LIBS}_wrapped-padded)
         else()
             target_link_libraries(${WRAPPED_MAIN} PRIVATE
                 ${DEFINE_TEST_LIBS}_wrapped)

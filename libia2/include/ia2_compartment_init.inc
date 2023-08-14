@@ -11,6 +11,10 @@
 
 #include <ia2.h>
 
+#ifndef IA2_COMPARTMENT_LIBRARIES
+#define IA2_COMPARTMENT_LIBRARIES NULL
+#endif
+
 #define CONCAT_(x, y) x##y
 #define CONCAT(x, y) CONCAT_(x, y)
 #define COMPARTMENT_IDENT(name) CONCAT(name##_, IA2_COMPARTMENT)
@@ -35,6 +39,7 @@ __attribute__((constructor)) static void COMPARTMENT_IDENT(init_pkey)() {
   struct PhdrSearchArgs args = {
       .pkey = IA2_COMPARTMENT,
       .address = &COMPARTMENT_IDENT(init_pkey),
+      .extra_libraries = IA2_COMPARTMENT_LIBRARIES,
   };
 
   __asm__ volatile(

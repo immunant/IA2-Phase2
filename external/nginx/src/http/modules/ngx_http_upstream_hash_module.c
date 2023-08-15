@@ -392,7 +392,7 @@ ngx_http_upstream_init_chash(ngx_conf_t *cf, ngx_http_upstream_srv_conf_t *us)
     ngx_qsort(points->point,
               points->number,
               sizeof(ngx_http_upstream_chash_point_t),
-              ngx_http_upstream_chash_cmp_points);
+              IA2_IGNORE(ngx_http_upstream_chash_cmp_points));
 
     for (i = 0, j = 1; j < points->number; j++) {
         if (points->point[i].hash != points->point[j].hash) {

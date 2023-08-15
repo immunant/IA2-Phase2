@@ -134,7 +134,7 @@ ngx_regex_compile(ngx_regex_compile_t *rc)
 
         ngx_regex_malloc_init(NULL);
 
-        gctx = pcre2_general_context_create(ngx_regex_malloc, ngx_regex_free,
+        gctx = pcre2_general_context_create(IA2_IGNORE(ngx_regex_malloc), IA2_IGNORE(ngx_regex_free),
                                             NULL);
         if (gctx == NULL) {
             ngx_regex_malloc_done();

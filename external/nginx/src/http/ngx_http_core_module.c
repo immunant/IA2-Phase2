@@ -871,7 +871,7 @@ ngx_http_core_run_phases(ngx_http_request_t *r)
 
     ph = cmcf->phase_engine.handlers;
 
-    while (ph[r->phase_handler].checker) {
+    while (IA2_ADDR(ph[r->phase_handler].checker)) {
 
         rc = ph[r->phase_handler].checker(r, &ph[r->phase_handler]);
 

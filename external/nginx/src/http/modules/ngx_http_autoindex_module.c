@@ -389,7 +389,7 @@ ngx_http_autoindex_handler(ngx_http_request_t *r)
     if (entries.nelts > 1) {
         ngx_qsort(entries.elts, (size_t) entries.nelts,
                   sizeof(ngx_http_autoindex_entry_t),
-                  ngx_http_autoindex_cmp_entries);
+                  IA2_IGNORE(ngx_http_autoindex_cmp_entries));
     }
 
     switch (format) {

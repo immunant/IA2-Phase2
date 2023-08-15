@@ -488,7 +488,7 @@ found:
 
         ngx_qsort(browsers, (size_t) conf->modern_browsers->nelts,
                   sizeof(ngx_http_modern_browser_t),
-                  ngx_http_modern_browser_sort);
+                  IA2_IGNORE(ngx_http_modern_browser_sort));
 
         for (i = 0; i < conf->modern_browsers->nelts; i++) {
              n = browsers[i].skip;

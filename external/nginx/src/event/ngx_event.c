@@ -684,7 +684,7 @@ ngx_event_process_init(ngx_cycle_t *cycle)
         struct itimerval  itv;
 
         ngx_memzero(&sa, sizeof(struct sigaction));
-        sa.sa_handler = ngx_timer_signal_handler;
+        sa.sa_handler = IA2_IGNORE(ngx_timer_signal_handler);
         sigemptyset(&sa.sa_mask);
 
         if (sigaction(SIGALRM, &sa, NULL) == -1) {

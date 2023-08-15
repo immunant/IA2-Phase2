@@ -822,8 +822,7 @@ ngx_http_script_add_copy_code(ngx_http_script_compile_t *sc, ngx_str_t *value,
         return NGX_ERROR;
     }
 
-    code->code = (ngx_http_script_code_pt) (void *)
-                                                 ngx_http_script_copy_len_code;
+    code->code = IA2_CAST(ngx_http_script_copy_len_code, ngx_http_script_code_pt);
     code->len = len;
 
     size = (sizeof(ngx_http_script_copy_code_t) + len + sizeof(uintptr_t) - 1)
@@ -912,8 +911,7 @@ ngx_http_script_add_var_code(ngx_http_script_compile_t *sc, ngx_str_t *name)
         return NGX_ERROR;
     }
 
-    code->code = (ngx_http_script_code_pt) (void *)
-                                             ngx_http_script_copy_var_len_code;
+    code->code = IA2_CAST(ngx_http_script_copy_var_len_code, ngx_http_script_code_pt);
     code->index = (uintptr_t) index;
 
     code = ngx_http_script_add_code(*sc->values,
@@ -997,14 +995,14 @@ ngx_http_script_add_args_code(ngx_http_script_compile_t *sc)
         return NGX_ERROR;
     }
 
-    *code = (uintptr_t) ngx_http_script_mark_args_code;
+    *code = IA2_CAST(ngx_http_script_mark_args_code, uintptr_t);
 
     code = ngx_http_script_add_code(*sc->values, sizeof(uintptr_t), &sc->main);
     if (code == NULL) {
         return NGX_ERROR;
     }
 
-    *code = (uintptr_t) ngx_http_script_start_args_code;
+    *code = IA2_CAST(ngx_http_script_start_args_code, uintptr_t);
 
     return NGX_OK;
 }
@@ -1307,8 +1305,7 @@ ngx_http_script_add_capture_code(ngx_http_script_compile_t *sc, ngx_uint_t n)
         return NGX_ERROR;
     }
 
-    code->code = (ngx_http_script_code_pt) (void *)
-                                         ngx_http_script_copy_capture_len_code;
+    code->code = IA2_CAST(ngx_http_script_copy_capture_len_code, ngx_http_script_code_pt);
     code->n = 2 * n;
 
 
@@ -1422,8 +1419,7 @@ ngx_http_script_add_full_name_code(ngx_http_script_compile_t *sc)
         return NGX_ERROR;
     }
 
-    code->code = (ngx_http_script_code_pt) (void *)
-                                            ngx_http_script_full_name_len_code;
+    code->code = IA2_CAST(ngx_http_script_full_name_len_code, ngx_http_script_code_pt);
     code->conf_prefix = sc->conf_prefix;
 
     code = ngx_http_script_add_code(*sc->values,

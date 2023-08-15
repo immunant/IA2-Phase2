@@ -622,8 +622,8 @@ ngx_http_log_gzip(ngx_fd_t fd, u_char *buf, size_t len, ngx_int_t level,
 
     pool->log = log;
 
-    zstream.zalloc = ngx_http_log_gzip_alloc;
-    zstream.zfree = ngx_http_log_gzip_free;
+    zstream.zalloc = IA2_IGNORE(ngx_http_log_gzip_alloc);
+    zstream.zfree = IA2_IGNORE(ngx_http_log_gzip_free);
     zstream.opaque = pool;
 
     out = ngx_pnalloc(pool, size);

@@ -11,6 +11,7 @@
 
 #include <ngx_config.h>
 #include <ngx_core.h>
+#include <ia2.h>
 
 
 typedef ngx_uint_t  ngx_rbtree_key_t;
@@ -45,7 +46,7 @@ struct ngx_rbtree_s {
     ngx_rbtree_sentinel_init(s);                                              \
     (tree)->root = s;                                                         \
     (tree)->sentinel = s;                                                     \
-    (tree)->insert = i
+    (tree)->insert = IA2_FN(i)
 
 #define ngx_rbtree_data(node, type, link)                                     \
     (type *) ((u_char *) (node) - offsetof(type, link))

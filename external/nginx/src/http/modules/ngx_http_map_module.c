@@ -315,7 +315,7 @@ ngx_http_map_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
         ngx_qsort(ctx.keys.dns_wc_head.elts,
                   (size_t) ctx.keys.dns_wc_head.nelts,
-                  sizeof(ngx_hash_key_t), ngx_http_map_cmp_dns_wildcards);
+                  sizeof(ngx_hash_key_t), IA2_IGNORE(ngx_http_map_cmp_dns_wildcards));
 
         hash.hash = NULL;
         hash.temp_pool = pool;
@@ -335,7 +335,7 @@ ngx_http_map_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
         ngx_qsort(ctx.keys.dns_wc_tail.elts,
                   (size_t) ctx.keys.dns_wc_tail.nelts,
-                  sizeof(ngx_hash_key_t), ngx_http_map_cmp_dns_wildcards);
+                  sizeof(ngx_hash_key_t), IA2_IGNORE(ngx_http_map_cmp_dns_wildcards));
 
         hash.hash = NULL;
         hash.temp_pool = pool;

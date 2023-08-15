@@ -1023,7 +1023,7 @@ ngx_http_request_body_length_filter(ngx_http_request_t *r, ngx_chain_t *in)
         ngx_memzero(b, sizeof(ngx_buf_t));
 
         b->temporary = 1;
-        b->tag = (ngx_buf_tag_t) &ngx_http_read_client_request_body;
+        b->tag = IA2_CAST(ngx_http_read_client_request_body, ngx_buf_tag_t);
         b->start = cl->buf->pos;
         b->pos = cl->buf->pos;
         b->last = cl->buf->last;
@@ -1050,7 +1050,7 @@ ngx_http_request_body_length_filter(ngx_http_request_t *r, ngx_chain_t *in)
     rc = ngx_http_top_request_body_filter(r, out);
 
     ngx_chain_update_chains(r->pool, &rb->free, &rb->busy, &out,
-                            (ngx_buf_tag_t) &ngx_http_read_client_request_body);
+                            IA2_CAST(ngx_http_read_client_request_body, ngx_buf_tag_t));
 
     return rc;
 }
@@ -1159,7 +1159,7 @@ ngx_http_request_body_chunked_filter(ngx_http_request_t *r, ngx_chain_t *in)
                 ngx_memzero(b, sizeof(ngx_buf_t));
 
                 b->temporary = 1;
-                b->tag = (ngx_buf_tag_t) &ngx_http_read_client_request_body;
+                b->tag = IA2_CAST(ngx_http_read_client_request_body, ngx_buf_tag_t);
                 b->start = cl->buf->pos;
                 b->pos = cl->buf->pos;
                 b->last = cl->buf->last;
@@ -1234,7 +1234,7 @@ ngx_http_request_body_chunked_filter(ngx_http_request_t *r, ngx_chain_t *in)
     rc = ngx_http_top_request_body_filter(r, out);
 
     ngx_chain_update_chains(r->pool, &rb->free, &rb->busy, &out,
-                            (ngx_buf_tag_t) &ngx_http_read_client_request_body);
+                            IA2_CAST(ngx_http_read_client_request_body, ngx_buf_tag_t));
 
     return rc;
 }

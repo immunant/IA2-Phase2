@@ -414,7 +414,7 @@ ngx_http_referer_merge_conf(ngx_conf_t *cf, void *parent, void *child)
         ngx_qsort(conf->keys->dns_wc_head.elts,
                   (size_t) conf->keys->dns_wc_head.nelts,
                   sizeof(ngx_hash_key_t),
-                  ngx_http_cmp_referer_wildcards);
+                  IA2_IGNORE(ngx_http_cmp_referer_wildcards));
 
         hash.hash = NULL;
         hash.temp_pool = cf->temp_pool;
@@ -434,7 +434,7 @@ ngx_http_referer_merge_conf(ngx_conf_t *cf, void *parent, void *child)
         ngx_qsort(conf->keys->dns_wc_tail.elts,
                   (size_t) conf->keys->dns_wc_tail.nelts,
                   sizeof(ngx_hash_key_t),
-                  ngx_http_cmp_referer_wildcards);
+                  IA2_IGNORE(ngx_http_cmp_referer_wildcards));
 
         hash.hash = NULL;
         hash.temp_pool = cf->temp_pool;

@@ -567,7 +567,7 @@ ngx_http_upstream_keepalive(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     uscf = ngx_http_conf_get_module_srv_conf(cf, ngx_http_upstream_module);
 
-    kcf->original_init_upstream = uscf->peer.init_upstream
+    kcf->original_init_upstream = IA2_ADDR(uscf->peer.init_upstream)
                                   ? uscf->peer.init_upstream
                                   : ngx_http_upstream_init_round_robin;
 

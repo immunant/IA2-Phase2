@@ -1542,7 +1542,7 @@ ngx_http_server_names(ngx_conf_t *cf, ngx_http_core_main_conf_t *cmcf,
     if (ha.dns_wc_head.nelts) {
 
         ngx_qsort(ha.dns_wc_head.elts, (size_t) ha.dns_wc_head.nelts,
-                  sizeof(ngx_hash_key_t), ngx_http_cmp_dns_wildcards);
+                  sizeof(ngx_hash_key_t), IA2_IGNORE(ngx_http_cmp_dns_wildcards));
 
         hash.hash = NULL;
         hash.temp_pool = ha.temp_pool;
@@ -1560,7 +1560,7 @@ ngx_http_server_names(ngx_conf_t *cf, ngx_http_core_main_conf_t *cmcf,
     if (ha.dns_wc_tail.nelts) {
 
         ngx_qsort(ha.dns_wc_tail.elts, (size_t) ha.dns_wc_tail.nelts,
-                  sizeof(ngx_hash_key_t), ngx_http_cmp_dns_wildcards);
+                  sizeof(ngx_hash_key_t), IA2_IGNORE(ngx_http_cmp_dns_wildcards));
 
         hash.hash = NULL;
         hash.temp_pool = ha.temp_pool;

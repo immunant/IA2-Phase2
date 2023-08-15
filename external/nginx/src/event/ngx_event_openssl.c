@@ -390,7 +390,7 @@ ngx_ssl_create(ngx_ssl_t *ssl, ngx_uint_t protocols, void *data)
 
     SSL_CTX_set_read_ahead(ssl->ctx, 1);
 
-    SSL_CTX_set_info_callback(ssl->ctx, ngx_ssl_info_callback);
+    SSL_CTX_set_info_callback(ssl->ctx, IA2_IGNORE(ngx_ssl_info_callback));
 
     return NGX_OK;
 }
@@ -785,7 +785,7 @@ ngx_ssl_load_certificate_key(ngx_pool_t *pool, char **err,
     if (passwords) {
         tries = passwords->nelts;
         pwd = passwords->elts;
-        cb = ngx_ssl_password_callback;
+        cb = IA2_IGNORE(ngx_ssl_password_callback);
 
     } else {
         tries = 1;
@@ -871,7 +871,7 @@ ngx_ssl_client_certificate(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_str_t *cert,
 {
     STACK_OF(X509_NAME)  *list;
 
-    SSL_CTX_set_verify(ssl->ctx, SSL_VERIFY_PEER, ngx_ssl_verify_callback);
+    SSL_CTX_set_verify(ssl->ctx, SSL_VERIFY_PEER, IA2_IGNORE(ngx_ssl_verify_callback));
 
     SSL_CTX_set_verify_depth(ssl->ctx, depth);
 
@@ -918,7 +918,7 @@ ngx_ssl_trusted_certificate(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_str_t *cert,
     ngx_int_t depth)
 {
     SSL_CTX_set_verify(ssl->ctx, SSL_CTX_get_verify_mode(ssl->ctx),
-                       ngx_ssl_verify_callback);
+                       IA2_IGNORE(ngx_ssl_verify_callback));
 
     SSL_CTX_set_verify_depth(ssl->ctx, depth);
 
@@ -1593,7 +1593,7 @@ ngx_ssl_client_session_cache(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_uint_t enable)
                                    SSL_SESS_CACHE_CLIENT
                                    |SSL_SESS_CACHE_NO_INTERNAL);
 
-    SSL_CTX_sess_set_new_cb(ssl->ctx, ngx_ssl_new_client_session);
+    SSL_CTX_sess_set_new_cb(ssl->ctx, IA2_IGNORE(ngx_ssl_new_client_session));
 
     return NGX_OK;
 }
@@ -3589,9 +3589,9 @@ ngx_ssl_session_cache(ngx_ssl_t *ssl, ngx_str_t *sess_ctx,
     }
 
     if (shm_zone) {
-        SSL_CTX_sess_set_new_cb(ssl->ctx, ngx_ssl_new_session);
-        SSL_CTX_sess_set_get_cb(ssl->ctx, ngx_ssl_get_cached_session);
-        SSL_CTX_sess_set_remove_cb(ssl->ctx, ngx_ssl_remove_session);
+        SSL_CTX_sess_set_new_cb(ssl->ctx, IA2_IGNORE(ngx_ssl_new_session));
+        SSL_CTX_sess_set_get_cb(ssl->ctx, IA2_IGNORE(ngx_ssl_get_cached_session));
+        SSL_CTX_sess_set_remove_cb(ssl->ctx, IA2_IGNORE(ngx_ssl_remove_session));
 
         if (SSL_CTX_set_ex_data(ssl->ctx, ngx_ssl_session_cache_index, shm_zone)
             == 0)

@@ -453,7 +453,7 @@ ngx_epoll_notify_handler(ngx_event_t *ev)
         }
     }
 
-    handler = ev->data;
+    IA2_AS_PTR(handler) = ev->data;
     handler(ev);
 }
 
@@ -767,7 +767,7 @@ ngx_epoll_notify(ngx_event_handler_pt handler)
 {
     static uint64_t inc = 1;
 
-    notify_event.data = handler;
+    notify_event.data = IA2_AS_PTR(handler);
 
     if ((size_t) write(notify_fd, &inc, sizeof(uint64_t)) != sizeof(uint64_t)) {
         ngx_log_error(NGX_LOG_ALERT, notify_event.log, ngx_errno,

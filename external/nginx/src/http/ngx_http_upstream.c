@@ -6581,7 +6581,7 @@ ngx_http_upstream_init_main_conf(ngx_conf_t *cf, void *conf)
 
     for (i = 0; i < umcf->upstreams.nelts; i++) {
 
-        init = uscfp[i]->peer.init_upstream ? uscfp[i]->peer.init_upstream:
+        init = IA2_ADDR(uscfp[i]->peer.init_upstream) ? uscfp[i]->peer.init_upstream:
                                             ngx_http_upstream_init_round_robin;
 
         if (init(cf, uscfp[i]) != NGX_OK) {

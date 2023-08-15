@@ -614,8 +614,8 @@ ngx_http_gzip_filter_deflate_start(ngx_http_request_t *r,
 
     ctx->free_mem = ctx->preallocated;
 
-    ctx->zstream.zalloc = ngx_http_gzip_filter_alloc;
-    ctx->zstream.zfree = ngx_http_gzip_filter_free;
+    ctx->zstream.zalloc = IA2_IGNORE(ngx_http_gzip_filter_alloc);
+    ctx->zstream.zfree = IA2_IGNORE(ngx_http_gzip_filter_free);
     ctx->zstream.opaque = ctx;
 
     rc = deflateInit2(&ctx->zstream, (int) conf->level, Z_DEFLATED,

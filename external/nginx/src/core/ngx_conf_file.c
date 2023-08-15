@@ -302,7 +302,7 @@ ngx_conf_parse(ngx_conf_t *cf, ngx_str_t *filename)
                 goto failed;
             }
 
-            rv = (*cf->handler)(cf, NULL, cf->handler_conf);
+            rv = (cf->handler)(cf, NULL, cf->handler_conf);
             if (rv == NGX_CONF_OK) {
                 continue;
             }

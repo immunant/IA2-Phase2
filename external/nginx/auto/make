@@ -33,6 +33,7 @@ PAD_TLS = \$(IA2_ROOT)/pad-tls/pad-tls
 IA2_CALLGATES = $NGX_OBJS/libia2_callgates.so
 
 IA2_PREWRITER = 0
+IA2_EXTRA_CFLAGS = -include $NGX_OBJS/../wrapper.h
 IA2_CFLAGS = \\
 	-fPIC \\
 	-DPKEY=1 \\
@@ -42,7 +43,7 @@ IA2_CFLAGS = \\
 	-I \$(C_SYSTEM_INCLUDE_FIXED) \\
 	-Wno-error \\
 	-Werror=incompatible-pointer-types \\
-	-include $NGX_OBJS/../wrapper.h \\
+	\$(IA2_EXTRA_CFLAGS) \\
 	-I $REPO_ROOT/libia2/include
 
 IA2_PREREWRITER_LDFLAGS = \\
@@ -67,7 +68,7 @@ IA2_MODULE_CFLAGS = \\
 	-I \$(C_SYSTEM_INCLUDE_FIXED) \\
 	-Wno-error \\
 	-Werror=incompatible-pointer-types \\
-	-include $NGX_OBJS/../wrapper.h \\
+	\$(IA2_EXTRA_CFLAGS) \\
 	-I $REPO_ROOT/libia2/include
 
 IA2_MODULE_LDFLAGS = \\

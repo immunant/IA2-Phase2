@@ -1,11 +1,12 @@
 #!/bin/bash
 set -euo pipefail
 REPO_ROOT=`realpath ${PWD}/../../`
+EXTERNAL_ROOT=${REPO_ROOT}/external
 BUILD_DIR=${PWD}/build
 IA2_BUILD_DIR=${BUILD_DIR}/ia2
 NGINX_BUILD_DIR=${BUILD_DIR}/nginx
-NGINX_ROOT=${BUILD_DIR}
-NGINX_RTMP_ROOT=${BUILD_DIR}/nginx-rtmp-module-rewritten
+NGINX_ROOT=${EXTERNAL_ROOT}/nginx
+NGINX_RTMP_ROOT=${EXTERNAL_ROOT}/nginx-rtmp-module
 SRC_REWRITER=$IA2_BUILD_DIR/rewriter/ia2-rewriter
 LIBIA2=$IA2_BUILD_DIR/libia2/liblibia2.a
 TEMP_FILES=(
@@ -37,28 +38,7 @@ for tmp in ${TEMP_FILES[@]}; do
     touch $NGINX_BUILD_DIR/$tmp
 done
 
-if [ ! -f $NGINX_ROOT/auto/configure ]; then
-    mkdir -p $NGINX_ROOT
-    pushd "$REPO_ROOT/external/nginx"
-    find . -name build -prune -o \
-            -exec sh -c "mkdir -p $NGINX_ROOT/\$(dirname {})" ';' \
-            -exec cp '{}' "$NGINX_ROOT/{}" ';'
-    popd
-fi
-
-if [ ! -d $NGINX_RTMP_ROOT ]; then
-    mkdir -p $NGINX_RTMP_ROOT
-    pushd "$REPO_ROOT/external/nginx-rtmp-module"
-    find . -type f \
-            -exec sh -c "mkdir -p $NGINX_RTMP_ROOT/\$(dirname {})" ';' \
-            -exec cp '{}' "$NGINX_RTMP_ROOT/{}" ';'
-    popd
-fi
-
-# Transition into the new source root
-cd "$NGINX_ROOT"
-
-if [ ! -f $BUILD_DIR/Makefile ]; then
+if [ ! -f $NGINX_BUILD_DIR/Makefile ]; then
     REPO_ROOT=$REPO_ROOT ./auto/configure --prefix=$NGINX_BUILD_DIR \
         --builddir=$NGINX_BUILD_DIR \
         --with-cc="gcc" \
@@ -71,12 +51,11 @@ if [ ! -f $BUILD_DIR/Makefile ]; then
         --http-fastcgi-temp-path=$NGINX_BUILD_DIR/fastcgi_temp \
         --http-uwsgi-temp-path=$NGINX_BUILD_DIR/uwsgi_temp \
         --http-scgi-temp-path=$NGINX_BUILD_DIR/scgi_temp \
-        --add-dynamic-module=$NGINX_RTMP_ROOT
+        --add-dynamic-module=../nginx-rtmp-module
 fi
 
-touch "$BUILD_DIR/wrapper.h"
 if [ ! -f $NGINX_ROOT/compile_commands.json ]; then
-    bear -- make IA2_LDFLAGS= IA2_MODULE_LDFLAGS= IA2_CALLGATES= IA2_PREWRITER=1 build
+    bear -- make -j8 IA2_LDFLAGS= IA2_MODULE_LDFLAGS= IA2_CALLGATES= IA2_EXTRA_CFLAGS= IA2_PREWRITER=1 build
 fi
 
 if [ ! -f $BUILD_DIR/wrapper.c ] ||
@@ -84,6 +63,8 @@ if [ ! -f $BUILD_DIR/wrapper.c ] ||
    [ ! -f $BUILD_DIR/wrapper_2.ld ]; then
     pushd $BUILD_DIR
     $SRC_REWRITER --output-prefix=wrapper \
+        --root-directory=$EXTERNAL_ROOT \
+        --output-directory=$BUILD_DIR \
         $NGINX_ROOT/src/core/ngx_palloc.c \
         $NGINX_ROOT/src/core/ngx_log.c \
         $NGINX_ROOT/src/core/ngx_array.c \
@@ -242,6 +223,16 @@ if [ ! -f $BUILD_DIR/wrapper.c ] ||
         $NGINX_RTMP_ROOT/ngx_rtmp_control_module.c \
         $NGINX_BUILD_DIR/ngx_rtmp_module_modules.c
     popd
-    patch -p3 < $REPO_ROOT/external/nginx/nginx.patch
-    pushd $NGINX_RTMP_ROOT; patch -p3 < $REPO_ROOT/external/nginx/nginx_rtmp.patch; popd
+fi
+
+# The nginx makefile declares a dependency on this header even though it isn't
+# part of any source file's AST so we have to copy it manually
+if [ ! -f $NGINX_BUILD_DIR/src/os/unix/ngx_gcc_atomic_x86.h ]; then
+    cp $NGINX_ROOT/src/os/unix/ngx_gcc_atomic_x86.h $NGINX_BUILD_DIR/src/os/unix/ngx_gcc_atomic_x86.h
+fi
+
+# The makefile also makes the nginx binary depend on the docs so let's copy this
+# directory
+if [ ! -d $NGINX_BUILD_DIR/docs ]; then
+    cp -r $NGINX_ROOT/docs $NGINX_BUILD_DIR/docs
 fi

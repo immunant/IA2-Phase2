@@ -79,14 +79,14 @@ gcc -shared libbar_shim.c -Wl,-z,now -Wl,--version-script,libbar_shim.c.syms \
 ```
 
 We now modify the main binary's source to initialize our runtime using
-`INIT_RUNTIME` and assign it a protection key with `INIT_COMPARTMENT`.
+`INIT_RUNTIME` and assign it a protection key with `IA2_COMPARTMENT`.
 `INIT_RUNTIME` must be invoked once in the main binary. To assign a protection
-key to another shared object, only `INIT_COMPARTMENT` must be added to one of
+key to another shared object, only `IA2_COMPARTMENT` must be added to one of
 the object's source files.
 
 ```
 // main.c
-// This header defines INIT_RUNTIME and INIT_COMPARTMENT
+// This header defines INIT_RUNTIME and IA2_COMPARTMENT
 #include <ia2.h>
 
 // Initialize the runtime and allocate 1 protection key.

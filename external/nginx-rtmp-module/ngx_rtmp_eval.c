@@ -7,6 +7,7 @@
 #include <ngx_config.h>
 #include <ngx_core.h>
 #include "ngx_rtmp_eval.h"
+#include <ia2.h>
 
 
 #define NGX_RTMP_EVAL_BUFLEN    16
@@ -89,7 +90,7 @@ ngx_rtmp_eval_append_var(void *ctx, ngx_buf_t *b, ngx_rtmp_eval_t **e,
     ngx_rtmp_eval_t    *ee;
 
     for (; *e; ++e) {
-        for (k = 0, ee = *e; ee->handler; ++k, ++ee) {
+        for (k = 0, ee = *e; IA2_ADDR(ee->handler); ++k, ++ee) {
             if (ee->name.len == name->len &&
                 ngx_memcmp(ee->name.data, name->data, name->len) == 0)
             {

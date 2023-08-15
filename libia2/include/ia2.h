@@ -43,8 +43,6 @@
 /// compartment.
 #define IA2_SHARED_DATA __attribute__((section("ia2_shared_data")))
 
-#define IA2_IGNORE_FIELD(decl) decl
-
 /// Assembly to check and assert that `pkru` matches the current PKRU register
 /// value
 ///
@@ -67,6 +65,16 @@
 /* clang-format on */
 #endif
 
+#define IA2_IGNORE(x) x
+
+#if IA2_PREREWRITER
+#define IA2_FN_ADDR(func) func
+#define IA2_ADDR(opaque) (void *)opaque
+#define IA2_AS_PTR(opaque) opaque
+#define IA2_FN(func) func
+#define IA2_CALL(opaque, id) opaque
+#define IA2_CAST(func, ty) (ty) (void *) func
+#else
 /// Get the address of the wrapper function for `func`
 #define IA2_FN_ADDR(func) (typeof(&func))(&__ia2_##func)
 
@@ -76,6 +84,13 @@
 /// or call this pointer.
 #define IA2_ADDR(opaque) (void *)((opaque).ptr)
 
+/// Get the raw function pointer out of an IA2 opaque function pointer without
+/// casting to void *
+///
+/// This is useful for assignments with ABI-compatible pointers since IA2_ADDR
+/// cannot be used on the lhs.
+#define IA2_AS_PTR(opaque) (opaque).ptr
+
 /// Get an IA2 opaque function pointer for the wrapped version of `func`
 #define IA2_FN(func)                                                           \
   (typeof(__ia2_##func)) { (void *)&__ia2_##func }
@@ -83,6 +98,15 @@
 /// Call an IA2 opaque function pointer, which should be in target compartment
 /// `id`
 #define IA2_CALL(opaque, id) _IA2_CALL(opaque, id, PKEY)
+
+/// Get an IA2 opaque function pointer of type `ty` for the wrapper version of `func`
+///
+/// This is the same as IA2_FN but with the type determined by the macro
+/// parameter. Note that it is the user's responsibility to ensure that `ty` and
+/// the type of `IA2_FN(func)` are ABI-compatible since no extra type-checking is
+/// done.
+#define IA2_CAST(func, ty) (ty) { (void *)IA2_FN_ADDR(func) }
+#endif
 
 /// Convert a compartment pkey to a PKRU register value
 #define PKRU(pkey) (~((3U << (2 * pkey)) | 3))

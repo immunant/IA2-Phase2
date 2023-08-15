@@ -75,7 +75,6 @@
  * some function pointers below without adding another explicit exception in the
  * rewriter.
  */
-#define IA2_IGNORE(x) x
 
 int pkru_offset(void) {
   unsigned int eax = 0xd;

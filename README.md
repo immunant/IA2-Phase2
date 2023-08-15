@@ -43,7 +43,7 @@ ninja check-ia2
 
 First invoke the [`INIT_RUNTIME`](https://github.com/immunant/IA2-Phase2/blob/5cdb743d3a42e8df8e4d8cf61fb3551656001c73/libia2/include/ia2.h#L204) macro once in any binary or shared library to define the number of protection keys that need to be allocated. The argument passed to `INIT_RUNTIME` must be a number between 1 and 15. Then the [`IA2_COMPARTMENT`](https://github.com/immunant/IA2-Phase2/blob/4a3a0c8d2a2b1881e0e41c89db070db3da187f9e/libia2/include/ia2_compartment_init.inc#L3) `#define` is used to define trusted compartments at the shared object level. This can be the main executable ELF or any dynamically-linked shared libraries. Memory belonging to a trusted compartment is assigned one of the [15 protection keys](https://man7.org/linux/man-pages/man7/pkeys.7.html) and can only be accessed by the shared object itself. Objects that don't explicitly define a compartment are treated as untrusted by default.
 
-To assign a protection key to a trusted compartment, insert `IA2_COMPARTMENT(n)` with an argument between 1-15 specifying the index of the protection key:
+To assign a protection key to a trusted compartment, insert `#define IA2_COMPARTMENT n` with an argument between 1-15 specifying the index of the protection key, and include `ia2_compartment_init.inc`:
 
 ```c
 #define IA2_COMPARTMENT 1

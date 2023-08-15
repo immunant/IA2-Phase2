@@ -14,7 +14,7 @@ INIT_RUNTIME(2);
 
 
 struct handler {
-    IA2_IGNORE_FIELD(void (*handler)(int sig));
+    IA2_IGNORE(void (*handler)(int sig));
 };
 
 int main_secret = 3;

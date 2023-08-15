@@ -738,7 +738,14 @@ public:
       return;
     }
 
+    Function fn_name = fn_node->getNameAsString();
+
     if (fn_node->isVariadic()) {
+      static std::set<Function> variadic_warnings_printed = {};
+      if (variadic_warnings_printed.contains(fn_name)) {
+          return;
+      }
+      variadic_warnings_printed.insert(fn_name);
       llvm::errs()
           << "Wrapping variadic functions is not yet supported, skipping ";
       fn_node->getNameForDiagnostic(
@@ -747,7 +754,6 @@ public:
       return;
     }
 
-    Function fn_name = fn_node->getNameAsString();
     CAbiSignature fn_sig = determineAbiForDecl(*fn_node);
     abi_signatures[fn_name] = fn_sig;
 

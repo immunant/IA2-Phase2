@@ -130,7 +130,11 @@ void release_queue(struct queue *q) {
 
 void push_queue(struct queue *q, mpk_err e) {
   assert(q);
-  assert(q->push < QUEUE_SIZE);
+  if (q->push == QUEUE_SIZE) {
+    q->push = 0;
+  }
+  // Check if the queue is full
+  assert(q->push + 1 != q->pop);
   q->data[q->push] = e;
   q->push += 1;
 }
@@ -138,9 +142,12 @@ void push_queue(struct queue *q, mpk_err e) {
 // Attempts to pop an entry from the queue and returns if it succeeded or not.
 bool pop_queue(struct queue *q, mpk_err *e) {
   assert(q);
-  assert(q->pop < QUEUE_SIZE);
   assert(e);
+  if (q->pop == QUEUE_SIZE) {
+    q->pop = 0;
+  }
   if (q->push == q->pop) {
+    // Queue is empty
     return false;
   } else {
     *e = q->data[q->pop];

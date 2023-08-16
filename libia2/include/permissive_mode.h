@@ -6,6 +6,7 @@
 #include <dlfcn.h>
 #include <elf.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <pthread.h>
 #include <signal.h>
 #include <stdbool.h>
@@ -332,6 +333,29 @@ int elfaddr(const void *addr, Dl_info *info) {
   return 1;
 }
 
+// Print an address, including relative offset if loaded from disk and symbol
+// name if available.
+void print_address(FILE *log, char *identifier, void *addr) {
+  Dl_info dlinf = {0};
+  bool found = dladdr(addr, &dlinf) != 0;
+
+  if (found) {
+    uintptr_t offset = (uintptr_t)addr - (uintptr_t)dlinf.dli_fbase;
+    const char *fname = basename(dlinf.dli_fname);
+
+    if (dlinf.dli_sname) {
+      uintptr_t offset = (uintptr_t)addr - (uintptr_t)dlinf.dli_saddr;
+      fprintf(log, "%s: %s:%s+0x%" PRIxPTR " [%p] ", identifier, fname,
+              dlinf.dli_sname, offset, addr);
+    } else {
+      fprintf(log, "%s: %s+0x%" PRIxPTR " [%p], ", identifier, fname, offset,
+              addr);
+    }
+  } else {
+      fprintf(log, "%s: %p, ", identifier, addr);
+  }
+}
+
 // The main function in the logging thread
 void *log_mpk_violations(void *arg) {
   /* Explicitly enter compartment 1, because this function isn't wrapped. */
@@ -348,20 +372,12 @@ void *log_mpk_violations(void *arg) {
     mpk_err err;
     // Pop everything currently in the queue
     while (pop_queue(q, &err)) {
-#define ENTRY_NUM 6
-      char *names[ENTRY_NUM] = {"addr", "val", "pc", "sp", "fp", "local_addr"};
-      uint64_t addresses[ENTRY_NUM] = {err.addr, err.val, err.pc, err.sp, err.fp, err.local_addr};
-      for (int i = 0; i < ENTRY_NUM; i++) {
-          Dl_info dlinf = {0};
-          dladdr((void *)addresses[i], &dlinf);
-          const char *name = dlinf.dli_sname;
-          if (name) {
-            fprintf(log, "%s: %s (%lx),", names[i], name, addresses[i]);
-          } else {
-            fprintf(log, "%s: %lx,", names[i], addresses[i]);
-          }
-      }
-      fprintf(log, " pkru: %x\n", err.pkru);
+      print_address(log, "addr", (void *)err.addr);
+      print_address(log, "val", (void *)err.val);
+      print_address(log, "pc", (void *)err.pc);
+      print_address(log, "sp", (void *)err.sp);
+      print_address(log, "fp", (void *)err.fp);
+      fprintf(log, "pkru: %x\n", err.pkru);
     }
     release_queue(q);
 

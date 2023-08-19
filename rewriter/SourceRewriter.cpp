@@ -17,6 +17,7 @@
 #include "llvm/Support/FormatVariadic.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
+#include <clang/AST/Decl.h>
 #include <clang/AST/PrettyPrinter.h>
 #include <dirent.h>
 #include <fstream>
@@ -32,6 +33,8 @@
 using namespace clang::ast_matchers;
 using namespace clang::tooling;
 using namespace std::string_literals;
+
+static constexpr llvm::StringLiteral SKIP_WRAP_ATTR("ia2_skip_wrap");
 
 typedef std::string Function;
 typedef std::string Filename;
@@ -124,6 +127,11 @@ static Pkey get_file_pkey(const clang::SourceManager &sm) {
                  << " has no entry with -DPKEY in compile_commands.json\n";
     assert(0);
   }
+}
+
+static bool ignore_function(const clang::Decl &fn_decl) {
+  auto annotation = fn_decl.getAttr<clang::AnnotateAttr>();
+  return annotation && annotation->getAnnotation() == SKIP_WRAP_ATTR;
 }
 
 static bool ignore_file(const Filename &filename) {
@@ -261,6 +269,10 @@ public:
       return;
     }
 
+    if (ignore_function(*old_decl)) {
+      return;
+    }
+
     mangled_type = mangle_type(ctxt, fpt->getCanonicalTypeInternal());
     OpaqueStruct new_type = kFnPtrTypePrefix + mangled_type;
     std::string name = llvm::cast<clang::NamedDecl>(old_decl)->getName().str();
@@ -394,12 +406,14 @@ public:
     // Matches function calls excluding direct calls. Only the callee nodes are
     // bound to "fnPtrCall"
     StatementMatcher fn_ptr_call = callExpr(callee(
-        expr(unless(ignoringImplicit(declared_function))).bind("fnPtrCall")));
+        expr(unless(ignoringImplicit(declared_function))).bind("fnPtrExpr"))).bind("fnPtrCall");
 
     refactorer.addMatcher(fn_ptr_call, this);
   }
   virtual void run(const MatchFinder::MatchResult &result) {
-    auto *fn_ptr_call = result.Nodes.getNodeAs<clang::Expr>("fnPtrCall");
+    auto *fn_ptr_expr = result.Nodes.getNodeAs<clang::Expr>("fnPtrExpr");
+    assert(fn_ptr_expr != nullptr);
+    auto *fn_ptr_call = result.Nodes.getNodeAs<clang::CallExpr>("fnPtrCall");
     assert(fn_ptr_call != nullptr);
 
     assert(result.SourceManager != nullptr);
@@ -413,14 +427,19 @@ public:
       return;
     }
 
-    clang::SourceLocation loc = fn_ptr_call->getExprLoc();
+    clang::SourceLocation loc = fn_ptr_expr->getExprLoc();
     Filename filename = get_filename(loc, sm);
     if (ignore_file(filename)) {
       return;
     }
 
+    auto callee_decl = fn_ptr_call->getCalleeDecl();
+    if (callee_decl && ignore_function(*callee_decl)) {
+      return;
+    }
+
     // Check if the function pointer type already has an ID
-    auto expr_ty = fn_ptr_call->getType()->getCanonicalTypeInternal();
+    auto expr_ty = fn_ptr_expr->getType()->getCanonicalTypeInternal();
     auto expr_ty_str = expr_ty.getAsString();
     if (!fn_ptr_ids.contains(expr_ty_str)) {
       fn_ptr_ids[expr_ty_str] = id_counter;
@@ -450,7 +469,7 @@ public:
 
     // getTokenRange is required to replace the entire callee expression
     auto char_range =
-        clang::CharSourceRange::getTokenRange(fn_ptr_call->getSourceRange());
+        clang::CharSourceRange::getTokenRange(fn_ptr_expr->getSourceRange());
 
     auto old_expr =
         clang::Lexer::getSourceText(char_range, sm, ctxt.getLangOpts());
@@ -509,8 +528,13 @@ public:
                        hasEitherOperand(expr(
                            ignoringImplicit(equalsBoundNode("fnPtrExpr"))))));
 
+    auto param_expr = hasParent(implicitCastExpr(hasParent(callExpr(
+        forEachArgumentWithParam(equalsBoundNode("fnPtrExpr"),
+                                 parmVarDecl().bind("fnPtrParamDecl"))))));
+
     StatementMatcher fn_ptr_expr =
-        expr(fn_expr, unless(call_expr), unless(in_bin_op));
+        expr(fn_expr, unless(call_expr), unless(in_bin_op),
+             anyOf(param_expr, anything()));
 
     refactorer.addMatcher(fn_ptr_expr, this);
   }
@@ -537,6 +561,15 @@ public:
     auto *fn_decl =
         llvm::cast<clang::NamedDecl>(fn_ptr_expr->getReferencedDeclOfCallee());
     assert(fn_decl != nullptr);
+
+    if (ignore_function(*fn_decl)) {
+      return;
+    }
+
+    auto *param_decl = result.Nodes.getNodeAs<clang::ParmVarDecl>("fnPtrParamDecl");
+    if (param_decl && ignore_function(*param_decl)) {
+      return;
+    }
 
     Function fn_name = fn_decl->getName().str();
 
@@ -769,7 +802,7 @@ public:
     auto &sm = *result.SourceManager;
 
     // Ignore declarations in libc and libia2 headers
-    if (ignore_file(get_filename(fn_node->getLocation(), sm))) {
+    if (ignore_file(get_filename(fn_node->getLocation(), sm)) || ignore_function(*fn_node)) {
       return;
     }
 

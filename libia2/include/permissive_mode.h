@@ -163,7 +163,7 @@ void permissive_mode_handler(int sig, siginfo_t *info, void *ctxt) {
   bool handling_trap = sig == SIGTRAP;
   ucontext_t *uctxt = (ucontext_t *)ctxt;
   if (!handling_pkuerr && !handling_trap) {
-    return;
+    abort();
   }
   uint64_t *eflags = (uint64_t *)(&uctxt->uc_mcontext.gregs[REG_EFL]);
 

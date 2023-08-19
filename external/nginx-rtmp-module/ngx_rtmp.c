@@ -48,7 +48,7 @@ ngx_thread_volatile ngx_event_t    *ngx_rtmp_init_queue;
 ngx_uint_t  ngx_rtmp_max_module;
 
 
-static ngx_command_t  ngx_rtmp_commands[] = {
+static const ngx_command_t  ngx_rtmp_commands[] = {
 
     { ngx_string("rtmp"),
       NGX_MAIN_CONF|NGX_CONF_BLOCK|NGX_CONF_NOARGS,
@@ -61,7 +61,7 @@ static ngx_command_t  ngx_rtmp_commands[] = {
 };
 
 
-static ngx_core_module_t  ngx_rtmp_module_ctx = {
+static const ngx_core_module_t  ngx_rtmp_module_ctx = {
     ngx_string("rtmp"),
     NULL,
     NULL
@@ -70,8 +70,8 @@ static ngx_core_module_t  ngx_rtmp_module_ctx = {
 
 ngx_module_t  ngx_rtmp_module IA2_SHARED_DATA = {
     NGX_MODULE_V1,
-    &ngx_rtmp_module_ctx,                  /* module context */
-    ngx_rtmp_commands,                     /* module directives */
+    (void*)&ngx_rtmp_module_ctx,           /* module context */
+    (ngx_command_t*)ngx_rtmp_commands,     /* module directives */
     NGX_CORE_MODULE,                       /* module type */
     NULL,                                  /* init master */
     NULL,                                  /* init module */

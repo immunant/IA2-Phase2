@@ -86,10 +86,10 @@ typedef struct {
 } ngx_rtmp_log_ctx_t;
 
 
-static ngx_str_t ngx_rtmp_access_log = ngx_string(NGX_HTTP_LOG_PATH);
+static const ngx_str_t ngx_rtmp_access_log = ngx_string(NGX_HTTP_LOG_PATH);
 
 
-static ngx_command_t  ngx_rtmp_log_commands[] = {
+static const ngx_command_t  ngx_rtmp_log_commands[] = {
 
     { ngx_string("access_log"),
       NGX_RTMP_MAIN_CONF|NGX_RTMP_SRV_CONF|NGX_RTMP_APP_CONF|NGX_CONF_TAKE12,
@@ -124,7 +124,7 @@ static ngx_rtmp_module_t  ngx_rtmp_log_module_ctx = {
 ngx_module_t  ngx_rtmp_log_module IA2_SHARED_DATA = {
     NGX_MODULE_V1,
     &ngx_rtmp_log_module_ctx,               /* module context */
-    ngx_rtmp_log_commands,                  /* module directives */
+    (ngx_command_t*) ngx_rtmp_log_commands, /* module directives */
     NGX_RTMP_MODULE,                        /* module type */
     NULL,                                   /* init master */
     NULL,                                   /* init module */
@@ -549,7 +549,7 @@ ngx_rtmp_log_merge_app_conf(ngx_conf_t *cf, void *parent, void *child)
         return NGX_CONF_ERROR;
     }
 
-    log->file = ngx_conf_open_file(cf->cycle, &ngx_rtmp_access_log);
+    log->file = ngx_conf_open_file(cf->cycle, (ngx_str_t*)&ngx_rtmp_access_log);
     if (log->file == NULL) {
         return NGX_CONF_ERROR;
     }

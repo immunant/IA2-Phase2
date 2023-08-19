@@ -25,13 +25,11 @@ if ! command -v bear; then
     exit 1
 fi
 
-if [ ! -f $SRC_REWRITER ] || [ ! -f $LIBIA2 ]; then
-    mkdir -p $IA2_BUILD_DIR
-    pushd $IA2_BUILD_DIR
-    cmake -GNinja $REPO_ROOT
-    ninja ia2-rewriter libia2 pad-tls
-    popd
-fi
+mkdir -p $IA2_BUILD_DIR
+pushd $IA2_BUILD_DIR
+cmake -GNinja $REPO_ROOT
+ninja ia2-rewriter libia2 pad-tls
+popd
 
 mkdir -p $NGINX_BUILD_DIR
 for tmp in ${TEMP_FILES[@]}; do

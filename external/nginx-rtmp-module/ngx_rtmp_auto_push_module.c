@@ -44,7 +44,7 @@ typedef struct {
 } ngx_rtmp_auto_push_conf_t;
 
 
-static ngx_command_t  ngx_rtmp_auto_push_commands[] = {
+static const ngx_command_t  ngx_rtmp_auto_push_commands[] = {
 
     { ngx_string("rtmp_auto_push"),
       NGX_MAIN_CONF|NGX_DIRECT_CONF|NGX_CONF_TAKE1,
@@ -71,7 +71,7 @@ static ngx_command_t  ngx_rtmp_auto_push_commands[] = {
 };
 
 
-static ngx_core_module_t  ngx_rtmp_auto_push_module_ctx = {
+static const ngx_core_module_t  ngx_rtmp_auto_push_module_ctx = {
     ngx_string("rtmp_auto_push"),
     ngx_rtmp_auto_push_create_conf,         /* create conf */
     ngx_rtmp_auto_push_init_conf            /* init conf */
@@ -80,8 +80,8 @@ static ngx_core_module_t  ngx_rtmp_auto_push_module_ctx = {
 
 ngx_module_t  ngx_rtmp_auto_push_module IA2_SHARED_DATA = {
     NGX_MODULE_V1,
-    &ngx_rtmp_auto_push_module_ctx,         /* module context */
-    ngx_rtmp_auto_push_commands,            /* module directives */
+    (void*)&ngx_rtmp_auto_push_module_ctx,  /* module context */
+    (ngx_command_t*)ngx_rtmp_auto_push_commands, /* module directives */
     NGX_CORE_MODULE,                        /* module type */
     NULL,                                   /* init master */
     NULL,                                   /* init module */
@@ -363,7 +363,7 @@ ngx_rtmp_auto_push_reconnect(ngx_event_t *ev)
 
     ngx_memzero(&at, sizeof(at));
     ngx_str_set(&at.page_url, "nginx-auto-push");
-    at.tag = &ngx_rtmp_auto_push_module;
+    at.tag = (void*)&ngx_rtmp_auto_push_module;
 
     if (ctx->args[0]) {
         at.play_path.data = play_path;

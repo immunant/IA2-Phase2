@@ -36,7 +36,7 @@ static ngx_conf_deprecated_t  ngx_conf_deprecated_so_keepalive = {
 };
 
 
-static ngx_command_t  ngx_rtmp_core_commands[] = {
+static const ngx_command_t  ngx_rtmp_core_commands[] = {
 
     { ngx_string("server"),
       NGX_RTMP_MAIN_CONF|NGX_CONF_BLOCK|NGX_CONF_NOARGS,
@@ -177,7 +177,7 @@ static ngx_rtmp_module_t  ngx_rtmp_core_module_ctx = {
 ngx_module_t  ngx_rtmp_core_module IA2_SHARED_DATA = {
     NGX_MODULE_V1,
     &ngx_rtmp_core_module_ctx,             /* module context */
-    ngx_rtmp_core_commands,                /* module directives */
+    (ngx_command_t*) ngx_rtmp_core_commands, /* module directives */
     NGX_RTMP_MODULE,                       /* module type */
     NULL,                                  /* init master */
     NULL,                                  /* init module */

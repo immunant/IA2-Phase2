@@ -45,7 +45,7 @@ static void  ngx_rtmp_record_make_path(ngx_rtmp_session_t *s,
 static ngx_int_t ngx_rtmp_record_init(ngx_rtmp_session_t *s);
 
 
-static ngx_conf_bitmask_t  ngx_rtmp_record_mask[] = {
+static const ngx_conf_bitmask_t  ngx_rtmp_record_mask[] = {
     { ngx_string("off"),                NGX_RTMP_RECORD_OFF         },
     { ngx_string("all"),                NGX_RTMP_RECORD_AUDIO       |
                                         NGX_RTMP_RECORD_VIDEO       },
@@ -57,7 +57,7 @@ static ngx_conf_bitmask_t  ngx_rtmp_record_mask[] = {
 };
 
 
-static ngx_command_t  ngx_rtmp_record_commands[] = {
+static const ngx_command_t  ngx_rtmp_record_commands[] = {
 
     { ngx_string("record"),
       NGX_RTMP_MAIN_CONF|NGX_RTMP_SRV_CONF|NGX_RTMP_APP_CONF|
@@ -65,7 +65,7 @@ static ngx_command_t  ngx_rtmp_record_commands[] = {
       ngx_conf_set_bitmask_slot,
       NGX_RTMP_APP_CONF_OFFSET,
       offsetof(ngx_rtmp_record_app_conf_t, flags),
-      ngx_rtmp_record_mask },
+      (void*)ngx_rtmp_record_mask },
 
     { ngx_string("record_path"),
       NGX_RTMP_MAIN_CONF|NGX_RTMP_SRV_CONF|NGX_RTMP_APP_CONF|
@@ -166,7 +166,7 @@ static ngx_rtmp_module_t  ngx_rtmp_record_module_ctx = {
 ngx_module_t  ngx_rtmp_record_module IA2_SHARED_DATA = {
     NGX_MODULE_V1,
     &ngx_rtmp_record_module_ctx,            /* module context */
-    ngx_rtmp_record_commands,               /* module directives */
+    (ngx_command_t*) ngx_rtmp_record_commands, /* module directives */
     NGX_RTMP_MODULE,                        /* module type */
     NULL,                                   /* init master */
     NULL,                                   /* init module */

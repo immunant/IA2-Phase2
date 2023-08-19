@@ -162,7 +162,7 @@ ngx_conf_parse(ngx_conf_t *cf, ngx_str_t *filename)
     ngx_fd_t          fd;
     ngx_int_t         rc;
     ngx_buf_t         buf;
-    ngx_conf_file_t  *prev, conf_file;
+    ngx_conf_file_t  *prev;
     enum {
         parse_file = 0,
         parse_block,
@@ -189,7 +189,10 @@ ngx_conf_parse(ngx_conf_t *cf, ngx_str_t *filename)
 
         prev = cf->conf_file;
 
-        cf->conf_file = &conf_file;
+        cf->conf_file = ngx_alloc(sizeof(ngx_conf_file_t), cf->log);
+        if (cf->conf_file == NULL) {
+            return NGX_CONF_ERROR;
+        }
 
         if (ngx_fd_info(fd, &cf->conf_file->file.info) == NGX_FILE_ERROR) {
             ngx_log_error(NGX_LOG_EMERG, cf->log, ngx_errno,
@@ -341,6 +344,8 @@ done:
                           filename->data);
             rc = NGX_ERROR;
         }
+
+        ngx_free(cf->conf_file);
 
         cf->conf_file = prev;
     }

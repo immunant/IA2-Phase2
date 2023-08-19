@@ -9,9 +9,11 @@
 #define _NGX_ALLOC_H_INCLUDED_
 
 
+#include <ia2.h>
 #include <ngx_config.h>
 #include <ngx_core.h>
 
+IA2_BEGIN_NO_WRAP
 
 void *ngx_alloc(size_t size, ngx_log_t *log);
 void *ngx_calloc(size_t size, ngx_log_t *log);
@@ -41,5 +43,6 @@ extern ngx_uint_t  ngx_pagesize;
 extern ngx_uint_t  ngx_pagesize_shift;
 extern ngx_uint_t  ngx_cacheline_size;
 
+IA2_END_NO_WRAP
 
 #endif /* _NGX_ALLOC_H_INCLUDED_ */

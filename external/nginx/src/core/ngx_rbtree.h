@@ -13,6 +13,7 @@
 #include <ngx_core.h>
 #include <ia2.h>
 
+IA2_BEGIN_NO_WRAP
 
 typedef ngx_uint_t  ngx_rbtree_key_t;
 typedef ngx_int_t   ngx_rbtree_key_int_t;
@@ -46,7 +47,7 @@ struct ngx_rbtree_s {
     ngx_rbtree_sentinel_init(s);                                              \
     (tree)->root = s;                                                         \
     (tree)->sentinel = s;                                                     \
-    (tree)->insert = IA2_FN(i)
+    (tree)->insert = i
 
 #define ngx_rbtree_data(node, type, link)                                     \
     (type *) ((u_char *) (node) - offsetof(type, link))
@@ -84,5 +85,6 @@ ngx_rbtree_min(ngx_rbtree_node_t *node, ngx_rbtree_node_t *sentinel)
     return node;
 }
 
+IA2_END_NO_WRAP
 
 #endif /* _NGX_RBTREE_H_INCLUDED_ */

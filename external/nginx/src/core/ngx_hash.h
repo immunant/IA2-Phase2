@@ -9,9 +9,11 @@
 #define _NGX_HASH_H_INCLUDED_
 
 
+#include <ia2.h>
 #include <ngx_config.h>
 #include <ngx_core.h>
 
+IA2_BEGIN_NO_WRAP
 
 typedef struct {
     void             *value;
@@ -118,5 +120,6 @@ ngx_int_t ngx_hash_keys_array_init(ngx_hash_keys_arrays_t *ha, ngx_uint_t type);
 ngx_int_t ngx_hash_add_key(ngx_hash_keys_arrays_t *ha, ngx_str_t *key,
     void *value, ngx_uint_t flags);
 
+IA2_END_NO_WRAP
 
 #endif /* _NGX_HASH_H_INCLUDED_ */

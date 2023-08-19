@@ -9,6 +9,7 @@
 #define _NGX_TIME_H_INCLUDED_
 
 
+#include <ia2.h>
 #include <ngx_config.h>
 #include <ngx_core.h>
 
@@ -54,9 +55,14 @@ typedef struct tm             ngx_tm_t;
 
 
 void ngx_timezone_update(void);
+
+IA2_BEGIN_NO_WRAP
+
 void ngx_localtime(time_t s, ngx_tm_t *tm);
 void ngx_libc_localtime(time_t s, struct tm *tm);
 void ngx_libc_gmtime(time_t s, struct tm *tm);
+
+IA2_END_NO_WRAP
 
 #define ngx_gettimeofday(tp)  (void) gettimeofday(tp, NULL);
 #define ngx_msleep(ms)        (void) usleep(ms * 1000)

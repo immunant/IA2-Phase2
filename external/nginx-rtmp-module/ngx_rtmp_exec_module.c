@@ -144,7 +144,7 @@ static ngx_int_t ngx_rtmp_exec_run(ngx_rtmp_exec_t *e);
 #endif
 
 
-static ngx_command_t  ngx_rtmp_exec_commands[] = {
+static const ngx_command_t  ngx_rtmp_exec_commands[] = {
 /*
     { ngx_string("exec_block"),
       NGX_RTMP_APP_CONF|NGX_CONF_BLOCK|NGX_CONF_NOARGS|NGX_CONF_TAKE1,
@@ -272,7 +272,7 @@ static ngx_rtmp_module_t  ngx_rtmp_exec_module_ctx = {
 ngx_module_t  ngx_rtmp_exec_module IA2_SHARED_DATA = {
     NGX_MODULE_V1,
     &ngx_rtmp_exec_module_ctx,              /* module context */
-    ngx_rtmp_exec_commands,                 /* module directives */
+    (ngx_command_t*) ngx_rtmp_exec_commands, /* module directives */
     NGX_RTMP_MODULE,                        /* module type */
     NULL,                                   /* init master */
     NULL,                                   /* init module */

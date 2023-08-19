@@ -50,7 +50,7 @@ static ngx_conf_enum_t ngx_rtmp_codec_meta_slots[] = {
 };
 
 
-static ngx_command_t  ngx_rtmp_codec_commands[] = {
+static const ngx_command_t  ngx_rtmp_codec_commands[] = {
 
     { ngx_string("meta"),
       NGX_RTMP_MAIN_CONF|NGX_RTMP_SRV_CONF|NGX_RTMP_APP_CONF|NGX_CONF_TAKE1,
@@ -78,7 +78,7 @@ static ngx_rtmp_module_t  ngx_rtmp_codec_module_ctx = {
 ngx_module_t  ngx_rtmp_codec_module IA2_SHARED_DATA = {
     NGX_MODULE_V1,
     &ngx_rtmp_codec_module_ctx,             /* module context */
-    ngx_rtmp_codec_commands,                /* module directives */
+    (ngx_command_t*) ngx_rtmp_codec_commands, /* module directives */
     NGX_RTMP_MODULE,                        /* module type */
     NULL,                                   /* init master */
     NULL,                                   /* init module */

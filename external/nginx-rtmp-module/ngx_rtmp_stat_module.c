@@ -53,7 +53,7 @@ static ngx_conf_bitmask_t           ngx_rtmp_stat_masks[] = {
 };
 
 
-static ngx_command_t  ngx_rtmp_stat_commands[] = {
+static const ngx_command_t  ngx_rtmp_stat_commands[] = {
 
     { ngx_string("rtmp_stat"),
         NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_1MORE,
@@ -73,7 +73,7 @@ static ngx_command_t  ngx_rtmp_stat_commands[] = {
 };
 
 
-static ngx_http_module_t  ngx_rtmp_stat_module_ctx = {
+static const ngx_http_module_t  ngx_rtmp_stat_module_ctx = {
     NULL,                               /* preconfiguration */
     ngx_rtmp_stat_postconfiguration,    /* postconfiguration */
 
@@ -90,8 +90,8 @@ static ngx_http_module_t  ngx_rtmp_stat_module_ctx = {
 
 ngx_module_t  ngx_rtmp_stat_module IA2_SHARED_DATA = {
     NGX_MODULE_V1,
-    &ngx_rtmp_stat_module_ctx,          /* module context */
-    ngx_rtmp_stat_commands,             /* module directives */
+    (void*)&ngx_rtmp_stat_module_ctx,   /* module context */
+    (ngx_command_t*) ngx_rtmp_stat_commands, /* module directives */
     NGX_HTTP_MODULE,                    /* module type */
     NULL,                               /* init master */
     NULL,                               /* init module */

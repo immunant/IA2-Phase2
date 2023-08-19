@@ -56,7 +56,7 @@ static void ngx_rtmp_play_copy_local_file(ngx_rtmp_session_t *s, u_char *name);
 static u_char * ngx_rtmp_play_get_local_file_path(ngx_rtmp_session_t *s);
 
 
-static ngx_command_t  ngx_rtmp_play_commands[] = {
+static const ngx_command_t  ngx_rtmp_play_commands[] = {
 
     { ngx_string("play"),
       NGX_RTMP_MAIN_CONF|NGX_RTMP_SRV_CONF|NGX_RTMP_APP_CONF|NGX_CONF_1MORE,
@@ -98,7 +98,7 @@ static ngx_rtmp_module_t  ngx_rtmp_play_module_ctx = {
 ngx_module_t  ngx_rtmp_play_module IA2_SHARED_DATA = {
     NGX_MODULE_V1,
     &ngx_rtmp_play_module_ctx,              /* module context */
-    ngx_rtmp_play_commands,                 /* module directives */
+    (ngx_command_t*) ngx_rtmp_play_commands, /* module directives */
     NGX_RTMP_MODULE,                        /* module type */
     NULL,                                   /* init master */
     NULL,                                   /* init module */

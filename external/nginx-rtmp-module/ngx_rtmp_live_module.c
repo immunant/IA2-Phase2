@@ -30,7 +30,7 @@ static void ngx_rtmp_live_start(ngx_rtmp_session_t *s);
 static void ngx_rtmp_live_stop(ngx_rtmp_session_t *s);
 
 
-static ngx_command_t  ngx_rtmp_live_commands[] = {
+static const ngx_command_t  ngx_rtmp_live_commands[] = {
 
     { ngx_string("live"),
       NGX_RTMP_MAIN_CONF|NGX_RTMP_SRV_CONF|NGX_RTMP_APP_CONF|NGX_CONF_TAKE1,
@@ -128,7 +128,7 @@ static ngx_rtmp_module_t  ngx_rtmp_live_module_ctx = {
 ngx_module_t  ngx_rtmp_live_module IA2_SHARED_DATA = {
     NGX_MODULE_V1,
     &ngx_rtmp_live_module_ctx,              /* module context */
-    ngx_rtmp_live_commands,                 /* module directives */
+    (ngx_command_t*) ngx_rtmp_live_commands, /* module directives */
     NGX_RTMP_MODULE,                        /* module type */
     NULL,                                   /* init master */
     NULL,                                   /* init module */

@@ -9,9 +9,11 @@
 #define _NGX_FILES_H_INCLUDED_
 
 
+#include <ia2.h>
 #include <ngx_config.h>
 #include <ngx_core.h>
 
+IA2_BEGIN_NO_WRAP
 
 typedef int                      ngx_fd_t;
 typedef struct stat              ngx_file_info_t;
@@ -392,5 +394,6 @@ ssize_t ngx_thread_write_chain_to_file(ngx_file_t *file, ngx_chain_t *cl,
     off_t offset, ngx_pool_t *pool);
 #endif
 
+IA2_END_NO_WRAP
 
 #endif /* _NGX_FILES_H_INCLUDED_ */

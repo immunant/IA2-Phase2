@@ -9,9 +9,11 @@
 #define _NGX_STRING_H_INCLUDED_
 
 
+#include <ia2.h>
 #include <ngx_config.h>
 #include <ngx_core.h>
 
+IA2_BEGIN_NO_WRAP
 
 typedef struct {
     size_t      len;
@@ -234,5 +236,6 @@ void ngx_sort(void *base, size_t n, size_t size,
 #define ngx_value_helper(n)   #n
 #define ngx_value(n)          ngx_value_helper(n)
 
+IA2_END_NO_WRAP
 
 #endif /* _NGX_STRING_H_INCLUDED_ */

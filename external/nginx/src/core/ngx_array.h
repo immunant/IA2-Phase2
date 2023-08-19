@@ -9,9 +9,11 @@
 #define _NGX_ARRAY_H_INCLUDED_
 
 
+#include <ia2.h>
 #include <ngx_config.h>
 #include <ngx_core.h>
 
+IA2_BEGIN_NO_WRAP
 
 typedef struct {
     void        *elts;
@@ -49,5 +51,6 @@ ngx_array_init(ngx_array_t *array, ngx_pool_t *pool, ngx_uint_t n, size_t size)
     return NGX_OK;
 }
 
+IA2_END_NO_WRAP
 
 #endif /* _NGX_ARRAY_H_INCLUDED_ */

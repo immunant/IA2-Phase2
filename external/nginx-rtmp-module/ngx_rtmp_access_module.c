@@ -327,7 +327,7 @@ ngx_rtmp_access_rule(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     ngx_int_t                           rc;
     ngx_uint_t                          all;
     ngx_str_t                          *value;
-    ngx_cidr_t                          cidr;
+    ngx_cidr_t                         *cidr;
     ngx_rtmp_access_rule_t             *rule;
 #if (NGX_HAVE_INET6)
     ngx_rtmp_access_rule6_t            *rule6;
@@ -335,7 +335,10 @@ ngx_rtmp_access_rule(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     size_t                              n;
     ngx_uint_t                          flags;
 
-    ngx_memzero(&cidr, sizeof(ngx_cidr_t));
+    cidr = ngx_pcalloc(cf->pool, sizeof(ngx_cidr_t));
+    if (cidr == NULL) {
+        return NGX_CONF_ERROR;
+    }
 
     value = cf->args->elts;
 
@@ -368,6 +371,7 @@ ngx_rtmp_access_rule(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
             ngx_log_error(NGX_LOG_ERR, cf->log, 0,
                           "unexpected access specified: '%V'", &value[n]);
+            ngx_pfree(cf->pool, cidr);
             return NGX_CONF_ERROR;
         }
     }
@@ -376,11 +380,12 @@ ngx_rtmp_access_rule(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     if (!all) {
 
-        rc = ngx_ptocidr(&value[n], &cidr);
+        rc = ngx_ptocidr(&value[n], cidr);
 
         if (rc == NGX_ERROR) {
             ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
                                "invalid parameter \"%V\"", &value[1]);
+            ngx_pfree(cf->pool, cidr);
             return NGX_CONF_ERROR;
         }
 
@@ -391,7 +396,7 @@ ngx_rtmp_access_rule(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         }
     }
 
-    switch (cidr.family) {
+    switch (cidr->family) {
 
 #if (NGX_HAVE_INET6)
     case AF_INET6:
@@ -399,11 +404,12 @@ ngx_rtmp_access_rule(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
         rule6 = ngx_array_push(&ascf->rules6);
         if (rule6 == NULL) {
+            ngx_pfree(cf->pool, cidr);
             return NGX_CONF_ERROR;
         }
 
-        rule6->mask = cidr.u.in6.mask;
-        rule6->addr = cidr.u.in6.addr;
+        rule6->mask = cidr->u.in6.mask;
+        rule6->addr = cidr->u.in6.addr;
         rule6->deny = (value[0].data[0] == 'd') ? 1 : 0;
         rule6->flags = flags;
 
@@ -418,15 +424,17 @@ ngx_rtmp_access_rule(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
         rule = ngx_array_push(&ascf->rules);
         if (rule == NULL) {
+            ngx_pfree(cf->pool, cidr);
             return NGX_CONF_ERROR;
         }
 
-        rule->mask = cidr.u.in.mask;
-        rule->addr = cidr.u.in.addr;
+        rule->mask = cidr->u.in.mask;
+        rule->addr = cidr->u.in.addr;
         rule->deny = (value[0].data[0] == 'd') ? 1 : 0;
         rule->flags = flags;
     }
 
+    ngx_pfree(cf->pool, cidr);
     return NGX_CONF_OK;
 }
 

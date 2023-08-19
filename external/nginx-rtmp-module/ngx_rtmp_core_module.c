@@ -501,7 +501,7 @@ ngx_rtmp_core_listen(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     size_t                      len, off;
     in_port_t                   port;
     ngx_str_t                  *value;
-    ngx_url_t                   u;
+    ngx_url_t                  *u;
     ngx_uint_t                  i, m;
     ngx_module_t              **modules;
     struct sockaddr            *sa;
@@ -514,18 +514,22 @@ ngx_rtmp_core_listen(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     value = cf->args->elts;
 
-    ngx_memzero(&u, sizeof(ngx_url_t));
+    u = ngx_pcalloc(cf->pool, sizeof(ngx_url_t));
+    if (u == NULL) {
+        return NGX_CONF_ERROR;
+    }
 
-    u.url = value[1];
-    u.listen = 1;
+    u->url = value[1];
+    u->listen = 1;
 
-    if (ngx_parse_url(cf->pool, &u) != NGX_OK) {
-        if (u.err) {
+    if (ngx_parse_url(cf->pool, u) != NGX_OK) {
+        if (u->err) {
             ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
                                "%s in \"%V\" of the \"listen\" directive",
-                               u.err, &u.url);
+                               u->err, &u->url);
         }
 
+        ngx_pfree(cf->pool, u);
         return NGX_CONF_ERROR;
     }
 
@@ -537,7 +541,7 @@ ngx_rtmp_core_listen(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
         sa = (struct sockaddr *) ls[i].sockaddr;
 
-        if (sa->sa_family != u.family) {
+        if (sa->sa_family != u->family) {
             continue;
         }
 
@@ -560,32 +564,34 @@ ngx_rtmp_core_listen(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
             break;
         }
 
-        if (ngx_memcmp(ls[i].sockaddr + off, (u_char *) &u.sockaddr + off, len)
+        if (ngx_memcmp(ls[i].sockaddr + off, (u_char *) &u->sockaddr + off, len)
             != 0)
         {
             continue;
         }
 
-        if (port != u.port) {
+        if (port != u->port) {
             continue;
         }
 
         ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
-                           "duplicate \"%V\" address and port pair", &u.url);
+                           "duplicate \"%V\" address and port pair", &u->url);
+        ngx_pfree(cf->pool, u);
         return NGX_CONF_ERROR;
     }
 
     ls = ngx_array_push(&cmcf->listen);
     if (ls == NULL) {
+        ngx_pfree(cf->pool, u);
         return NGX_CONF_ERROR;
     }
 
     ngx_memzero(ls, sizeof(ngx_rtmp_listen_t));
 
-    ngx_memcpy(ls->sockaddr, (u_char *) &u.sockaddr, u.socklen);
+    ngx_memcpy(ls->sockaddr, (u_char *) &u->sockaddr, u->socklen);
 
-    ls->socklen = u.socklen;
-    ls->wildcard = u.wildcard;
+    ls->socklen = u->socklen;
+    ls->wildcard = u->wildcard;
     ls->ctx = cf->ctx;
 
 #if (nginx_version >= 1009011)
@@ -626,6 +632,7 @@ ngx_rtmp_core_listen(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
                     ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
                                        "invalid ipv6only flags \"%s\"",
                                        &value[i].data[9]);
+                    ngx_pfree(cf->pool, u);
                     return NGX_CONF_ERROR;
                 }
 
@@ -648,6 +655,7 @@ ngx_rtmp_core_listen(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
             ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
                                "bind ipv6only is not supported "
                                "on this platform");
+            ngx_pfree(cf->pool, u);
             return NGX_CONF_ERROR;
 #endif
         }
@@ -723,6 +731,7 @@ ngx_rtmp_core_listen(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
                 ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
                                    "the \"so_keepalive\" parameter accepts "
                                    "only \"on\" or \"off\" on this platform");
+                ngx_pfree(cf->pool, u);
                 return NGX_CONF_ERROR;
 
 #endif
@@ -738,6 +747,7 @@ ngx_rtmp_core_listen(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
             ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
                                "invalid so_keepalive value: \"%s\"",
                                &value[i].data[13]);
+            ngx_pfree(cf->pool, u);
             return NGX_CONF_ERROR;
 #endif
         }
@@ -749,8 +759,10 @@ ngx_rtmp_core_listen(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
         ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
                            "the invalid \"%V\" parameter", &value[i]);
+        ngx_pfree(cf->pool, u);
         return NGX_CONF_ERROR;
     }
 
+    ngx_pfree(cf->pool, u);
     return NGX_CONF_OK;
 }

@@ -17,10 +17,13 @@
 #include "llvm/Support/FormatVariadic.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
+#include <clang/AST/Decl.h>
 #include <clang/AST/PrettyPrinter.h>
+#include <clang/Basic/SourceLocation.h>
 #include <dirent.h>
 #include <fstream>
 #include <iostream>
+#include <llvm/ADT/Optional.h>
 #include <map>
 #include <optional>
 #include <string>
@@ -33,6 +36,8 @@
 using namespace clang::ast_matchers;
 using namespace clang::tooling;
 using namespace std::string_literals;
+
+static constexpr llvm::StringLiteral SKIP_WRAP_ATTR("ia2_skip_wrap");
 
 typedef std::string Function;
 typedef std::string Filename;
@@ -128,14 +133,30 @@ static Pkey get_file_pkey(const clang::SourceManager &sm) {
 }
 
 static bool ignore_file(const Filename &filename) {
-  return !filename.starts_with(OutputDirectory) && !filename.starts_with(RootDirectory);
+  return !filename.starts_with(OutputDirectory) &&
+         !filename.starts_with(RootDirectory);
 }
 
-static bool ignore_function(const Filename &filename, const Function &function) {
-  if (function.starts_with("ia2_compartment_destructor")) {
-    return false;
+static bool ignore_function(const clang::Decl &decl,
+                            const llvm::Optional<clang::SourceLocation> &loc,
+                            const clang::SourceManager &sm) {
+  if (const auto *named_decl = dyn_cast<clang::NamedDecl>(&decl)) {
+    if (named_decl->getNameAsString().starts_with(
+            "ia2_compartment_destructor")) {
+          return false;
+    }
   }
-  return ignore_file(filename);
+
+  auto annotation = decl.getAttr<clang::AnnotateAttr>();
+  if (annotation && annotation->getAnnotation() == SKIP_WRAP_ATTR) {
+    return true;
+  }
+
+  if (loc) {
+    return ignore_file(get_filename(*loc, sm));
+  }
+
+  return false;
 }
 
 static std::string append_name_if_nonempty(const std::string &new_type,
@@ -248,8 +269,8 @@ public:
     }
 
     auto loc = old_decl->getLocation();
-    Filename filename = get_filename(loc, sm);
-    if (ignore_file(filename)) {
+    auto filename = get_filename(loc, sm);
+    if (ignore_function(*old_decl, loc, sm)) {
       return;
     }
 
@@ -402,12 +423,14 @@ public:
     // Matches function calls excluding direct calls. Only the callee nodes are
     // bound to "fnPtrCall"
     StatementMatcher fn_ptr_call = callExpr(callee(
-        expr(unless(ignoringImplicit(declared_function))).bind("fnPtrCall")));
+        expr(unless(ignoringImplicit(declared_function))).bind("fnPtrExpr"))).bind("fnPtrCall");
 
     refactorer.addMatcher(fn_ptr_call, this);
   }
   virtual void run(const MatchFinder::MatchResult &result) {
-    auto *fn_ptr_call = result.Nodes.getNodeAs<clang::Expr>("fnPtrCall");
+    auto *fn_ptr_expr = result.Nodes.getNodeAs<clang::Expr>("fnPtrExpr");
+    assert(fn_ptr_expr != nullptr);
+    auto *fn_ptr_call = result.Nodes.getNodeAs<clang::CallExpr>("fnPtrCall");
     assert(fn_ptr_call != nullptr);
 
     assert(result.SourceManager != nullptr);
@@ -421,14 +444,19 @@ public:
       return;
     }
 
-    clang::SourceLocation loc = fn_ptr_call->getExprLoc();
+    clang::SourceLocation loc = fn_ptr_expr->getExprLoc();
     Filename filename = get_filename(loc, sm);
     if (ignore_file(filename)) {
       return;
     }
 
+    auto callee_decl = fn_ptr_call->getCalleeDecl();
+    if (callee_decl && ignore_function(*callee_decl, {}, sm)) {
+      return;
+    }
+
     // Check if the function pointer type already has an ID
-    auto expr_ty = fn_ptr_call->getType()->getCanonicalTypeInternal();
+    auto expr_ty = fn_ptr_expr->getType()->getCanonicalTypeInternal();
     auto expr_ty_str = expr_ty.getAsString();
     if (!fn_ptr_ids.contains(expr_ty_str)) {
       fn_ptr_ids[expr_ty_str] = id_counter;
@@ -458,7 +486,7 @@ public:
 
     // getTokenRange is required to replace the entire callee expression
     auto char_range =
-        clang::CharSourceRange::getTokenRange(fn_ptr_call->getSourceRange());
+        clang::CharSourceRange::getTokenRange(fn_ptr_expr->getSourceRange());
 
     auto old_expr =
         clang::Lexer::getSourceText(char_range, sm, ctxt.getLangOpts());
@@ -517,8 +545,13 @@ public:
                        hasEitherOperand(expr(
                            ignoringImplicit(equalsBoundNode("fnPtrExpr"))))));
 
+    auto param_expr = hasParent(implicitCastExpr(hasParent(callExpr(
+        forEachArgumentWithParam(equalsBoundNode("fnPtrExpr"),
+                                 parmVarDecl().bind("fnPtrParamDecl"))))));
+
     StatementMatcher fn_ptr_expr =
-        expr(fn_expr, unless(call_expr), unless(in_bin_op));
+        expr(fn_expr, unless(call_expr), unless(in_bin_op),
+             anyOf(param_expr, anything()));
 
     refactorer.addMatcher(fn_ptr_expr, this);
   }
@@ -538,13 +571,18 @@ public:
     }
 
     clang::SourceLocation loc = fn_ptr_expr->getExprLoc();
-    if (ignore_file(get_filename(loc, sm))) {
-      return;
-    }
-
     auto *fn_decl =
         llvm::cast<clang::NamedDecl>(fn_ptr_expr->getReferencedDeclOfCallee());
     assert(fn_decl != nullptr);
+
+    if (ignore_function(*fn_decl, loc, sm)) {
+      return;
+    }
+
+    auto *param_decl = result.Nodes.getNodeAs<clang::ParmVarDecl>("fnPtrParamDecl");
+    if (param_decl && ignore_function(*param_decl, {}, sm)) {
+      return;
+    }
 
     Function fn_name = fn_decl->getName().str();
 
@@ -779,7 +817,7 @@ public:
     Function fn_name = fn_node->getNameAsString();
 
     // Ignore declarations in libc and libia2 headers
-    if (ignore_function(get_filename(fn_node->getLocation(), sm), fn_name)) {
+    if (ignore_function(*fn_node, fn_node->getLocation(), sm)) {
       return;
     }
 

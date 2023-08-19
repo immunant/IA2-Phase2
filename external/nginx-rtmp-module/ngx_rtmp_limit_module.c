@@ -23,7 +23,7 @@ static ngx_int_t ngx_rtmp_limit_postconfiguration(ngx_conf_t *cf);
 static void *ngx_rtmp_limit_create_main_conf(ngx_conf_t *cf);
 
 
-static ngx_command_t  ngx_rtmp_limit_commands[] = {
+static const ngx_command_t  ngx_rtmp_limit_commands[] = {
 
     { ngx_string("max_connections"),
       NGX_RTMP_MAIN_CONF|NGX_RTMP_SRV_CONF|NGX_RTMP_APP_CONF|NGX_CONF_TAKE1,
@@ -50,8 +50,8 @@ static ngx_rtmp_module_t  ngx_rtmp_limit_module_ctx = {
 
 ngx_module_t  ngx_rtmp_limit_module IA2_SHARED_DATA = {
     NGX_MODULE_V1,
-    &ngx_rtmp_limit_module_ctx,             /* module context */
-    ngx_rtmp_limit_commands,                /* module directives */
+    (void*)&ngx_rtmp_limit_module_ctx,      /* module context */
+    (ngx_command_t*)ngx_rtmp_limit_commands, /* module directives */
     NGX_RTMP_MODULE,                        /* module type */
     NULL,                                   /* init master */
     NULL,                                   /* init module */
@@ -195,7 +195,7 @@ ngx_rtmp_limit_postconfiguration(ngx_conf_t *cf)
     }
 
     lmcf->shm_zone = ngx_shared_memory_add(cf, &shm_name, ngx_pagesize * 2,
-                                           &ngx_rtmp_limit_module);
+                                           (void*)&ngx_rtmp_limit_module);
     if (lmcf->shm_zone == NULL) {
         return NGX_ERROR;
     }

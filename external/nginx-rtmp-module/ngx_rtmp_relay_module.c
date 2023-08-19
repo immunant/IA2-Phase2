@@ -79,7 +79,7 @@ typedef struct {
 #define NGX_RTMP_RELAY_FLASHVER                 "LNX.11,1,102,55"
 
 
-static ngx_command_t  ngx_rtmp_relay_commands[] = {
+static const ngx_command_t  ngx_rtmp_relay_commands[] = {
 
     { ngx_string("push"),
       NGX_RTMP_APP_CONF|NGX_CONF_1MORE,
@@ -143,7 +143,7 @@ static ngx_rtmp_module_t  ngx_rtmp_relay_module_ctx = {
 ngx_module_t  ngx_rtmp_relay_module IA2_SHARED_DATA = {
     NGX_MODULE_V1,
     &ngx_rtmp_relay_module_ctx,             /* module context */
-    ngx_rtmp_relay_commands,                /* module directives */
+    (ngx_command_t*) ngx_rtmp_relay_commands, /* module directives */
     NGX_RTMP_MODULE,                        /* module type */
     NULL,                                   /* init master */
     NULL,                                   /* init module */
@@ -1460,7 +1460,7 @@ ngx_rtmp_relay_push_pull(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         return NGX_CONF_ERROR;
     }
 
-    target->tag = &ngx_rtmp_relay_module;
+    target->tag = (void*)&ngx_rtmp_relay_module;
     target->data = target;
 
     u = &target->url;

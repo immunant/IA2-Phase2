@@ -697,11 +697,17 @@ ngx_rtmp_add_addrs(ngx_conf_t *cf, ngx_rtmp_port_t *mport,
     ngx_uint_t           i;
     ngx_rtmp_in_addr_t  *addrs;
     struct sockaddr_in  *sin;
-    u_char               buf[NGX_SOCKADDR_STRLEN];
+    u_char              *buf;
+
+    buf = ngx_palloc(cf->pool, NGX_SOCKADDR_STRLEN);
+    if (buf == NULL) {
+        return NGX_ERROR;
+    }
 
     mport->addrs = ngx_pcalloc(cf->pool,
                                mport->naddrs * sizeof(ngx_rtmp_in_addr_t));
     if (mport->addrs == NULL) {
+        ngx_pfree(cf->pool, buf);
         return NGX_ERROR;
     }
 
@@ -722,6 +728,7 @@ ngx_rtmp_add_addrs(ngx_conf_t *cf, ngx_rtmp_port_t *mport,
 
         p = ngx_pnalloc(cf->pool, len);
         if (p == NULL) {
+            ngx_pfree(cf->pool, buf);
             return NGX_ERROR;
         }
 
@@ -732,6 +739,7 @@ ngx_rtmp_add_addrs(ngx_conf_t *cf, ngx_rtmp_port_t *mport,
         addrs[i].conf.proxy_protocol = addr->proxy_protocol;
     }
 
+    ngx_pfree(cf->pool, buf);
     return NGX_OK;
 }
 

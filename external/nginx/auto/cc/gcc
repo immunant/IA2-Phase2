@@ -177,3 +177,6 @@ CFLAGS="$CFLAGS -g"
 if [ ".$CPP" = "." ]; then
     CPP="$CC -E"
 fi
+
+# Supress warning for clang pragma
+CFLAGS="$CFLAGS -Wno-unknown-pragmas"

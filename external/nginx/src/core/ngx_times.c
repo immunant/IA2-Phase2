@@ -27,13 +27,13 @@ static ngx_msec_t ngx_monotonic_time(time_t sec, ngx_uint_t msec);
 static ngx_uint_t        slot;
 static ngx_atomic_t      ngx_time_lock;
 
-volatile ngx_msec_t      ngx_current_msec;
+volatile ngx_msec_t      ngx_current_msec IA2_SHARED_DATA;
 volatile ngx_time_t     *ngx_cached_time IA2_SHARED_DATA;
-volatile ngx_str_t       ngx_cached_err_log_time;
-volatile ngx_str_t       ngx_cached_http_time;
-volatile ngx_str_t       ngx_cached_http_log_time;
-volatile ngx_str_t       ngx_cached_http_log_iso8601;
-volatile ngx_str_t       ngx_cached_syslog_time;
+volatile ngx_str_t       ngx_cached_err_log_time IA2_SHARED_DATA;
+volatile ngx_str_t       ngx_cached_http_time IA2_SHARED_DATA;
+volatile ngx_str_t       ngx_cached_http_log_time IA2_SHARED_DATA;
+volatile ngx_str_t       ngx_cached_http_log_iso8601 IA2_SHARED_DATA;
+volatile ngx_str_t       ngx_cached_syslog_time IA2_SHARED_DATA;
 
 #if !(NGX_WIN32)
 
@@ -46,17 +46,17 @@ volatile ngx_str_t       ngx_cached_syslog_time;
 static ngx_int_t         cached_gmtoff;
 #endif
 
-static ngx_time_t        cached_time[NGX_TIME_SLOTS];
+static ngx_time_t        cached_time[NGX_TIME_SLOTS] IA2_SHARED_DATA;
 static u_char            cached_err_log_time[NGX_TIME_SLOTS]
-                                    [sizeof("1970/09/28 12:00:00")];
+                                    [sizeof("1970/09/28 12:00:00")] IA2_SHARED_DATA;
 static u_char            cached_http_time[NGX_TIME_SLOTS]
-                                    [sizeof("Mon, 28 Sep 1970 06:00:00 GMT")];
+                                    [sizeof("Mon, 28 Sep 1970 06:00:00 GMT")] IA2_SHARED_DATA;
 static u_char            cached_http_log_time[NGX_TIME_SLOTS]
-                                    [sizeof("28/Sep/1970:12:00:00 +0600")];
+                                    [sizeof("28/Sep/1970:12:00:00 +0600")] IA2_SHARED_DATA;
 static u_char            cached_http_log_iso8601[NGX_TIME_SLOTS]
-                                    [sizeof("1970-09-28T12:00:00+06:00")];
+                                    [sizeof("1970-09-28T12:00:00+06:00")] IA2_SHARED_DATA;
 static u_char            cached_syslog_time[NGX_TIME_SLOTS]
-                                    [sizeof("Sep 28 12:00:00")];
+                                    [sizeof("Sep 28 12:00:00")] IA2_SHARED_DATA;
 
 
 static char  *week[] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };

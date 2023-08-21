@@ -72,7 +72,7 @@ static const ngx_command_t  ngx_rtmp_control_commands[] = {
 };
 
 
-static ngx_http_module_t  ngx_rtmp_control_module_ctx = {
+static const ngx_http_module_t  ngx_rtmp_control_module_ctx = {
     NULL,                               /* preconfiguration */
     NULL,                               /* postconfiguration */
 
@@ -89,7 +89,7 @@ static ngx_http_module_t  ngx_rtmp_control_module_ctx = {
 
 ngx_module_t  ngx_rtmp_control_module IA2_SHARED_DATA = {
     NGX_MODULE_V1,
-    &ngx_rtmp_control_module_ctx,       /* module context */
+    (void*)&ngx_rtmp_control_module_ctx, /* module context */
     (ngx_command_t*) ngx_rtmp_control_commands, /* module directives */
     NGX_HTTP_MODULE,                    /* module type */
     NULL,                               /* init master */

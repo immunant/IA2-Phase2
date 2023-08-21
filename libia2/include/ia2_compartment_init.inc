@@ -7,6 +7,7 @@
 #include <elf.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/mman.h>
 
 #include <ia2.h>
@@ -40,6 +41,7 @@ __attribute__((constructor)) static void COMPARTMENT_IDENT(init_pkey)() {
       .pkey = IA2_COMPARTMENT,
       .address = &COMPARTMENT_IDENT(init_pkey),
       .extra_libraries = IA2_COMPARTMENT_LIBRARIES,
+      .found_library_count = 0,
   };
 
   __asm__ volatile(
@@ -61,6 +63,22 @@ __attribute__((constructor)) static void COMPARTMENT_IDENT(init_pkey)() {
       :
       :
       : "rax", "rcx", "rdx");
+
+  /* Check that we found all extra libraries */
+  const char *cur_pos = args.extra_libraries;
+  int extra_library_count = 0;
+  while (cur_pos) {
+    extra_library_count++;
+    cur_pos = strchr(cur_pos, ';');
+    if (cur_pos) {
+      cur_pos++;
+    }
+  }
+  if (extra_library_count != args.found_library_count) {
+    fprintf(
+        stderr,
+        "WARNING: Not all libraries in IA2_COMPARTMENT_LIBRARIES were found.\n");
+  }
 }
 
 void COMPARTMENT_IDENT(init_tls)(void) {

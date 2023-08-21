@@ -278,10 +278,14 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
     abort();
   }
   Elf64_Addr address = (Elf64_Addr)search_args->address;
-  if (!in_loaded_segment(info, address) &&
-      !in_extra_libraries(info, search_args->extra_libraries)) {
+  bool extra = in_extra_libraries(info, search_args->extra_libraries);
+  if (!in_loaded_segment(info, address) && !extra) {
     // Continue iterating to check the next object
     return 0;
+  }
+
+  if (extra) {
+    search_args->found_library_count++;
   }
 
   // printf("protecting library: %s\n", basename(info->dlpi_name));

@@ -112,6 +112,10 @@ struct PhdrSearchArgs {
   //
   // Semicolon separated list, terminated by NULL. May be NULL.
   const char *extra_libraries;
+
+  // Number of other libraries from extra_libraries that were located and
+  // protected.
+  int found_library_count;
 };
 
 // This emits the 5 bytes correponding to the movl $PKRU, %eax instruction

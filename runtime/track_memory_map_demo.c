@@ -59,9 +59,10 @@ int main(int argc, char **argv) {
 
   pid_t pid = spawn_with_tracker((char *const *)&argv[1]);
 
-  struct memory_map map = {0};
-  track_memory_map(pid, &map);
+  struct memory_map *map = memory_map_new();
+  track_memory_map(pid, map);
   ptrace(PTRACE_KILL, pid, 0, 0);
+  memory_map_destroy(map);
 
   return 0;
 }

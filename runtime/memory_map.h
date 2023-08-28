@@ -1,20 +1,37 @@
 #pragma once
 
-#include "mem_region.h"
+/* Generated with cbindgen:0.24.6 */
+
+#include <stdarg.h>
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdlib.h>
+/* clang-format off */
 
-struct mem_region *add_region(struct memory_map *map, struct range range,
-                              unsigned char owner_pkey);
-struct mem_region *find_overlapping_region(struct memory_map *map,
-                                           struct range needle);
+struct memory_map;
 
-struct mem_region *find_region_exact(struct memory_map *map,
-                                     struct range needle);
+struct range {
+  size_t start;
+  size_t len;
+};
 
-bool remove_region(struct memory_map *map, struct range needle);
+struct memory_map *memory_map_new(void);
 
-struct mem_region *find_region_containing_addr(struct memory_map *map,
-                                               size_t addr);
+void memory_map_destroy(struct memory_map *map);
 
-bool all_overlapping_regions_have_pkey(struct memory_map *map,
-                                       struct range needle, unsigned char pkey);
+bool memory_map_all_overlapping_regions_have_pkey(const struct memory_map *map,
+                                                  struct range needle,
+                                                  uint8_t pkey);
+
+bool memory_map_remove_region(struct memory_map *map, struct range needle);
+
+bool memory_map_add_region(struct memory_map *map,
+                           struct range range,
+                           uint8_t owner_pkey);
+
+bool memory_map_split_region(struct memory_map *map,
+                             struct range range,
+                             uint8_t owner_pkey);
+
+/* clang-format on */

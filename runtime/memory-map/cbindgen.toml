@@ -1,0 +1,22 @@
+# command: cbindgen --config cbindgen.toml src/lib.rs > ../memory_map.h
+
+language = "C"
+
+pragma_once = true
+include_version = true
+usize_is_size_t = true
+
+style = "tag"
+
+after_includes = "/* clang-format off */"
+trailer = "/* clang-format on */"
+
+[export.rename]
+"MemoryMap" = "memory_map"
+"Range" = "range"
+
+# the below does not help because our types are opaque items, so they aren't
+# known to be types. this is true even though cbindgen does know they're
+# structs, so this is arguably a cbindgen bug.
+#[export.mangle]
+#rename_types = "snake_case"

@@ -262,3 +262,21 @@ pub extern "C" fn memory_map_split_region(
 ) -> bool {
     map.split_region(range, owner_pkey).is_some()
 }
+
+#[no_mangle]
+pub extern "C" fn memory_map_pkey_mprotect_region(
+    map: &mut MemoryMap,
+    range: Range,
+    pkey: u8,
+) -> bool {
+    if let Some(mut state) = map.split_out_region(range) {
+        if state.owner_pkey == pkey && state.pkey_mprotected == false {
+            state.pkey_mprotected = true;
+            map.add_region(range, state)
+        } else {
+            false
+        }
+    } else {
+        false
+    }
+}

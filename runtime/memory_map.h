@@ -34,4 +34,6 @@ bool memory_map_add_region(struct memory_map *map, struct range range, uint8_t o
 
 bool memory_map_split_region(struct memory_map *map, struct range range, uint8_t owner_pkey);
 
+bool memory_map_pkey_mprotect_region(struct memory_map *map, struct range range, uint8_t pkey);
+
 /* clang-format on */

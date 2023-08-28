@@ -15,7 +15,7 @@
 #include <unistd.h>
 #include <video_decoder.h>
 
-INIT_RUNTIME(1);
+INIT_RUNTIME(2);
 #define IA2_COMPARTMENT 1
 #include <ia2_compartment_init.inc>
 

@@ -104,8 +104,18 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data);
 struct PhdrSearchArgs {
   // The compartment pkey to use when the segments are found
   int32_t pkey;
+
   // The address to search for while iterating through segments
   const void *address;
+
+  // Other libraries to include in this compartment
+  //
+  // Semicolon separated list, terminated by NULL. May be NULL.
+  const char *extra_libraries;
+
+  // Number of other libraries from extra_libraries that were located and
+  // protected.
+  int found_library_count;
 };
 
 // This emits the 5 bytes correponding to the movl $PKRU, %eax instruction

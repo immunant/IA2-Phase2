@@ -4,6 +4,7 @@
 #include <inttypes.h>
 #include <link.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "ia2.h"
 
@@ -123,6 +124,55 @@ static bool in_loaded_segment(struct dl_phdr_info *info, Elf64_Addr address) {
   return false;
 }
 
+static bool in_extra_libraries(struct dl_phdr_info *info, const char *extra_libraries) {
+  if (!extra_libraries) {
+    return false;
+  }
+  char *library_name = basename(info->dlpi_name);
+  size_t library_name_len = strlen(library_name);
+  if (library_name_len == 0) {
+    return false;
+  }
+  size_t extra_libraries_len = strlen(extra_libraries);
+  size_t extra_libraries_pos = 0;
+  size_t library_name_pos = 0;
+  // Iterate over extra_libraries, which is a semi-colon seperated list of
+  // library names. At the top of this loop we always start at the beginning of
+  // a library name in extra_libraries. We don't require exact matches, but only
+  // that the extra library is a prefix of the current library name, because
+  // system libraries often have a verion number suffix after the `.so`.
+  while (extra_libraries_pos < extra_libraries_len) {
+    // Compare this extra library with the current library character by
+    // character
+    for (library_name_pos = 0; extra_libraries_pos < extra_libraries_len &&
+                               library_name_pos < library_name_len;
+         extra_libraries_pos++, library_name_pos++) {
+      if (extra_libraries[extra_libraries_pos] !=
+          library_name[library_name_pos])
+        break;
+    }
+    if (library_name_pos == library_name_len) {
+      // Exact match
+      return true;
+    }
+    if (extra_libraries_pos == extra_libraries_len ||
+        extra_libraries[extra_libraries_pos] == ';') {
+      // Extra library is a prefix of the given library. Many system libraries
+      // have version numbers appended after the .so, which we want to ignore.
+      return true;
+    }
+
+    // Move to next extra library
+    while (extra_libraries_pos < extra_libraries_len &&
+           extra_libraries[extra_libraries_pos] != ';') {
+      extra_libraries_pos++;
+    }
+    // Skip the semicolon, if present
+    extra_libraries_pos++;
+  }
+  return false;
+}
+
 /// Map ELF segment flags to mprotect access flags
 static int segment_flags_to_access_flags(Elf64_Word flags) {
   return ((flags & PF_X) != 0 ? PROT_EXEC : 0) |
@@ -228,10 +278,17 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
     abort();
   }
   Elf64_Addr address = (Elf64_Addr)search_args->address;
-  if (!in_loaded_segment(info, address)) {
+  bool extra = in_extra_libraries(info, search_args->extra_libraries);
+  if (!in_loaded_segment(info, address) && !extra) {
     // Continue iterating to check the next object
     return 0;
   }
+
+  if (extra) {
+    search_args->found_library_count++;
+  }
+
+  // printf("protecting library: %s\n", basename(info->dlpi_name));
 
   void *lib = dlopen(info->dlpi_name, RTLD_NOW);
   if (!lib)
@@ -377,6 +434,7 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
     }
   }
 
-  // Do not continue, we found the right object
-  return 1;
+  // We need to continue, as we might be protecting both dependencies and a main
+  // library
+  return 0;
 }

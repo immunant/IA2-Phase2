@@ -8,6 +8,11 @@
 #include <sys/param.h>
 #include <video_decoder.h>
 
+#include <ia2.h>
+#define IA2_COMPARTMENT 2
+#define IA2_COMPARTMENT_LIBRARIES "libavcodec.so;libavformat.so"
+#include <ia2_compartment_init.inc>
+
 #define AVIO_BUF_SIZE 65536
 
 struct video_decoder {
@@ -57,7 +62,7 @@ struct video_decoder *video_decoder_init(const char *file_data,
   }
 
   d->avio_ctx = avio_alloc_context(avio_ctx_buffer, AVIO_BUF_SIZE, 0, d,
-                                   read_input_buffer, NULL, NULL);
+                                   IA2_IGNORE(read_input_buffer), NULL, NULL);
   if (!d->avio_ctx) {
     goto err_alloc_avio_context;
   }
@@ -93,6 +98,7 @@ struct video_decoder *video_decoder_init(const char *file_data,
   if (!d->codec_ctx) {
     goto err_alloc_codec_context;
   }
+  d->codec_ctx->pix_fmt = AV_PIX_FMT_YUV420P;
 
   ret = avcodec_parameters_to_context(d->codec_ctx, video_stream->codecpar);
   if (ret) {

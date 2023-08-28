@@ -36,11 +36,12 @@ bool is_op_permitted(struct memory_map *map, int event,
     break;
   case EVENT_PKEY_MPROTECT: {
     /* allow mprotecting memory that we own to our pkey */
-    bool impacts_only_our_memory = memory_map_all_overlapping_regions_have_pkey(
-        map, info->pkey_mprotect.range, info->pkey_mprotect.pkey);
+    bool impacts_only_unprotected_memory =
+        memory_map_all_overlapping_regions_pkey_mprotected(
+            map, info->pkey_mprotect.range, false);
     bool sets_our_key =
         (info->pkey_mprotect.new_owner_pkey == info->pkey_mprotect.pkey);
-    if (impacts_only_our_memory && sets_our_key)
+    if (impacts_only_unprotected_memory && sets_our_key)
       return true;
     /* otherwise, only compartment 0 can pkey_mprotect anything as another
      * compartment */
@@ -84,8 +85,8 @@ bool update_memory_map(struct memory_map *map, int event,
     return true;
     break;
   case EVENT_PKEY_MPROTECT: {
-    return memory_map_split_region(map, info->mprotect.range,
-                                   info->pkey_mprotect.new_owner_pkey);
+    return memory_map_pkey_mprotect_region(map, info->mprotect.range,
+                                           info->pkey_mprotect.new_owner_pkey);
     break;
   }
   case EVENT_NONE:

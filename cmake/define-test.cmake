@@ -1,12 +1,3 @@
-# Get system header directories for header rewriter as it needs them explicitly passed
-execute_process(COMMAND ${CMAKE_C_COMPILER} -print-file-name=include
-  OUTPUT_VARIABLE C_SYSTEM_INCLUDE
-  OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-execute_process(COMMAND ${CMAKE_C_COMPILER} -print-file-name=include-fixed
-  OUTPUT_VARIABLE C_SYSTEM_INCLUDE_FIXED
-  OUTPUT_STRIP_TRAILING_WHITESPACE)
-
 set(PADDING_LINKER_SCRIPT ${libia2_BINARY_DIR}/padding.ld)
 
 # Creates wrapped and unmodified shared library targets for a test
@@ -20,10 +11,15 @@ set(PADDING_LINKER_SCRIPT ${libia2_BINARY_DIR}/padding.ld)
 #       specified, this must be relative to the source directory for the test.
 #       Defaults to include/. If headers are also used for main executable, this
 #       must not be specified.
+# UNWRAPPED_INCLUDE_DIRS (optional) - extra directories with unwrapped headers.
+# UNWRAPPED_LIBRARY_DIRS (optional) - extra directories with unwrapped headers.
+# UNWRAPPED_LIBS (optional) - extra unwrapped libraries that this library links
+#       against.
 function(define_shared_lib)
     set(options NEEDS_LD_WRAP)
     set(oneValueArgs LIBNAME PKEY)
-    set(multiValueArgs SRCS INCLUDE_DIR)
+    set(multiValueArgs SRCS INCLUDE_DIR UNWRAPPED_INCLUDE_DIRS
+        UNWRAPPED_LIBRARY_DIRS UNWRAPPED_LIBS)
     cmake_parse_arguments(SHARED_LIB "${options}" "${oneValueArgs}"
                           "${multiValueArgs}" ${ARGN})
 
@@ -82,15 +78,19 @@ function(define_shared_lib)
             "-fPIC"
             "-g")
 
-        target_compile_options(${target} PRIVATE
-            "-isystem${C_SYSTEM_INCLUDE}"
-            "-isystem${C_SYSTEM_INCLUDE_FIXED}")
         target_link_options(${target} PRIVATE
             # UBSAN requires passing this as both a compiler and linker flag
             "-fsanitize=undefined")
         target_link_libraries(${target} PRIVATE
             partition-alloc
             libia2)
+
+        target_include_directories(${target} PUBLIC
+            ${SHARED_LIB_UNWRAPPED_INCLUDE_DIRS})
+        target_link_directories(${target} PUBLIC
+            ${SHARED_LIB_UNWRAPPED_LIBRARY_DIRS})
+        target_link_libraries(${target} PUBLIC
+            ${SHARED_LIB_UNWRAPPED_LIBS})
     endforeach()
 
     target_link_libraries(${WRAPPED_LIBNAME} PRIVATE ${TEST_NAME}_call_gates)
@@ -119,19 +119,26 @@ endfunction()
 
 # NEEDS_LD_WRAP - If present pass -Wl,@$LD_ARGS_FILE to the wrapped
 #       library. The name of the file is generated from the target name and pkey.
+# NOT_IN_CHECK_IA2 - If present, skip adding this target to check-ia2.
 # PKEY (optional) - The pkey for the wrapped library (defaults to 1).
 # LIBS (optional) - libraries to link the unmodified build against (defaults to
-#       ${TEST_NAME}_lib which is the default set by define_shared_lib).
+#       ${TEST_NAME}_lib which is the default set by define_shared_lib). If
+#       NO_LIBS is set, no libraries will be used.
 # SRCS (required) - The set of source files
 # INCLUDE_DIR (optional) - include directory used to build the executable. If
 #       specified, this must be relative to the source directory for the test.
 #       Defaults to include/. If headers are also used for shared libraries, this
 #       must not be specified.
+# UNWRAPPED_INCLUDE_DIRS (optional) - extra include directories that are not
+#       wrapped.
+# UNWRAPPED_LIBRARY_DIRS (optional) - extra library directories.
+# UNWRAPPED_LIBS (optional) - extra libraries that are not wrapped.
 function(define_test)
     # Parse options
-    set(options NEEDS_LD_WRAP)
+    set(options NEEDS_LD_WRAP NOT_IN_CHECK_IA2 NO_LIBS)
     set(oneValueArgs PKEY)
-    set(multiValueArgs LIBS SRCS INCLUDE_DIR)
+    set(multiValueArgs LIBS SRCS INCLUDE_DIR
+        UNWRAPPED_INCLUDE_DIRS UNWRAPPED_LIBRARY_DIRS UNWRAPPED_LIBS)
     cmake_parse_arguments(DEFINE_TEST "${options}" "${oneValueArgs}"
                           "${multiValueArgs}" ${ARGN})
 
@@ -144,7 +151,7 @@ function(define_test)
         set(DEFINE_TEST_PKEY "1")
     endif()
 
-    if (NOT DEFINED DEFINE_TEST_LIBS)
+    if (NOT DEFINED DEFINE_TEST_LIBS AND NOT DEFINE_TEST_NO_LIBS)
         set(DEFINE_TEST_LIBS ${TEST_NAME}_lib)
     endif()
 
@@ -191,19 +198,24 @@ function(define_test)
             "-fPIC"
             "-g")
 
-        target_compile_options(${target} PRIVATE
-            "-isystem${C_SYSTEM_INCLUDE}"
-            "-isystem${C_SYSTEM_INCLUDE_FIXED}")
         target_link_options(${target} PRIVATE
             # UBSAN requires passing this as both a compiler and linker flag
             "-fsanitize=undefined"
             "-Wl,--export-dynamic")
+        target_include_directories(${target} PRIVATE
+            ${DEFINE_TEST_UNWRAPPED_INCLUDE_DIRS})
+        target_link_directories(${target} PRIVATE
+            ${DEFINE_TEST_UNWRAPPED_LIBRARY_DIRS})
         target_link_libraries(${target} PRIVATE
             dl
             libia2
-            partition-alloc)
+            partition-alloc
+            ${DEFINE_TEST_UNWRAPPED_LIBS})
     endforeach()
-    add_dependencies(check-ia2 ${WRAPPED_MAIN})
+
+    if (NOT DEFINE_TEST_NOT_IN_CHECK_IA2)
+        add_dependencies(check-ia2 ${WRAPPED_MAIN})
+    endif()
 
     target_link_libraries(${MAIN} PRIVATE ${DEFINE_TEST_LIBS})
 
@@ -213,15 +225,21 @@ function(define_test)
     set_target_properties(${WRAPPED_MAIN} PROPERTIES LINK_DEPENDS ${PADDING_LINKER_SCRIPT})
     target_link_libraries(${WRAPPED_MAIN} PRIVATE
         ${TEST_NAME}_call_gates)
-    get_target_property(LIB_PKEY ${DEFINE_TEST_LIBS} PKEY)
-
-    target_link_libraries(${MAIN} PRIVATE ${DEFINE_TEST_LIBS})
-    if (${LIB_PKEY} GREATER 0)
-        target_link_libraries(${WRAPPED_MAIN} PRIVATE
-            ${DEFINE_TEST_LIBS}_wrapped_padded)
+    if (DEFINED DEFINE_TEST_LIBS)
+        get_target_property(LIB_PKEY ${DEFINE_TEST_LIBS} PKEY)
     else()
-        target_link_libraries(${WRAPPED_MAIN} PRIVATE
-            ${DEFINE_TEST_LIBS}_wrapped)
+        set(LIB_PKEY 0)
+    endif()
+
+    if (DEFINED DEFINE_TEST_LIBS)
+        target_link_libraries(${MAIN} PRIVATE ${DEFINE_TEST_LIBS})
+        if (${LIB_PKEY} GREATER 0)
+            target_link_libraries(${WRAPPED_MAIN} PRIVATE
+                ${DEFINE_TEST_LIBS}_wrapped_padded)
+        else()
+            target_link_libraries(${WRAPPED_MAIN} PRIVATE
+                ${DEFINE_TEST_LIBS}_wrapped)
+        endif()
     endif()
 
     if (DEFINE_TEST_NEEDS_LD_WRAP)

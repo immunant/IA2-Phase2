@@ -19,11 +19,14 @@
 #include <algorithm>
 #include <clang/AST/Decl.h>
 #include <clang/AST/PrettyPrinter.h>
+#include <clang/Basic/SourceLocation.h>
 #include <dirent.h>
 #include <fstream>
 #include <iostream>
+#include <llvm/ADT/Optional.h>
 #include <map>
 #include <optional>
+#include <string>
 #include <sys/stat.h>
 #include <sys/types.h>
 
@@ -135,7 +138,30 @@ static bool ignore_function(const clang::Decl &fn_decl) {
 }
 
 static bool ignore_file(const Filename &filename) {
-  return !filename.starts_with(OutputDirectory) && !filename.starts_with(RootDirectory);
+  return !filename.starts_with(OutputDirectory) &&
+         !filename.starts_with(RootDirectory);
+}
+
+static bool ignore_function(const clang::Decl &decl,
+                            const llvm::Optional<clang::SourceLocation> &loc,
+                            const clang::SourceManager &sm) {
+  if (const auto *named_decl = dyn_cast<clang::NamedDecl>(&decl)) {
+    if (named_decl->getNameAsString().starts_with(
+            "ia2_compartment_destructor")) {
+          return false;
+    }
+  }
+
+  auto annotation = decl.getAttr<clang::AnnotateAttr>();
+  if (annotation && annotation->getAnnotation() == SKIP_WRAP_ATTR) {
+    return true;
+  }
+
+  if (loc) {
+    return ignore_file(get_filename(*loc, sm));
+  }
+
+  return false;
 }
 
 static std::string append_name_if_nonempty(const std::string &new_type,
@@ -248,8 +274,8 @@ public:
     }
 
     auto loc = old_decl->getLocation();
-    Filename filename = get_filename(loc, sm);
-    if (ignore_file(filename)) {
+    auto filename = get_filename(loc, sm);
+    if (ignore_function(*old_decl, loc, sm)) {
       return;
     }
 
@@ -434,7 +460,7 @@ public:
     }
 
     auto callee_decl = fn_ptr_call->getCalleeDecl();
-    if (callee_decl && ignore_function(*callee_decl)) {
+    if (callee_decl && ignore_function(*callee_decl, {}, sm)) {
       return;
     }
 
@@ -554,20 +580,16 @@ public:
     }
 
     clang::SourceLocation loc = fn_ptr_expr->getExprLoc();
-    if (ignore_file(get_filename(loc, sm))) {
-      return;
-    }
-
     auto *fn_decl =
         llvm::cast<clang::NamedDecl>(fn_ptr_expr->getReferencedDeclOfCallee());
     assert(fn_decl != nullptr);
 
-    if (ignore_function(*fn_decl)) {
+    if (ignore_function(*fn_decl, loc, sm)) {
       return;
     }
 
     auto *param_decl = result.Nodes.getNodeAs<clang::ParmVarDecl>("fnPtrParamDecl");
-    if (param_decl && ignore_function(*param_decl)) {
+    if (param_decl && ignore_function(*param_decl, {}, sm)) {
       return;
     }
 
@@ -801,8 +823,10 @@ public:
     assert(result.SourceManager != nullptr);
     auto &sm = *result.SourceManager;
 
+    Function fn_name = fn_node->getNameAsString();
+
     // Ignore declarations in libc and libia2 headers
-    if (ignore_file(get_filename(fn_node->getLocation(), sm)) || ignore_function(*fn_node)) {
+    if (ignore_function(*fn_node, fn_node->getLocation(), sm)) {
       return;
     }
 
@@ -811,8 +835,6 @@ public:
     if (fn_node->getBuiltinID() != 0) {
       return;
     }
-
-    Function fn_name = fn_node->getNameAsString();
 
     if (fn_node->isVariadic()) {
       static std::set<Function> variadic_warnings_printed = {};
@@ -1136,6 +1158,22 @@ int main(int argc, const char **argv) {
 
       write_to_ld_file(ld_args_out, caller_pkey, "--wrap="s + fn_name + '\n');
     }
+  }
+
+  // Create wrapper for compartment destructor
+  for (int compartment_pkey = 1; compartment_pkey < num_pkeys; compartment_pkey++) {
+    std::string fn_name = "ia2_compartment_destructor_" + std::to_string(compartment_pkey);
+    auto c_abi_sig = fn_decl_pass.abi_signatures.at(fn_name);
+    std::string wrapper_name = "__wrap_"s + fn_name;
+    std::string asm_wrapper =
+        emit_asm_wrapper(c_abi_sig, wrapper_name, fn_name, WrapperKind::Direct,
+                         0, compartment_pkey);
+    wrapper_out << "asm(\n";
+    wrapper_out << asm_wrapper;
+    wrapper_out << ");\n";
+
+    write_to_ld_file(ld_args_out, compartment_pkey,
+                     "--wrap="s + fn_name + '\n');
   }
 
   std::cout << "Generating function pointer wrappers\n";

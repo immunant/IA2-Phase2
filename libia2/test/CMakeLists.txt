@@ -1,4 +1,0 @@
-add_executable(permissive_mode_test permissive_mode.c)
-target_link_libraries(permissive_mode_test libia2)
-
-add_test(NAME permissive_mode_test COMMAND permissive_mode_test)

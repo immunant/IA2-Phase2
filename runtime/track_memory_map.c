@@ -14,29 +14,29 @@ bool is_op_permitted(struct memory_map *map, int event,
                      union event_info *info) {
   switch (event) {
   case EVENT_MMAP:
-    if (all_overlapping_regions_have_pkey(map, info->mmap.range,
-                                          info->mmap.pkey))
+    if (memory_map_all_overlapping_regions_have_pkey(map, info->mmap.range,
+                                                     info->mmap.pkey))
       return true;
 
     break;
   case EVENT_MUNMAP:
-    if (all_overlapping_regions_have_pkey(map, info->munmap.range,
-                                          info->munmap.pkey))
+    if (memory_map_all_overlapping_regions_have_pkey(map, info->munmap.range,
+                                                     info->munmap.pkey))
       return true;
     break;
   case EVENT_MREMAP:
-    if (all_overlapping_regions_have_pkey(map, info->mremap.old_range,
-                                          info->mremap.pkey))
+    if (memory_map_all_overlapping_regions_have_pkey(
+            map, info->mremap.old_range, info->mremap.pkey))
       return true;
     break;
   case EVENT_MPROTECT:
-    if (all_overlapping_regions_have_pkey(map, info->mprotect.range,
-                                          info->mprotect.pkey))
+    if (memory_map_all_overlapping_regions_have_pkey(map, info->mprotect.range,
+                                                     info->mprotect.pkey))
       return true;
     break;
   case EVENT_PKEY_MPROTECT: {
     /* allow mprotecting memory that we own to our pkey */
-    bool impacts_only_our_memory = all_overlapping_regions_have_pkey(
+    bool impacts_only_our_memory = memory_map_all_overlapping_regions_have_pkey(
         map, info->pkey_mprotect.range, info->pkey_mprotect.pkey);
     bool sets_our_key =
         (info->pkey_mprotect.new_owner_pkey == info->pkey_mprotect.pkey);
@@ -55,36 +55,41 @@ bool is_op_permitted(struct memory_map *map, int event,
   return false;
 }
 
-void update_memory_map(struct memory_map *map, int event,
+/* update the memory map. returns whether the memory map could be updated as
+ * requested */
+bool update_memory_map(struct memory_map *map, int event,
                        union event_info *info) {
   switch (event) {
   case EVENT_MMAP:
-    add_region(map, info->mmap.range, info->mmap.pkey);
+    return memory_map_add_region(map, info->mmap.range, info->mmap.pkey);
     break;
   case EVENT_MUNMAP:
-    remove_region(map, info->munmap.range);
+    return memory_map_remove_region(map, info->munmap.range);
     break;
   case EVENT_MREMAP:
-    if (!(info->mremap.flags & MREMAP_DONTUNMAP))
-      remove_region(map, info->mremap.old_range);
-    // add_region()
-    // remove_region(map, info->mremap.addr, info->mremap.len);
-    // add_region()
+    /* we don't need to handle MREMAP_MAYMOVE specially because we don't assume
+    the old and new ranges have the same start */
+    /* similarly, MREMAP_FIXED simply lets the request dictate the new range's
+    start addr, about which we make no assumptions */
+    if (info->mremap.flags & MREMAP_DONTUNMAP) {
+      return memory_map_add_region(map, info->mremap.new_range,
+                                   info->mremap.pkey);
+    } else {
+      memory_map_remove_region(map, info->mremap.old_range);
+      return memory_map_add_region(map, info->mremap.new_range,
+                                   info->mremap.pkey);
+    }
     break;
   case EVENT_MPROTECT:
+    return true;
     break;
   case EVENT_PKEY_MPROTECT: {
-    struct mem_region *r = find_region_exact(map, info->pkey_mprotect.range);
-    /* pkey_mprotect applies onto to entire region for now */
-    if (r == NULL) {
-      fprintf(stderr, "no exact region found\n");
-      break;
-    }
-    r->owner_pkey = info->pkey_mprotect.new_owner_pkey;
-    /* TODO: possibly split existing region */
+    return memory_map_split_region(map, info->mprotect.range,
+                                   info->pkey_mprotect.new_owner_pkey);
     break;
   }
   case EVENT_NONE:
+    return true;
     break;
   }
   return false;
@@ -153,9 +158,6 @@ bool interpret_syscall(struct user_regs_struct *regs, unsigned char pkey,
     info->range.start = regs->rdi;
     info->range.len = regs->rsi;
     info->pkey = pkey;
-
-    printf("compartment %d munmap (%08zx, %zd)\n", info->pkey,
-           info->range.start, info->range.len);
     break;
   }
   case EVENT_MREMAP: {
@@ -346,6 +348,9 @@ void track_memory_map(pid_t pid, struct memory_map *map) {
     update_event_with_result(&regs, event, &event_info);
 
     /* track effect of syscall on memory map */
-    update_memory_map(map, event, &event_info);
+    if (!update_memory_map(map, event, &event_info)) {
+      fprintf(stderr, "could not update memory map! (operation=%d)\n", event);
+      return;
+    }
   }
 }

@@ -64,7 +64,7 @@ bool update_memory_map(struct memory_map *map, int event,
     return memory_map_add_region(map, info->mmap.range, info->mmap.pkey);
     break;
   case EVENT_MUNMAP:
-    return memory_map_remove_region(map, info->munmap.range);
+    return memory_map_unmap_region(map, info->munmap.range);
     break;
   case EVENT_MREMAP:
     /* we don't need to handle MREMAP_MAYMOVE specially because we don't assume
@@ -75,7 +75,7 @@ bool update_memory_map(struct memory_map *map, int event,
       return memory_map_add_region(map, info->mremap.new_range,
                                    info->mremap.pkey);
     } else {
-      memory_map_remove_region(map, info->mremap.old_range);
+      memory_map_unmap_region(map, info->mremap.old_range);
       return memory_map_add_region(map, info->mremap.new_range,
                                    info->mremap.pkey);
     }

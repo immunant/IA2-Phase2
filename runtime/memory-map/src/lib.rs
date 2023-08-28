@@ -52,11 +52,20 @@ impl Range {
     }
 }
 
+/// The state of a contiguous region of memory
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct State {
+    pub owner_pkey: u8,
+    pub pkey_mprotected: bool,
+}
+
+/// A contiguous region of the memory map whose state we track
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct MemRegion {
     pub range: Range,
-    pub owner_pkey: u8,
+    pub state: State,
 }
 
 use nonoverlapping_interval_tree as disjoint_interval_tree;
@@ -64,7 +73,7 @@ use nonoverlapping_interval_tree as disjoint_interval_tree;
 use disjoint_interval_tree::NonOverlappingIntervalTree;
 
 pub struct MemoryMap {
-    regions: NonOverlappingIntervalTree<usize, u8>,
+    regions: NonOverlappingIntervalTree<usize, State>,
 }
 
 impl MemoryMap {
@@ -73,7 +82,7 @@ impl MemoryMap {
             regions: Default::default(),
         }
     }
-    pub fn add_region(&mut self, range: Range, pkey: u8) -> bool {
+    pub fn add_region(&mut self, range: Range, state: State) -> bool {
         // forbid zero-length regions
         if range.len == 0 {
             return false;
@@ -86,7 +95,7 @@ impl MemoryMap {
             printerrln!("{:?} interferes with {:?}", range, existing_range);
             return false;
         }
-        self.regions.insert(range.as_std(), pkey);
+        self.regions.insert(range.as_std(), state);
         true
     }
     pub fn find_overlapping_region(&self, needle: Range) -> Option<MemRegion> {
@@ -97,7 +106,7 @@ impl MemoryMap {
                 start,
                 len: interval_value.end() - start,
             },
-            owner_pkey: *interval_value.value(),
+            state: *interval_value.value(),
         })
     }
     pub fn find_region_exact(&self, needle: Range) -> Option<MemRegion> {
@@ -122,24 +131,26 @@ impl MemoryMap {
             r
         })
     }
-    pub fn all_overlapping_regions_have_pkey(&self, needle: Range, pkey: u8) -> bool {
+    pub fn all_overlapping_regions<F>(&self, needle: Range, mut predicate: F) -> bool
+    where
+        F: FnMut(&MemRegion) -> bool,
+    {
         let range = needle.as_std();
-        printerrln!("do all mappings in {:?} have pkey {}?", needle, pkey);
         self.regions.range(range).all(|(&start, interval_value)| {
             let this_range = Range {
                 start,
                 len: *interval_value.end() - start,
             };
-            printerrln!(
-                "does {:?} have pkey {}? {}",
-                this_range,
-                pkey,
-                *interval_value.value()
-            );
-            *interval_value.value() == pkey
+            let state = interval_value.value().clone();
+            predicate(&MemRegion {
+                range: this_range,
+                state,
+            })
         })
     }
-    pub fn split_region(&mut self, subrange: Range, owner_pkey: u8) -> Option<MemRegion> {
+
+    /* removes exactly the specified range from an existing region, leaving any other parts of that region mapped */
+    fn split_out_region(&mut self, subrange: Range) -> Option<State> {
         // return None if the subrange does not overlap or is not fully contained
         let r = self.find_overlapping_region(subrange)?;
         if !r.range.subsumes(subrange) {
@@ -155,20 +166,31 @@ impl MemoryMap {
             start: r.range.start,
             len: subrange.start - r.range.start,
         };
-        self.add_region(before, r.owner_pkey);
+        self.add_region(before, r.state);
 
         // re-add any suffix range
         let after = Range {
             start: subrange.end(),
             len: r.range.end() - subrange.end(),
         };
-        self.add_region(after, r.owner_pkey);
+        self.add_region(after, r.state);
+
+        // return the split-out range
+        Some(r.state)
+    }
+
+    pub fn split_region(&mut self, subrange: Range, owner_pkey: u8) -> Option<MemRegion> {
+        let state = self.split_out_region(subrange)?;
 
         // add the new split-off range
-        self.add_region(subrange, owner_pkey);
+        let new_state = State {
+            owner_pkey,
+            ..state
+        };
+        self.add_region(subrange, new_state);
         Some(MemRegion {
             range: subrange,
-            owner_pkey,
+            state: new_state,
         })
     }
 }
@@ -187,17 +209,49 @@ pub extern "C" fn memory_map_all_overlapping_regions_have_pkey(
     needle: Range,
     pkey: u8,
 ) -> bool {
-    map.all_overlapping_regions_have_pkey(needle, pkey)
+    printerrln!("do all mappings in {:?} have pkey {}?", needle, pkey);
+    map.all_overlapping_regions(needle, |region| {
+        printerrln!(
+            "does {:?} have pkey {}? {}",
+            region.range,
+            pkey,
+            region.state.owner_pkey
+        );
+        pkey == region.state.owner_pkey
+    })
 }
 
 #[no_mangle]
-pub extern "C" fn memory_map_remove_region(map: &mut MemoryMap, needle: Range) -> bool {
-    map.remove_region(needle).is_some()
+pub extern "C" fn memory_map_all_overlapping_regions_pkey_mprotected(
+    map: &MemoryMap,
+    needle: Range,
+    pkey_mprotected: bool,
+) -> bool {
+    map.all_overlapping_regions(needle, |region| {
+        printerrln!(
+            "does {:?} have pkey_mprotected=={}? =={}",
+            region.range,
+            pkey_mprotected,
+            region.state.pkey_mprotected
+        );
+        pkey_mprotected == region.state.pkey_mprotected
+    })
+}
+
+#[no_mangle]
+pub extern "C" fn memory_map_unmap_region(map: &mut MemoryMap, needle: Range) -> bool {
+    map.split_out_region(needle).is_some()
 }
 
 #[no_mangle]
 pub extern "C" fn memory_map_add_region(map: &mut MemoryMap, range: Range, owner_pkey: u8) -> bool {
-    map.add_region(range, owner_pkey)
+    map.add_region(
+        range,
+        State {
+            owner_pkey,
+            pkey_mprotected: false,
+        },
+    )
 }
 
 #[no_mangle]

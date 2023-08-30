@@ -24,6 +24,18 @@
 #define XSTR(x) STR(x)
 #define STR(x) #x
 
+#if IA2_DISABLE
+
+/*
+ * The rewriter needs to generate call gate wrappers for these functions so make
+ * them no-ops with the same function signatures as the real versions when
+ * compartments are disabled.
+ */
+__attribute__((used)) void COMPARTMENT_IDENT(ia2_setup_destructors)(void) { }
+__attribute__((used)) void COMPARTMENT_IDENT(ia2_compartment_destructor)(void) { }
+
+#else
+
 __thread void *COMPARTMENT_IDENT(ia2_stackptr) __attribute__((used));
 
 /*
@@ -221,3 +233,4 @@ void COMPARTMENT_IDENT(ia2_setup_destructors)(void) {
     exit(1);
   }
 }
+#endif // IA2_DISABLE

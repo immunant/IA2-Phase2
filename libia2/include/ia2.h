@@ -2,10 +2,54 @@
 
 // This include must come first so we define _GNU_SOURCE before including
 // standard headers. ia2_internal.h requires GNU-specific headers.
+#if !IA2_DISABLE
 #include "ia2_internal.h"
+#endif
 
+#include <errno.h>
 #include <stdint.h>
+#include <unistd.h>
 
+/// Do not wrap functions or function pointers in the following code.
+///
+/// This must be paired with a matching IA2_END_NO_WRAP that pops the
+/// annotation.
+///
+/// Some functions, e.g. utility functions that don't touch global state, should
+/// not be wrapped and should always run in the caller compartment. If we wrap
+/// these functions they may act as simple accessors for another compartment's
+/// private data. For example, consider an vector_pop() function that pops an
+/// element from a vector. If this function is declared in compartment A and
+/// used from compartment B, it allows compartment B to pop any element from
+/// compartment A's private vectors.
+///
+/// Any functions declared between this macro and IA2_END_NO_WRAP will not be
+/// wrapped by the rewriter and any calls to these functions and function
+/// pointers will execute in the caller's compartment.
+#define IA2_BEGIN_NO_WRAP                                                      \
+  _Pragma(                                                                     \
+      "clang attribute push(__attribute__((annotate(\"ia2_skip_wrap\"))), apply_to = hasType(functionType))");
+
+#define IA2_END_NO_WRAP _Pragma("clang attribute pop");
+
+#if IA2_DISABLE
+#define IA2_DEFINE_WRAPPER(func)
+#define IA2_SIGHANDLER(func) func
+#define IA2_DEFINE_SIGACTION(function, pkey)
+#define IA2_DEFINE_SIGHANDLER(function, pkey)
+#define INIT_RUNTIME(n)
+#define IA2_SHARED_DATA __attribute__((section("ia2_shared_data")))
+#define ASSERT_PKRU(pkru)
+#define IA2_IGNORE(x) x
+#define IA2_FN_ADDR(func) func
+#define IA2_ADDR(opaque) (void *)opaque
+#define IA2_AS_PTR(opaque) opaque
+#define IA2_FN(func) func
+#define IA2_CALL(opaque, id) opaque
+#define IA2_CAST(func, ty) (ty) (void *) func
+#else
+#define IA2_DEFINE_WRAPPER(func) IA2_DEFINE_WRAPPER_##func
+#define IA2_SIGHANDLER(func) ia2_sighandler_##func
 /// Create a wrapped signal handler for `sa_sigaction`
 ///
 /// Wraps the given function with `pkey`, creating a handler for use with
@@ -67,36 +111,6 @@
 
 #define IA2_IGNORE(x) x
 
-/// Do not wrap functions or function pointers in the following code.
-///
-/// This must be paired with a matching IA2_END_NO_WRAP that pops the
-/// annotation.
-///
-/// Some functions, e.g. utility functions that don't touch global state, should
-/// not be wrapped and should always run in the caller compartment. If we wrap
-/// these functions they may act as simple accessors for another compartment's
-/// private data. For example, consider an vector_pop() function that pops an
-/// element from a vector. If this function is declared in compartment A and
-/// used from compartment B, it allows compartment B to pop any element from
-/// compartment A's private vectors.
-///
-/// Any functions declared between this macro and IA2_END_NO_WRAP will not be
-/// wrapped by the rewriter and any calls to these functions and function
-/// pointers will execute in the caller's compartment.
-#define IA2_BEGIN_NO_WRAP                                                      \
-  _Pragma(                                                                     \
-      "clang attribute push(__attribute__((annotate(\"ia2_skip_wrap\"))), apply_to = hasType(functionType))");
-
-#define IA2_END_NO_WRAP _Pragma("clang attribute pop");
-
-#if IA2_PREREWRITER
-#define IA2_FN_ADDR(func) func
-#define IA2_ADDR(opaque) (void *)opaque
-#define IA2_AS_PTR(opaque) opaque
-#define IA2_FN(func) func
-#define IA2_CALL(opaque, id) opaque
-#define IA2_CAST(func, ty) (ty) (void *) func
-#else
 /// Get the address of the wrapper function for `func`
 #define IA2_FN_ADDR(func) (typeof(&func))(&__ia2_##func)
 
@@ -128,7 +142,7 @@
 /// the type of `IA2_FN(func)` are ABI-compatible since no extra type-checking is
 /// done.
 #define IA2_CAST(func, ty) (ty) { (void *)IA2_FN_ADDR(func) }
-#endif
+#endif // IA2_DISABLE
 
 /// Convert a compartment pkey to a PKRU register value
 #define PKRU(pkey) (~((3U << (2 * pkey)) | 3))

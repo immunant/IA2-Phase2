@@ -889,6 +889,11 @@ int main(int argc, const char **argv) {
 
   RefactoringTool tool(options_parser.getCompilations(),
                        options_parser.getSourcePathList());
+  tool.appendArgumentsAdjuster([&](const CommandLineArguments &args, llvm::StringRef filename) {
+      CommandLineArguments new_args(args);
+      new_args.push_back("-DIA2_DISABLE=1"s);
+      return new_args;
+  });
   CompilationDatabase &comp_db = options_parser.getCompilations();
 
   std::set<llvm::SmallString<256>> copied_files;
@@ -1224,7 +1229,7 @@ int main(int argc, const char **argv) {
 
         header_out << "extern " << opaque << " " << wrapper_name << ";\n";
 
-        source_file << "IA2_DEFINE_WRAPPER_" << fn_name << "\n";
+        source_file << "IA2_DEFINE_WRAPPER(" << fn_name << ")\n";
       }
     }
   }

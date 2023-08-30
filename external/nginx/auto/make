@@ -30,14 +30,20 @@ C_SYSTEM_INCLUDE_FIXED = `$CC -print-file-name=include-fixed`
 IA2_ROOT = $NGX_OBJS/../ia2
 PAD_TLS = \$(IA2_ROOT)/pad-tls/pad-tls
 
-IA2_CALLGATES = $NGX_OBJS/libia2_callgates.so
+IA2_DISABLE = 0
 
-IA2_PREWRITER = 0
+IA2_CALLGATES_TARGET = $NGX_OBJS/libia2_callgates.so
+ifeq (\$(IA2_DISABLE),0)
+IA2_CALLGATES = $NGX_OBJS/libia2_callgates.so
+else
+IA2_CALLGATES =
+endif
+
 IA2_EXTRA_CFLAGS = -include $NGX_OBJS/../wrapper.h
 IA2_CFLAGS = \\
 	-fPIC \\
 	-DPKEY=1 \\
-	-DIA2_PREREWRITER=\$(IA2_PREWRITER) \\
+	-DIA2_DISABLE=\$(IA2_DISABLE) \\
 	-DLIBIA2_DEBUG=1 \\
 	-I \$(C_SYSTEM_INCLUDE) \\
 	-I \$(C_SYSTEM_INCLUDE_FIXED) \\
@@ -62,7 +68,7 @@ IA2_LDFLAGS = \\
 IA2_MODULE_CFLAGS = \\
 	-fPIC \\
 	-DPKEY=2 \\
-	-DIA2_PREREWRITER=\$(IA2_PREWRITER) \\
+	-DIA2_DISABLE=\$(IA2_DISABLE) \\
 	-DLIBIA2_DEBUG=1 \\
 	-I \$(C_SYSTEM_INCLUDE) \\
 	-I \$(C_SYSTEM_INCLUDE_FIXED) \\
@@ -281,9 +287,9 @@ build:	binary modules manpage
 
 binary:	$NGX_OBJS${ngx_dirsep}nginx$ngx_binext
 
-\$(IA2_CALLGATES):
+\$(IA2_CALLGATES_TARGET):
 	\$(CC) -shared -fPIC -Wl,-z,now $NGX_OBJS/../wrapper.c \
-		-I $REPO_ROOT/libia2/include -o \$(IA2_CALLGATES)
+		-I $REPO_ROOT/libia2/include -o \$(IA2_CALLGATES_TARGET)
 
 $NGX_OBJS/ngx_rtmp_module_tls_padded.so: $NGX_OBJS/ngx_rtmp_module.so
 	cp $NGX_OBJS/ngx_rtmp_module.so $NGX_OBJS/ngx_rtmp_module_tls_padded.so

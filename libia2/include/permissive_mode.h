@@ -1,4 +1,4 @@
-#if !IA2_PREREWRITER
+#if !IA2_DISABLE
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE // for SIG* macro
 #endif

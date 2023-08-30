@@ -42,7 +42,7 @@ void install_sighandler(struct handler *h) {
     if (h) {
         sa.sa_handler = h->handler;
     } else {
-        sa.sa_handler = ia2_sighandler_trap_handler;
+        sa.sa_handler = IA2_SIGHANDLER(trap_handler);
     }
     sigaction(SIGTRAP, &sa, NULL);
 }
@@ -58,7 +58,7 @@ int main() {
     test_handler();
 
     static struct handler h = {
-        .handler = ia2_sighandler_trap_handler,
+        .handler = IA2_SIGHANDLER(trap_handler),
     };
     install_sighandler(&h);
     test_handler();

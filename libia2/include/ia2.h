@@ -2,7 +2,7 @@
 
 // This include must come first so we define _GNU_SOURCE before including
 // standard headers. ia2_internal.h requires GNU-specific headers.
-#if !IA2_DISABLE
+#if IA2_ENABLE
 #include "ia2_internal.h"
 #endif
 
@@ -32,7 +32,7 @@
 
 #define IA2_END_NO_WRAP _Pragma("clang attribute pop");
 
-#if IA2_DISABLE
+#if !IA2_ENABLE
 #define IA2_DEFINE_WRAPPER(func)
 #define IA2_SIGHANDLER(func) func
 #define IA2_DEFINE_SIGACTION(function, pkey)
@@ -142,7 +142,7 @@
 /// the type of `IA2_FN(func)` are ABI-compatible since no extra type-checking is
 /// done.
 #define IA2_CAST(func, ty) (ty) { (void *)IA2_FN_ADDR(func) }
-#endif // IA2_DISABLE
+#endif // !IA2_ENABLE
 
 /// Convert a compartment pkey to a PKRU register value
 #define PKRU(pkey) (~((3U << (2 * pkey)) | 3))

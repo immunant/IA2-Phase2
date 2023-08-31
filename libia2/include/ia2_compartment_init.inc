@@ -24,7 +24,7 @@
 #define XSTR(x) STR(x)
 #define STR(x) #x
 
-#if IA2_DISABLE
+#if !IA2_ENABLE
 
 /*
  * The rewriter needs to generate call gate wrappers for these functions so make
@@ -233,4 +233,4 @@ void COMPARTMENT_IDENT(ia2_setup_destructors)(void) {
     exit(1);
   }
 }
-#endif // IA2_DISABLE
+#endif // !IA2_ENABLE

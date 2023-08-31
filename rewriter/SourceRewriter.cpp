@@ -891,7 +891,7 @@ int main(int argc, const char **argv) {
                        options_parser.getSourcePathList());
   tool.appendArgumentsAdjuster([&](const CommandLineArguments &args, llvm::StringRef filename) {
       CommandLineArguments new_args(args);
-      new_args.push_back("-DIA2_DISABLE=1"s);
+      new_args.push_back("-DIA2_ENABLE=0"s);
       return new_args;
   });
   CompilationDatabase &comp_db = options_parser.getCompilations();

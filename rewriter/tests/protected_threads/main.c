@@ -20,7 +20,7 @@ void *nop(void *unused) { return NULL; }
 
 int main() {
   pthread_t t;
-#if !IA2_DISABLE
+#if IA2_ENABLE
   int ret = pthread_create(&t, NULL, nop, NULL);
 #endif
   pthread_join(t, NULL);

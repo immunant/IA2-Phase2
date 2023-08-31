@@ -23,7 +23,7 @@ target_link_options(libia2
 target_link_libraries(libia2 PRIVATE dl)
 
 target_include_directories(libia2 PUBLIC include)
-target_compile_definitions(libia2 PUBLIC _GNU_SOURCE)
+target_compile_definitions(libia2 PUBLIC _GNU_SOURCE IA2_ENABLE=1)
 set_target_properties(libia2 PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/padding.ld ${CMAKE_CURRENT_BINARY_DIR}/)

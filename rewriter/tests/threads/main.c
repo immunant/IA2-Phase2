@@ -40,7 +40,7 @@ pthread_t thread1, thread2;
 void create_threads(void) {
   int iret1, iret2;
 
-#if !IA2_DISABLE
+#if IA2_ENABLE
   iret1 = pthread_create(&thread1, NULL, thread_fn, (void *)1);
   iret2 = pthread_create(&thread2, NULL, thread_fn, (void *)2);
 #endif
@@ -73,7 +73,7 @@ int main() {
   pthread_join(lib_thread, NULL);
 
   pthread_t fault_thread;
-#if !IA2_DISABLE
+#if IA2_ENABLE
   int thread_create_ret = pthread_create(
       &fault_thread, NULL, access_ptr_thread_fn, (void *)&thread_local_var);
 #endif

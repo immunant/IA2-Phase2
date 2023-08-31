@@ -1,4 +1,4 @@
-#if !IA2_DISABLE
+#if IA2_ENABLE
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE // for SIG* macro
 #endif
@@ -470,4 +470,4 @@ __attribute((destructor)) void wait_logging_thread(void) {
   fclose(log);
   fclose(maps);
 }
-#endif
+#endif // IA2_ENABLE

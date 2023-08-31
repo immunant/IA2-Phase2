@@ -55,7 +55,7 @@ if [ ! -f $NGINX_BUILD_DIR/Makefile ]; then
 fi
 
 if [ ! -f $NGINX_ROOT/compile_commands.json ]; then
-    bear -- make -j8 IA2_LDFLAGS= IA2_MODULE_LDFLAGS= IA2_CALLGATES= IA2_EXTRA_CFLAGS= IA2_DISABLE=1 build
+    bear -- make -j8 IA2_LDFLAGS= IA2_MODULE_LDFLAGS= IA2_CALLGATES= IA2_EXTRA_CFLAGS= IA2_ENABLE=0 build
 fi
 
 if [ ! -f $BUILD_DIR/wrapper.c ] ||

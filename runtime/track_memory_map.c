@@ -45,6 +45,11 @@ bool is_op_permitted(struct memory_map *map, int event,
     uint32_t prot = memory_map_region_get_prot(map, info->mprotect.range);
     if (prot != MEMORY_MAP_PROT_INDETERMINATE && (prot & PROT_WRITE))
       return true;
+
+    /* allow mprotecting memory to its current protection */
+    if (prot == info->mprotect.prot)
+      return true;
+
     break;
   }
   case EVENT_PKEY_MPROTECT: {

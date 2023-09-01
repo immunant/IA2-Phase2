@@ -159,6 +159,12 @@ unsigned char pkey_for_pkru(uint32_t pkru) {
     CHECK(13);
     CHECK(14);
     CHECK(15);
+  case 0x55555550:
+    return 0;
+  case 0x55555554:
+    return 0;
+  case 0:
+    return 0;
   default:
     return PKEY_INVALID;
   }

@@ -97,12 +97,15 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC)
     }
   };
 #if BUILDFLAG(HAS_64_BIT_POINTERS)
-  // If thread isolation support is enabled, we need to write-protect the tables
-  // of the thread isolated pool. For this, we need to pad the tables so that
-  // the thread isolated ones start on a page boundary.
-  char pad_[PA_THREAD_ISOLATED_ARRAY_PAD_SZ(_ReservationOffsetTable,
-                                            kNumPools)] = {};
+#if BUILDFLAG(ENABLE_THREAD_ISOLATION)
+  struct PA_THREAD_ISOLATED_ALIGN _AlignedReservationOffsetTable {
+    struct _ReservationOffsetTable table;
+  };
+  struct _AlignedReservationOffsetTable protected_tables[kNumCompartments];
+  struct _ReservationOffsetTable tables[kNumPools - kNumCompartments];
+#else
   struct _ReservationOffsetTable tables[kNumPools];
+#endif
   static PA_CONSTINIT ReservationOffsetTable singleton_;
 #else
   // A single table for the entire 32-bit address space.
@@ -113,6 +116,13 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC)
 #if BUILDFLAG(HAS_64_BIT_POINTERS)
 PA_ALWAYS_INLINE uint16_t* GetReservationOffsetTable(pool_handle handle) {
   PA_DCHECK(kNullPoolHandle < handle && handle <= kNumPools);
+#if BUILDFLAG(ENABLE_THREAD_ISOLATION)
+  if (handle >= kCompartmentPool0Handle) {
+    return ReservationOffsetTable::singleton_
+        .protected_tables[handle - kCompartmentPool0Handle]
+        .table.offsets;
+  }
+#endif
   return ReservationOffsetTable::singleton_.tables[handle - 1].offsets;
 }
 

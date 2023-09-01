@@ -630,7 +630,9 @@ struct PA_ALIGNAS(64) PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionRoot {
 #endif
 #if BUILDFLAG(ENABLE_THREAD_ISOLATION)
     if (settings.thread_isolation.enabled) {
-      return internal::kThreadIsolatedPoolHandle;
+      return internal::PoolHandleForCompartment(
+          settings.thread_isolation.compartment);
+      // return internal::kThreadIsolatedPoolHandle;
     }
 #endif
 #if BUILDFLAG(ENABLE_BACKUP_REF_PTR_SUPPORT)

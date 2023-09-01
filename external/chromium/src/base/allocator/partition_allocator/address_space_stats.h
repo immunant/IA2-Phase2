@@ -9,6 +9,7 @@
 
 #include "base/allocator/partition_allocator/partition_alloc_base/component_export.h"
 #include "base/allocator/partition_allocator/partition_alloc_buildflags.h"
+#include "base/allocator/partition_allocator/partition_alloc_constants.h"
 
 namespace partition_alloc {
 
@@ -38,7 +39,8 @@ struct AddressSpaceStats {
 #endif  // BUILDFLAG(ENABLE_BACKUP_REF_PTR_SUPPORT)
 #endif  // BUILDFLAG(HAS_64_BIT_POINTERS)
 #if BUILDFLAG(ENABLE_THREAD_ISOLATION)
-  PoolStats thread_isolated_pool_stats;
+  PoolStats compartment_pool_stats[internal::kNumCompartments];
+  // PoolStats thread_isolated_pool_stats;
 #endif
 };
 

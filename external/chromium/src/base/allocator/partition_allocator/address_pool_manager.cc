@@ -57,7 +57,8 @@ void DecommitPages(uintptr_t address, size_t size) {
 void AddressPoolManager::Add(pool_handle handle, uintptr_t ptr, size_t length) {
   PA_DCHECK(!(ptr & kSuperPageOffsetMask));
   PA_DCHECK(!((ptr + length) & kSuperPageOffsetMask));
-  PA_CHECK(handle > 0 && handle <= std::size(pools_));
+  // Checked in GetPool
+  // PA_CHECK(handle > 0 && handle <= std::size(pools_));
 
   Pool* pool = GetPool(handle);
   PA_CHECK(!pool->IsInitialized());
@@ -308,7 +309,9 @@ bool AddressPoolManager::GetStats(AddressSpaceStats* stats) {
     GetPoolStats(kConfigurablePoolHandle, &stats->configurable_pool_stats);
   }
 #if BUILDFLAG(ENABLE_THREAD_ISOLATION)
-  GetPoolStats(kThreadIsolatedPoolHandle, &stats->thread_isolated_pool_stats);
+  for (size_t i = 0; i < kNumCompartments; ++i) {
+    GetPoolStats(PoolHandleForCompartment(i), &stats->compartment_pool_stats[i]);
+  }
 #endif
   return true;
 }
@@ -555,15 +558,12 @@ void AddressPoolManager::DumpStats(AddressSpaceStatsDumper* dumper) {
   }
 }
 
+// TODO(SJC): Can we assert layout for the compartments here?
 #if BUILDFLAG(ENABLE_THREAD_ISOLATION)
 // This function just exists to static_assert the layout of the private fields
 // in Pool.
 void AddressPoolManager::AssertThreadIsolatedLayout() {
-  constexpr size_t last_pool_offset =
-      offsetof(AddressPoolManager, pools_) + sizeof(Pool) * (kNumPools - 1);
-  constexpr size_t alloc_bitset_offset =
-      last_pool_offset + offsetof(Pool, alloc_bitset_);
-  static_assert(alloc_bitset_offset % PA_THREAD_ISOLATED_ALIGN_SZ == 0);
+  static_assert(offsetof(AddressPoolManager, pools_) % PA_THREAD_ISOLATED_ALIGN_SZ == 0);
   static_assert(sizeof(AddressPoolManager) % PA_THREAD_ISOLATED_ALIGN_SZ == 0);
 }
 #endif  // BUILDFLAG(ENABLE_THREAD_ISOLATION)

@@ -52,30 +52,39 @@ int MprotectWithThreadIsolation(void* addr,
 #endif
 }
 
+void WriteProtectThreadIsolatedGlobals(
+    std::array<ThreadIsolationOption, kNumCompartments> &thread_isolations) {
+  for (auto thread_isolation : thread_isolations) {
+    WriteProtectThreadIsolatedGlobals(thread_isolation);
+  }
+}
+
 void WriteProtectThreadIsolatedGlobals(ThreadIsolationOption thread_isolation) {
-  WriteProtectThreadIsolatedVariable(thread_isolation,
-                                     PartitionAddressSpace::setup_);
+  // TODO(SJC): Protect compartment base addresses
+  // WriteProtectThreadIsolatedVariable(thread_isolation,
+  //                                    PartitionAddressSpace::setup_);
 
-  AddressPoolManager::Pool* pool =
-      AddressPoolManager::GetInstance().GetPool(kThreadIsolatedPoolHandle);
+  pool_handle handle = PoolHandleForCompartment(thread_isolation.compartment);
+  AddressPoolManager::Pool *pool =
+      AddressPoolManager::GetInstance().GetPool(handle);
   WriteProtectThreadIsolatedVariable(
-      thread_isolation, *pool,
-      offsetof(AddressPoolManager::Pool, alloc_bitset_));
+      thread_isolation, *pool);
 
-  uint16_t* pkey_reservation_offset_table =
-      GetReservationOffsetTable(kThreadIsolatedPoolHandle);
+  uint16_t *pkey_reservation_offset_table = GetReservationOffsetTable(handle);
   WriteProtectThreadIsolatedMemory(
       thread_isolation, pkey_reservation_offset_table,
       ReservationOffsetTable::kReservationOffsetTableLength);
 
-#if BUILDFLAG(PA_DCHECK_IS_ON)
-  WriteProtectThreadIsolatedVariable(thread_isolation,
-                                     ThreadIsolationSettings::settings);
-#endif
+// #if BUILDFLAG(PA_DCHECK_IS_ON)
+//   WriteProtectThreadIsolatedVariable(thread_isolation,
+//                                      ThreadIsolationSettings::settings);
+// #endif
 }
 
 void UnprotectThreadIsolatedGlobals() {
-  WriteProtectThreadIsolatedGlobals(ThreadIsolationOption(false));
+  for (Compartment c = 0; c < kNumCompartments; ++c) {
+    WriteProtectThreadIsolatedGlobals(ThreadIsolationOption(kInvalidPkey, c));
+  }
 }
 
 }  // namespace partition_alloc::internal

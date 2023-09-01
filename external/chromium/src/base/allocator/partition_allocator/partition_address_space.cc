@@ -293,7 +293,7 @@ void PartitionAddressSpace::InitConfigurablePool(uintptr_t pool_base,
   // It's possible that the thread isolated pool has been initialized first, in
   // which case the setup_ memory has been made read-only. Remove the protection
   // temporarily.
-  if (IsThreadIsolatedPoolInitialized()) {
+  if (IsAnyThreadIsolatedPoolInitialized()) {
     UnprotectThreadIsolatedGlobals();
   }
 #endif
@@ -312,7 +312,7 @@ void PartitionAddressSpace::InitConfigurablePool(uintptr_t pool_base,
 
 #if BUILDFLAG(ENABLE_THREAD_ISOLATION)
   // Put the metadata protection back in place.
-  if (IsThreadIsolatedPoolInitialized()) {
+  if (IsAnyThreadIsolatedPoolInitialized()) {
     WriteProtectThreadIsolatedGlobals(setup_.thread_isolation_);
   }
 #endif
@@ -321,35 +321,42 @@ void PartitionAddressSpace::InitConfigurablePool(uintptr_t pool_base,
 #if BUILDFLAG(ENABLE_THREAD_ISOLATION)
 void PartitionAddressSpace::InitThreadIsolatedPool(
     ThreadIsolationOption thread_isolation) {
+  size_t compartment = thread_isolation.compartment;
+  PA_CHECK(compartment < kNumCompartments);
+
   // The ThreadIsolated pool can't be initialized with conflicting settings.
-  if (IsThreadIsolatedPoolInitialized()) {
-    PA_CHECK(setup_.thread_isolation_ == thread_isolation);
+  if (IsThreadIsolatedPoolInitialized(compartment)) {
+    PA_CHECK(setup_.thread_isolation_[compartment] == thread_isolation);
     return;
   }
 
   size_t pool_size = ThreadIsolatedPoolSize();
-  setup_.thread_isolated_pool_base_address_ =
+  setup_.thread_isolated_pool_base_address_[compartment] =
       AllocPages(pool_size, pool_size,
                  PageAccessibilityConfiguration(
                      PageAccessibilityConfiguration::kInaccessible),
                  PageTag::kPartitionAlloc);
-  if (!setup_.thread_isolated_pool_base_address_) {
+  if (!setup_.thread_isolated_pool_base_address_[compartment]) {
     HandlePoolAllocFailure();
   }
 
-  PA_DCHECK(!(setup_.thread_isolated_pool_base_address_ & (pool_size - 1)));
-  setup_.thread_isolation_ = thread_isolation;
+  PA_DCHECK(!(setup_.thread_isolated_pool_base_address_[compartment] & (pool_size - 1)));
+  setup_.thread_isolation_[compartment] = thread_isolation;
   AddressPoolManager::GetInstance().Add(
-      kThreadIsolatedPoolHandle, setup_.thread_isolated_pool_base_address_,
+      PoolHandleForCompartment(compartment),
+      setup_.thread_isolated_pool_base_address_[compartment],
       pool_size);
 
-  PA_DCHECK(
-      !IsInThreadIsolatedPool(setup_.thread_isolated_pool_base_address_ - 1));
-  PA_DCHECK(IsInThreadIsolatedPool(setup_.thread_isolated_pool_base_address_));
-  PA_DCHECK(IsInThreadIsolatedPool(setup_.thread_isolated_pool_base_address_ +
-                                   pool_size - 1));
-  PA_DCHECK(!IsInThreadIsolatedPool(setup_.thread_isolated_pool_base_address_ +
-                                    pool_size));
+  PA_DCHECK(!IsInThreadIsolatedPool(
+      setup_.thread_isolated_pool_base_address_[compartment] - 1, compartment));
+  PA_DCHECK(IsInThreadIsolatedPool(
+      setup_.thread_isolated_pool_base_address_[compartment], compartment));
+  PA_DCHECK(IsInThreadIsolatedPool(
+      setup_.thread_isolated_pool_base_address_[compartment] + pool_size - 1,
+      compartment));
+  PA_DCHECK(!IsInThreadIsolatedPool(
+      setup_.thread_isolated_pool_base_address_[compartment] + pool_size,
+      compartment));
 
   // TODO(1362969): support PA_ENABLE_SHADOW_METADATA
 }
@@ -388,7 +395,7 @@ void PartitionAddressSpace::UninitConfigurablePoolForTesting() {
   // It's possible that the thread isolated pool has been initialized first, in
   // which case the setup_ memory has been made read-only. Remove the protection
   // temporarily.
-  if (IsThreadIsolatedPoolInitialized()) {
+  if (IsAnyThreadIsolatedPoolInitialized()) {
     UnprotectThreadIsolatedGlobals();
   }
 #endif
@@ -397,7 +404,7 @@ void PartitionAddressSpace::UninitConfigurablePoolForTesting() {
   setup_.configurable_pool_base_mask_ = 0;
 #if BUILDFLAG(ENABLE_THREAD_ISOLATION)
   // Put the metadata protection back in place.
-  if (IsThreadIsolatedPoolInitialized()) {
+  if (IsAnyThreadIsolatedPoolInitialized()) {
     WriteProtectThreadIsolatedGlobals(setup_.thread_isolation_);
   }
 #endif
@@ -405,17 +412,23 @@ void PartitionAddressSpace::UninitConfigurablePoolForTesting() {
 
 #if BUILDFLAG(ENABLE_THREAD_ISOLATION)
 void PartitionAddressSpace::UninitThreadIsolatedPoolForTesting() {
-  if (IsThreadIsolatedPoolInitialized()) {
+  if (IsAnyThreadIsolatedPoolInitialized()) {
     UnprotectThreadIsolatedGlobals();
 #if BUILDFLAG(PA_DCHECK_IS_ON)
     ThreadIsolationSettings::settings.enabled = false;
 #endif
-
-    FreePages(setup_.thread_isolated_pool_base_address_,
-              ThreadIsolatedPoolSize());
-    AddressPoolManager::GetInstance().Remove(kThreadIsolatedPoolHandle);
-    setup_.thread_isolated_pool_base_address_ = kUninitializedPoolBaseAddress;
-    setup_.thread_isolation_.enabled = false;
+    for (auto thread_isolation : setup_.thread_isolation_) {
+      if (!IsThreadIsolatedPoolInitialized(thread_isolation.compartment)) {
+        continue;
+      }
+      Compartment c = thread_isolation.compartment;
+      FreePages(setup_.thread_isolated_pool_base_address_[c],
+                ThreadIsolatedPoolSize());
+      AddressPoolManager::GetInstance().Remove(PoolHandleForCompartment(c));
+      setup_.thread_isolated_pool_base_address_[c] =
+          kUninitializedPoolBaseAddress;
+      thread_isolation.enabled = false;
+    }
   }
 }
 #endif

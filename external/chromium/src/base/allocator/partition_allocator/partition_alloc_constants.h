@@ -14,6 +14,7 @@
 #include "base/allocator/partition_allocator/page_allocator_constants.h"
 #include "base/allocator/partition_allocator/partition_alloc_base/compiler_specific.h"
 #include "base/allocator/partition_allocator/partition_alloc_buildflags.h"
+#include "base/allocator/partition_allocator/partition_alloc_check.h"
 #include "base/allocator/partition_allocator/partition_alloc_config.h"
 #include "base/allocator/partition_allocator/partition_alloc_forward.h"
 #include "build/build_config.h"
@@ -279,15 +280,47 @@ enum pool_handle : unsigned {
 // New pool_handles will be added here.
 
 #if BUILDFLAG(ENABLE_THREAD_ISOLATION)
+  kCompartmentPool0Handle,
+  kCompartmentPool1Handle,
+  kCompartmentPool2Handle,
+  kCompartmentPool3Handle,
+  kCompartmentPool4Handle,
+  kCompartmentPool5Handle,
+  kCompartmentPool6Handle,
+  kCompartmentPool7Handle,
+  kCompartmentPool8Handle,
+  kCompartmentPool9Handle,
+  kCompartmentPool10Handle,
+  kCompartmentPool11Handle,
+  kCompartmentPool12Handle,
+  kCompartmentPool13Handle,
+  kCompartmentPool14Handle,
+  kCompartmentPool15Handle,
+
   // The thread isolated pool must come last since we write-protect its entry in
   // the metadata tables, e.g. AddressPoolManager::aligned_pools_
-  kThreadIsolatedPoolHandle,
+  // kThreadIsolatedPoolHandle,
 #endif
   kMaxPoolHandle
 };
 
 // kNullPoolHandle doesn't have metadata, hence - 1
 constexpr size_t kNumPools = kMaxPoolHandle - 1;
+
+#if BUILDFLAG(ENABLE_THREAD_ISOLATION)
+constexpr size_t kNumCompartments =
+    kCompartmentPool15Handle - kCompartmentPool0Handle + 1;
+
+PA_ALWAYS_INLINE pool_handle PoolHandleForCompartment(size_t compartment) {
+  PA_CHECK(compartment < kNumCompartments);
+  return static_cast<pool_handle>(kCompartmentPool0Handle + compartment);
+}
+
+PA_ALWAYS_INLINE bool IsCompartmentPoolHandle(pool_handle pool) {
+  return pool >= kCompartmentPool0Handle &&
+         pool < kCompartmentPool0Handle + kNumCompartments;
+}
+#endif
 
 // Maximum pool size. With exception of Configurable Pool, it is also
 // the actual size, unless PA_DYNAMICALLY_SELECT_POOL_SIZE is set, which
@@ -312,11 +345,11 @@ constexpr size_t kPoolMaxSize = 4 * kGiB;
 #endif
 constexpr size_t kMaxSuperPagesInPool = kPoolMaxSize / kSuperPageSize;
 
-#if BUILDFLAG(ENABLE_THREAD_ISOLATION)
-static_assert(kThreadIsolatedPoolHandle == kNumPools,
-              "The thread isolated pool must come last since we write-protect "
-              "its metadata.");
-#endif
+// #if BUILDFLAG(ENABLE_THREAD_ISOLATION)
+// static_assert(kThreadIsolatedPoolHandle == kNumPools,
+//               "The thread isolated pool must come last since we write-protect "
+//               "its metadata.");
+// #endif
 
 // Slots larger than this size will not receive MTE protection. Pages intended
 // for allocations larger than this constant should not be backed with PROT_MTE

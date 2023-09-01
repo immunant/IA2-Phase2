@@ -172,8 +172,17 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC)
 #endif  // BUILDFLAG(ENABLE_THREAD_ISOLATION)
   };
 
+  struct PA_THREAD_ISOLATED_ALIGN AlignedPool {
+    Pool pool;
+  };
+
   PA_ALWAYS_INLINE Pool* GetPool(pool_handle handle) {
     PA_DCHECK(kNullPoolHandle < handle && handle <= kNumPools);
+#if BUILDFLAG(ENABLE_THREAD_ISOLATION)
+    if (handle >= kCompartmentPool0Handle) {
+      return &protected_pools_[handle - kCompartmentPool0Handle].pool;
+    }
+#endif
     return &pools_[handle - 1];
   }
 
@@ -181,16 +190,15 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC)
   // initialized.
   void GetPoolStats(pool_handle handle, PoolStats* stats);
 
-  // If thread isolation support is enabled, we need to write-protect the
-  // isolated pool (which needs to be last). For this, we need to add padding in
-  // front of the pools so that the isolated one starts on a page boundary.
-  // We also skip the Lock at the beginning of the pool since it needs to be
-  // used in contexts where we didn't enable write access to the pool memory.
-  char pad_[PA_THREAD_ISOLATED_ARRAY_PAD_SZ_WITH_OFFSET(
-      Pool,
-      kNumPools,
-      offsetof(Pool, alloc_bitset_))] = {};
+#if BUILDFLAG(ENABLE_THREAD_ISOLATION)
+  // This should be the first member and the AddressPoolManager must be
+  // PA_THREAD_ISOLATED_ALIGN. Each AlignedPool is sized such that we can
+  // protect each independently.
+  AlignedPool protected_pools_[kNumCompartments];
+  Pool pools_[kNumPools - kNumCompartments];
+#else
   Pool pools_[kNumPools];
+#endif
 
 #endif  // BUILDFLAG(HAS_64_BIT_POINTERS)
 

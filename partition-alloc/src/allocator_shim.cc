@@ -8,6 +8,7 @@
 #include "allocator_shim.h"
 #include "base/allocator/partition_allocator/partition_alloc.h"
 #include "base/allocator/partition_allocator/partition_root.h"
+#include "base/allocator/partition_allocator/thread_isolation/thread_isolation.h"
 #include <ia2.h>
 
 using namespace partition_alloc::internal;
@@ -54,7 +55,10 @@ private:
 
 static PartitionAllocator *NewPartition(void *buffer) {
   auto *new_heap = new (buffer) PartitionAllocator();
-  new_heap->init(partition_alloc::PartitionOptions{});
+  size_t pkey = ::ia2_get_pkey();
+  new_heap->init(partition_alloc::PartitionOptions {
+    .thread_isolation = partition_alloc::ThreadIsolationOption(pkey, pkey),
+  });
   return new_heap;
 }
 

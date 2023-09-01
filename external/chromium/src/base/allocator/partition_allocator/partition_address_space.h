@@ -5,7 +5,9 @@
 #ifndef BASE_ALLOCATOR_PARTITION_ALLOCATOR_PARTITION_ADDRESS_SPACE_H_
 #define BASE_ALLOCATOR_PARTITION_ALLOCATOR_PARTITION_ADDRESS_SPACE_H_
 
+#include <array>
 #include <cstddef>
+#include <optional>
 #include <utility>
 
 #include "base/allocator/partition_allocator/address_pool_manager_types.h"
@@ -75,9 +77,9 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionAddressSpace {
       pool = kConfigurablePoolHandle;
       base = setup_.configurable_pool_base_address_;
 #if BUILDFLAG(ENABLE_THREAD_ISOLATION)
-    } else if (IsInThreadIsolatedPool(address)) {
-      pool = kThreadIsolatedPoolHandle;
-      base = setup_.thread_isolated_pool_base_address_;
+    } else if (auto compartment = GetCompartmentForAddress(address)) {
+      pool = internal::PoolHandleForCompartment(*compartment);
+      base = setup_.thread_isolated_pool_base_address_[*compartment];
 #endif
     } else {
       PA_NOTREACHED();
@@ -126,8 +128,18 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionAddressSpace {
   }
 
 #if BUILDFLAG(ENABLE_THREAD_ISOLATION)
-  PA_ALWAYS_INLINE static bool IsThreadIsolatedPoolInitialized() {
-    return setup_.thread_isolated_pool_base_address_ !=
+  PA_ALWAYS_INLINE static bool IsAnyThreadIsolatedPoolInitialized() {
+    for (Compartment c = 0; c < kNumCompartments; ++c) {
+      if (IsThreadIsolatedPoolInitialized(c)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  PA_ALWAYS_INLINE static bool
+  IsThreadIsolatedPoolInitialized(Compartment compartment) {
+    return setup_.thread_isolated_pool_base_address_[compartment] !=
            kUninitializedPoolBaseAddress;
   }
 #endif
@@ -203,8 +215,30 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionAddressSpace {
 #if BUILDFLAG(ENABLE_THREAD_ISOLATION)
   // Returns false for nullptr.
   PA_ALWAYS_INLINE static bool IsInThreadIsolatedPool(uintptr_t address) {
+    for (size_t i = 0; i < kNumCompartments; ++i) {
+      if (IsInThreadIsolatedPool(address, i)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Returns false for nullptr.
+  PA_ALWAYS_INLINE static bool IsInThreadIsolatedPool(uintptr_t address,
+                                                      size_t compartment) {
+    PA_CHECK(compartment < kNumCompartments);
     return (address & kThreadIsolatedPoolBaseMask) ==
-           setup_.thread_isolated_pool_base_address_;
+           setup_.thread_isolated_pool_base_address_[compartment];
+  }
+
+  PA_ALWAYS_INLINE static std::optional<Compartment>
+  GetCompartmentForAddress(uintptr_t address) {
+    for (size_t i = 0; i < kNumCompartments; ++i) {
+      if (IsInThreadIsolatedPool(address, i)) {
+        return {i};
+      }
+    }
+    return {};
   }
 #endif
 
@@ -332,8 +366,16 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionAddressSpace {
     uintptr_t brp_pool_base_address_ = kUninitializedPoolBaseAddress;
     uintptr_t configurable_pool_base_address_ = kUninitializedPoolBaseAddress;
 #if BUILDFLAG(ENABLE_THREAD_ISOLATION)
-      uintptr_t thread_isolated_pool_base_address_ =
-          kUninitializedPoolBaseAddress;
+    uintptr_t thread_isolated_pool_base_address_[kNumCompartments] = {
+        kUninitializedPoolBaseAddress, kUninitializedPoolBaseAddress,
+        kUninitializedPoolBaseAddress, kUninitializedPoolBaseAddress,
+        kUninitializedPoolBaseAddress, kUninitializedPoolBaseAddress,
+        kUninitializedPoolBaseAddress, kUninitializedPoolBaseAddress,
+        kUninitializedPoolBaseAddress, kUninitializedPoolBaseAddress,
+        kUninitializedPoolBaseAddress, kUninitializedPoolBaseAddress,
+        kUninitializedPoolBaseAddress, kUninitializedPoolBaseAddress,
+        kUninitializedPoolBaseAddress, kUninitializedPoolBaseAddress,
+    };
 #endif
 #if PA_CONFIG(DYNAMICALLY_SELECT_POOL_SIZE)
       uintptr_t regular_pool_base_mask_ = 0;
@@ -344,7 +386,7 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionAddressSpace {
 #endif  // PA_CONFIG(DYNAMICALLY_SELECT_POOL_SIZE)
       uintptr_t configurable_pool_base_mask_ = 0;
 #if BUILDFLAG(ENABLE_THREAD_ISOLATION)
-      ThreadIsolationOption thread_isolation_;
+      std::array<ThreadIsolationOption, kNumCompartments> thread_isolation_;
 #endif
   };
 #if BUILDFLAG(ENABLE_THREAD_ISOLATION)

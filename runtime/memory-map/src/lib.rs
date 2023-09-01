@@ -50,6 +50,12 @@ impl Range {
     pub fn subsumes(&self, subrange: Range) -> bool {
         self.start <= subrange.start && self.end() >= subrange.end()
     }
+    fn round_to_4k(&mut self) {
+        let end = self.start + self.len;
+        let end_round_up = (end + 0xFFF) & !0xFFF;
+        self.start = self.start & !0xFFF;
+        self.len = end_round_up - self.start;
+    }
 }
 
 /// The state of a contiguous region of memory
@@ -82,11 +88,14 @@ impl MemoryMap {
             regions: Default::default(),
         }
     }
-    pub fn add_region(&mut self, range: Range, state: State) -> bool {
+    pub fn add_region(&mut self, mut range: Range, state: State) -> bool {
         // forbid zero-length regions
         if range.len == 0 {
             return false;
         }
+        // round size up and start down to pages
+        range.round_to_4k();
+
         if let Some((&start, iv)) = self.regions.range(range.as_std()).next() {
             let existing_range = Range {
                 start,
@@ -150,7 +159,9 @@ impl MemoryMap {
     }
 
     /* removes exactly the specified range from an existing region, leaving any other parts of that region mapped */
-    fn split_out_region(&mut self, subrange: Range) -> Option<State> {
+    fn split_out_region(&mut self, mut subrange: Range) -> Option<State> {
+        subrange.round_to_4k();
+
         // return None if the subrange does not overlap or is not fully contained
         let r = self.find_overlapping_region(subrange)?;
         if !r.range.subsumes(subrange) {

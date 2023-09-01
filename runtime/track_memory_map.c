@@ -10,6 +10,18 @@
 #include "memory_map.h"
 #include "mmap_event.h"
 
+#ifdef DEBUG
+#define debug(...) fprintf(stderr, __VA_ARGS__)
+#define debug_op(...) fprintf(stderr, __VA_ARGS__)
+#define debug_policy(...) fprintf(stderr, __VA_ARGS__)
+#define debug_event_update(...) fprintf(stderr, __VA_ARGS__)
+#else
+#define debug(...)
+#define debug_op(...)
+#define debug_policy(...)
+#define debug_event_update(...)
+#endif
+
 bool is_op_permitted(struct memory_map *map, int event,
                      union event_info *info) {
   switch (event) {
@@ -177,12 +189,13 @@ bool interpret_syscall(struct user_regs_struct *regs, unsigned char pkey,
                        enum mmap_event *event, union event_info *event_info) {
   /* determine event from syscall # */
   *event = event_from_syscall(regs->orig_rax);
+
+  debug_op("event: %s\n", event_names[*event]);
+
   /* dispatch on event and read args from registers.
   arg order is: rdi, rsi, rdx, r10, r8, r9 */
   switch (*event) {
   case EVENT_MMAP: {
-    printf("mmap!\n");
-
     struct mmap_info *info = &event_info->mmap;
     info->range.start =
         regs->rdi; /* this will be replaced with the actual addr on return */
@@ -192,23 +205,22 @@ bool interpret_syscall(struct user_regs_struct *regs, unsigned char pkey,
     info->fildes = regs->r8;
     info->pkey = pkey;
 
-    printf("compartment %d mmap (%08zx, %zd, prot=%d, flags=%x, fd=%d)\n",
-           info->pkey, info->range.start, info->range.len, info->prot,
-           info->flags, info->fildes);
+    debug_op("compartment %d mmap (%08zx, %zd, prot=%d, flags=%x, fd=%d)\n",
+             info->pkey, info->range.start, info->range.len, info->prot,
+             info->flags, info->fildes);
     break;
   }
   case EVENT_MUNMAP: {
-    printf("munmap!\n");
-
     struct munmap_info *info = &event_info->munmap;
     info->range.start = regs->rdi;
     info->range.len = regs->rsi;
     info->pkey = pkey;
+
+    debug_op("compartment %d munmap (%08zx, %zd)\n", info->pkey,
+             info->range.start, info->range.len);
     break;
   }
   case EVENT_MREMAP: {
-    printf("mremap!\n");
-
     struct mremap_info *info = &event_info->mremap;
     info->old_range.start = regs->rdi;
     info->old_range.len = regs->rsi;
@@ -222,33 +234,39 @@ bool interpret_syscall(struct user_regs_struct *regs, unsigned char pkey,
       info->new_range.start = info->old_range.start;
 
     info->pkey = pkey;
+
+    debug_op("compartment %d mremap (%08zx, %zd) to (%08zx, %zd)\n", info->pkey,
+             info->old_range.start, info->old_range.len, info->new_range.start,
+             info->new_range.len);
     break;
   }
   case EVENT_MPROTECT: {
-    printf("mprotect!\n");
-
     struct mprotect_info *info = &event_info->mprotect;
     info->range.start = regs->rdi;
     info->range.len = regs->rsi;
     info->prot = regs->rdx;
     info->pkey = pkey;
+
+    debug_op("compartment %d mprotect (%08zx, %zd) to prot=%d\n", info->pkey,
+             info->range.start, info->range.len, info->prot);
     break;
   }
   case EVENT_PKEY_MPROTECT: {
-    printf("pkey_mprotect!\n");
-
     struct pkey_mprotect_info *info = &event_info->pkey_mprotect;
     info->range.start = regs->rdi;
     info->range.len = regs->rsi;
     info->prot = regs->rdx;
     info->new_owner_pkey = regs->r10;
     info->pkey = pkey;
+
+    debug_op("compartment %d pkey_mprotect (%08zx, %zd) to %d prot=%d\n",
+             info->pkey, info->range.start, info->range.len,
+             info->new_owner_pkey, info->prot);
     break;
   }
   case EVENT_NONE: {
     /* when ptracing alone, this may occur; when we are a seccomp helper, this
     should not happen */
-    /* printf("other; rax=%llu\n", regs->orig_rax); */
     break;
   }
   }
@@ -265,12 +283,14 @@ void update_event_with_result(struct user_regs_struct *regs,
   case EVENT_MMAP: {
     /* read result from registers */
     struct mmap_info *info = &event_info->mmap;
+    debug_event_update("new start = %08zx\n", regs->rax);
     info->range.start = regs->rax;
     break;
   }
   case EVENT_MREMAP: {
     /* read result from registers */
     struct mmap_info *info = &event_info->mmap;
+    debug_event_update("new start = %08zx\n", regs->rax);
     info->range.start = regs->rax;
     break;
   }
@@ -373,8 +393,8 @@ void track_memory_map(pid_t pid, struct memory_map *map) {
       return_syscall_eperm(pid);
       continue;
     } else {
-      fprintf(stderr, "operation allowed: %s (syscall %lld)\n",
-              event_name(event), regs.orig_rax);
+      debug_policy("operation allowed: %s (syscall %lld)\n", event_name(event),
+                   regs.orig_rax);
     }
 
     /* run the actual syscall until syscall exit so we can read its result */

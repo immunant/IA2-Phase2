@@ -341,6 +341,12 @@ pub extern "C" fn memory_map_pkey_mprotect_region(
             state.pkey_mprotected = true;
             map.add_region(range, state)
         } else {
+            printerrln!(
+                "not pkey {} or already pkey_mprotected ({}/{})",
+                pkey,
+                state.owner_pkey,
+                state.pkey_mprotected
+            );
             false
         }
     } else {

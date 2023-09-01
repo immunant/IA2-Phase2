@@ -336,7 +336,8 @@ pub extern "C" fn memory_map_pkey_mprotect_region(
     pkey: u8,
 ) -> bool {
     if let Some(mut state) = map.split_out_region(range) {
-        if state.owner_pkey == pkey && state.pkey_mprotected == false {
+        /* forbid repeated pkey_mprotect */
+        if state.pkey_mprotected == false {
             state.pkey_mprotected = true;
             map.add_region(range, state)
         } else {

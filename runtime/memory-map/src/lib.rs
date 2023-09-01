@@ -344,7 +344,9 @@ pub extern "C" fn memory_map_pkey_mprotect_region(
             false
         }
     } else {
-        false
+        // we're attempting to pkey_mprotect memory that was never mmapped.
+        // it may have come from brk() or the initial mappings from exec().
+        true
     }
 }
 
@@ -362,6 +364,8 @@ pub extern "C" fn memory_map_mprotect_region(map: &mut MemoryMap, range: Range, 
             map.add_region(range, state)
         }
     } else {
-        false
+        // we're attempting to mprotect memory that was never mmapped.
+        // it may have come from brk() or the initial mappings from exec().
+        true
     }
 }

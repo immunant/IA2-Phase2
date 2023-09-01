@@ -104,9 +104,13 @@ impl MemoryMap {
                 len: iv.end() - start,
             };
             printerrln!("{:?} interferes with {:?}", range, existing_range);
+            #[cfg(list_regions)]
+            printerrln!("regions:\n{:#x?}", self.regions);
             return false;
         }
         self.regions.insert(range.as_std(), state);
+        #[cfg(debug)]
+        printerrln!("added region {:?}", range);
         true
     }
     pub fn find_overlapping_region(&self, needle: Range) -> Option<MemRegion> {
@@ -165,8 +169,17 @@ impl MemoryMap {
         subrange.round_to_4k();
 
         // return None if the subrange does not overlap or is not fully contained
-        let r = self.find_overlapping_region(subrange)?;
+        let r = match self.find_overlapping_region(subrange) {
+            Some(r) => r,
+            None => {
+                #[cfg(debug)]
+                printerrln!("{:?} has no overlap", subrange);
+                return None;
+            }
+        };
         if !r.range.subsumes(subrange) {
+            #[cfg(debug)]
+            printerrln!("{:?} does not subsume {:?}", r.range, subrange);
             return None;
         }
 
@@ -228,8 +241,10 @@ pub extern "C" fn memory_map_all_overlapping_regions_have_pkey(
     needle: Range,
     pkey: u8,
 ) -> bool {
+    #[cfg(debug)]
     printerrln!("do all mappings in {:?} have pkey {}?", needle, pkey);
     map.all_overlapping_regions(needle, |region| {
+        #[cfg(debug)]
         printerrln!(
             "does {:?} have pkey {}? {}",
             region.range,
@@ -248,6 +263,7 @@ pub extern "C" fn memory_map_all_overlapping_regions_pkey_mprotected(
 ) -> bool {
     map.all_overlapping_regions(needle, |region| {
         let same = pkey_mprotected == region.state.pkey_mprotected;
+        #[cfg(debug)]
         printerrln!(
             "does {:?} have pkey_mprotected=={}? {}",
             region.range,
@@ -266,6 +282,7 @@ pub extern "C" fn memory_map_all_overlapping_regions_mprotected(
 ) -> bool {
     map.all_overlapping_regions(needle, |region| {
         let same = mprotected == region.state.mprotected;
+        #[cfg(debug)]
         printerrln!(
             "does {:?} have mprotected=={}? {}",
             region.range,

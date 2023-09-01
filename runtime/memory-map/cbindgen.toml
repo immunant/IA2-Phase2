@@ -13,6 +13,7 @@ trailer = "/* clang-format on */"
 
 [export.rename]
 "MemoryMap" = "memory_map"
+"PROT_INDETERMINATE" = "MEMORY_MAP_PROT_INDETERMINATE"
 "Range" = "range"
 
 # the below does not help because our types are opaque items, so they aren't

@@ -64,6 +64,8 @@ impl Range {
 pub struct State {
     pub owner_pkey: u8,
     pub pkey_mprotected: bool,
+    pub mprotected: bool,
+    pub prot: u32,
 }
 
 /// A contiguous region of the memory map whose state we track
@@ -190,12 +192,18 @@ impl MemoryMap {
         Some(r.state)
     }
 
-    pub fn split_region(&mut self, subrange: Range, owner_pkey: u8) -> Option<MemRegion> {
+    pub fn split_region(
+        &mut self,
+        subrange: Range,
+        owner_pkey: u8,
+        prot: u32,
+    ) -> Option<MemRegion> {
         let state = self.split_out_region(subrange)?;
 
         // add the new split-off range
         let new_state = State {
             owner_pkey,
+            prot,
             ..state
         };
         self.add_region(subrange, new_state);
@@ -239,15 +247,54 @@ pub extern "C" fn memory_map_all_overlapping_regions_pkey_mprotected(
     pkey_mprotected: bool,
 ) -> bool {
     map.all_overlapping_regions(needle, |region| {
+        let same = pkey_mprotected == region.state.pkey_mprotected;
         printerrln!(
-            "does {:?} have pkey_mprotected=={}? =={}",
+            "does {:?} have pkey_mprotected=={}? {}",
             region.range,
             pkey_mprotected,
-            region.state.pkey_mprotected
+            if same { "yes" } else { "no" }
         );
-        pkey_mprotected == region.state.pkey_mprotected
+        same
     })
 }
+
+#[no_mangle]
+pub extern "C" fn memory_map_all_overlapping_regions_mprotected(
+    map: &MemoryMap,
+    needle: Range,
+    mprotected: bool,
+) -> bool {
+    map.all_overlapping_regions(needle, |region| {
+        let same = mprotected == region.state.mprotected;
+        printerrln!(
+            "does {:?} have mprotected=={}? {}",
+            region.range,
+            mprotected,
+            if same { "yes" } else { "no" }
+        );
+        same
+    })
+}
+
+#[no_mangle]
+pub extern "C" fn memory_map_region_get_prot(map: &MemoryMap, needle: Range) -> u32 {
+    let mut prot = None;
+    let same = map.all_overlapping_regions(needle, |region| match prot {
+        None => {
+            prot = Some(region.state.prot);
+            true
+        }
+        Some(prot) => prot == region.state.prot,
+    });
+    if same {
+        prot.unwrap()
+    } else {
+        PROT_INDETERMINATE
+    }
+}
+
+/** memory_map_region_get_prot found no or multiple protections in the given range */
+pub const PROT_INDETERMINATE: u32 = 0xFFFFFFFFu32;
 
 #[no_mangle]
 pub extern "C" fn memory_map_unmap_region(map: &mut MemoryMap, needle: Range) -> bool {
@@ -255,12 +302,19 @@ pub extern "C" fn memory_map_unmap_region(map: &mut MemoryMap, needle: Range) ->
 }
 
 #[no_mangle]
-pub extern "C" fn memory_map_add_region(map: &mut MemoryMap, range: Range, owner_pkey: u8) -> bool {
+pub extern "C" fn memory_map_add_region(
+    map: &mut MemoryMap,
+    range: Range,
+    owner_pkey: u8,
+    prot: u32,
+) -> bool {
     map.add_region(
         range,
         State {
             owner_pkey,
+            mprotected: false,
             pkey_mprotected: false,
+            prot,
         },
     )
 }
@@ -270,8 +324,9 @@ pub extern "C" fn memory_map_split_region(
     map: &mut MemoryMap,
     range: Range,
     owner_pkey: u8,
+    prot: u32,
 ) -> bool {
-    map.split_region(range, owner_pkey).is_some()
+    map.split_region(range, owner_pkey, prot).is_some()
 }
 
 #[no_mangle]
@@ -286,6 +341,24 @@ pub extern "C" fn memory_map_pkey_mprotect_region(
             map.add_region(range, state)
         } else {
             false
+        }
+    } else {
+        false
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn memory_map_mprotect_region(map: &mut MemoryMap, range: Range, prot: u32) -> bool {
+    if let Some(mut state) = map.split_out_region(range) {
+        if state.mprotected == false {
+            state.mprotected = true;
+            state.prot = prot;
+            map.add_region(range, state)
+        } else {
+            printerrln!("already mprotected, prot {} => {}", state.prot, prot);
+            state.mprotected = true;
+            state.prot = prot;
+            map.add_region(range, state)
         }
     } else {
         false

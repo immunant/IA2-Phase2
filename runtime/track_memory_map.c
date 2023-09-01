@@ -29,13 +29,22 @@ bool is_op_permitted(struct memory_map *map, int event,
             map, info->mremap.old_range, info->mremap.pkey))
       return true;
     break;
-  case EVENT_MPROTECT:
-    if (memory_map_all_overlapping_regions_have_pkey(map, info->mprotect.range,
-                                                     info->mprotect.pkey))
+  case EVENT_MPROTECT: {
+    /* allow mprotecting memory that has not been mprotected */
+    bool impacts_only_unprotected_memory =
+        memory_map_all_overlapping_regions_mprotected(map, info->mprotect.range,
+                                                      false);
+    if (impacts_only_unprotected_memory)
+      return true;
+
+    /* allow mprotecting memory that is already writable */
+    uint32_t prot = memory_map_region_get_prot(map, info->mprotect.range);
+    if (prot != MEMORY_MAP_PROT_INDETERMINATE && (prot & PROT_WRITE))
       return true;
     break;
+  }
   case EVENT_PKEY_MPROTECT: {
-    /* allow mprotecting memory that we own to our pkey */
+    /* allow mprotecting memory that has not been pkey_mprotected to our pkey */
     bool impacts_only_unprotected_memory =
         memory_map_all_overlapping_regions_pkey_mprotected(
             map, info->pkey_mprotect.range, false);
@@ -62,27 +71,48 @@ bool update_memory_map(struct memory_map *map, int event,
                        union event_info *info) {
   switch (event) {
   case EVENT_MMAP:
-    return memory_map_add_region(map, info->mmap.range, info->mmap.pkey);
+    if (info->mmap.flags & MAP_FIXED) {
+      // mapping a fixed address is allowed to overlap/split existing regions
+      if (!memory_map_split_region(map, info->mmap.range, info->mmap.pkey,
+                                   info->mmap.prot)) {
+        fprintf(stderr, "no split, adding region\n");
+        return memory_map_add_region(map, info->mmap.range, info->mmap.pkey,
+                                     info->mmap.prot);
+      } else {
+        return true;
+      }
+    } else {
+      return memory_map_add_region(map, info->mmap.range, info->mmap.pkey,
+                                   info->mmap.prot);
+    }
     break;
   case EVENT_MUNMAP:
     return memory_map_unmap_region(map, info->munmap.range);
     break;
-  case EVENT_MREMAP:
+  case EVENT_MREMAP: {
+    uint32_t prot = memory_map_region_get_prot(map, info->mremap.old_range);
+    if (prot == MEMORY_MAP_PROT_INDETERMINATE) {
+      fprintf(stderr, "could not find prot for region to mremap\n");
+      exit(1);
+    }
+
     /* we don't need to handle MREMAP_MAYMOVE specially because we don't assume
     the old and new ranges have the same start */
     /* similarly, MREMAP_FIXED simply lets the request dictate the new range's
     start addr, about which we make no assumptions */
     if (info->mremap.flags & MREMAP_DONTUNMAP) {
       return memory_map_add_region(map, info->mremap.new_range,
-                                   info->mremap.pkey);
+                                   info->mremap.pkey, prot);
     } else {
       memory_map_unmap_region(map, info->mremap.old_range);
       return memory_map_add_region(map, info->mremap.new_range,
-                                   info->mremap.pkey);
+                                   info->mremap.pkey, prot);
     }
     break;
+  }
   case EVENT_MPROTECT:
-    return true;
+    return memory_map_mprotect_region(map, info->mprotect.range,
+                                      info->mprotect.prot);
     break;
   case EVENT_PKEY_MPROTECT: {
     return memory_map_pkey_mprotect_region(map, info->mprotect.range,

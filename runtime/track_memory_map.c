@@ -14,6 +14,10 @@ bool is_op_permitted(struct memory_map *map, int event,
                      union event_info *info) {
   switch (event) {
   case EVENT_MMAP:
+    // non-FIXED maps of NULL don't need to check for overlap
+    if (info->mmap.range.start == 0 && !(info->mmap.flags & MAP_FIXED)) {
+      return true;
+    }
     if (memory_map_all_overlapping_regions_have_pkey(map, info->mmap.range,
                                                      info->mmap.pkey))
       return true;

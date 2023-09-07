@@ -100,6 +100,13 @@ instead of `fn`. */
 int protect_pages(struct dl_phdr_info *info, size_t size, void *data);
 int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data);
 
+struct IA2SharedSection {
+  const void *start;
+  const void *end;
+};
+
+#define IA2_MAX_NUM_SHARED_SECTION_COUNT 4
+
 // The data argument each time dl_iterate_phdr calls protect_pages
 struct PhdrSearchArgs {
   // The compartment pkey to use when the segments are found
@@ -116,6 +123,12 @@ struct PhdrSearchArgs {
   // Number of other libraries from extra_libraries that were located and
   // protected.
   int found_library_count;
+
+  // Array of shared section(s) to skip when protecting RW ranges. List is
+  // terminated with a double NULL entry. List must be at most
+  // IA2_MAX_SHARED_SECTION_COUNT elements (not including NULL terminating
+  // pair). Pointer may be NULL if no shared ranges are used.
+  const struct IA2SharedSection *shared_sections;
 };
 
 // This emits the 5 bytes correponding to the movl $PKRU, %eax instruction

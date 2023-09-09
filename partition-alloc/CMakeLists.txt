@@ -95,4 +95,34 @@ target_link_options(partition-alloc
         "-Wl,-z,now"
 )
 
+# Wrapping options from upstream BUILD.gn
+target_link_options(partition-alloc
+	PUBLIC
+		"-Wl,-wrap,calloc"
+		"-Wl,-wrap,free"
+		"-Wl,-wrap,malloc"
+		"-Wl,-wrap,memalign"
+		"-Wl,-wrap,posix_memalign"
+		"-Wl,-wrap,pvalloc"
+		"-Wl,-wrap,realloc"
+		"-Wl,-wrap,valloc"
+
+		# Not allocating memory, but part of the API
+		"-Wl,-wrap,malloc_usable_size"
+
+		# <stdlib.h> functions
+		"-Wl,-wrap,realpath"
+
+		# <string.h> functions
+		"-Wl,-wrap,strdup"
+		"-Wl,-wrap,strndup"
+
+		# <unistd.h> functions
+		"-Wl,-wrap,getcwd"
+
+		# <stdio.h> functions
+		"-Wl,-wrap,asprintf"
+		"-Wl,-wrap,vasprintf"
+)
+
 target_link_libraries(partition-alloc libia2)

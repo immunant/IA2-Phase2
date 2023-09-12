@@ -9,6 +9,7 @@ RUN: readelf -lW %binary_dir/tests/read_config/libread_config_lib_wrapped.so | F
 #include "core.h"
 #include <ia2.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define IA2_COMPARTMENT 2

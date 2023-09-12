@@ -7,6 +7,7 @@ TODO: %binary_dir/tests/heap_two_keys/heap_two_keys_main_wrapped 2 | diff %S/Out
 */
 #include <stdio.h>
 #include <unistd.h>
+#include <assert.h>
 #include <ia2.h>
 #include <ia2_allocator.h>
 #include "plugin.h"

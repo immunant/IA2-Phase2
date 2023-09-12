@@ -77,7 +77,7 @@ static Filename get_expansion_filename(const clang::SourceLocation loc,
         return rel_path_to_full.at(s.str().str());
       } catch(std::out_of_range const &exc) {
           llvm::errs() << "get_filename failed to find full path for " << s.str().str() << '\n';
-          assert(0);
+          abort();
       }
   }
   llvm::sys::path::replace_path_prefix(s, RootDirectory, OutputDirectory);
@@ -92,7 +92,7 @@ static Filename get_filename(const clang::SourceLocation loc,
         return rel_path_to_full.at(s.str().str());
       } catch(std::out_of_range const &exc) {
           llvm::errs() << "get_filename failed to find full path for " << s.str().str() << '\n';
-          assert(0);
+          abort();
       }
   }
   llvm::sys::path::replace_path_prefix(s, RootDirectory, OutputDirectory);
@@ -128,7 +128,7 @@ static Pkey get_file_pkey(const clang::SourceManager &sm) {
   } catch (std::out_of_range const &exc) {
     llvm::errs() << "Source file " << filename.c_str()
                  << " has no entry with -DPKEY in compile_commands.json\n";
-    assert(0);
+    abort();
   }
 }
 
@@ -1078,7 +1078,7 @@ int main(int argc, const char **argv) {
       } catch (std::out_of_range const &exc) {
         llvm::errs() << "Opaque struct " << ty.c_str()
                      << " not found by FnPtrCall pass\n";
-        assert(0);
+        abort();
       }
       std::string wrapper_name = "__ia2_indirect_callgate_"s +
                                  std::to_string(id) + "_pkey_" +
@@ -1130,7 +1130,7 @@ int main(int argc, const char **argv) {
       } catch (std::out_of_range const &exc) {
         llvm::errs() << "C ABI signature for function " << fn_name.c_str()
                      << " not found by FnDecl pass\n";
-        assert(0);
+        abort();
       }
       // TODO: Add the option to append "_from_PKEY" to the wrapper name and use
       // objcopy --redefine-syms to support calling a function from multiple

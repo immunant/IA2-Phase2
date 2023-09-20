@@ -1,5 +1,6 @@
 BasedOnStyle: LLVM
 
+ColumnLimit: 0
 AlwaysBreakBeforeMultilineStrings: true
 BreakStringLiterals: false
 CommentPragmas: '^RUN: '

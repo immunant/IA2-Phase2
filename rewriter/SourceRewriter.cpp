@@ -891,6 +891,10 @@ int main(int argc, const char **argv) {
                        options_parser.getSourcePathList());
   tool.appendArgumentsAdjuster([&](const CommandLineArguments &args, llvm::StringRef filename) {
       CommandLineArguments new_args(args);
+      // Try to remove existing definition from command line to avoid warnings.
+      new_args.erase(std::remove_if(new_args.begin(), new_args.end(),
+                                    [](std::string &x) { return x.starts_with("-DIA2_ENABLE="); }),
+                     new_args.end());
       new_args.push_back("-DIA2_ENABLE=0"s);
       return new_args;
   });

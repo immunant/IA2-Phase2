@@ -7,6 +7,8 @@ RUN: readelf -lW %binary_dir/tests/two_keys_minimal/libtwo_keys_minimal_lib_wrap
 // SEGMENTS-COUNT-1: LOAD{{.*}}R E
 // SEGMENTS-NOT:     LOAD{{.*}}R E
 
+#include <criterion/criterion.h>
+#include <criterion/logging.h>
 #include <stdio.h>
 #include <ia2.h>
 #include "exported_fn.h"
@@ -21,13 +23,13 @@ extern bool clean_exit;
 
 // LINKARGS: --wrap=start_plugin
 void start_plugin(void) {
-    LOG("this is defined in the plugin");
+    cr_log_info("this is defined in the plugin");
     if (debug_mode) {
-        LOG("the plugin secret is at %p", &plugin_secret);
+        cr_log_info("the plugin secret is at %p", &plugin_secret);
     }
-    LOG("the plugin secret is %x", plugin_secret);
+    cr_assert(plugin_secret == 0x78341244);
     print_message();
     if (!clean_exit) {
-        LOG("the main secret is %x", CHECK_VIOLATION(secret));
+        cr_assert(CHECK_VIOLATION(secret) == 0x09431233);
     }
 }

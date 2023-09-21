@@ -138,9 +138,11 @@ endfunction()
 #       wrapped.
 # UNWRAPPED_LIBRARY_DIRS (optional) - extra library directories.
 # UNWRAPPED_LIBS (optional) - extra libraries that are not wrapped.
+# CRITERION_TEST - If present, link against criterion and add the test to the
+#                  cmake test infrastructure.
 function(define_test)
     # Parse options
-    set(options NEEDS_LD_WRAP NOT_IN_CHECK_IA2 NO_LIBS)
+    set(options NEEDS_LD_WRAP NOT_IN_CHECK_IA2 NO_LIBS CRITERION_TEST)
     set(oneValueArgs PKEY)
     set(multiValueArgs LIBS SRCS INCLUDE_DIR
         UNWRAPPED_INCLUDE_DIRS UNWRAPPED_LIBRARY_DIRS UNWRAPPED_LIBS)
@@ -158,6 +160,14 @@ function(define_test)
 
     if (NOT DEFINED DEFINE_TEST_LIBS AND NOT DEFINE_TEST_NO_LIBS)
         set(DEFINE_TEST_LIBS ${TEST_NAME}_lib)
+    endif()
+
+    if (DEFINE_TEST_CRITERION_TEST)
+        list(APPEND DEFINE_TEST_UNWRAPPED_LIBS criterion)
+        if (NOT DEFINE_TEST_NOT_IN_CHECK_IA2)
+            add_test(${TEST_NAME} ${WRAPPED_MAIN})
+            add_dependencies(check ${WRAPPED_MAIN})
+        endif()
     endif()
 
     if(DEFINED DEFINE_TEST_INCLUDE_DIR)

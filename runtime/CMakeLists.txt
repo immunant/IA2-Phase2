@@ -27,6 +27,7 @@ target_link_libraries(track-memory-map PRIVATE memory-map)
 
 add_executable(seccomp-filter
   seccomp_filter_demo.c
+  seccomp_filter.c
 )
 
 add_executable(landlock

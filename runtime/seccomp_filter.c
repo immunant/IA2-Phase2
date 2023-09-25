@@ -44,7 +44,11 @@ struct sock_filter example_filter[] = {
 };
 struct sock_fprog example_filter_prog = prog_for_filter(example_filter);
 
+/* declare syscall() and wrap syscall(SYS_seccomp) */
 long syscall(long no, ...);
+long seccomp(unsigned int mode, unsigned int flags, void *data) {
+  return syscall(SYS_seccomp, mode, flags, data);
+}
 
 /* apply the given seccomp filter program, then forbid further seccomp() calls.
 
@@ -57,15 +61,18 @@ int configure_seccomp(const struct sock_fprog *prog) {
   a user notification fd to pass to the supervisor, but we also want to pass
   FLAG_TSYNC, and these two cannot be combined in one call because they
   impose conflicting interpretations on the syscall return value. */
-  int sc_unotify_fd = syscall(SYS_seccomp, SECCOMP_SET_MODE_FILTER,
-                              SECCOMP_FILTER_FLAG_NEW_LISTENER, &prog);
+  int sc_unotify_fd = seccomp(SECCOMP_SET_MODE_FILTER,
+                              SECCOMP_FILTER_FLAG_NEW_LISTENER, (void *)prog);
 
   if (sc_unotify_fd < 0) {
     perror("seccomp(SECCOMP_FILTER_FLAG_NEW_LISTENER)");
     return -1;
   }
-  int sync_ret = syscall(SYS_seccomp, SECCOMP_SET_MODE_FILTER,
-                         SECCOMP_FILTER_FLAG_TSYNC, &forbid_seccomp_prog);
+
+  /* in our second seccomp() call, forbid further calls to seccomp(), and also
+  pass the TSYNC flag we wanted to pass in the first place. */
+  int sync_ret = seccomp(SECCOMP_SET_MODE_FILTER,
+                         SECCOMP_FILTER_FLAG_TSYNC, (void *)&forbid_seccomp_prog);
   if (sync_ret < 0) {
     perror("seccomp(SECCOMP_FILTER_FLAG_TSYNC)");
     return -1;

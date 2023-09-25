@@ -30,6 +30,7 @@ add_executable(seccomp-filter
 )
 
 add_executable(landlock
+  landlock_demo.c
   landlock.c
   strv.c
   forbid_paths.c

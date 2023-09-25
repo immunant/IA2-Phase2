@@ -1,5 +1,5 @@
-#include "landlock.h"
 #include "forbid_paths.h"
+#include "landlock_syscall.h"
 #include "strv.h"
 
 #include <errno.h>

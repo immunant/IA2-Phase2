@@ -8,12 +8,12 @@
 
 #include "seccomp_filter.h"
 
-// bpf filter to forbid the seccomp syscall
+/* bpf filter to forbid the seccomp syscall */
 struct sock_filter forbid_seccomp_filter[] = {
-    // load the syscall number
+    /* load the syscall number */
     BPF_STMT(BPF_LD | BPF_W | BPF_ABS, (offsetof(struct seccomp_data, nr))),
-    // compare syscall number to seccomp() and jump 0 ahead if equal, 1 ahead if
-    // not
+    /* compare syscall number to seccomp() and jump 0 ahead if equal, 1 ahead if
+    not */
     BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_seccomp, 0, 1),
     BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_KILL),
     BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW),
@@ -24,20 +24,20 @@ struct sock_fprog forbid_seccomp_prog = prog_for_filter(forbid_seccomp_filter);
 struct sock_filter example_filter[] = {
     BPF_STMT(BPF_LD | BPF_W | BPF_ABS, (offsetof(struct seccomp_data, nr))),
     BPF_SYSCALL_POLICY(write, ALLOW),
-    // this would compare syscall number to write() and allow if it matches
+    /* this would compare syscall number to write() and allow if it matches */
     /*BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_write, 0, 1),
     BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW),*/
-    // allow seccomp()
+    /* allow seccomp() */
     BPF_SYSCALL_POLICY(seccomp, ALLOW),
-    // equivalent:
+    /* equivalent: */
     /*BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_seccomp, 0, 1),
     BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW),*/
-    // compare syscall number to open() and jump to kill insn if different
+    /* compare syscall number to open() and jump to kill insn if different */
     BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_open, 0, 3),
-    // load argument 1
+    /* load argument 1 */
     BPF_STMT(BPF_LD | BPF_W | BPF_ABS,
              (offsetof(struct seccomp_data, args[1]))),
-    // if argument 1 is equal to O_RDONLY, allow
+    /* if argument 1 is equal to O_RDONLY, allow */
     BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, O_RDONLY, 0, 1),
     BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW),
     BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_KILL),
@@ -53,10 +53,10 @@ with CAP_SYS_SECCOMP.
 
 returns less than zero on failure, and the user-notify fd on success. */
 int configure_seccomp(const struct sock_fprog *prog) {
-  // we must make two separate calls to seccomp() here because we want to create
-  // a user notification fd to pass to the supervisor, but we also want to pass
-  // FLAG_TSYNC, and these two cannot be combined in one call because they
-  // impose conflicting interpretations on the syscall return value.
+  /* we must make two separate calls to seccomp() here because we want to create
+  a user notification fd to pass to the supervisor, but we also want to pass
+  FLAG_TSYNC, and these two cannot be combined in one call because they
+  impose conflicting interpretations on the syscall return value. */
   int sc_unotify_fd = syscall(SYS_seccomp, SECCOMP_SET_MODE_FILTER,
                               SECCOMP_FILTER_FLAG_NEW_LISTENER, &prog);
 

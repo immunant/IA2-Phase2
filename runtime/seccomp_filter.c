@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <sys/syscall.h>
 
+#include "seccomp_filter.h"
+
 // bpf filter to forbid the seccomp syscall
 struct sock_filter forbid_seccomp_filter[] = {
     // load the syscall number
@@ -16,52 +18,41 @@ struct sock_filter forbid_seccomp_filter[] = {
     BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_KILL),
     BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW),
 };
+struct sock_fprog forbid_seccomp_prog = prog_for_filter(forbid_seccomp_filter);
 
-struct sock_fprog forbid_seccomp_prog = {
-    .len = (unsigned short)(sizeof(forbid_seccomp_filter) /
-                            sizeof(forbid_seccomp_filter[0])),
-    .filter = forbid_seccomp_filter,
+
+struct sock_filter example_filter[] = {
+    BPF_STMT(BPF_LD | BPF_W | BPF_ABS, (offsetof(struct seccomp_data, nr))),
+    BPF_SYSCALL_POLICY(write, ALLOW),
+    // this would compare syscall number to write() and allow if it matches
+    /*BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_write, 0, 1),
+    BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW),*/
+    // allow seccomp()
+    BPF_SYSCALL_POLICY(seccomp, ALLOW),
+    // equivalent:
+    /*BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_seccomp, 0, 1),
+    BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW),*/
+    // compare syscall number to open() and jump to kill insn if different
+    BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_open, 0, 3),
+    // load argument 1
+    BPF_STMT(BPF_LD | BPF_W | BPF_ABS,
+             (offsetof(struct seccomp_data, args[1]))),
+    // if argument 1 is equal to O_RDONLY, allow
+    BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, O_RDONLY, 0, 1),
+    BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW),
+    BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_KILL),
 };
-
-// shorthand for an equality comparison jump of 0 (eq) or 1 (neq) followed by
-// a return of the given policy (used in the equal case)
-#define BPF_SYSCALL_POLICY(name, policy)                  \
-  BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_##name, 0, 1), \
-      BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_##policy)
+struct sock_fprog example_filter_prog = prog_for_filter(example_filter);
 
 long syscall(long no, ...);
 
-/* this function will fail if PR_SET_NO_NEW_PRIVS is not set, unless running
+/* apply the given seccomp filter program, then forbid further seccomp() calls.
+
+this function will fail if PR_SET_NO_NEW_PRIVS is not set, unless running
 with CAP_SYS_SECCOMP.
 
-returns nonzero on failure. */
-int configure_seccomp(void) {
-  struct sock_filter filter[] = {
-      BPF_STMT(BPF_LD | BPF_W | BPF_ABS, (offsetof(struct seccomp_data, nr))),
-      BPF_SYSCALL_POLICY(write, ALLOW),
-      // this would compare syscall number to write() and allow if it matches
-      /*BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_write, 0, 1),
-      BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW),*/
-      // allow seccomp()
-      BPF_SYSCALL_POLICY(seccomp, ALLOW),
-      // equivalent:
-      /*BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_seccomp, 0, 1),
-      BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW),*/
-      // compare syscall number to open() and jump to kill insn if different
-      BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_open, 0, 3),
-      // load argument 1
-      BPF_STMT(BPF_LD | BPF_W | BPF_ABS,
-               (offsetof(struct seccomp_data, args[1]))),
-      // if argument 1 is equal to O_RDONLY, allow
-      BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, O_RDONLY, 0, 1),
-      BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW),
-      BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_KILL)};
-
-  struct sock_fprog prog = {
-      .len = (unsigned short)(sizeof(filter) / sizeof(filter[0])),
-      .filter = filter,
-  };
-
+returns less than zero on failure, and the user-notify fd on success. */
+int configure_seccomp(const struct sock_fprog *prog) {
   // we must make two separate calls to seccomp() here because we want to create
   // a user notification fd to pass to the supervisor, but we also want to pass
   // FLAG_TSYNC, and these two cannot be combined in one call because they
@@ -79,6 +70,6 @@ int configure_seccomp(void) {
     perror("seccomp(SECCOMP_FILTER_FLAG_TSYNC)");
     return -1;
   }
-  // prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &prog);
-  return 0;
+
+  return sc_unotify_fd;
 }

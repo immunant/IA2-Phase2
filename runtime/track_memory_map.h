@@ -3,4 +3,4 @@
 
 #include "memory_map.h"
 
-void track_memory_map(pid_t pid, struct memory_map *map);
+bool track_memory_map(pid_t pid, struct memory_map *map, int *exit_status_out);

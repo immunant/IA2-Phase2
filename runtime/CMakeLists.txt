@@ -36,3 +36,15 @@ add_executable(landlock
   strv.c
   forbid_paths.c
 )
+
+add_executable(ia2-sandbox
+  start.c
+  seccomp_filter.c
+  track_memory_map.c
+  mmap_event.c
+  get_inferior_pkru.c
+  landlock.c
+  strv.c
+  forbid_paths.c
+)
+target_link_libraries(ia2-sandbox PRIVATE memory-map)

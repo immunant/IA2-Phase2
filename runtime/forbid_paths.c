@@ -10,7 +10,7 @@
 #include <string.h>
 
 #include "forbid_paths.h"
-#include "landlock.h"
+#include "landlock_syscall.h"
 #include "strv.h"
 
 static int allow_path(const char *path, const int ruleset_fd, bool shallow) {

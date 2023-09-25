@@ -20,6 +20,53 @@ struct sock_filter forbid_seccomp_filter[] = {
 };
 struct sock_fprog forbid_seccomp_prog = prog_for_filter(forbid_seccomp_filter);
 
+/* a seccomp filter implementing the IA2 coarse-grained syscall policy */
+struct sock_filter ia2_filter[] = {
+    /* load the syscall number */
+    BPF_STMT(BPF_LD | BPF_W | BPF_ABS, (offsetof(struct seccomp_data, nr))),
+    /* allow seccomp(). we will forbid it later with a second seccomp filter
+    (above). */
+    BPF_SYSCALL_POLICY(seccomp, ALLOW),
+    /* memory-management syscalls */
+    BPF_SYSCALL_POLICY(mmap, TRACE),
+    BPF_SYSCALL_POLICY(mprotect, TRACE),
+    BPF_SYSCALL_POLICY(mremap, TRACE),
+    BPF_SYSCALL_POLICY(munmap, TRACE),
+    /* pkey syscalls */
+    BPF_SYSCALL_POLICY(pkey_alloc, ALLOW),
+    BPF_SYSCALL_POLICY(pkey_mprotect, TRACE),
+    /* basic process syscalls */
+    BPF_SYSCALL_POLICY(access, ALLOW),
+    BPF_SYSCALL_POLICY(arch_prctl, ALLOW),
+    BPF_SYSCALL_POLICY(brk, ALLOW),
+    BPF_SYSCALL_POLICY(clone3, ALLOW),
+    BPF_SYSCALL_POLICY(close, ALLOW),
+    BPF_SYSCALL_POLICY(execve, ALLOW),
+    BPF_SYSCALL_POLICY(exit_group, ALLOW),
+    BPF_SYSCALL_POLICY(futex, ALLOW),
+    BPF_SYSCALL_POLICY(getpid, ALLOW),
+    BPF_SYSCALL_POLICY(getrandom, ALLOW),
+    BPF_SYSCALL_POLICY(newfstatat, ALLOW),
+    BPF_SYSCALL_POLICY(openat, ALLOW),
+    BPF_SYSCALL_POLICY(pread64, ALLOW),
+    BPF_SYSCALL_POLICY(prlimit64, ALLOW),
+    BPF_SYSCALL_POLICY(pwrite64, ALLOW),
+    BPF_SYSCALL_POLICY(read, ALLOW),
+    BPF_SYSCALL_POLICY(readv, ALLOW),
+    BPF_SYSCALL_POLICY(rseq, ALLOW),
+    BPF_SYSCALL_POLICY(rt_sigaction, ALLOW),
+    BPF_SYSCALL_POLICY(rt_sigprocmask, ALLOW),
+    BPF_SYSCALL_POLICY(set_robust_list, ALLOW),
+    BPF_SYSCALL_POLICY(set_tid_address, ALLOW),
+    BPF_SYSCALL_POLICY(write, ALLOW),
+    BPF_SYSCALL_POLICY(writev, ALLOW),
+    /* tracee syscalls */
+    /* ptrace(PTRACE_TRACEME) dance requires raising SIGSTOP */
+    BPF_SYSCALL_POLICY(kill, ALLOW),
+    /* any other syscall => kill process */
+    BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_KILL_PROCESS),
+};
+struct sock_fprog ia2_filter_prog = prog_for_filter(ia2_filter);
 
 struct sock_filter example_filter[] = {
     BPF_STMT(BPF_LD | BPF_W | BPF_ABS, (offsetof(struct seccomp_data, nr))),

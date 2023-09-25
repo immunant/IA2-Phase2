@@ -59,10 +59,15 @@ int main(int argc, char **argv) {
 
   pid_t pid = spawn_with_tracker((char *const *)&argv[1]);
 
+  int exit_status = 0;
   struct memory_map *map = memory_map_new();
-  track_memory_map(pid, map);
+  bool success = track_memory_map(pid, map, &exit_status);
   ptrace(PTRACE_KILL, pid, 0, 0);
   memory_map_destroy(map);
-
-  return 0;
+  if (success) {
+    fprintf(stderr, "inferior exited with code %d\n", exit_status);
+  } else {
+    fprintf(stderr, "error tracking memory map\n");
+  }
+  return !success;
 }

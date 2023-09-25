@@ -300,23 +300,36 @@ void update_event_with_result(struct user_regs_struct *regs,
   }
 }
 
-/* returns true if an error occurred or the process exited */
-bool wait_for_next_trap(pid_t pid) {
+enum wait_trap_result {
+  WAIT_TRAP,
+  WAIT_EXITED,
+  WAIT_SIGNALED,
+  WAIT_ERROR,
+};
+
+/* wait for the next trap from the inferior.
+
+returns the wait_trap_result corresponding to the event.
+
+if the exit is WAIT_EXITED, the exit status will be placed in *exit_status_out
+if it is non-NULL. */
+enum wait_trap_result wait_for_next_trap(pid_t pid, int *exit_status_out) {
   int stat = 0;
   int ret = waitpid(pid, &stat, 0);
   if (ret < 0) {
     perror("waitpid");
-    return true;
+    return WAIT_ERROR;
   }
   if (WIFEXITED(stat)) {
-    fprintf(stderr, "inferior exited\n");
-    return true;
+    if (exit_status_out)
+      *exit_status_out = WEXITSTATUS(stat);
+    return WAIT_EXITED;
   }
   if (WIFSIGNALED(stat)) {
-    fprintf(stderr, "inferior killed by signal\n");
-    return true;
+    fprintf(stderr, "inferior killed by signal %d\n", WTERMSIG(stat));
+    return WAIT_SIGNALED;
   }
-  return false;
+  return WAIT_TRAP;
 }
 
 void return_syscall_eperm(pid_t pid) {
@@ -346,26 +359,37 @@ void return_syscall_eperm(pid_t pid) {
   fprintf(stderr, "wrote -eperm to rax\n");
 }
 
-void track_memory_map(pid_t pid, struct memory_map *map) {
+/* track the inferior process' memory map.
+
+returns true if the inferior exits, false on trace error.
+
+if true is returned, the inferior's exit status will be stored to *exit_status_out if not NULL. */
+bool track_memory_map(pid_t pid, struct memory_map *map, int *exit_status_out) {
   while (true) {
     /* run until the next syscall entry */
     if (ptrace(PTRACE_SYSCALL, pid, 0, 0) < 0) {
-      perror("could not PTRACE_SYSCALL");
+      perror("could not PTRACE_SYSCALL...");
     }
     /* wait for the process to get signalled */
-    if (wait_for_next_trap(pid))
-      return;
+    switch (wait_for_next_trap(pid, exit_status_out)) {
+    case WAIT_TRAP:
+      break;
+    case WAIT_ERROR:
+      return false;
+    default:
+      return true;
+    }
 
     /* read which syscall is being called and its args */
     struct user_regs_struct regs = {0};
     if (ptrace(PTRACE_GETREGS, pid, 0, &regs) < 0) {
       perror("could not PTRACE_GETREGS");
-      return;
+      return false;
     }
 
     /* if syscall number is -1, finish and kill process */
     if (regs.orig_rax == -1) {
-      return;
+      return false;
     }
 
     /* read pkru */
@@ -373,13 +397,13 @@ void track_memory_map(pid_t pid, struct memory_map *map) {
     bool res = get_inferior_pkru(pid, &pkru);
     if (!res) {
       fprintf(stderr, "could not get pkey\n");
-      return;
+      return false;
     }
     unsigned char pkey = pkey_for_pkru(pkru);
     if (pkey == PKEY_INVALID) {
       fprintf(stderr, "pkru value %08x does not correspond to any pkey!\n",
               pkru);
-      return;
+      return false;
     }
 
     union event_info event_info = {0};
@@ -401,13 +425,19 @@ void track_memory_map(pid_t pid, struct memory_map *map) {
     if (ptrace(PTRACE_SYSCALL, pid, 0, 0) < 0) {
       perror("could not PTRACE_SYSCALL");
     }
-    if (wait_for_next_trap(pid))
-      return;
+    switch (wait_for_next_trap(pid, exit_status_out)) {
+    case WAIT_TRAP:
+      break;
+    case WAIT_ERROR:
+      return false;
+    default:
+      return true;
+    }
 
     /* read syscall result from registers */
     if (ptrace(PTRACE_GETREGS, pid, 0, &regs) < 0) {
       perror("could not PTRACE_GETREGS");
-      return;
+      return false;
     }
 
     /* update event */
@@ -416,7 +446,7 @@ void track_memory_map(pid_t pid, struct memory_map *map) {
     /* track effect of syscall on memory map */
     if (!update_memory_map(map, event, &event_info)) {
       fprintf(stderr, "could not update memory map! (operation=%s, rip=%p)\n", event_name(event), (void *)regs.rip);
-      return;
+      return false;
     }
   }
 }

@@ -22,7 +22,7 @@ int main(int argc, char *argv[]) {
   // seccomp filters.
   prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
 
-  if (configure_seccomp() < 0) {
+  if (configure_seccomp(&example_filter_prog) < 0) {
     return -1;
   }
 

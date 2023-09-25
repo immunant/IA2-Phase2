@@ -1,8 +1,7 @@
 /*
 RUN: sh -c 'if [ ! -s "should_segfault_call_gates_0.ld" ]; then echo "No link args as expected"; exit 0; fi; echo "Unexpected link args"; exit 1;'
-RUN: %binary_dir/tests/should_segfault/should_segfault_main_wrapped | diff %S/Output/should_segfault.out -
-RUN: not %binary_dir/tests/should_segfault/should_segfault_main_wrapped early_fault | diff %S/Output/early_segfault.out -
 */
+#include <criterion/criterion.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <stdint.h>
@@ -19,13 +18,16 @@ uint32_t secret = 0xdeadbeef;
 
 // This tests that mpk violations call the signal handler in
 // test_fault_handler.h and print the appropriate message if the
-// segfault occurred in one of the CHECK_VIOLATION expressions. Passing in any
-// argument raises a segfault early to test that a violation outside a
-// CHECK_VIOLATION prints a different message.
-int main(int argc, char **argv) {
-    if (argc > 1) {
-        do_early_fault();
-    }
-    printf("TRUSTED: the secret is %x\n", secret);
+// segfault occurred in one of the CHECK_VIOLATION expressions.
+// We also check raising a segfault early to test that a violation outside a
+// CHECK_VIOLATION results in a exit code of -1 (255).
+
+Test(should_segfault, main) {
+    cr_assert(secret);
+    print_secret();
+}
+
+Test(should_segfault, early_fault, .exit_code = 255) {
+    do_early_fault();
     print_secret();
 }

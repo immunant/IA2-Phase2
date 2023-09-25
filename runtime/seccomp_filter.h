@@ -1,6 +1,7 @@
 #pragma once
 struct sock_fprog;
 
+extern struct sock_fprog ia2_filter_prog;
 extern struct sock_fprog example_filter_prog;
 
 int configure_seccomp(const struct sock_fprog *prog);

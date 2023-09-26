@@ -13,7 +13,7 @@
 using namespace partition_alloc::internal;
 using partition_alloc::PartitionOptions;
 using partition_alloc::PartitionRoot;
-using partition_alloc::internal::PartitionAllocator;
+using partition_alloc::PartitionAllocator;
 
 class SimpleScopedSpinLocker {
 public:
@@ -36,7 +36,7 @@ private:
 // since we don't need it to be generic over the type of partition root.
 class SingletonPartition {
 public:
-  PartitionRoot<ThreadSafe> *Get() {
+  PartitionRoot *Get() {
     auto *instance = instance_.load(std::memory_order_acquire);
     if (instance) {
       return instance->root();
@@ -45,31 +45,23 @@ public:
   }
 
 private:
-  PartitionRoot<ThreadSafe> *GetSlowPath();
-  std::atomic<PartitionAllocator<ThreadSafe> *> instance_;
-  alignas(PartitionAllocator<ThreadSafe>) uint8_t
-      instance_buffer_[sizeof(PartitionAllocator<ThreadSafe>)] = {0};
+  PartitionRoot *GetSlowPath();
+  std::atomic<PartitionAllocator*> instance_;
+  alignas(PartitionAllocator) uint8_t
+      instance_buffer_[sizeof(PartitionAllocator)] = {0};
   std::atomic<bool> initialization_lock_;
 };
 
-static PartitionAllocator<ThreadSafe> *NewPartition(void *buffer) {
-  auto *new_heap = new (buffer) PartitionAllocator<ThreadSafe>();
-  new_heap->init({
-      PartitionOptions::AlignedAlloc::kDisallowed,
-      PartitionOptions::ThreadCache::kDisabled,
-      PartitionOptions::Quarantine::kDisallowed,
-      PartitionOptions::Cookie::kDisallowed,
-      PartitionOptions::BackupRefPtr::kDisabled,
-      PartitionOptions::BackupRefPtrZapping::kDisabled,
-      PartitionOptions::UseConfigurablePool::kNo,
-  });
+static PartitionAllocator *NewPartition(void *buffer) {
+  auto *new_heap = new (buffer) PartitionAllocator();
+  new_heap->init(partition_alloc::PartitionOptions{});
   return new_heap;
 }
 
-PartitionRoot<ThreadSafe> *SingletonPartition::GetSlowPath() {
+PartitionRoot *SingletonPartition::GetSlowPath() {
   SimpleScopedSpinLocker scoped_lock{initialization_lock_};
 
-  PartitionAllocator<ThreadSafe> *instance =
+  PartitionAllocator *instance =
       instance_.load(std::memory_order_relaxed);
 
   if (instance) {
@@ -93,7 +85,7 @@ void *ShimMallocWithPkey(size_t bytes, size_t pkey) {
   if (pkey == 0) {
     return malloc(bytes);
   } else {
-    PartitionRoot<ThreadSafe> *root = g_partitions[pkey].Get();
+    PartitionRoot *root = g_partitions[pkey].Get();
     return root->Alloc(bytes, nullptr);
   }
 }
@@ -107,7 +99,7 @@ void ShimFreeWithPkey(void *ptr, size_t pkey) {
   if (pkey == 0) {
     free(ptr);
   } else {
-    PartitionRoot<ThreadSafe> *root = g_partitions[pkey].Get();
+    PartitionRoot *root = g_partitions[pkey].Get();
     root->Free(ptr);
   }
 }
@@ -121,7 +113,7 @@ void *ShimReallocWithPkey(void *ptr, size_t size, size_t pkey) {
   if (pkey == 0) {
     return realloc(ptr, size);
   } else {
-    PartitionRoot<ThreadSafe> *root = g_partitions[pkey].Get();
+    PartitionRoot *root = g_partitions[pkey].Get();
     return root->Realloc(ptr, size, nullptr);
   }
 }
@@ -135,7 +127,7 @@ void *ShimCallocWithPkey(size_t num, size_t size, size_t pkey) {
   if (pkey == 0) {
     return calloc(num, size);
   } else {
-    PartitionRoot<ThreadSafe> *root = g_partitions[pkey].Get();
+    PartitionRoot *root = g_partitions[pkey].Get();
     size_t total;
     if (__builtin_mul_overflow(num, size, &total)) {
       abort();

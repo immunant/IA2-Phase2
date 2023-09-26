@@ -1,9 +1,9 @@
 /*
 RUN: sh -c 'if [ ! -s "global_fn_ptr_call_gates_0.ld" ]; then echo "No link args as expected"; exit 0; fi; echo "Unexpected link args"; exit 1;'
-RUN: %binary_dir/tests/global_fn_ptr/global_fn_ptr_main_wrapped | diff %S/Output/operations.out -
 */
 #include "operations.h"
 #include <ia2.h>
+#include <criterion/criterion.h>
 
 uint32_t add(uint32_t x, uint32_t y) { return x + y; }
 uint16_t sub(uint16_t x, uint16_t y) { return x - y; }
@@ -39,6 +39,7 @@ Op operations[2] IA2_SHARED_DATA = {
     },
 };
 
-int main() {
-    call_operations();
+Test(global_fn_ptr, main) {
+    cr_assert(call_operation(0) == 43312);
+    cr_assert(call_operation(1) == 461513047);
 }

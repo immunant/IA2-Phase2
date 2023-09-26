@@ -10,6 +10,7 @@
 #include <string.h>
 #include <sys/mman.h>
 
+#include <ia2_internal.h>
 #include <ia2.h>
 
 #ifndef IA2_COMPARTMENT_LIBRARIES
@@ -46,14 +47,23 @@ __thread void *COMPARTMENT_IDENT(ia2_stackptr) __attribute__((used));
 **/
 
 extern int ia2_n_pkeys_to_alloc;
+extern char __start_ia2_shared_data __attribute__((visibility("hidden"))),
+    __stop_ia2_shared_data __attribute__((visibility("hidden")));
+
 void ensure_pkeys_allocated(int *n_to_alloc);
 __attribute__((constructor)) static void COMPARTMENT_IDENT(init_pkey)() {
   ensure_pkeys_allocated(&ia2_n_pkeys_to_alloc);
+  struct IA2SharedSection shared_sections[2] = {{
+                                                    &__start_ia2_shared_data,
+                                                    &__stop_ia2_shared_data,
+                                                },
+                                                {NULL, NULL}};
   struct PhdrSearchArgs args = {
       .pkey = IA2_COMPARTMENT,
       .address = &COMPARTMENT_IDENT(init_pkey),
       .extra_libraries = IA2_COMPARTMENT_LIBRARIES,
       .found_library_count = 0,
+      .shared_sections = shared_sections,
   };
 
   __asm__ volatile(

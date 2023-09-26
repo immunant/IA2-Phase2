@@ -322,7 +322,7 @@ void UnmapNow(uintptr_t reservation_start,
   {
     PA_DCHECK(pool == kRegularPoolHandle
 #if BUILDFLAG(ENABLE_THREAD_ISOLATION)
-              || pool == kThreadIsolatedPoolHandle
+              || IsCompartmentPoolHandle(pool)
 #endif
 #if BUILDFLAG(HAS_64_BIT_POINTERS)
               ||

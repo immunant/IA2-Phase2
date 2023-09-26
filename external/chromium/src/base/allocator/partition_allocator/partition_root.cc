@@ -852,7 +852,7 @@ void PartitionRoot::DestructForTesting() {
 #if BUILDFLAG(ENABLE_THREAD_ISOLATION)
   // The pages managed by thread isolated pool will be free-ed at
   // UninitThreadIsolatedForTesting(). Don't invoke FreePages() for the pages.
-  if (pool_handle == internal::kThreadIsolatedPoolHandle) {
+  if (internal::IsCompartmentPoolHandle(pool_handle)) {
     return;
   }
   PA_DCHECK(pool_handle < internal::kNumPools);

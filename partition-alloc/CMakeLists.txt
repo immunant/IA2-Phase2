@@ -20,6 +20,7 @@ set(PA_SRCS
 	partition_alloc_base/debug/stack_trace_posix.cc
 	partition_alloc_base/logging.cc
 	partition_alloc_base/log_message.cc
+	partition_alloc_base/memory/page_size_posix.cc
 	partition_alloc_base/memory/ref_counted.cc
 	partition_alloc_base/rand_util.cc
 	partition_alloc_base/strings/cstring_builder.cc
@@ -42,6 +43,8 @@ set(PA_SRCS
 	thread_isolation/thread_isolation.cc
 	random.cc
 	reservation_offset_table.cc
+	shim/allocator_shim.cc
+	shim/nonscannable_allocator.cc
 	spinning_mutex.cc
 	starscan/metadata_allocator.cc
 	starscan/pcscan.cc
@@ -63,7 +66,8 @@ set(PA_SRCS
 list(TRANSFORM PA_SRCS PREPEND ${EXTERNAL_DIR}/chromium/src/base/allocator/partition_allocator/)
 
 add_library(partition-alloc SHARED
-    src/allocator_shim.cc
+	src/allocator_shim_default_dispatch_to_partition_alloc.cc
+	src/shared_allocator.cc
     ${PA_SRCS})
 
 target_link_libraries(partition-alloc libia2)
@@ -82,14 +86,43 @@ target_compile_options(partition-alloc
 		"-Wno-invalid-offsetof"
 		"-Wno-return-type"
 )
+target_compile_options(partition-alloc
+	PUBLIC
+		"-fno-exceptions"
+)
 target_link_options(partition-alloc
-    INTERFACE
-        "-Wl,--wrap=malloc"
-        "-Wl,--wrap=calloc"
-        "-Wl,--wrap=realloc"
-        "-Wl,--wrap=free"
     PRIVATE
         "-Wl,-z,now"
+)
+
+# Wrapping options from upstream BUILD.gn
+target_link_options(partition-alloc
+	PUBLIC
+		"-Wl,-wrap,calloc"
+		"-Wl,-wrap,free"
+		"-Wl,-wrap,malloc"
+		"-Wl,-wrap,memalign"
+		"-Wl,-wrap,posix_memalign"
+		"-Wl,-wrap,pvalloc"
+		"-Wl,-wrap,realloc"
+		"-Wl,-wrap,valloc"
+
+		# Not allocating memory, but part of the API
+		"-Wl,-wrap,malloc_usable_size"
+
+		# <stdlib.h> functions
+		"-Wl,-wrap,realpath"
+
+		# <string.h> functions
+		"-Wl,-wrap,strdup"
+		"-Wl,-wrap,strndup"
+
+		# <unistd.h> functions
+		"-Wl,-wrap,getcwd"
+
+		# <stdio.h> functions
+		"-Wl,-wrap,asprintf"
+		"-Wl,-wrap,vasprintf"
 )
 
 target_link_libraries(partition-alloc libia2)

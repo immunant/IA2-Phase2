@@ -6,9 +6,11 @@
 #define BASE_ALLOCATOR_PARTITION_ALLOCATOR_THREAD_ISOLATION_THREAD_ISOLATION_H_
 
 #include "base/allocator/partition_allocator/partition_alloc_buildflags.h"
+#include "base/allocator/partition_allocator/partition_alloc_constants.h"
 
 #if BUILDFLAG(ENABLE_THREAD_ISOLATION)
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 
@@ -25,15 +27,19 @@
 
 namespace partition_alloc {
 
+using Compartment = size_t;
+
 struct ThreadIsolationOption {
   constexpr ThreadIsolationOption() = default;
   explicit ThreadIsolationOption(bool enabled) : enabled(enabled) {}
 
 #if BUILDFLAG(ENABLE_PKEYS)
-  explicit ThreadIsolationOption(int pkey) : pkey(pkey) {
+  explicit ThreadIsolationOption(int pkey, size_t compartment)
+      : pkey(pkey), compartment(compartment) {
     enabled = pkey != internal::kInvalidPkey;
   }
   int pkey = -1;
+  Compartment compartment = 0;
 #endif  // BUILDFLAG(ENABLE_PKEYS)
 
   bool enabled = false;
@@ -61,11 +67,13 @@ struct PA_THREAD_ISOLATED_ALIGN ThreadIsolationSettings {
 
 #if BUILDFLAG(ENABLE_PKEYS)
 
-using LiftThreadIsolationScope = LiftPkeyRestrictionsScope;
+using LiftThreadIsolationScope = DoNotLiftPkeyRestrictionsScope;
 
 #endif  // BUILDFLAG(ENABLE_PKEYS)
 #endif  // BUILDFLAG(PA_DCHECK_IS_ON)
 
+void WriteProtectThreadIsolatedGlobals(
+    std::array<ThreadIsolationOption, kNumCompartments> &thread_isolations);
 void WriteProtectThreadIsolatedGlobals(ThreadIsolationOption thread_isolation);
 void UnprotectThreadIsolatedGlobals();
 [[nodiscard]] int MprotectWithThreadIsolation(

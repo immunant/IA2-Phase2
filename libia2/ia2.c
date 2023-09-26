@@ -2,10 +2,10 @@
 #define _GNU_SOURCE
 #endif
 #include <inttypes.h>
-#include <link.h>
 #include <stdio.h>
 #include <string.h>
 
+#include "ia2_internal.h"
 #include "ia2.h"
 
 __attribute__((__used__)) uint32_t ia2_get_pkru() {
@@ -78,17 +78,9 @@ size_t ia2_get_pkey() {
   }
 }
 
-static const char *const shared_sections[][2] = {
-    {"__start_ia2_shared_data", "__stop_ia2_shared_data"},
-};
-
-// The number of special ELF sections that may be shared by protect_pages
-#define NUM_SHARED_SECTIONS                                                    \
-  (sizeof(shared_sections) / sizeof(shared_sections[0]))
-
-// Reserve one extra shared range for the entire read-only segment that we are
-// also sharing, in addition to the special-cased sections above.
-#define NUM_SHARED_RANGES (NUM_SHARED_SECTIONS + 1)
+// Reserve one extra shared range for the RELRO segment that we are
+// also sharing, in addition to the special shared sections in PhdrSearchArgs.
+#define NUM_SHARED_RANGES IA2_MAX_NUM_SHARED_SECTION_COUNT + 1
 
 // The number of program headers to allocate space for in protect_pages. This is
 // only an estimate of the maximum value of dlpi_phnum below.
@@ -290,48 +282,30 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
 
   // printf("protecting library: %s\n", basename(info->dlpi_name));
 
-  void *lib = dlopen(info->dlpi_name, RTLD_NOW);
-  if (!lib)
-    exit(-1);
-
   struct AddressRange shared_ranges[NUM_SHARED_RANGES] = {0};
   size_t shared_range_count = 0;
-  for (size_t i = 0; i < NUM_SHARED_SECTIONS; i++) {
+  for (size_t i = 0; i < IA2_MAX_NUM_SHARED_SECTION_COUNT; i++) {
+    if (!search_args->shared_sections ||
+        !search_args->shared_sections[i].start ||
+        !search_args->shared_sections[i].end) {
+      break;
+    }
+
     struct AddressRange *cur_range = &shared_ranges[shared_range_count];
 
-    // Clear any potential old error conditions
-    dlerror();
-
-    cur_range->start = (uint64_t)dlsym(lib, shared_sections[i][0]);
-    if (!cur_range->start) {
-      // We didn't find the start symbol for this shared section. Either the
-      // user didn't mark any shared global data or we didn't link with the
-      // correct linker script. We can't distinguish these cases here and the
-      // first shouldn't be an error, so let's continue.
-      continue;
-    }
+    cur_range->start = (uint64_t)search_args->shared_sections[i].start;
     uint64_t aligned_start = cur_range->start & ~0xFFFUL;
     if (aligned_start != cur_range->start) {
-      printf("Start of section %s is not page-aligned\n",
-             shared_sections[i][0]);
+      printf("Start of section %p is not page-aligned\n",
+             search_args->shared_sections[i].start);
       exit(-1);
     }
 
-    cur_range->end = (uint64_t)dlsym(lib, shared_sections[i][1]);
-    char *dl_err = dlerror();
-    if (dl_err) {
-      printf("Could not find end symbol of shared section %s: %s\n",
-             shared_sections[i][1], dl_err);
-      exit(-1);
-    }
-    if (!cur_range->end) {
-      printf("End symbol of shared section %s was unexpectedly NULL\n",
-             shared_sections[i][1]);
-      exit(-1);
-    }
+    cur_range->end = (uint64_t)search_args->shared_sections[i].end;
     uint64_t aligned_end = (cur_range->end + 0xFFFUL) & ~0xFFFUL;
     if (aligned_end != cur_range->end) {
-      printf("End of section %s is not page-aligned\n", shared_sections[i][1]);
+      printf("End of section %p is not page-aligned\n",
+             search_args->shared_sections[i].end);
       exit(-1);
     }
 

@@ -4,13 +4,7 @@
 
 void trigger_compartment_init(void);
 
-#define DECLARE_FUNCTIONS(ty)                          \
-    ty read_##ty(ty *ptr);                             \
-    ty read_##ty##_expect_fault(ty *ptr);              \
-    void write_##ty(ty *ptr, ty value);                \
-    void write_##ty##_expect_fault(ty *ptr, ty value)
-
-DECLARE_FUNCTIONS(uint8_t);
-DECLARE_FUNCTIONS(uint16_t);
-DECLARE_FUNCTIONS(uint32_t);
-DECLARE_FUNCTIONS(uint64_t);
+uint8_t read_from_plugin(uint8_t *ptr);
+uint8_t read_from_plugin_expect_fault(uint8_t *ptr);
+void write_from_plugin(uint8_t *ptr, uint8_t value);
+void write_from_plugin_expect_fault(uint8_t *ptr, uint8_t value);

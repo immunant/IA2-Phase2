@@ -1,9 +1,9 @@
 /*
 RUN: sh -c 'if [ ! -s "heap_two_keys_call_gates_0.ld" ]; then echo "No link args as expected"; exit 0; fi; echo "Unexpected link args"; exit 1;'
-TODO: %binary_dir/tests/heap_two_keys/heap_two_keys_main_wrapped 0 | diff %S/Output/plugin.out -
-// TODO(src_rewriter_wip): had to change the output here, why?
-RUN: %binary_dir/tests/heap_two_keys/heap_two_keys_main_wrapped 1 | diff %S/Output/main.out -
-TODO: %binary_dir/tests/heap_two_keys/heap_two_keys_main_wrapped 2 | diff %S/Output/clean_exit.out -
+RUN: %binary_dir/tests/heap_two_keys/heap_two_keys_main_wrapped 0 | diff %S/Output/clean_exit.out -
+RUN: %binary_dir/tests/heap_two_keys/heap_two_keys_main_wrapped 1 | diff %S/Output/fault.out -
+RUN: %binary_dir/tests/heap_two_keys/heap_two_keys_main_wrapped 2 | diff %S/Output/fault.out -
+RUN: %binary_dir/tests/heap_two_keys/heap_two_keys_main_wrapped 3 | diff %S/Output/clean_exit.out -
 */
 #include <stdio.h>
 #include <unistd.h>
@@ -20,7 +20,6 @@ INIT_RUNTIME(2);
 #include <ia2_compartment_init.inc>
 
 // Test that the program can exit without error
-// TODO(#112): it cannot.
 int test_0() {
     return 0;
 }
@@ -33,7 +32,7 @@ int test_1() {
         return -1;
     }
     *x = 0x09431233;
-    read_uint32_t_expect_fault(x);
+    read_from_plugin_expect_fault((uint8_t*)x);
     free(x);
     // This test shouldn't return
     return -1;
@@ -47,7 +46,7 @@ int test_2() {
         LOG("Failed to allocate memory on the heap");
         return -1;
     }
-    write_uint8_t_expect_fault(x, 12);
+    write_from_plugin_expect_fault(x, 12);
     free(x);
     // This test shouldn't return
     return -1;
@@ -61,7 +60,7 @@ int test_3() {
         return -1;
     }
     *x = 0xffed;
-    assert(read_uint16_t(x) == 0xffed);
+    assert(read_from_plugin((uint8_t*)x) == 0xed);
     shared_free(x);
     return 0;
 }

@@ -53,6 +53,8 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) LiftPkeyRestrictionsScope {
   uint32_t saved_pkey_value_;
 };
 
+class PA_COMPONENT_EXPORT(PARTITION_ALLOC) DoNotLiftPkeyRestrictionsScope {};
+
 #endif  // BUILDFLAG(PA_DCHECK_IS_ON)
 
 }  // namespace partition_alloc::internal

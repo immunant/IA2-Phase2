@@ -18,6 +18,11 @@
 #include <algorithm>
 #include <cstring>
 
+#if !BUILDFLAG(IS_ANDROID)
+// For va_*
+#include <stdarg.h>
+#endif
+
 #include "base/allocator/partition_allocator/shim/allocator_shim_internals.h"
 
 extern "C" {

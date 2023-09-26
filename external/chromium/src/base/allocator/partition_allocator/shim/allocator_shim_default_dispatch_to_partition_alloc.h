@@ -22,6 +22,8 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionAllocMalloc {
   static partition_alloc::PartitionRoot* OriginalAllocator();
   // May return the same pointer as |Allocator()|.
   static partition_alloc::PartitionRoot* AlignedAllocator();
+  // May return the same pointer as |Allocator()|.
+  static partition_alloc::PartitionRoot* SharedAllocator();
 };
 
 PA_COMPONENT_EXPORT(PARTITION_ALLOC)

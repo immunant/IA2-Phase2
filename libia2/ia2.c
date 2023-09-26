@@ -227,6 +227,7 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
     // it is followed by padding that ensures nothing else occupies the rest of
     // its page.
     if (untrusted_stackptr_addr >= start && untrusted_stackptr_addr < end) {
+      // Protect TLS region start to the beginning of the untrusted region.
       int mprotect_err = pkey_mprotect(
           (void *)start_round_down, untrusted_stackptr_addr - start_round_down,
           PROT_READ | PROT_WRITE, search_args->pkey);
@@ -234,12 +235,16 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
         printf("pkey_mprotect failed: %s\n", strerror(errno));
         exit(-1);
       }
-      mprotect_err = pkey_mprotect((void *)untrusted_stackptr_addr + 0x1000,
-                                   end - (untrusted_stackptr_addr + 0x1000),
-                                   PROT_READ | PROT_WRITE, search_args->pkey);
-      if (mprotect_err != 0) {
-        printf("pkey_mprotect failed: %s\n", strerror(errno));
-        exit(-1);
+      uint64_t after_untrusted_region_start = untrusted_stackptr_addr + 0x1000;
+      uint64_t after_untrusted_region_len = end - after_untrusted_region_start;
+      if (after_untrusted_region_len > 0) {
+        mprotect_err = pkey_mprotect((void *)after_untrusted_region_start,
+                                     after_untrusted_region_len,
+                                     PROT_READ | PROT_WRITE, search_args->pkey);
+        if (mprotect_err != 0) {
+          printf("pkey_mprotect failed: %s\n", strerror(errno));
+          exit(-1);
+        }
       }
     } else {
       int mprotect_err =

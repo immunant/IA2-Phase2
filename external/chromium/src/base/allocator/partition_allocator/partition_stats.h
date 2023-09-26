@@ -37,9 +37,9 @@ struct ThreadCacheStats {
   uint32_t bucket_total_memory;
   uint32_t metadata_overhead;
 
-#if defined(PA_THREAD_CACHE_ALLOC_STATS)
+#if PA_CONFIG(THREAD_CACHE_ALLOC_STATS)
   uint64_t allocs_per_bucket_[internal::kNumBuckets + 1];
-#endif  // defined(PA_THREAD_CACHE_ALLOC_STATS)
+#endif  // PA_CONFIG(THREAD_CACHE_ALLOC_STATS)
 };
 
 // Per-thread allocation statistics. Only covers allocations made through the
@@ -118,6 +118,8 @@ struct PartitionBucketMemoryStats {
 // PartitionDumpStats for using the memory statistics.
 class PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionStatsDumper {
  public:
+  virtual ~PartitionStatsDumper() = default;
+
   // Called to dump total memory used by partition, once per partition.
   virtual void PartitionDumpTotals(const char* partition_name,
                                    const PartitionMemoryStats*) = 0;
@@ -133,6 +135,7 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) SimplePartitionStatsDumper
     : public PartitionStatsDumper {
  public:
   SimplePartitionStatsDumper();
+  ~SimplePartitionStatsDumper() override = default;
 
   void PartitionDumpTotals(const char* partition_name,
                            const PartitionMemoryStats* memory_stats) override;

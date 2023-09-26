@@ -16,9 +16,6 @@
 #include "base/allocator/partition_allocator/partition_alloc_buildflags.h"
 #include "build/build_config.h"
 
-#define PA_STRINGIFY_IMPL(s) #s
-#define PA_STRINGIFY(s) PA_STRINGIFY_IMPL(s)
-
 // When PartitionAlloc is used as the default allocator, we cannot use the
 // regular (D)CHECK() macros, as they allocate internally. When an assertion is
 // triggered, they format strings, leading to reentrancy in the code, which none
@@ -28,23 +25,13 @@
 // As a consequence:
 // - When PartitionAlloc is not malloc(), use the regular macros
 // - Otherwise, crash immediately. This provides worse error messages though.
-#if BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+#if BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) && !PA_BASE_CHECK_WILL_STREAM()
+
 // For official build discard log strings to reduce binary bloat.
-#if !CHECK_WILL_STREAM()
 // See base/check.h for implementation details.
 #define PA_CHECK(condition)                        \
   PA_UNLIKELY(!(condition)) ? PA_IMMEDIATE_CRASH() \
                             : PA_EAT_CHECK_STREAM_PARAMS()
-#else
-// PartitionAlloc uses async-signal-safe RawCheck() for error reporting.
-// Async-signal-safe functions are guaranteed to not allocate as otherwise they
-// could operate with inconsistent allocator state.
-#define PA_CHECK(condition)                                                \
-  PA_UNLIKELY(!(condition))                                                \
-  ? ::partition_alloc::internal::logging::RawCheck(                        \
-        __FILE__ "(" PA_STRINGIFY(__LINE__) ") Check failed: " #condition) \
-  : PA_EAT_CHECK_STREAM_PARAMS()
-#endif  // !CHECK_WILL_STREAM()
 
 #if BUILDFLAG(PA_DCHECK_IS_ON)
 #define PA_DCHECK(condition) PA_CHECK(condition)
@@ -65,12 +52,14 @@
 #define PA_DPCHECK(condition) PA_EAT_CHECK_STREAM_PARAMS(!(condition))
 #endif  // BUILDFLAG(PA_DCHECK_IS_ON)
 
-#else
+#else  // BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) &&
+       // !PA_BASE_CHECK_WILL_STREAM()
 #define PA_CHECK(condition) PA_BASE_CHECK(condition)
 #define PA_DCHECK(condition) PA_BASE_DCHECK(condition)
 #define PA_PCHECK(condition) PA_BASE_PCHECK(condition)
 #define PA_DPCHECK(condition) PA_BASE_DPCHECK(condition)
-#endif  // BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+#endif  // BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) &&
+        // !PA_BASE_CHECK_WILL_STREAM()
 
 // Expensive dchecks that run within *Scan. These checks are only enabled in
 // debug builds with dchecks enabled.
@@ -118,24 +107,27 @@
 
 namespace partition_alloc::internal {
 
+static constexpr size_t kDebugKeyMaxLength = 8ull;
+
 // Used for PA_DEBUG_DATA_ON_STACK, below.
 struct PA_DEBUGKV_ALIGN DebugKv {
   // 16 bytes object aligned on 16 bytes, to make it easier to see in crash
   // reports.
-  char k[8] = {};  // Not necessarily 0-terminated.
+  char k[kDebugKeyMaxLength] = {};  // Not necessarily 0-terminated.
   uint64_t v = 0;
 
   DebugKv(const char* key, uint64_t value) : v(value) {
     // Fill with ' ', so that the stack dump is nicer to read.  Not using
     // memset() on purpose, this header is included from *many* places.
-    for (int index = 0; index < 8; index++) {
+    for (size_t index = 0; index < sizeof k; index++) {
       k[index] = ' ';
     }
 
-    for (int index = 0; index < 8; index++) {
+    for (size_t index = 0; index < sizeof k; index++) {
       k[index] = key[index];
-      if (key[index] == '\0')
+      if (key[index] == '\0') {
         break;
+      }
     }
   }
 };
@@ -165,6 +157,8 @@ struct PA_DEBUGKV_ALIGN DebugKv {
 // x/8g <STACK_POINTER>
 // to see the data. With lldb, "x <STACK_POINTER> <FRAME_POJNTER>" can be used.
 #define PA_DEBUG_DATA_ON_STACK(name, value)                               \
+  static_assert(sizeof name <=                                            \
+                ::partition_alloc::internal::kDebugKeyMaxLength + 1);     \
   ::partition_alloc::internal::DebugKv PA_DEBUG_UNIQUE_NAME{name, value}; \
   ::partition_alloc::internal::base::debug::Alias(&PA_DEBUG_UNIQUE_NAME);
 

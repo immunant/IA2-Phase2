@@ -5,12 +5,13 @@
 #include "base/allocator/partition_allocator/starscan/scan_loop.h"
 
 #include "base/allocator/partition_allocator/partition_alloc_base/cpu.h"
+#include "base/allocator/partition_allocator/partition_alloc_buildflags.h"
 #include "base/allocator/partition_allocator/partition_alloc_config.h"
 #include "build/build_config.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if defined(PA_HAS_64_BITS_POINTERS)
+#if BUILDFLAG(HAS_64_BIT_POINTERS)
 
 namespace partition_alloc::internal {
 
@@ -82,8 +83,9 @@ TEST(PartitionAllocScanLoopTest, UnvectorizedWithRegularPool) {
 #if defined(ARCH_CPU_X86_64)
 TEST(PartitionAllocScanLoopTest, VectorizedSSE4) {
   base::CPU cpu;
-  if (!cpu.has_sse41())
+  if (!cpu.has_sse41()) {
     return;
+  }
   {
     TestScanLoop sl(SimdSupport::kSSE41);
     TestOnRangeWithAlignment<16>(sl, 0u, kInvalidPtr, kInvalidPtr, kInvalidPtr);
@@ -104,8 +106,9 @@ TEST(PartitionAllocScanLoopTest, VectorizedSSE4) {
 
 TEST(PartitionAllocScanLoopTest, VectorizedAVX2) {
   base::CPU cpu;
-  if (!cpu.has_avx2())
+  if (!cpu.has_avx2()) {
     return;
+  }
   {
     TestScanLoop sl(SimdSupport::kAVX2);
     TestOnRangeWithAlignment<32>(sl, 0u, kInvalidPtr, kInvalidPtr, kInvalidPtr,
@@ -140,7 +143,7 @@ TEST(PartitionAllocScanLoopTest, VectorizedAVX2) {
 }
 #endif  // defined(ARCH_CPU_X86_64)
 
-#if defined(PA_STARSCAN_NEON_SUPPORTED)
+#if PA_CONFIG(STARSCAN_NEON_SUPPORTED)
 TEST(PartitionAllocScanLoopTest, VectorizedNEON) {
   {
     TestScanLoop sl(SimdSupport::kNEON);
@@ -164,8 +167,8 @@ TEST(PartitionAllocScanLoopTest, VectorizedNEON) {
     TestOnRangeWithAlignment<16>(sl, 1u, kInvalidPtr, kValidPtr, kZeroPtr);
   }
 }
-#endif  // defined(PA_STARSCAN_NEON_SUPPORTED)
+#endif  // PA_CONFIG(STARSCAN_NEON_SUPPORTED)
 
 }  // namespace partition_alloc::internal
 
-#endif  // defined(PA_HAS_64_BITS_POINTERS)
+#endif  // BUILDFLAG(HAS_64_BIT_POINTERS)

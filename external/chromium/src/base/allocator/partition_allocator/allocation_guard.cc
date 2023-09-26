@@ -6,7 +6,7 @@
 #include "base/allocator/partition_allocator/partition_alloc_base/immediate_crash.h"
 #include "base/allocator/partition_allocator/partition_alloc_config.h"
 
-#if defined(PA_HAS_ALLOCATION_GUARD)
+#if PA_CONFIG(HAS_ALLOCATION_GUARD)
 
 namespace partition_alloc {
 
@@ -15,8 +15,9 @@ thread_local bool g_disallow_allocations;
 }  // namespace
 
 ScopedDisallowAllocations::ScopedDisallowAllocations() {
-  if (g_disallow_allocations)
+  if (g_disallow_allocations) {
     PA_IMMEDIATE_CRASH();
+  }
 
   g_disallow_allocations = true;
 }
@@ -38,4 +39,4 @@ ScopedAllowAllocations::~ScopedAllowAllocations() {
 
 }  // namespace partition_alloc
 
-#endif  // defined(PA_HAS_ALLOCATION_GUARD)
+#endif  // PA_CONFIG(HAS_ALLOCATION_GUARD)

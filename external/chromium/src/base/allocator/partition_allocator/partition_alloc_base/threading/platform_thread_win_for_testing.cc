@@ -7,14 +7,14 @@
 #include <stddef.h>
 
 #include "base/allocator/partition_allocator/oom.h"
+#include "base/allocator/partition_allocator/partition_alloc_base/check.h"
 #include "base/allocator/partition_allocator/partition_alloc_base/debug/alias.h"
 #include "base/allocator/partition_allocator/partition_alloc_buildflags.h"
-#include "base/allocator/partition_allocator/partition_alloc_check.h"
 #include "build/build_config.h"
 
 #include <windows.h>
 
-#if BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+#if BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) && BUILDFLAG(USE_STARSCAN)
 #include "base/allocator/partition_allocator/starscan/pcscan.h"
 #include "base/allocator/partition_allocator/starscan/stack/stack.h"
 #endif
@@ -62,7 +62,7 @@ DWORD __stdcall ThreadFunc(void* params) {
                                  GetCurrentProcess(), &platform_handle, 0,
                                  FALSE, DUPLICATE_SAME_ACCESS);
 
-#if BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+#if BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) && BUILDFLAG(USE_STARSCAN)
   PCScan::NotifyThreadCreated(GetStackPointer());
 #endif
 
@@ -74,7 +74,7 @@ DWORD __stdcall ThreadFunc(void* params) {
   delete thread_params;
   delegate->ThreadMain();
 
-#if BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+#if BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) && BUILDFLAG(USE_STARSCAN)
   PCScan::NotifyThreadDestroyed();
 #endif
   return 0;
@@ -155,7 +155,7 @@ void PlatformThreadForTesting::YieldCurrentThread() {
 
 // static
 void PlatformThreadForTesting::Join(PlatformThreadHandle thread_handle) {
-  PA_DCHECK(thread_handle.platform_handle());
+  PA_BASE_DCHECK(thread_handle.platform_handle());
 
   DWORD thread_id = 0;
   thread_id = ::GetThreadId(thread_handle.platform_handle());
@@ -177,8 +177,8 @@ void PlatformThreadForTesting::Join(PlatformThreadHandle thread_handle) {
 
   // Wait for the thread to exit.  It should already have terminated but make
   // sure this assumption is valid.
-  PA_CHECK(WAIT_OBJECT_0 ==
-           WaitForSingleObject(thread_handle.platform_handle(), INFINITE));
+  PA_BASE_CHECK(WAIT_OBJECT_0 ==
+                WaitForSingleObject(thread_handle.platform_handle(), INFINITE));
   CloseHandle(thread_handle.platform_handle());
 }
 
@@ -186,7 +186,7 @@ void PlatformThreadForTesting::Join(PlatformThreadHandle thread_handle) {
 bool PlatformThreadForTesting::Create(size_t stack_size,
                                       Delegate* delegate,
                                       PlatformThreadHandle* thread_handle) {
-  PA_DCHECK(thread_handle);
+  PA_BASE_DCHECK(thread_handle);
   return CreateThreadInternal(stack_size, delegate, thread_handle);
 }
 

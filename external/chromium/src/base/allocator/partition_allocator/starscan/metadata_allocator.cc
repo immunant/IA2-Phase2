@@ -12,31 +12,23 @@
 namespace partition_alloc::internal {
 
 namespace {
-constexpr PartitionOptions kConfig{
-    PartitionOptions::AlignedAlloc::kDisallowed,
-    PartitionOptions::ThreadCache::kDisabled,
-    PartitionOptions::Quarantine::kDisallowed,
-    PartitionOptions::Cookie::kAllowed,
-    PartitionOptions::BackupRefPtr::kDisabled,
-    PartitionOptions::BackupRefPtrZapping::kDisabled,
-    PartitionOptions::UseConfigurablePool::kNo,
-};
+constexpr PartitionOptions kConfig{};
 }  // namespace
 
 PA_COMPONENT_EXPORT(PARTITION_ALLOC)
-ThreadSafePartitionRoot& PCScanMetadataAllocator() {
-  static internal::base::NoDestructor<ThreadSafePartitionRoot> allocator(
-      kConfig);
+PartitionRoot& PCScanMetadataAllocator() {
+  static internal::base::NoDestructor<PartitionRoot> allocator(kConfig);
   return *allocator;
 }
 
+// TODO(tasak): investigate whether PartitionAlloc tests really need this
+// function or not. If we found no tests need, remove it.
 void ReinitPCScanMetadataAllocatorForTesting() {
   // First, purge memory owned by PCScanMetadataAllocator.
   PCScanMetadataAllocator().PurgeMemory(PurgeFlags::kDecommitEmptySlotSpans |
                                         PurgeFlags::kDiscardUnusedSystemPages);
   // Then, reinit the allocator.
-  PCScanMetadataAllocator().~PartitionRoot();
-  memset(&PCScanMetadataAllocator(), 0, sizeof(PCScanMetadataAllocator()));
+  PCScanMetadataAllocator().ResetForTesting(true);  // IN-TEST
   PCScanMetadataAllocator().Init(kConfig);
 }
 

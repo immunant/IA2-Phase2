@@ -14,10 +14,10 @@
 #include <unistd.h>
 #include <memory>
 
+#include "base/allocator/partition_allocator/partition_alloc_base/check.h"
 #include "base/allocator/partition_allocator/partition_alloc_base/logging.h"
 #include "base/allocator/partition_allocator/partition_alloc_base/threading/platform_thread_internal_posix.h"
 #include "base/allocator/partition_allocator/partition_alloc_buildflags.h"
-#include "base/allocator/partition_allocator/partition_alloc_check.h"
 #include "build/build_config.h"
 
 #if BUILDFLAG(IS_FUCHSIA)
@@ -26,7 +26,7 @@
 #include <sys/resource.h>
 #endif
 
-#if BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+#if BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) && BUILDFLAG(USE_STARSCAN)
 #include "base/allocator/partition_allocator/starscan/pcscan.h"
 #include "base/allocator/partition_allocator/starscan/stack/stack.h"
 #endif
@@ -52,16 +52,14 @@ void* ThreadFunc(void* params) {
 
     delegate = thread_params->delegate;
 
-#if !BUILDFLAG(IS_NACL)
-#if BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+#if BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) && BUILDFLAG(USE_STARSCAN)
     PCScan::NotifyThreadCreated(GetStackPointer());
-#endif
 #endif
   }
 
   delegate->ThreadMain();
 
-#if !BUILDFLAG(IS_NACL) && BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+#if BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) && BUILDFLAG(USE_STARSCAN)
   PCScan::NotifyThreadDestroyed();
 #endif
 
@@ -72,18 +70,20 @@ void* ThreadFunc(void* params) {
 bool CreateThread(size_t stack_size,
                   PlatformThreadForTesting::Delegate* delegate,
                   PlatformThreadHandle* thread_handle) {
-  PA_DCHECK(thread_handle);
+  PA_BASE_DCHECK(thread_handle);
   base::InitThreading();
 
   pthread_attr_t attributes;
   pthread_attr_init(&attributes);
 
   // Get a better default if available.
-  if (stack_size == 0)
+  if (stack_size == 0) {
     stack_size = base::GetDefaultThreadStackSize(attributes);
+  }
 
-  if (stack_size > 0)
+  if (stack_size > 0) {
     pthread_attr_setstacksize(&attributes, stack_size);
+  }
 
   std::unique_ptr<ThreadParams> params(new ThreadParams);
   params->delegate = delegate;
@@ -136,7 +136,7 @@ void PlatformThreadForTesting::Join(PlatformThreadHandle thread_handle) {
   //
   // base::internal::ScopedBlockingCallWithBaseSyncPrimitives
   //   scoped_blocking_call(base::BlockingType::MAY_BLOCK);
-  PA_CHECK(0 == pthread_join(thread_handle.platform_handle(), nullptr));
+  PA_BASE_CHECK(0 == pthread_join(thread_handle.platform_handle(), nullptr));
 }
 
 // static

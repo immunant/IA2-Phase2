@@ -73,7 +73,11 @@ class PA_LOCKABLE PA_COMPONENT_EXPORT(PARTITION_ALLOC) SpinningMutex {
 
  private:
   PA_NOINLINE void AcquireSpinThenBlock() PA_EXCLUSIVE_LOCK_FUNCTION();
+#if PA_CONFIG(HAS_FAST_MUTEX)
   void LockSlow() PA_EXCLUSIVE_LOCK_FUNCTION();
+#else
+  PA_ALWAYS_INLINE void LockSlow() PA_EXCLUSIVE_LOCK_FUNCTION();
+#endif
 
   // See below, the latency of PA_YIELD_PROCESSOR can be as high as ~150
   // cycles. Meanwhile, sleeping costs a few us. Spinning 64 times at 3GHz would
@@ -83,9 +87,9 @@ class PA_LOCKABLE PA_COMPONENT_EXPORT(PARTITION_ALLOC) SpinningMutex {
   // more.
   static constexpr int kSpinCount = 64;
 
-#if defined(PA_HAS_FAST_MUTEX)
+#if PA_CONFIG(HAS_FAST_MUTEX)
 
-#if defined(PA_HAS_LINUX_KERNEL)
+#if PA_CONFIG(HAS_LINUX_KERNEL)
   void FutexWait();
   void FutexWake();
 
@@ -104,32 +108,33 @@ class PA_LOCKABLE PA_COMPONENT_EXPORT(PARTITION_ALLOC) SpinningMutex {
   sync_mutex lock_;
 #endif
 
-#else  // defined(PA_HAS_FAST_MUTEX)
+#else   // PA_CONFIG(HAS_FAST_MUTEX)
   std::atomic<bool> lock_{false};
 
   // Spinlock-like, fallback.
   PA_ALWAYS_INLINE bool TrySpinLock();
   PA_ALWAYS_INLINE void ReleaseSpinLock();
   void LockSlowSpinLock();
-#endif  // defined(PA_HAS_FAST_MUTEX)
+#endif  // PA_CONFIG(HAS_FAST_MUTEX)
 };
 
 PA_ALWAYS_INLINE void SpinningMutex::Acquire() {
   // Not marked PA_LIKELY(), as:
   // 1. We don't know how much contention the lock would experience
   // 2. This may lead to weird-looking code layout when inlined into a caller
-  // with (UN)PA_LIKELY() annotations.
-  if (Try())
+  // with PA_(UN)LIKELY() annotations.
+  if (Try()) {
     return;
+  }
 
   return AcquireSpinThenBlock();
 }
 
 inline constexpr SpinningMutex::SpinningMutex() = default;
 
-#if defined(PA_HAS_FAST_MUTEX)
+#if PA_CONFIG(HAS_FAST_MUTEX)
 
-#if defined(PA_HAS_LINUX_KERNEL)
+#if PA_CONFIG(HAS_LINUX_KERNEL)
 
 PA_ALWAYS_INLINE bool SpinningMutex::Try() {
   // Using the weak variant of compare_exchange(), which may fail spuriously. On
@@ -211,7 +216,7 @@ PA_ALWAYS_INLINE void SpinningMutex::Release() {
 
 #endif
 
-#else  // defined(PA_HAS_FAST_MUTEX)
+#else  // PA_CONFIG(HAS_FAST_MUTEX)
 
 PA_ALWAYS_INLINE bool SpinningMutex::Try() {
   // Possibly faster than CAS. The theory is that if the cacheline is shared,
@@ -228,7 +233,7 @@ PA_ALWAYS_INLINE void SpinningMutex::LockSlow() {
   return LockSlowSpinLock();
 }
 
-#endif  // defined(PA_HAS_FAST_MUTEX)
+#endif  // PA_CONFIG(HAS_FAST_MUTEX)
 
 }  // namespace partition_alloc::internal
 

@@ -15,7 +15,7 @@
 #include "base/allocator/partition_allocator/partition_alloc_check.h"
 #include "build/build_config.h"
 
-#if defined(PA_STARSCAN_UFFD_WRITE_PROTECTOR_SUPPORTED)
+#if PA_CONFIG(STARSCAN_UFFD_WRITE_PROTECTOR_SUPPORTED)
 #include <fcntl.h>
 #include <linux/userfaultfd.h>
 #include <poll.h>
@@ -23,7 +23,7 @@
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
-#endif  // defined(PA_STARSCAN_UFFD_WRITE_PROTECTOR_SUPPORTED)
+#endif  // PA_CONFIG(STARSCAN_UFFD_WRITE_PROTECTOR_SUPPORTED)
 
 namespace partition_alloc::internal {
 
@@ -31,7 +31,8 @@ PCScan::ClearType NoWriteProtector::SupportedClearType() const {
   return PCScan::ClearType::kLazy;
 }
 
-#if defined(PA_STARSCAN_UFFD_WRITE_PROTECTOR_SUPPORTED)
+#if PA_CONFIG(STARSCAN_UFFD_WRITE_PROTECTOR_SUPPORTED)
+
 namespace {
 void UserFaultFDThread(int uffd) {
   PA_DCHECK(-1 != uffd);
@@ -111,13 +112,15 @@ void UserFaultFDWPSet(int uffd,
 }  // namespace
 
 void UserFaultFDWriteProtector::ProtectPages(uintptr_t begin, size_t length) {
-  if (IsSupported())
+  if (IsSupported()) {
     UserFaultFDWPSet(uffd_, begin, length, UserFaultFDWPMode::kProtect);
+  }
 }
 
 void UserFaultFDWriteProtector::UnprotectPages(uintptr_t begin, size_t length) {
-  if (IsSupported())
+  if (IsSupported()) {
     UserFaultFDWPSet(uffd_, begin, length, UserFaultFDWPMode::kUnprotect);
+  }
 }
 
 PCScan::ClearType UserFaultFDWriteProtector::SupportedClearType() const {
@@ -128,6 +131,6 @@ bool UserFaultFDWriteProtector::IsSupported() const {
   return uffd_ != -1;
 }
 
-#endif  // defined(PA_STARSCAN_UFFD_WRITE_PROTECTOR_SUPPORTED)
+#endif  // PA_CONFIG(STARSCAN_UFFD_WRITE_PROTECTOR_SUPPORTED)
 
 }  // namespace partition_alloc::internal

@@ -14,7 +14,7 @@
 namespace partition_alloc::internal {
 
 PA_COMPONENT_EXPORT(PARTITION_ALLOC)
-ThreadSafePartitionRoot& PCScanMetadataAllocator();
+PartitionRoot& PCScanMetadataAllocator();
 void ReinitPCScanMetadataAllocatorForTesting();
 
 // STL allocator which is needed to keep internal data structures required by
@@ -46,37 +46,38 @@ class MetadataAllocator {
 
   value_type* allocate(size_t size) {
     return static_cast<value_type*>(
-        PCScanMetadataAllocator().AllocWithFlagsNoHooks(
-            0, size * sizeof(value_type), PartitionPageSize()));
+        PCScanMetadataAllocator()
+            .AllocInline<partition_alloc::AllocFlags::kNoHooks>(
+                size * sizeof(value_type)));
   }
 
   void deallocate(value_type* ptr, size_t size) {
-    PCScanMetadataAllocator().FreeNoHooks(ptr);
+    PCScanMetadataAllocator().FreeInline<FreeFlags::kNoHooks>(ptr);
   }
 };
 
 // Inherit from it to make a class allocated on the metadata partition.
 struct AllocatedOnPCScanMetadataPartition {
   static void* operator new(size_t size) {
-    return PCScanMetadataAllocator().AllocWithFlagsNoHooks(0, size,
-                                                           PartitionPageSize());
+    return PCScanMetadataAllocator()
+        .AllocInline<partition_alloc::AllocFlags::kNoHooks>(size);
   }
   static void operator delete(void* ptr) {
-    PCScanMetadataAllocator().FreeNoHooks(ptr);
+    PCScanMetadataAllocator().FreeInline<FreeFlags::kNoHooks>(ptr);
   }
 };
 
 template <typename T, typename... Args>
 T* MakePCScanMetadata(Args&&... args) {
-  auto* memory =
-      static_cast<T*>(PCScanMetadataAllocator().AllocWithFlagsNoHooks(
-          0, sizeof(T), PartitionPageSize()));
+  auto* memory = static_cast<T*>(
+      PCScanMetadataAllocator()
+          .AllocInline<partition_alloc::AllocFlags::kNoHooks>(sizeof(T)));
   return new (memory) T(std::forward<Args>(args)...);
 }
 
 struct PCScanMetadataDeleter final {
   inline void operator()(void* ptr) const {
-    PCScanMetadataAllocator().FreeNoHooks(ptr);
+    PCScanMetadataAllocator().FreeInline<FreeFlags::kNoHooks>(ptr);
   }
 };
 

@@ -10,15 +10,12 @@
 #include "base/allocator/partition_allocator/page_allocator.h"
 #include "base/allocator/partition_allocator/partition_alloc_base/compiler_specific.h"
 #include "base/allocator/partition_allocator/partition_alloc_base/component_export.h"
+#include "base/allocator/partition_allocator/partition_alloc_config.h"
 #include "base/allocator/partition_allocator/partition_alloc_forward.h"
 #include "base/allocator/partition_allocator/partition_direct_map_extent.h"
 #include "base/allocator/partition_allocator/partition_page.h"
 #include "base/allocator/partition_allocator/starscan/pcscan_scheduling.h"
 #include "base/allocator/partition_allocator/tagging.h"
-
-// Double free detection comes with expensive cmpxchg (with the loop around it).
-// We currently disable it to improve the runtime.
-#define PA_STARSCAN_EAGER_DOUBLE_FREE_DETECTION_ENABLED 0
 
 namespace partition_alloc {
 
@@ -26,8 +23,8 @@ class StatsReporter;
 
 namespace internal {
 
-[[noreturn]] PA_COMPONENT_EXPORT(PARTITION_ALLOC) PA_NOINLINE PA_NOT_TAIL_CALLED
-    void DoubleFreeAttempt();
+[[noreturn]] PA_NOINLINE PA_NOT_TAIL_CALLED
+    PA_COMPONENT_EXPORT(PARTITION_ALLOC) void DoubleFreeAttempt();
 
 // PCScan (Probabilistic Conservative Scanning) is the algorithm that eliminates
 // use-after-free bugs by verifying that there are no pointers in memory which
@@ -42,8 +39,8 @@ namespace internal {
 // The driver class encapsulates the entire PCScan infrastructure.
 class PA_COMPONENT_EXPORT(PARTITION_ALLOC) PCScan final {
  public:
-  using Root = PartitionRoot<ThreadSafe>;
-  using SlotSpan = SlotSpanMetadata<ThreadSafe>;
+  using Root = PartitionRoot;
+  using SlotSpan = SlotSpanMetadata;
 
   enum class InvocationMode {
     kBlocking,
@@ -112,10 +109,10 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) PCScan final {
   static void PerformDelayedScan(int64_t delay_in_microseconds);
 
   // Enables safepoints in mutator threads.
-  static void EnableSafepoints();
+  PA_ALWAYS_INLINE static void EnableSafepoints();
   // Join scan from safepoint in mutator thread. As soon as PCScan is scheduled,
   // mutators can join PCScan helping out with clearing and scanning.
-  static void JoinScanIfNeeded();
+  PA_ALWAYS_INLINE static void JoinScanIfNeeded();
 
   // Checks if there is a PCScan task currently in progress.
   PA_ALWAYS_INLINE static bool IsInProgress();
@@ -139,7 +136,7 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) PCScan final {
 
   static void UninitForTesting();
 
-  inline static PCScanScheduler& scheduler();
+  static inline PCScanScheduler& scheduler();
 
   // Registers reporting class.
   static void RegisterStatsReporter(partition_alloc::StatsReporter* reporter);
@@ -228,8 +225,9 @@ PA_ALWAYS_INLINE void PCScan::EnableSafepoints() {
 
 PA_ALWAYS_INLINE void PCScan::JoinScanIfNeeded() {
   PCScan& instance = Instance();
-  if (PA_UNLIKELY(instance.IsJoinable()))
+  if (PA_UNLIKELY(instance.IsJoinable())) {
     instance.JoinScan();
+  }
 }
 
 PA_ALWAYS_INLINE void PCScan::MoveToQuarantine(void* object,
@@ -253,18 +251,20 @@ PA_ALWAYS_INLINE void PCScan::MoveToQuarantine(void* object,
   // the clearing to avoid racing with *Scan Sweeper.
   [[maybe_unused]] const bool succeeded =
       state_bitmap->Quarantine(slot_start, instance.epoch());
-#if PA_STARSCAN_EAGER_DOUBLE_FREE_DETECTION_ENABLED
-  if (PA_UNLIKELY(!succeeded))
+#if PA_CONFIG(STARSCAN_EAGER_DOUBLE_FREE_DETECTION_ENABLED)
+  if (PA_UNLIKELY(!succeeded)) {
     DoubleFreeAttempt();
+  }
 #else
   // The compiler is able to optimize cmpxchg to a lock-prefixed and.
-#endif
+#endif  // PA_CONFIG(STARSCAN_EAGER_DOUBLE_FREE_DETECTION_ENABLED)
 
   const bool is_limit_reached = instance.scheduler_.AccountFreed(slot_size);
   if (PA_UNLIKELY(is_limit_reached)) {
     // Perform a quick check if another scan is already in progress.
-    if (instance.IsInProgress())
+    if (instance.IsInProgress()) {
       return;
+    }
     // Avoid blocking the current thread for regular scans.
     instance.PerformScan(InvocationMode::kNonBlocking);
   }

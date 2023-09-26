@@ -16,21 +16,30 @@ set(PA_SRCS
 	partition_alloc_base/check.cc
 	partition_alloc_base/cpu.cc
 	partition_alloc_base/debug/alias.cc
+	partition_alloc_base/debug/stack_trace_linux.cc
+	partition_alloc_base/debug/stack_trace_posix.cc
 	partition_alloc_base/logging.cc
+	partition_alloc_base/log_message.cc
 	partition_alloc_base/memory/ref_counted.cc
 	partition_alloc_base/rand_util.cc
+	partition_alloc_base/strings/cstring_builder.cc
+	partition_alloc_base/strings/safe_sprintf.cc
 	partition_alloc_base/strings/stringprintf.cc
+	partition_alloc_base/strings/string_util.cc
 	partition_alloc_base/threading/platform_thread.cc
 	partition_alloc_base/time/time.cc
 	partition_alloc_base/time/time_override.cc
 	partition_alloc_base/time/time_now_posix.cc
 	partition_alloc_hooks.cc
 	partition_bucket.cc
+	partition_dcheck_helper.cc
+	partition_freelist_entry.cc
 	partition_oom.cc
 	partition_page.cc
 	partition_root.cc
 	partition_stats.cc
-	pkey.cc
+	thread_isolation/pkey.cc
+	thread_isolation/thread_isolation.cc
 	random.cc
 	reservation_offset_table.cc
 	spinning_mutex.cc

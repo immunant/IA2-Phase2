@@ -16,6 +16,10 @@
 #include "base/allocator/partition_allocator/partition_alloc_config.h"
 #include "build/build_config.h"
 
+#if PA_CONFIG(HAS_MEMORY_TAGGING) && BUILDFLAG(IS_ANDROID)
+#include <csignal>
+#endif
+
 namespace partition_alloc {
 
 // Enum configures Arm's MTE extension to operate in different modes
@@ -38,11 +42,11 @@ void ChangeMemoryTaggingModeForCurrentThread(TagViolationReportingMode);
 namespace internal {
 
 constexpr int kMemTagGranuleSize = 16u;
-#if defined(PA_HAS_MEMORY_TAGGING)
+#if PA_CONFIG(HAS_MEMORY_TAGGING)
 constexpr uint64_t kPtrTagMask = 0xff00000000000000uLL;
 #else
 constexpr uint64_t kPtrTagMask = 0;
-#endif  // defined(PA_HAS_MEMORY_TAGGING)
+#endif  // PA_CONFIG(HAS_MEMORY_TAGGING)
 constexpr uint64_t kPtrUntagMask = ~kPtrTagMask;
 
 #if BUILDFLAG(IS_ANDROID)
@@ -51,80 +55,57 @@ PA_COMPONENT_EXPORT(PARTITION_ALLOC)
 void ChangeMemoryTaggingModeForAllThreadsPerProcess(TagViolationReportingMode);
 #endif
 
-// Gets the memory tagging mode for the calling thread.
+// Gets the memory tagging mode for the calling thread. Returns kUndefined if
+// MTE support is not available.
 PA_COMPONENT_EXPORT(PARTITION_ALLOC)
 TagViolationReportingMode GetMemoryTaggingModeForCurrentThread();
 
-// Called by the partition allocator after initial startup, this detects MTE
-// support in the current CPU and replaces the active tagging intrinsics with
-// MTE versions if needed.
-PA_COMPONENT_EXPORT(PARTITION_ALLOC) void InitializeMTESupportIfNeeded();
-
-// These global function pointers hold the implementations of the tagging
-// intrinsics (TagMemoryRangeRandomly, TagMemoryRangeIncrement, RemaskPtr).
-// They are designed to be callable without taking a branch. They are initially
-// set to no-op functions in tagging.cc, but can be replaced with MTE-capable
-// ones through InitializeMTEIfNeeded(). This is conceptually similar to an
-// IFUNC, even though less secure. These function pointers were introduced to
-// support older Android releases. With the removal of support for Android M,
-// it became possible to use IFUNC instead.
-// TODO(bartekn): void* -> uintptr_t
-using RemaskPtrInternalFn = void*(void* ptr);
-using TagMemoryRangeIncrementInternalFn = void*(void* ptr, size_t size);
-
-using TagMemoryRangeRandomlyInternalFn = void*(void* ptr,
-                                               size_t size,
-                                               uint64_t mask);
-extern PA_COMPONENT_EXPORT(PARTITION_ALLOC)
-    TagMemoryRangeRandomlyInternalFn* global_tag_memory_range_randomly_fn;
-extern PA_COMPONENT_EXPORT(PARTITION_ALLOC)
-    TagMemoryRangeIncrementInternalFn* global_tag_memory_range_increment_fn;
-extern PA_COMPONENT_EXPORT(PARTITION_ALLOC)
-    RemaskPtrInternalFn* global_remask_void_ptr_fn;
+// These forward-defined functions do not really exist in tagging.cc, they're
+// resolved by the dynamic linker to MTE-capable versions on the right hardware.
+#if PA_CONFIG(HAS_MEMORY_TAGGING)
+PA_COMPONENT_EXPORT(PARTITION_ALLOC)
+void* TagMemoryRangeIncrementInternal(void* ptr, size_t size);
+PA_COMPONENT_EXPORT(PARTITION_ALLOC)
+void* TagMemoryRangeRandomlyInternal(void* ptr, size_t size, uint64_t mask);
+PA_COMPONENT_EXPORT(PARTITION_ALLOC)
+void* RemaskPointerInternal(void* ptr);
+#endif
 
 // Increments the tag of the memory range ptr. Useful for provable revocations
 // (e.g. free). Returns the pointer with the new tag. Ensures that the entire
 // range is set to the same tag.
-// TODO(bartekn): Remove the T* variant.
-// TODO(bartekn): Consider removing the return value.
-template <typename T>
-PA_ALWAYS_INLINE T* TagMemoryRangeIncrement(T* ptr, size_t size) {
-#if defined(PA_HAS_MEMORY_TAGGING)
-  return reinterpret_cast<T*>(global_tag_memory_range_increment_fn(ptr, size));
+PA_ALWAYS_INLINE void* TagMemoryRangeIncrement(void* ptr, size_t size) {
+#if PA_CONFIG(HAS_MEMORY_TAGGING)
+  return TagMemoryRangeIncrementInternal(ptr, size);
 #else
   return ptr;
 #endif
 }
-PA_ALWAYS_INLINE void* TagMemoryRangeIncrement(uintptr_t ptr, size_t size) {
-  return TagMemoryRangeIncrement(reinterpret_cast<void*>(ptr), size);
+
+PA_ALWAYS_INLINE void* TagMemoryRangeIncrement(uintptr_t address, size_t size) {
+  return TagMemoryRangeIncrement(reinterpret_cast<void*>(address), size);
 }
 
 // Randomly changes the tag of the ptr memory range. Useful for initial random
 // initialization. Returns the pointer with the new tag. Ensures that the entire
 // range is set to the same tag.
-// TODO(bartekn): Remove the T* variant.
-template <typename T>
-PA_ALWAYS_INLINE T* TagMemoryRangeRandomly(T* ptr,
-                                           size_t size,
-                                           uint64_t mask = 0u) {
-#if defined(PA_HAS_MEMORY_TAGGING)
-  return reinterpret_cast<T*>(
-      global_tag_memory_range_randomly_fn(ptr, size, mask));
+PA_ALWAYS_INLINE void* TagMemoryRangeRandomly(uintptr_t address,
+                                              size_t size,
+                                              uint64_t mask = 0u) {
+  void* ptr = reinterpret_cast<void*>(address);
+#if PA_CONFIG(HAS_MEMORY_TAGGING)
+  return reinterpret_cast<void*>(
+      TagMemoryRangeRandomlyInternal(ptr, size, mask));
 #else
   return ptr;
 #endif
-}
-PA_ALWAYS_INLINE void* TagMemoryRangeRandomly(uintptr_t ptr,
-                                              size_t size,
-                                              uint64_t mask = 0u) {
-  return TagMemoryRangeRandomly(reinterpret_cast<void*>(ptr), size, mask);
 }
 
 // Gets a version of ptr that's safe to dereference.
 template <typename T>
 PA_ALWAYS_INLINE T* TagPtr(T* ptr) {
-#if defined(PA_HAS_MEMORY_TAGGING)
-  return reinterpret_cast<T*>(global_remask_void_ptr_fn(ptr));
+#if PA_CONFIG(HAS_MEMORY_TAGGING)
+  return reinterpret_cast<T*>(RemaskPointerInternal(ptr));
 #else
   return ptr;
 #endif
@@ -138,7 +119,7 @@ PA_ALWAYS_INLINE void* TagAddr(uintptr_t address) {
 
 // Strips the tag bits off |address|.
 PA_ALWAYS_INLINE uintptr_t UntagAddr(uintptr_t address) {
-#if defined(PA_HAS_MEMORY_TAGGING)
+#if PA_CONFIG(HAS_MEMORY_TAGGING)
   return address & internal::kPtrUntagMask;
 #else
   return address;
@@ -152,6 +133,17 @@ template <typename T>
 PA_ALWAYS_INLINE uintptr_t UntagPtr(T* ptr) {
   return internal::UntagAddr(reinterpret_cast<uintptr_t>(ptr));
 }
+
+#if PA_CONFIG(HAS_MEMORY_TAGGING) && BUILDFLAG(IS_ANDROID)
+class PA_COMPONENT_EXPORT(PARTITION_ALLOC) PermissiveMte {
+ public:
+  static void SetEnabled(bool enabled);
+  static bool HandleCrash(int signo, siginfo_t* siginfo, ucontext_t* context);
+
+ private:
+  static bool enabled_;
+};
+#endif
 
 }  // namespace partition_alloc
 

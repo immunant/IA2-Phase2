@@ -69,11 +69,14 @@
 #include <limits>
 
 #include "base/allocator/partition_allocator/chromeos_buildflags.h"
+#include "base/allocator/partition_allocator/partition_alloc_base/check.h"
 #include "base/allocator/partition_allocator/partition_alloc_base/component_export.h"
-#include "base/allocator/partition_allocator/partition_alloc_base/migration_adapter.h"
 #include "base/allocator/partition_allocator/partition_alloc_base/numerics/clamped_math.h"
-#include "base/allocator/partition_allocator/partition_alloc_check.h"
 #include "build/build_config.h"
+
+#if BUILDFLAG(IS_APPLE)
+#include "base/allocator/partition_allocator/partition_alloc_buildflags.h"
+#endif  // BUILDFLAG(IS_APPLE)
 
 #if BUILDFLAG(IS_FUCHSIA)
 #include <zircon/types.h>
@@ -136,9 +139,9 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) TimeDelta {
 #if BUILDFLAG(IS_FUCHSIA)
   static TimeDelta FromZxDuration(zx_duration_t nanos);
 #endif
-#if BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_APPLE)
   static TimeDelta FromMachTime(uint64_t mach_time);
-#endif  // BUILDFLAG(IS_MAC)
+#endif  // BUILDFLAG(IS_APPLE)
 
   // Converts an integer value representing TimeDelta to a class. This is used
   // when deserializing a |TimeDelta| structure, using a value known to be
@@ -273,8 +276,8 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) TimeDelta {
     // (they are almost certainly not intentional, and result in NaN, which
     // turns into 0 if clamped to an integer; this makes introducing subtle bugs
     // too easy).
-    PA_CHECK(!is_zero() || !a.is_zero());
-    PA_CHECK(!is_inf() || !a.is_inf());
+    PA_BASE_CHECK(!is_zero() || !a.is_zero());
+    PA_BASE_CHECK(!is_inf() || !a.is_inf());
 
     return ToDouble() / a.ToDouble();
   }
@@ -284,8 +287,8 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) TimeDelta {
 
     // For consistency, use the same edge case CHECKs and behavior as the code
     // above.
-    PA_CHECK(!is_zero() || !a.is_zero());
-    PA_CHECK(!is_inf() || !a.is_inf());
+    PA_BASE_CHECK(!is_zero() || !a.is_zero());
+    PA_BASE_CHECK(!is_inf() || !a.is_inf());
     return ((delta_ < 0) == (a.delta_ < 0))
                ? std::numeric_limits<int64_t>::max()
                : std::numeric_limits<int64_t>::min();
@@ -351,7 +354,7 @@ constexpr TimeDelta TimeDelta::operator+(TimeDelta other) const {
     return TimeDelta(delta_ + other.delta_);
 
   // Additions involving two infinities are only valid if signs match.
-  PA_CHECK(!is_inf() || (delta_ == other.delta_));
+  PA_BASE_CHECK(!is_inf() || (delta_ == other.delta_));
   return other;
 }
 
@@ -360,7 +363,7 @@ constexpr TimeDelta TimeDelta::operator-(TimeDelta other) const {
     return TimeDelta(delta_ - other.delta_);
 
   // Subtractions involving two infinities are only valid if signs differ.
-  PA_CHECK(int64_t{delta_} != int64_t{other.delta_});
+  PA_BASE_CHECK(int64_t{delta_} != int64_t{other.delta_});
   return (other.delta_ < 0) ? Max() : Min();
 }
 
@@ -629,40 +632,6 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) Time
 #if BUILDFLAG(IS_WIN)
   static Time FromFileTime(FILETIME ft);
   FILETIME ToFileTime() const;
-
-  // The minimum time of a low resolution timer.  This is basically a windows
-  // constant of ~15.6ms.  While it does vary on some older OS versions, we'll
-  // treat it as static across all windows versions.
-  static const int kMinLowResolutionThresholdMs = 16;
-
-  // Enable or disable Windows high resolution timer.
-  static void EnableHighResolutionTimer(bool enable);
-
-  // Activates or deactivates the high resolution timer based on the |activate|
-  // flag.  If the HighResolutionTimer is not Enabled (see
-  // EnableHighResolutionTimer), this function will return false.  Otherwise
-  // returns true.  Each successful activate call must be paired with a
-  // subsequent deactivate call.
-  // All callers to activate the high resolution timer must eventually call
-  // this function to deactivate the high resolution timer.
-  static bool ActivateHighResolutionTimer(bool activate);
-
-  // Returns true if the high resolution timer is both enabled and activated.
-  // This is provided for testing only, and is not tracked in a thread-safe
-  // way.
-  static bool IsHighResolutionTimerInUse();
-
-  // The following two functions are used to report the fraction of elapsed time
-  // that the high resolution timer is activated.
-  // ResetHighResolutionTimerUsage() resets the cumulative usage and starts the
-  // measurement interval and GetHighResolutionTimerUsage() returns the
-  // percentage of time since the reset that the high resolution timer was
-  // activated.
-  // ResetHighResolutionTimerUsage() must be called at least once before calling
-  // GetHighResolutionTimerUsage(); otherwise the usage result would be
-  // undefined.
-  static void ResetHighResolutionTimerUsage();
-  static double GetHighResolutionTimerUsage();
 #endif  // BUILDFLAG(IS_WIN)
 
   // For legacy deserialization only. Converts an integer value representing
@@ -879,14 +848,14 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) TimeTicks
   static TimeTicks FromQPCValue(LONGLONG qpc_value);
 #endif
 
-#if BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_APPLE)
   static TimeTicks FromMachAbsoluteTime(uint64_t mach_absolute_time);
 
   // Sets the current Mach timebase to `timebase`. Returns the old timebase.
   static mach_timebase_info_data_t SetMachTimebaseInfoForTesting(
       mach_timebase_info_data_t timebase);
 
-#endif  // BUILDFLAG(IS_MAC)
+#endif  // BUILDFLAG(IS_APPLE)
 
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(PA_IS_CHROMEOS_ASH)
   // Converts to TimeTicks the value obtained from SystemClock.uptimeMillis().
@@ -979,7 +948,7 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) ThreadTicks
   // Returns true if ThreadTicks::Now() is supported on this system.
   [[nodiscard]] static bool IsSupported() {
 #if (defined(_POSIX_THREAD_CPUTIME) && (_POSIX_THREAD_CPUTIME >= 0)) || \
-    BUILDFLAG(IS_MAC) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_FUCHSIA)
+    BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_FUCHSIA)
     return true;
 #elif BUILDFLAG(IS_WIN)
     return IsSupportedWin();

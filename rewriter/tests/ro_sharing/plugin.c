@@ -2,10 +2,12 @@
 RUN: cat ro_sharing_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 */
 #include "test_fault_handler.h"
+#include <criterion/logging.h>
 #include <ia2.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <plugin.h>
 
 #define IA2_COMPARTMENT 2
 #include <ia2_compartment_init.inc>
@@ -35,14 +37,15 @@ const uint32_t *get_plugin_uint(bool secret) {
 // LINKARGS: --wrap=read_main_string
 void read_main_string(const char *str) {
   // Check that we can read a string passed from main
-  LOG("%s", str);
+  cr_log_info("%s", str);
 }
 
 // LINKARGS: --wrap=read_main_uint
 void read_main_uint(const uint32_t *shared, const uint32_t *secret) {
   // Check that we can read a pointer to rodata passed from main
-  LOG("0x%x", *shared);
+  cr_log_info("0x%x", *shared);
 
   // Check that we can't read a pointer to data passed from main
+  // TODO can we change this LOG to cr_log_info?
   CHECK_VIOLATION(LOG("0x%x", *secret));
 }

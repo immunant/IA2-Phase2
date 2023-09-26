@@ -151,8 +151,8 @@ bool update_memory_map(struct memory_map *map, int event,
 #define PKRU(pkey) (~((3 << (2 * pkey)) | 3))
 
 unsigned char pkey_for_pkru(uint32_t pkru) {
-#define CHECK(x)                                                               \
-  case PKRU(x):                                                                \
+#define CHECK(x) \
+  case PKRU(x):  \
     return x;
   switch (pkru) {
     CHECK(0);
@@ -415,7 +415,7 @@ void track_memory_map(pid_t pid, struct memory_map *map) {
 
     /* track effect of syscall on memory map */
     if (!update_memory_map(map, event, &event_info)) {
-      fprintf(stderr, "could not update memory map! (operation=%d)\n", event);
+      fprintf(stderr, "could not update memory map! (operation=%s, rip=%p)\n", event_name(event), (void *)regs.rip);
       return;
     }
   }

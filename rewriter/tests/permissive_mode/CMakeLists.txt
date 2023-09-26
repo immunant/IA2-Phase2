@@ -3,6 +3,7 @@ define_test(
     NEEDS_LD_WRAP
     PKEY 1
     NO_LIBS
+    CRITERION_TEST
 )
 
 define_ia2_wrapper(

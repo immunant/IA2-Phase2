@@ -53,6 +53,10 @@ bool is_op_permitted(struct memory_map *map, int event,
                                                       false);
     if (impacts_only_unprotected_memory)
       return true;
+    /* during init, we allow re-mprotecting memory, which we need to alter
+    initially-RO destructors */
+    else if (!memory_map_is_init_finished(map))
+      return true;
 
     /* allow mprotecting memory that is already writable */
     uint32_t prot = memory_map_region_get_prot(map, info->mprotect.range);

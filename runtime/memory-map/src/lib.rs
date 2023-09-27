@@ -373,18 +373,26 @@ pub extern "C" fn memory_map_pkey_mprotect_region(
     pkey: u8,
 ) -> bool {
     if let Some(mut state) = map.split_out_region(range) {
-        /* forbid repeated pkey_mprotect */
-        if state.pkey_mprotected == false {
-            state.pkey_mprotected = true;
-            map.add_region(range, state)
-        } else {
+        /* forbid pkey_mprotect of owned by another compartment other than 0 */
+        if state.owner_pkey != pkey && state.owner_pkey != 0 {
             printerrln!(
-                "not pkey {} or already pkey_mprotected ({}/{})",
-                pkey,
+                "memory pkey not {} or 0 (running with {})",
                 state.owner_pkey,
-                state.pkey_mprotected
+                pkey
             );
             false
+        /* forbid repeated pkey_mprotect */
+        } else if state.pkey_mprotected == true {
+            printerrln!("{} already pkey_mprotected region", state.owner_pkey);
+            false
+        /* otherwise, allow */
+        } else {
+            state.pkey_mprotected = true;
+            /* set owner if a trusted compartment protected untrusted memory */
+            if state.owner_pkey == 0 {
+                state.owner_pkey = pkey;
+            }
+            map.add_region(range, state)
         }
     } else {
         // we're attempting to pkey_mprotect memory that was never mmapped.

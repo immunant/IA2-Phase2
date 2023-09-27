@@ -45,3 +45,22 @@ jobs:
           pushd build
           ninja -v check-ia2
           popd
+  build-nginx:
+    runs-on: self-hosted
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+      - name: Build nginx
+        run: |
+          LLVM_DIR=`llvm-config --cmakedir`
+          Clang_DIR=`realpath $LLVM_DIR/../clang`
+          pushd external/nginx
+          IA2_CMAKE_FLAGS="
+            -DCMAKE_BUILD_TYPE=Release
+            -DClang_DIR=$Clang_DIR
+            -DLLVM_DIR=$LLVM_DIR" \
+            ./reconfigure
+          pushd build/nginx
+          make
+          popd
+          popd

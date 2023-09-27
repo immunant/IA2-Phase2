@@ -28,7 +28,7 @@ fi
 if [ ! -f $SRC_REWRITER ] || [ ! -f $LIBIA2 ]; then
     mkdir -p $IA2_BUILD_DIR
     pushd $IA2_BUILD_DIR
-    cmake -GNinja $REPO_ROOT
+    cmake -GNinja $REPO_ROOT ${IA2_CMAKE_FLAGS:-}
     ninja ia2-rewriter libia2 pad-tls
     popd
 fi
@@ -56,6 +56,7 @@ fi
 
 if [ ! -f $NGINX_ROOT/compile_commands.json ]; then
     bear -- make -j8 IA2_LDFLAGS= IA2_MODULE_LDFLAGS= IA2_CALLGATES= IA2_EXTRA_CFLAGS= IA2_ENABLE=0 build
+    cp compile_commands.json $BUILD_DIR/
 fi
 
 if [ ! -f $BUILD_DIR/wrapper.c ] ||

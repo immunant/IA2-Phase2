@@ -1,11 +1,12 @@
 /*
 RUN: cat recursion_call_gates_2.ld | FileCheck --check-prefix=LINKARGS %s
-RUN: %binary_dir/tests/recursion/recursion_main_wrapped | diff %S/Output/recursion.out -
 */
 
+#include "recursion_dso.h"
+#include <criterion/criterion.h>
+#include <criterion/logging.h>
 #include <ia2.h>
 #include <stdio.h>
-#include "recursion_dso.h"
 #define IA2_DEFINE_TEST_HANDLER
 #include "test_fault_handler.h"
 
@@ -15,15 +16,12 @@ INIT_RUNTIME(2);
 
 // LINKARGS: --wrap=recurse_main
 void recurse_main(int count) {
-    printf("recursion_main: %d\n", count);
-    if (count > 0) {
-        recurse_dso(count - 1);
-    }
+  cr_log_info("recursion_main: %d\n", count);
+  if (count > 0) {
+    recurse_dso(count - 1);
+  }
 }
 
-int main() {
-    recurse_main(5);
-
-    // We fault in a destructor while exiting, TODO: #112
-    expect_fault = true;
+Test(recursion, main) {
+  recurse_main(5);
 }

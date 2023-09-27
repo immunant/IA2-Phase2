@@ -409,12 +409,15 @@ pub extern "C" fn memory_map_mprotect_region(map: &mut MemoryMap, range: Range, 
             state.prot = prot;
             map.add_region(range, state)
         } else {
-            printerrln!(
-                "warning: reprotecting already-mprotected region {:?} (prot {} => {})",
-                range,
-                state.prot,
-                prot
-            );
+            /* after init has finished, we should warn about reprotecting regions */
+            if map.init_finished {
+                printerrln!(
+                    "warning: reprotecting already-mprotected region {:?} (prot {} => {})",
+                    range,
+                    state.prot,
+                    prot
+                );
+            }
             state.mprotected = true;
             state.prot = prot;
             map.add_region(range, state)

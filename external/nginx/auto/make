@@ -34,8 +34,10 @@ IA2_ENABLE = 1
 
 IA2_CALLGATES_TARGET = $NGX_OBJS/libia2_callgates.so
 ifneq (\$(IA2_ENABLE),0)
+IA2_LIB = \$(IA2_ROOT)/libia2/liblibia2.a
 IA2_CALLGATES = $NGX_OBJS/libia2_callgates.so
 else
+IA2_LIB =
 IA2_CALLGATES =
 endif
 
@@ -297,7 +299,7 @@ $NGX_OBJS/ngx_rtmp_module_tls_padded.so: $NGX_OBJS/ngx_rtmp_module.so
 	\$(PAD_TLS) --allow-no-tls $NGX_OBJS/ngx_rtmp_module_tls_padded.so
 
 $NGX_OBJS${ngx_dirsep}nginx$ngx_binext:	$ngx_deps \$(IA2_CALLGATES) $NGX_OBJS/ngx_rtmp_module_tls_padded.so$ngx_spacer
-	\$(LINK) $ngx_long_start\$(IA2_LDFLAGS)$ngx_long_cont\$(IA2_PREREWRITER_LDFLAGS)$ngx_long_cont$ngx_binout$NGX_OBJS${ngx_dirsep}nginx$ngx_binext$ngx_long_cont$ngx_objs$ngx_libs$ngx_link$ngx_main_link \$(IA2_ROOT)/libia2/liblibia2.a $NGX_OBJS/ngx_rtmp_module_tls_padded.so
+	\$(LINK) $ngx_long_start\$(IA2_LDFLAGS)$ngx_long_cont\$(IA2_PREREWRITER_LDFLAGS)$ngx_long_cont$ngx_binout$NGX_OBJS${ngx_dirsep}nginx$ngx_binext$ngx_long_cont$ngx_objs$ngx_libs$ngx_link$ngx_main_link \$(IA2_LIB) $NGX_OBJS/ngx_rtmp_module_tls_padded.so
 	$ngx_rcc
 $ngx_long_end
 

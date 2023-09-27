@@ -36,10 +36,10 @@ Test(mmap_loop, main) {
   // syscall tracing should forbid us to unmap compartment 2's buffer
   // this requires the track-memory-map runtime which isn't enabled in tests
   int res = munmap(lib_buf_mmap, 4096);
-  cr_log_info(res ?
-  "Was not able to unmap memory in another compartment (as expected)" :
-  "Able to unmap other compartment's memory (runtime not enabled)");
   if (res < 0) {
     perror("munmap");
+    cr_log_info("Was not able to unmap memory in another compartment (as expected)");
+  } else {
+    cr_log_info("Able to unmap other compartment's memory (runtime not enabled)");
   }
 }

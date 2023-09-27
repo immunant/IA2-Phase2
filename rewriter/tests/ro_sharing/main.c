@@ -33,8 +33,8 @@ Test(ro_sharing, main) {
   read_main_uint(&main_shared_ro, &main_secret_rw);
 }
 
-Test(ro_sharing, plugin, .exit_code = 255) {
+Test(ro_sharing, plugin) {
   cr_log_info("%s", get_plugin_str());
   cr_log_info("0x%x", *get_plugin_uint(false));
-  cr_log_info("0x%x", *get_plugin_uint(true));
+  cr_log_info("0x%x", CHECK_VIOLATION(*get_plugin_uint(true)));
 }

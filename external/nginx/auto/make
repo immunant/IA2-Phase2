@@ -56,7 +56,6 @@ IA2_PREREWRITER_LDFLAGS = \\
 	-Wl,--wrap=pthread_create
 
 IA2_LDFLAGS = \\
-	\$(IA2_CALLGATES) \\
 	-pthread \\
 	-Wl,--wrap=main \\
 	-Wl,-z,now \\
@@ -86,6 +85,8 @@ IA2_MODULE_LDFLAGS = \\
 	-Wl,-T\$(IA2_ROOT)/libia2/padding.ld
 
 END
+
+CORE_LIBS="$CORE_LIBS \$(IA2_CALLGATES)"
 
 if test -n "$NGX_PERL_CFLAGS"; then
     echo NGX_PERL_CFLAGS = $NGX_PERL_CFLAGS                   >> $NGX_MAKEFILE

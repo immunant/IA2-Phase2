@@ -1,6 +1,7 @@
 /*
 RUN: cat main.c | FileCheck --match-full-lines --check-prefix=REWRITER %S/main.c
 */
+#include <criterion/criterion.h>
 #include <stdio.h>
 #include <lib.h>
 #include <ia2.h>
@@ -22,7 +23,7 @@ struct module {
     bin_op fn;
 };
 
-int main() {
+Test(rewrite_fn_ptr_eq, main) {
     int res;
     int *y = &res;
     void *x = NULL;

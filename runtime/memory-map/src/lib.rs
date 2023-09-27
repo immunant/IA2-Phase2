@@ -82,12 +82,22 @@ use disjoint_interval_tree::NonOverlappingIntervalTree;
 
 pub struct MemoryMap {
     regions: NonOverlappingIntervalTree<usize, State>,
+    init_finished: bool,
 }
 
 impl MemoryMap {
     pub fn new() -> Self {
         MemoryMap {
             regions: Default::default(),
+            init_finished: false,
+        }
+    }
+    pub fn mark_init_finished(&mut self) -> bool {
+        if self.init_finished {
+            false
+        } else {
+            self.init_finished = true;
+            true
         }
     }
     pub fn add_region(&mut self, mut range: Range, state: State) -> bool {
@@ -234,6 +244,16 @@ pub extern "C" fn memory_map_new() -> Box<MemoryMap> {
 
 #[no_mangle]
 pub extern "C" fn memory_map_destroy(_map: Box<MemoryMap>) {}
+
+#[no_mangle]
+pub extern "C" fn memory_map_mark_init_finished(map: &mut MemoryMap) -> bool {
+    map.mark_init_finished()
+}
+
+#[no_mangle]
+pub extern "C" fn memory_map_is_init_finished(map: &MemoryMap) -> bool {
+    map.init_finished
+}
 
 #[no_mangle]
 pub extern "C" fn memory_map_all_overlapping_regions_have_pkey(

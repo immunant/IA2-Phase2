@@ -25,6 +25,10 @@ struct memory_map *memory_map_new(void);
 
 void memory_map_destroy(struct memory_map *_map);
 
+bool memory_map_mark_init_finished(struct memory_map *map);
+
+bool memory_map_is_init_finished(const struct memory_map *map);
+
 bool memory_map_all_overlapping_regions_have_pkey(const struct memory_map *map,
                                                   struct range needle,
                                                   uint8_t pkey);

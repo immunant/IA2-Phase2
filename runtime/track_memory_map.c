@@ -184,6 +184,15 @@ unsigned char pkey_for_pkru(uint32_t pkru) {
 #undef CHECK
 }
 
+/* Pass to mmap to signal end of program init */
+#define IA2_FINISH_INIT_MAGIC 0x1a21face1a21faceULL
+
+bool event_marks_init_finished(enum mmap_event event, const union event_info *event_info) {
+  return event == EVENT_MMAP &&
+         event_info->mmap.range.start == IA2_FINISH_INIT_MAGIC &&
+         event_info->mmap.flags & MAP_FIXED;
+}
+
 /* query pid to determine the mmap-relevant event being requested. returns true
  * unless something horrible happens */
 bool interpret_syscall(struct user_regs_struct *regs, unsigned char pkey,
@@ -421,6 +430,28 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
     if (!interpret_syscall(&regs, pkey, &event, &event_info, mode)) {
       fprintf(stderr, "could not interpret syscall!\n");
       return false;
+    }
+
+    /* pick up signal marking IA2 init finished to start forbidding init-only operations */
+    if (event_marks_init_finished(event, &event_info)) {
+      if (!memory_map_mark_init_finished(map)) {
+        fprintf(stderr, "attempting to re-finish init! (rip=%p)\n", (void *)regs.rip);
+        return false;
+      }
+      debug_op("init finished\n");
+      /* finish syscall; it will fail benignly */
+      if (ptrace(PTRACE_SYSCALL, pid, 0, 0) < 0) {
+        perror("could not PTRACE_SYSCALL");
+      }
+      switch (wait_for_next_trap(pid, exit_status_out)) {
+      case WAIT_TRAP:
+        break;
+      case WAIT_ERROR:
+        return false;
+      default:
+        return true;
+      }
+      continue;
     }
 
     if (!is_op_permitted(map, event, &event_info)) {

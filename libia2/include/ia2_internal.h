@@ -216,6 +216,13 @@ asm(".macro mov_pkru_eax pkey\n"
     return out;                                                                \
   }
 
+/* Pass to mmap to signal end of program init */
+#define IA2_FINISH_INIT_MAGIC 0x1a21face1a21faceULL
+/* Tell the syscall filter to forbid init-only operations. This mmap() will
+always fail because it maps a non-page-aligned addr with MAP_FIXED, so it
+works as a reasonable signpost no-op. */
+#define mark_init_finished() (void)mmap((void *)IA2_FINISH_INIT_MAGIC, 0, 0, MAP_FIXED, -1, 0)
+
 #define declare_init_tls_fn(n) void init_tls_##n(void);
 #define setup_destructors_for_compartment(n)                                   \
   void ia2_setup_destructors_##n(void);                                        \
@@ -311,4 +318,5 @@ asm(".macro mov_pkru_eax pkey\n"
     /* Initialize stacks for the main thread/ */                               \
     init_stacks_and_setup_tls();                                               \
     REPEATB##n(setup_destructors_for_compartment, nop_macro);                  \
+    mark_init_finished();                                                      \
   }

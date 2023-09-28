@@ -68,7 +68,7 @@ ngx_init_cycle(ngx_cycle_t *old_cycle)
 
     log = old_cycle->log;
 
-    pool = ngx_create_pool(NGX_CYCLE_POOL_SIZE, log);
+    pool = ngx_create_shared_pool(NGX_CYCLE_POOL_SIZE, log);
     if (pool == NULL) {
         return NULL;
     }
@@ -262,7 +262,7 @@ ngx_init_cycle(ngx_cycle_t *old_cycle)
         return NULL;
     }
 
-    conf->temp_pool = ngx_create_pool(NGX_CYCLE_POOL_SIZE, log);
+    conf->temp_pool = ngx_create_shared_pool(NGX_CYCLE_POOL_SIZE, log);
     if (conf->temp_pool == NULL) {
         ngx_destroy_pool(pool);
         return NULL;

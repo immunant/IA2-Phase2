@@ -15,8 +15,12 @@
 
 IA2_BEGIN_NO_WRAP
 
+void *ngx_alloc_ext(size_t size, ngx_log_t *log, unsigned is_shared);
 void *ngx_alloc(size_t size, ngx_log_t *log);
+void *ngx_shared_alloc(size_t size, ngx_log_t *log);
+void *ngx_calloc_ext(size_t size, ngx_log_t *log, unsigned is_shared);
 void *ngx_calloc(size_t size, ngx_log_t *log);
+void *ngx_shared_calloc(size_t size, ngx_log_t *log);
 
 #define ngx_free          free
 
@@ -30,11 +34,15 @@ void *ngx_calloc(size_t size, ngx_log_t *log);
 
 #if (NGX_HAVE_POSIX_MEMALIGN || NGX_HAVE_MEMALIGN)
 
+void *ngx_memalign_ext(size_t alignment, size_t size, ngx_log_t *log, unsigned is_shared);
 void *ngx_memalign(size_t alignment, size_t size, ngx_log_t *log);
+void *ngx_shared_memalign(size_t alignment, size_t size, ngx_log_t *log);
 
 #else
 
+#define ngx_memalign_ext(alignment, size, log, is_shared)  ngx_alloc_ext(size, log, is_shared)
 #define ngx_memalign(alignment, size, log)  ngx_alloc(size, log)
+#define ngx_shared_memalign(alignment, size, log)  ngx_shared_alloc(size, log)
 
 #endif
 

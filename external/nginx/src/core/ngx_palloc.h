@@ -62,6 +62,7 @@ struct ngx_pool_s {
     ngx_pool_large_t     *large;
     ngx_pool_cleanup_t   *cleanup;
     ngx_log_t            *log;
+    unsigned              is_shared:1;
 };
 
 
@@ -73,6 +74,7 @@ typedef struct {
 
 
 ngx_pool_t *ngx_create_pool(size_t size, ngx_log_t *log);
+ngx_pool_t *ngx_create_shared_pool(size_t size, ngx_log_t *log);
 void ngx_destroy_pool(ngx_pool_t *pool);
 void ngx_reset_pool(ngx_pool_t *pool);
 

@@ -34,7 +34,7 @@ IA2_ENABLE = 1
 
 IA2_CALLGATES_TARGET = $NGX_OBJS/libia2_callgates.so
 ifneq (\$(IA2_ENABLE),0)
-IA2_LIBS = $NGX_OBJS/libia2_callgates.so \$(IA2_ROOT)/partition-alloc/libpartition-alloc.so \$(IA2_ROOT)/libia2/liblibia2.a
+IA2_LIBS = $NGX_OBJS/libia2_callgates.so \$(IA2_ROOT)/libia2/liblibia2.a
 else
 IA2_LIBS =
 endif
@@ -50,7 +50,8 @@ IA2_CFLAGS = \\
 	-Wno-error \\
 	-Werror=incompatible-pointer-types \\
 	\$(IA2_EXTRA_CFLAGS) \\
-	-I $REPO_ROOT/libia2/include
+	-I $REPO_ROOT/libia2/include \\
+	-I $REPO_ROOT/partition-alloc/include
 
 IA2_PREREWRITER_LDFLAGS = \\
 	-Wl,--wrap=pthread_create
@@ -62,7 +63,8 @@ IA2_LDFLAGS = \\
 	-Wl,-z,relro \\
 	-Wl,-T\$(IA2_ROOT)/libia2/padding.ld \\
 	-Wl,--dynamic-list=\$(IA2_ROOT)/libia2/dynsym.syms \\
-	-Wl,--export-dynamic
+	-Wl,--export-dynamic \\
+    -Wl,--rpath=\$(IA2_ROOT)/partition-alloc/
 
 ifneq (\$(IA2_ENABLE),0)
 IA2_LDFLAGS += \\
@@ -73,8 +75,7 @@ IA2_LDFLAGS += \\
 	-Wl,--wrap=posix_memalign \\
 	-Wl,--wrap=pvalloc \\
 	-Wl,--wrap=realloc \\
-	-Wl,--wrap=valloc \\
-    -Wl,--rpath=\$(IA2_ROOT)/partition-alloc/
+	-Wl,--wrap=valloc
 endif
 
 IA2_MODULE_CFLAGS = \\
@@ -87,7 +88,8 @@ IA2_MODULE_CFLAGS = \\
 	-Wno-error \\
 	-Werror=incompatible-pointer-types \\
 	\$(IA2_EXTRA_CFLAGS) \\
-	-I $REPO_ROOT/libia2/include
+	-I $REPO_ROOT/libia2/include \\
+	-I $REPO_ROOT/partition-alloc/include
 
 IA2_MODULE_LDFLAGS = \\
 	-Wl,-z,now \\
@@ -98,6 +100,8 @@ IA2_MODULE_LDFLAGS = \\
 	-Wl,-T\$(IA2_ROOT)/libia2/padding.ld
 
 END
+
+CORE_LIBS="$CORE_LIBS \$(IA2_ROOT)/partition-alloc/libpartition-alloc.so"
 
 if test -n "$NGX_PERL_CFLAGS"; then
     echo NGX_PERL_CFLAGS = $NGX_PERL_CFLAGS                   >> $NGX_MAKEFILE

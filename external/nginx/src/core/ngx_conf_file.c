@@ -189,7 +189,7 @@ ngx_conf_parse(ngx_conf_t *cf, ngx_str_t *filename)
 
         prev = cf->conf_file;
 
-        cf->conf_file = ngx_alloc(sizeof(ngx_conf_file_t), cf->log);
+        cf->conf_file = ngx_shared_alloc(sizeof(ngx_conf_file_t), cf->log);
         if (cf->conf_file == NULL) {
             return NGX_CONF_ERROR;
         }

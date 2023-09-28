@@ -8,6 +8,7 @@
 #include <ngx_config.h>
 #include <ngx_core.h>
 #include <ia2.h>
+#include <ia2_allocator.h>
 
 
 ngx_uint_t  ngx_pagesize;
@@ -16,11 +17,15 @@ ngx_uint_t  ngx_cacheline_size IA2_SHARED_DATA;
 
 
 void *
-ngx_alloc(size_t size, ngx_log_t *log)
+ngx_alloc_ext(size_t size, ngx_log_t *log, unsigned is_shared)
 {
     void  *p;
 
-    p = malloc(size);
+    if (is_shared) {
+        p = shared_malloc(size);
+    } else {
+        p = malloc(size);
+    }
     if (p == NULL) {
         ngx_log_error(NGX_LOG_EMERG, log, ngx_errno,
                       "malloc(%uz) failed", size);
@@ -31,13 +36,24 @@ ngx_alloc(size_t size, ngx_log_t *log)
     return p;
 }
 
+void *
+ngx_alloc(size_t size, ngx_log_t *log)
+{
+    return ngx_alloc_ext(size, log, 0);
+}
 
 void *
-ngx_calloc(size_t size, ngx_log_t *log)
+ngx_shared_alloc(size_t size, ngx_log_t *log)
+{
+    return ngx_alloc_ext(size, log, 1);
+}
+
+void *
+ngx_calloc_ext(size_t size, ngx_log_t *log, unsigned is_shared)
 {
     void  *p;
 
-    p = ngx_alloc(size, log);
+    p = ngx_alloc_ext(size, log, is_shared);
 
     if (p) {
         ngx_memzero(p, size);
@@ -46,16 +62,32 @@ ngx_calloc(size_t size, ngx_log_t *log)
     return p;
 }
 
+void *
+ngx_calloc(size_t size, ngx_log_t *log)
+{
+    return ngx_calloc_ext(size, log, 0);
+}
+
+void *
+ngx_shared_calloc(size_t size, ngx_log_t *log)
+{
+    return ngx_calloc_ext(size, log, 1);
+}
+
 
 #if (NGX_HAVE_POSIX_MEMALIGN)
 
 void *
-ngx_memalign(size_t alignment, size_t size, ngx_log_t *log)
+ngx_memalign_ext(size_t alignment, size_t size, ngx_log_t *log, unsigned is_shared)
 {
     void  *p;
     int    err;
 
-    err = posix_memalign(&p, alignment, size);
+    if (is_shared) {
+        err = shared_posix_memalign(&p, alignment, size);
+    } else {
+        err = posix_memalign(&p, alignment, size);
+    }
 
     if (err) {
         ngx_log_error(NGX_LOG_EMERG, log, err,
@@ -72,11 +104,15 @@ ngx_memalign(size_t alignment, size_t size, ngx_log_t *log)
 #elif (NGX_HAVE_MEMALIGN)
 
 void *
-ngx_memalign(size_t alignment, size_t size, ngx_log_t *log)
+ngx_memalign_ext(size_t alignment, size_t size, ngx_log_t *log, unsigned is_shared)
 {
     void  *p;
 
-    p = memalign(alignment, size);
+    if (is_shared) {
+        p = shared_memalign(alignment, size);
+    } else {
+        p = memalign(alignment, size);
+    }
     if (p == NULL) {
         ngx_log_error(NGX_LOG_EMERG, log, ngx_errno,
                       "memalign(%uz, %uz) failed", alignment, size);
@@ -89,3 +125,15 @@ ngx_memalign(size_t alignment, size_t size, ngx_log_t *log)
 }
 
 #endif
+
+void *
+ngx_memalign(size_t alignment, size_t size, ngx_log_t *log)
+{
+    return ngx_memalign_ext(alignment, size, log, 0);
+}
+
+void *
+ngx_shared_memalign(size_t alignment, size_t size, ngx_log_t *log)
+{
+    return ngx_memalign_ext(alignment, size, log, 1);
+}

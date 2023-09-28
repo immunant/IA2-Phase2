@@ -15,12 +15,12 @@ static void *ngx_palloc_block(ngx_pool_t *pool, size_t size);
 static void *ngx_palloc_large(ngx_pool_t *pool, size_t size);
 
 
-ngx_pool_t *
-ngx_create_pool(size_t size, ngx_log_t *log)
+static ngx_pool_t *
+ngx_create_pool_ext(size_t size, ngx_log_t *log, unsigned is_shared)
 {
     ngx_pool_t  *p;
 
-    p = ngx_memalign(NGX_POOL_ALIGNMENT, size, log);
+    p = ngx_memalign_ext(NGX_POOL_ALIGNMENT, size, log, is_shared);
     if (p == NULL) {
         return NULL;
     }
@@ -38,8 +38,19 @@ ngx_create_pool(size_t size, ngx_log_t *log)
     p->large = NULL;
     p->cleanup = NULL;
     p->log = log;
+    p->is_shared = is_shared ? 1 : 0;
 
     return p;
+}
+
+ngx_pool_t *
+ngx_create_pool(size_t size, ngx_log_t *log) {
+    return ngx_create_pool_ext(size, log, 0);
+}
+
+ngx_pool_t *
+ngx_create_shared_pool(size_t size, ngx_log_t *log) {
+    return ngx_create_pool_ext(size, log, 1);
 }
 
 
@@ -183,7 +194,7 @@ ngx_palloc_block(ngx_pool_t *pool, size_t size)
 
     psize = (size_t) (pool->d.end - (u_char *) pool);
 
-    m = ngx_memalign(NGX_POOL_ALIGNMENT, psize, pool->log);
+    m = ngx_memalign_ext(NGX_POOL_ALIGNMENT, psize, pool->log, pool->is_shared);
     if (m == NULL) {
         return NULL;
     }
@@ -217,7 +228,7 @@ ngx_palloc_large(ngx_pool_t *pool, size_t size)
     ngx_uint_t         n;
     ngx_pool_large_t  *large;
 
-    p = ngx_alloc(size, pool->log);
+    p = ngx_alloc_ext(size, pool->log, pool->is_shared);
     if (p == NULL) {
         return NULL;
     }
@@ -255,7 +266,7 @@ ngx_pmemalign(ngx_pool_t *pool, size_t size, size_t alignment)
     void              *p;
     ngx_pool_large_t  *large;
 
-    p = ngx_memalign(alignment, size, pool->log);
+    p = ngx_memalign_ext(alignment, size, pool->log, pool->is_shared);
     if (p == NULL) {
         return NULL;
     }

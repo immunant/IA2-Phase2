@@ -28,7 +28,7 @@ fi
 mkdir -p $IA2_BUILD_DIR
 pushd $IA2_BUILD_DIR
 cmake -GNinja $REPO_ROOT ${IA2_CMAKE_FLAGS:-}
-ninja ia2-rewriter libia2 pad-tls
+ninja ia2-rewriter libia2 pad-tls partition-alloc
 popd
 
 mkdir -p $NGINX_BUILD_DIR

@@ -34,11 +34,9 @@ IA2_ENABLE = 1
 
 IA2_CALLGATES_TARGET = $NGX_OBJS/libia2_callgates.so
 ifneq (\$(IA2_ENABLE),0)
-IA2_LIB = \$(IA2_ROOT)/libia2/liblibia2.a
-IA2_CALLGATES = $NGX_OBJS/libia2_callgates.so
+IA2_LIBS = $NGX_OBJS/libia2_callgates.so \$(IA2_ROOT)/partition-alloc/libpartition-alloc.so \$(IA2_ROOT)/libia2/liblibia2.a
 else
-IA2_LIB =
-IA2_CALLGATES =
+IA2_LIBS =
 endif
 
 IA2_EXTRA_CFLAGS = -include $NGX_OBJS/../wrapper.h
@@ -66,6 +64,19 @@ IA2_LDFLAGS = \\
 	-Wl,--dynamic-list=\$(IA2_ROOT)/libia2/dynsym.syms \\
 	-Wl,--export-dynamic
 
+ifneq (\$(IA2_ENABLE),0)
+IA2_LDFLAGS += \\
+	-Wl,--wrap=calloc \\
+	-Wl,--wrap=free \\
+	-Wl,--wrap=malloc \\
+	-Wl,--wrap=memalign \\
+	-Wl,--wrap=posix_memalign \\
+	-Wl,--wrap=pvalloc \\
+	-Wl,--wrap=realloc \\
+	-Wl,--wrap=valloc \\
+    -Wl,--rpath=\$(IA2_ROOT)/partition-alloc/
+endif
+
 IA2_MODULE_CFLAGS = \\
 	-fPIC \\
 	-DPKEY=2 \\
@@ -87,8 +98,6 @@ IA2_MODULE_LDFLAGS = \\
 	-Wl,-T\$(IA2_ROOT)/libia2/padding.ld
 
 END
-
-CORE_LIBS="$CORE_LIBS \$(IA2_CALLGATES)"
 
 if test -n "$NGX_PERL_CFLAGS"; then
     echo NGX_PERL_CFLAGS = $NGX_PERL_CFLAGS                   >> $NGX_MAKEFILE
@@ -298,8 +307,8 @@ $NGX_OBJS/ngx_rtmp_module_tls_padded.so: $NGX_OBJS/ngx_rtmp_module.so
 	cp $NGX_OBJS/ngx_rtmp_module.so $NGX_OBJS/ngx_rtmp_module_tls_padded.so
 	\$(PAD_TLS) --allow-no-tls $NGX_OBJS/ngx_rtmp_module_tls_padded.so
 
-$NGX_OBJS${ngx_dirsep}nginx$ngx_binext:	$ngx_deps \$(IA2_CALLGATES) $NGX_OBJS/ngx_rtmp_module_tls_padded.so$ngx_spacer
-	\$(LINK) $ngx_long_start\$(IA2_LDFLAGS)$ngx_long_cont\$(IA2_PREREWRITER_LDFLAGS)$ngx_long_cont$ngx_binout$NGX_OBJS${ngx_dirsep}nginx$ngx_binext$ngx_long_cont$ngx_objs$ngx_libs$ngx_link$ngx_main_link \$(IA2_LIB) $NGX_OBJS/ngx_rtmp_module_tls_padded.so
+$NGX_OBJS${ngx_dirsep}nginx$ngx_binext:	$ngx_deps \$(IA2_LIBS) $NGX_OBJS/ngx_rtmp_module_tls_padded.so$ngx_spacer
+	\$(LINK) $ngx_long_start\$(IA2_LDFLAGS)$ngx_long_cont\$(IA2_PREREWRITER_LDFLAGS)$ngx_long_cont$ngx_binout$NGX_OBJS${ngx_dirsep}nginx$ngx_binext$ngx_long_cont$ngx_objs$ngx_libs$ngx_link$ngx_main_link \$(IA2_LIBS) $NGX_OBJS/ngx_rtmp_module_tls_padded.so
 	$ngx_rcc
 $ngx_long_end
 

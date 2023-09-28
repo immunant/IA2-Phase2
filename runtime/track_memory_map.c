@@ -283,14 +283,14 @@ void update_event_with_result(struct user_regs_struct *regs,
   case EVENT_MMAP: {
     /* read result from registers */
     struct mmap_info *info = &event_info->mmap;
-    debug_event_update("new start = %08zx\n", regs->rax);
+    debug_event_update("new start = %08llx\n", regs->rax);
     info->range.start = regs->rax;
     break;
   }
   case EVENT_MREMAP: {
     /* read result from registers */
     struct mmap_info *info = &event_info->mmap;
-    debug_event_update("new start = %08zx\n", regs->rax);
+    debug_event_update("new start = %08llx\n", regs->rax);
     info->range.start = regs->rax;
     break;
   }

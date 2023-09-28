@@ -33,7 +33,7 @@
 #include <malloc.h>
 #endif
 
-#include <ia2.h>
+#include "get_pkey.h"
 
 using allocator_shim::AllocatorDispatch;
 

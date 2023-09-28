@@ -1,6 +1,7 @@
 #pragma once
-#include <cstddef>
 
-extern "C" {
+#include <cstddef>
+#include <cstdint>
+
+uint32_t ia2_get_pkru();
 size_t ia2_get_pkey();
-}

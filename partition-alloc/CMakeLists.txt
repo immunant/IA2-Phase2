@@ -67,10 +67,9 @@ list(TRANSFORM PA_SRCS PREPEND ${EXTERNAL_DIR}/chromium/src/base/allocator/parti
 
 add_library(partition-alloc SHARED
 	src/allocator_shim_default_dispatch_to_partition_alloc.cc
+	src/get_pkey.cc
 	src/shared_allocator.cc
     ${PA_SRCS})
-
-target_link_libraries(partition-alloc libia2)
 
 target_include_directories(partition-alloc BEFORE
     INTERFACE
@@ -124,5 +123,3 @@ target_link_options(partition-alloc
 		"-Wl,-wrap,asprintf"
 		"-Wl,-wrap,vasprintf"
 )
-
-target_link_libraries(partition-alloc libia2)

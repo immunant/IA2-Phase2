@@ -153,6 +153,12 @@ COMPARTMENT_IDENT(ia2_compartment_destructor)(void) {
 static void (*const compartment_destructor_ptr)(void) =
     COMPARTMENT_IDENT(__wrap_ia2_compartment_destructor);
 
+/* UBSan doesn't like this access, so opt it out of sanitization. */
+__attribute__((no_sanitize("undefined")))
+static inline uint32_t ubsan_access_phdr_type(Elf64_Phdr *phdr, int i) {
+    return phdr[i].p_type;
+}
+
 void COMPARTMENT_IDENT(ia2_setup_destructors)(void) {
   int res = 0;
   Elf64_Ehdr *ehdr = &__ehdr_start;
@@ -160,7 +166,7 @@ void COMPARTMENT_IDENT(ia2_setup_destructors)(void) {
   assert(sizeof(Elf64_Phdr) == ehdr->e_phentsize);
   Elf64_Phdr *dynamic_phdr = NULL;
   for (int i = 0; i < ehdr->e_phnum; i++) {
-    if (phdr[i].p_type == PT_DYNAMIC) {
+    if (ubsan_access_phdr_type(phdr, i) == PT_DYNAMIC) {
       dynamic_phdr = &phdr[i];
       break;
     }

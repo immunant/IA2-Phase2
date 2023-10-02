@@ -2,6 +2,9 @@
 RUN: cat main.c | FileCheck --match-full-lines --check-prefix=REWRITER %s
 RUN: cat simple1_call_gates_0.ld | FileCheck --check-prefix=LINKARGS %s
 */
+#include <criterion/criterion.h>
+#include <criterion/logging.h>
+#include <criterion/new/assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -45,7 +48,7 @@ static void main_write(int x) { putchar(x); }
 
 static int main_map(int x) { return x ? (x ^ last_xor) : x; }
 
-int main() {
+Test(simple1, main) {
   // These will be called from untrusted code but may access trusted compartment
   // 0
   struct SimpleCallbacks scb = {
@@ -57,8 +60,7 @@ int main() {
 
   struct Simple *s = simple_new(scb);
   if (s == NULL) {
-    printf("Error allocating Simple\n");
-    return -1;
+    cr_fatal("Error allocating Simple\n");
   }
 
   srand(time(NULL));
@@ -83,6 +85,4 @@ int main() {
     // REWRITER: IA2_CALL(exit_hook_fn, 0)();
     exit_hook_fn();
   }
-
-  return 0;
 }

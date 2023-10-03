@@ -280,7 +280,7 @@ ngx_rtmp_core_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child)
     ngx_conf_merge_value(conf->busy, prev->busy, 0);
 
     if (prev->pool == NULL) {
-        prev->pool = ngx_create_pool(4096, &cf->cycle->new_log);
+        prev->pool = ngx_create_shared_pool(4096, &cf->cycle->new_log);
         if (prev->pool == NULL) {
             return NGX_CONF_ERROR;
         }

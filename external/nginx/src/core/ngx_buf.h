@@ -12,6 +12,7 @@
 #include <ngx_config.h>
 #include <ngx_core.h>
 
+#include <ia2.h>
 
 typedef void *            ngx_buf_tag_t;
 
@@ -121,6 +122,7 @@ typedef struct {
 
 #define NGX_CHAIN_ERROR     (ngx_chain_t *) NGX_ERROR
 
+IA2_BEGIN_NO_WRAP
 
 #define ngx_buf_in_memory(b)       ((b)->temporary || (b)->memory || (b)->mmap)
 #define ngx_buf_in_memory_only(b)  (ngx_buf_in_memory(b) && !(b)->in_file)
@@ -152,7 +154,10 @@ ngx_chain_t *ngx_alloc_chain_link(ngx_pool_t *pool);
 
 
 ngx_int_t ngx_output_chain(ngx_output_chain_ctx_t *ctx, ngx_chain_t *in);
+IA2_END_NO_WRAP
+/* ngx_chain_writer is used as a callback, so must be wrapped */
 ngx_int_t ngx_chain_writer(void *ctx, ngx_chain_t *in);
+IA2_BEGIN_NO_WRAP
 
 ngx_int_t ngx_chain_add_copy(ngx_pool_t *pool, ngx_chain_t **chain,
     ngx_chain_t *in);
@@ -163,5 +168,7 @@ void ngx_chain_update_chains(ngx_pool_t *p, ngx_chain_t **free,
 off_t ngx_chain_coalesce_file(ngx_chain_t **in, off_t limit);
 
 ngx_chain_t *ngx_chain_update_sent(ngx_chain_t *in, off_t sent);
+
+IA2_END_NO_WRAP
 
 #endif /* _NGX_BUF_H_INCLUDED_ */

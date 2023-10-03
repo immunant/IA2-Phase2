@@ -9,9 +9,10 @@
 #define _NGX_STRING_H_INCLUDED_
 
 
-#include <ia2.h>
 #include <ngx_config.h>
 #include <ngx_core.h>
+
+#include <ia2.h>
 
 IA2_BEGIN_NO_WRAP
 

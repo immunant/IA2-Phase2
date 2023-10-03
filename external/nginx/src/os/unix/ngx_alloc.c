@@ -11,8 +11,8 @@
 #include <ia2_allocator.h>
 
 
-ngx_uint_t  ngx_pagesize;
-ngx_uint_t  ngx_pagesize_shift;
+ngx_uint_t  ngx_pagesize IA2_SHARED_DATA;
+ngx_uint_t  ngx_pagesize_shift IA2_SHARED_DATA;
 ngx_uint_t  ngx_cacheline_size IA2_SHARED_DATA;
 
 

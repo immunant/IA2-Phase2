@@ -156,7 +156,7 @@ ngx_event_accept(ngx_event_t *ev)
         (void) ngx_atomic_fetch_add(ngx_stat_active, 1);
 #endif
 
-        c->pool = ngx_create_pool(ls->pool_size, ev->log);
+        c->pool = ngx_create_shared_pool(ls->pool_size, ev->log);
         if (c->pool == NULL) {
             ngx_close_accepted_connection(c);
             return;

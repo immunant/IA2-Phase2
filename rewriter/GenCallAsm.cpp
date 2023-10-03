@@ -286,6 +286,8 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
                              WrapperKind kind, int caller_pkey, int target_pkey,
                              bool as_macro) {
 
+  // Small sanity check
+  assert(caller_pkey != target_pkey);
   std::string terminator = {};
   // Code generated as a macro needs to terminate each line with '\'
   if (as_macro) {
@@ -462,30 +464,35 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
     }
   }
 
-  // Zero out all unused registers. First we save all registers containing args.
-  // These pushes have matching pops before calling the wrapped function so this
-  // stack space is not shown in the diagram above.
-  if (reg_arg_count > 0) {
-    add_comment_line(aw, "Save registers containing arguments");
-    for (const auto &loc : param_locs) {
-      if (!loc.is_stack()) {
-        emit_reg_push(aw, loc);
+  // Before calling the target function, we only need to zero out registers not
+  // used for arguments if the caller is a protected compartment (i.e. pkey is
+  // not zero).
+  if (caller_pkey != 0) {
+    // Zero out all unused registers. First we save all registers containing args.
+    // These pushes have matching pops before calling the wrapped function so this
+    // stack space is not shown in the diagram above.
+    if (reg_arg_count > 0) {
+      add_comment_line(aw, "Save registers containing arguments");
+      for (const auto &loc : param_locs) {
+        if (!loc.is_stack()) {
+          emit_reg_push(aw, loc);
+        }
       }
     }
-  }
 
-  // Zero all registers except rsp
-  add_comment_line(aw, "Zero all registers except rsp");
-  // FIXME: If this will use the System V ABI make sure that the %rsp is aligned
-  // before this call
-  add_asm_line(aw, "call __libia2_scrub_registers");
+    // Zero all registers except rsp
+    add_comment_line(aw, "Zero all registers except rsp");
+    // FIXME: If this will use the System V ABI make sure that the %rsp is aligned
+    // before this call
+    add_asm_line(aw, "call __libia2_scrub_registers");
 
-  // Restore used arg regs after zeroing registers
-  if (reg_arg_count > 0) {
-    add_comment_line(aw, "Restore registers containing arguments");
-    for (auto loc = param_locs.rbegin(); loc != param_locs.rend(); loc++) {
-      if (!loc->is_stack()) {
-        emit_reg_pop(aw, *loc);
+    // Restore used arg regs after zeroing registers
+    if (reg_arg_count > 0) {
+      add_comment_line(aw, "Restore registers containing arguments");
+      for (auto loc = param_locs.rbegin(); loc != param_locs.rend(); loc++) {
+        if (!loc->is_stack()) {
+          emit_reg_pop(aw, *loc);
+        }
       }
     }
   }
@@ -563,27 +570,31 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
   // Switch back to the caller's stack
   emit_switch_stacks(aw, target_pkey, caller_pkey, "r11"s);
 
-  add_comment_line(
-      aw, "Push return regs to caller's stack before scrubbing registers");
-  // Push return regs to the caller's stack. These pushes have matching pops
-  // before the return so it has no net effect on the caller's stack pointer.
-  for (auto loc : return_locs) {
-    if (!loc.is_stack()) {
-      emit_reg_push(aw, loc);
+  // After calling the target function, we only need to zero out registers not
+  // used for return values if the target is a protected compartment
+  if (target_pkey != 0) {
+    add_comment_line(
+        aw, "Push return regs to caller's stack before scrubbing registers");
+    // Push return regs to the caller's stack. These pushes have matching pops
+    // before the return so it has no net effect on the caller's stack pointer.
+    for (auto loc : return_locs) {
+      if (!loc.is_stack()) {
+        emit_reg_push(aw, loc);
+      }
     }
-  }
 
-  // Zero all registers except rsp
-  add_comment_line(aw, "Scrub registers after call");
-  // FIXME: If this will use the System V ABI make sure that the %rsp is aligned
-  // before this call
-  add_asm_line(aw, "call __libia2_scrub_registers");
+    // Zero all registers except rsp
+    add_comment_line(aw, "Scrub registers after call");
+    // FIXME: If this will use the System V ABI make sure that the %rsp is aligned
+    // before this call
+    add_asm_line(aw, "call __libia2_scrub_registers");
 
-  // pop return regs
-  add_comment_line(aw, "Pop return regs");
-  for (auto loc = return_locs.rbegin(); loc != return_locs.rend(); loc++) {
-    if (!loc->is_stack()) {
-      emit_reg_pop(aw, *loc);
+    // pop return regs
+    add_comment_line(aw, "Pop return regs");
+    for (auto loc = return_locs.rbegin(); loc != return_locs.rend(); loc++) {
+      if (!loc->is_stack()) {
+        emit_reg_pop(aw, *loc);
+      }
     }
   }
   // Once again use r10 and r11 as scratch registers

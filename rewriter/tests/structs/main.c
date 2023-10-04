@@ -1,12 +1,11 @@
 /*
 RUN: sh -c 'if [ ! -s "structs_call_gates_0.ld" ]; then echo "No link args as expected"; exit 0; fi; echo "Unexpected link args"; exit 1;'
-RUN: %binary_dir/tests/structs/structs_main_wrapped | diff %S/Output/structs.out -
 */
-#include <stdio.h>
+#include <criterion/criterion.h>
+#include <criterion/logging.h>
 #include "structs.h"
 #include <ia2.h>
 #include <math.h>
-#include <assert.h>
 
 /*
     This program tests that a trusted binary can pass and return structs of various shapes
@@ -17,27 +16,23 @@ INIT_RUNTIME(1);
 #define IA2_COMPARTMENT 1
 #include <ia2_compartment_init.inc>
 
-#define check_close_float(name, val) { printf("%s(s) = %.4f (expected %.4f)\n", #name, name(s), val); }
-#define check_field_float(name, val) { printf("s.%s = %.4f (expected %.4f)\n", #name, s.name, val); }
+#define EPSILON 0.0001f
 
-#define check_eq_int(name, val) { printf("%s(s) = %d (expected %d)\n", #name, name(s), val); }
-#define check_field_int(name, val) { printf("s.%s = %d (expected %d)\n", #name, (int)s.name, val); }
+#define check_close_float(name, val) { cr_assert_lt(fabs(name(s) - (val)), EPSILON); }
+#define check_field_float(name, val) { cr_assert_lt(fabs(s.name - (val)), EPSILON); }
 
-#define check_eq_size(name, val) { printf("%s(s) = %zd (expected %zd)\n", #name, name(s), (size_t)(val)); }
-#define check_field_size(name, val) { printf("s.%s = %zd (expected %zd)\n", #name, (size_t)s.name, (size_t)(val)); }
+#define check_eq_int(name, val) { cr_assert(name(s) == val); }
+#define check_field_int(name, val) { cr_assert(s.name == val); }
 
-#define check_field_ptr(name, val) { printf("s.%s = %p (expected %p)\n", #name, s.name, (void*)(val)); }
+#define check_eq_size(name, val) { cr_assert(name(s) == (size_t)val); }
+#define check_field_size(name, val) { cr_assert(s.name == (size_t)val); }
 
-#define check_eq_i128(name, upper, lower) { __int128 out = name(s); \
-	printf("%s(s) = %016lx%016lx (expected %016lx%016lx)\n", #name, \
-	(int64_t)(out >> 64), (int64_t)(out & 0xffffffffffffffff), \
-	(int64_t)(upper), (uint64_t)(lower)); }
-#define check_field_i128(name, upper, lower) { __int128 out = s.name; \
-	printf("s.%s = %016lx%016lx (expected %016lx%016lx)\n", #name, \
-	(int64_t)(out >> 64), (int64_t)(out & 0xffffffffffffffff), \
-	(int64_t)(upper), (uint64_t)(lower)); }
+#define check_field_ptr(name, val) { cr_assert(s.name == (void*)val); }
 
-int main() {
+#define check_eq_i128(name, val) { cr_assert(name(s) == (__int128)val); }
+#define check_field_i128(name, val) { cr_assert(s.name == (__int128)val); }
+
+Test(structs, main) {
 	/* For each struct, test passing it to functions, returning it from functions
 	(see structs.c), and calls with various combinations of argument/return types. */
 	{
@@ -56,10 +51,10 @@ int main() {
 			.f1 = 999.99,
 		};
 		check_close_float(extract_s2, s.f1);
-		assert(extract_s2(s) == s.f1);
-		assert(fabs(extract_s2(s) - 999.99) < 0.0001);
+		cr_assert(extract_s2(s) == s.f1);
+		cr_assert(fabs(extract_s2(s) - 999.99) < EPSILON);
 		s = get_s2();
-		assert(fabs(s.f1 - 3.14) < 0.0001);
+		cr_assert(fabs(s.f1 - 3.14) < EPSILON);
 	}
 
 	{
@@ -68,7 +63,7 @@ int main() {
 			.c1 = 5,
 			.u1 = 5071,
 		};
-		assert(cksum_s3(s) == 400 + 5 + 5071);
+		cr_assert(cksum_s3(s) == 400 + 5 + 5071);
 		s = get_s3();
 		check_field_int(i1, 50);
 		check_field_int(c1, 65);
@@ -94,7 +89,7 @@ int main() {
 			.p2 = (void*)0xba5edba5edba5ed,
 			.f1 = 390.56,
 		};
-		print_s5(s);
+		check_s5(s);
 		check_close_float(cksum_s5_f, 390.56);
 		check_eq_size(cksum_s5_z, 6976 + 0xb17ebee7 + 78 + 45 + 32 + 0xba5edba5edba5ed);
 		s = get_s5();
@@ -177,7 +172,7 @@ int main() {
 			.i2 = 549,
 			.i3 = 1500,
 		};
-		check_eq_i128(cksum_s9, 0, 2002 + 549 + 1500);
+		check_eq_i128(cksum_s9, 2002 + 549 + 1500);
 		s = get_s9();
 		check_field_int(i1, 96506328);
 		check_field_int(i2, 1846);
@@ -191,11 +186,11 @@ int main() {
 			.i3 = 1240,
 			.z1 = 100500,
 		};
-		check_eq_i128(cksum_s10, 0, 40504030 + 540 + 1240 + 100500);
+		check_eq_i128(cksum_s10, 40504030 + 540 + 1240 + 100500);
 		s = get_s10();
-		check_field_i128(i1, 0, 96506328);
-		check_field_i128(i2, 0, 1846);
-		check_field_i128(i3, 0, 3254);
+		check_field_i128(i1, 96506328);
+		check_field_i128(i2, 1846);
+		check_field_i128(i3, 3254);
 		check_field_size(z1, 6853785);
 	}
 
@@ -264,7 +259,7 @@ int main() {
             (0xddddcccc & 0xffffffff) +
             (0x7fffeeee & 0xffffffff));
         s = get_s13();
-        check_field_i128(x, 0x7fffeeeeddddcccc, 0xbbbbaaaa99998888);
+        check_field_i128(x, (((__int128)0x7fffeeeeddddcccc << 64) | 0xbbbbaaaa99998888));
     }
 
 	{
@@ -313,5 +308,4 @@ int main() {
 		check_field_int(field7, 70000);
 		check_field_int(field8, 80000);
 	}
-	return 0;
 }

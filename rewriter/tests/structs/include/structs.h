@@ -154,8 +154,8 @@ struct s5 get_s5(void);
 // LINKARGS: --wrap=get_s5_int
 struct s5 get_s5_int(int);
 
-// LINKARGS: --wrap=print_s5
-void print_s5(struct s5 );
+// LINKARGS: --wrap=check_s5
+void check_s5(struct s5 );
 
 // LINKARGS: --wrap=cksum_s5_f
 float cksum_s5_f(struct s5);

@@ -2,7 +2,19 @@
 RUN: cat structs_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 */
 #include "structs.h"
-#include <stdio.h>
+#include <math.h>
+#include <criterion/criterion.h>
+
+// LINKARGS: --wrap=check_s5
+void check_s5(struct s5 s) {
+	cr_assert_eq(s.i1, 6976);
+	cr_assert_eq(s.p1, (void*)0xb17ebee7);
+	cr_assert_eq(s.ac1[0], 78);
+	cr_assert_eq(s.ac1[1], 45);
+	cr_assert_eq(s.ac1[2], 32);
+	cr_assert_eq(s.p2, (void*)0xba5edba5edba5ed);
+	cr_assert_lt(fabs(s.f1 - 390.5600f), 0.0001f);
+}
 
 // LINKARGS: --wrap=cksum_s1
 int cksum_s1(struct s1 s) {
@@ -314,10 +326,3 @@ struct s6 mix_s6(struct s6 s1, struct s6 s2) {
 	s1.z1 += s2.z1 / 2;
 	return s1;
 }
-
-// LINKARGS: --wrap=print_s5
-void print_s5(struct s5 s) {
-	printf("s5 { %d %p [%d,%d,%d] %p %.4f }\n",
-		s.i1, s.p1, s.ac1[0], s.ac1[1], s.ac1[2], s.p2, s.f1);
-}
-

@@ -1,7 +1,8 @@
 /*
 RUN: sh -c 'if [ ! -s "threads_call_gates_0.ld" ]; then echo "No link args as expected"; exit 0; fi; echo "Unexpected link args"; exit 1;'
-RUN: %binary_dir/tests/threads/threads_main_wrapped | FileCheck --dump-input=always -v %S/Output/threads.out
 */
+#include <criterion/criterion.h>
+#include <criterion/logging.h>
 #include "library.h"
 #include <assert.h>
 #include <ia2.h>
@@ -18,20 +19,24 @@ INIT_RUNTIME(1);
 
 int data_in_main = 30;
 
-void defined_in_main(void) { printf("main data is %d\n", data_in_main); }
+void defined_in_main(void) {
+  cr_log_info("main data is %d\n", data_in_main);
+  cr_assert_eq(data_in_main, 30);
+}
 
 Fn fnptr_from_main = defined_in_main;
 
 void *thread_fn(void *ptr);
 
 void *thread_fn(void *ptr) {
-  printf("tid %d ptr=%p\n", gettid(), ptr);
+  cr_log_info("tid %d ptr=%p\n", gettid(), ptr);
 
-  printf("main-module thread pkru=%08x\n", ia2_get_pkru());
+  cr_log_info("main-module thread pkru=%08x\n", ia2_get_pkru());
+  cr_assert_eq(ia2_get_pkru(), 0xfffffff0);
 
   library_showpkru();
 
-  printf("ptr is %p, formatting int: %08zx\n", ptr, 4300 + (size_t)ptr);
+  cr_log_info("ptr is %p, formatting int: %08zx\n", ptr, 4300 + (size_t)ptr);
 
   return NULL;
 }
@@ -50,16 +55,17 @@ __thread int thread_local_var = 50;
 
 void *access_ptr_thread_fn(void *ptr) {
   int *x = (int *)ptr;
-  printf("c1t3 accessing c1t1 thread-local: %d\n", *x);
-  printf("c2t3 accessing c1t1 thread-local: %d\n",
+  cr_log_info("c1t3 accessing c1t1 thread-local: %d\n", *x);
+  cr_log_info("c2t3 accessing c1t1 thread-local: %d\n",
          CHECK_VIOLATION(library_access_int_ptr(x)));
   return NULL;
 }
 
-int main() {
-  printf("main-module main pkru=%08x\n", ia2_get_pkru());
+Test(threads, main) {
+  cr_log_info("main-module main pkru=%08x\n", ia2_get_pkru());
+  cr_assert_eq(ia2_get_pkru(), 0xfffffff0);
   library_showpkru();
-  printf("main-module main pkru=%08x\n", ia2_get_pkru());
+  cr_log_info("main-module main pkru=%08x\n", ia2_get_pkru());
 
   pthread_t lib_thread = library_spawn_thread();
 
@@ -78,6 +84,4 @@ int main() {
       &fault_thread, NULL, access_ptr_thread_fn, (void *)&thread_local_var);
 #endif
   pthread_join(fault_thread, NULL);
-
-  return 0;
 }

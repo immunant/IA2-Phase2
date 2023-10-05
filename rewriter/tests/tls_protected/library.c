@@ -7,9 +7,10 @@ RUN: readelf -lW %binary_dir/tests/tls_protected/libtls_protected_lib_wrapped.so
 // SEGMENTS-NOT:     LOAD{{.*}}R E
 #include "library.h"
 #include "test_fault_handler.h"
+#include <criterion/criterion.h>
+#include <criterion/logging.h>
 #include <ia2.h>
 #include <stdbool.h>
-#include <stdio.h>
 #include <stdlib.h>
 
 #define IA2_COMPARTMENT 2
@@ -18,11 +19,12 @@ RUN: readelf -lW %binary_dir/tests/tls_protected/libtls_protected_lib_wrapped.so
 thread_local uint32_t lib_secret = 0x1eaf1e55;
 
 void lib_print_main_secret() {
-  printf("library: going to access main secret\n");
-  printf("library: accessing main secret at %p\n", &main_secret);
-  printf("library: main secret is %x\n", CHECK_VIOLATION(main_secret));
+  cr_log_info("library: going to access main secret\n");
+  cr_log_info("library: accessing main secret at %p\n", &main_secret);
+  cr_log_info("library: main secret is %x\n", CHECK_VIOLATION(main_secret));
+  cr_assert(false); // should not reach here
 }
 
 void lib_print_lib_secret() {
-  printf("library: lib secret is %x\n", lib_secret);
+  cr_log_info("library: lib secret is %x\n", lib_secret);
 }

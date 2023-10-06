@@ -1,13 +1,13 @@
 /*
 RUN: cat header_includes_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 */
-#include <stdio.h>
+#include <criterion/logging.h>
 #include "liboption.h"
 #include "types.h"
 
 // LINKARGS: --wrap=None
 Option None() {
-    printf("returning `None`\n");
+    cr_log_info("returning `None`");
     Option none = {
         .value = 0,
         .present = false,
@@ -17,7 +17,7 @@ Option None() {
 
 // LINKARGS: --wrap=Some
 Option Some(int x) {
-    printf("returning `Some(%d)`\n", x);
+    cr_log_info("returning `Some(%d)`", x);
     Option opt = {
         .value = x,
         .present = true,

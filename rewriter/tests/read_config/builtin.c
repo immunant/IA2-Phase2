@@ -1,7 +1,7 @@
 /*
 RUN: cat read_config_call_gates_2.ld | FileCheck --check-prefix=LINKARGS %s
 */
-#include <stdio.h>
+#include <criterion/logging.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ia2.h>
@@ -47,11 +47,11 @@ struct cfg_opt *get_builtin_opt(char *name) {
             return &opts[i];
         }
     }
-    printf("Option %s not found!", name);
+    cr_log_info("Option %s not found!", name);
     exit(-1);
 }
 
 // LINKARGS: --wrap=print_array
 void print_array(uint8_t ar[3]) {
-    printf("[%x, %x, %x]\n", ar[0], ar[1], ar[2]);
+    cr_log_info("[%x, %x, %x]", ar[0], ar[1], ar[2]);
 }

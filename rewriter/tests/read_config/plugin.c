@@ -8,7 +8,7 @@ RUN: readelf -lW %binary_dir/tests/read_config/libread_config_lib_wrapped.so | F
 #include "plugin.h"
 #include "core.h"
 #include <ia2.h>
-#include <stdio.h>
+#include <criterion/logging.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -79,12 +79,12 @@ struct cfg_opt *get_opt(char *name) {
       return &opts[i];
     }
   }
-  printf("Option %s not found!", name);
+  cr_log_info("Option %s not found!", name);
   exit(-1);
 }
 
 // LINKARGS: --wrap=print_tuple
 void print_tuple(struct tuple *tup) {
   // These derefs are fine since the heap is shared.
-  printf("(%x, %x)\n", tup->first, tup->second);
+  cr_log_info("(%x, %x)", tup->first, tup->second);
 }

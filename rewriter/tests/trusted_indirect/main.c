@@ -1,10 +1,9 @@
 /*
 RUN: cat main.c | FileCheck --match-full-lines --check-prefix=REWRITER %s
 RUN: sh -c 'if [ ! -s "trusted_indirect_call_gates_0.ld" ]; then echo "No link args as expected"; exit 0; fi; echo "Unexpected link args"; exit 1;'
-RUN: %binary_dir/tests/trusted_indirect/trusted_indirect_main_wrapped | diff %S/Output/trusted_indirect.out -
-RUN: %binary_dir/tests/trusted_indirect/trusted_indirect_main_wrapped clean_exit | diff %S/Output/trusted_indirect.clean_exit.out -
 */
-#include <stdio.h>
+#include <criterion/criterion.h>
+#include <criterion/logging.h>
 #include "rand_op.h"
 #include <ia2.h>
 #define IA2_DEFINE_TEST_HANDLER
@@ -33,27 +32,25 @@ static uint32_t divide(uint32_t x, uint32_t y) {
 
 void call_fn_ptr() {
     function_t f = get_function();
-    printf("Got the function %s from the library\n", f.name);
+    cr_log_info("Got the function %s from the library\n", f.name);
     uint32_t x = 987234;
     uint32_t y = 142151;
     // This calls `f.op` with and without parentheses to ensure the rewriter handles both
-    // REWRITER: uint32_t res = IA2_CALL(f.op, 0)(x, y);
-    uint32_t res = f.op(x, y);
-    printf("%s(%d, %d) = %d\n", f.name, x, y, res);
+    // REWRITER: uint32_t res1 = IA2_CALL(f.op, 0)(x, y);
+    uint32_t res1 = f.op(x, y);
     // REWRITER: f.op = IA2_FN(multiply);
     f.op = multiply;
-    // REWRITER: printf("mul(%d, %d) = %d\n", x, y, IA2_CALL((f.op), 0)(x, y));
-    printf("mul(%d, %d) = %d\n", x, y, (f.op)(x, y));
+    // REWRITER: uint32_t res2 = IA2_CALL((f.op), 0)(x, y);
+    uint32_t res2 = (f.op)(x, y);
+    cr_assert_eq(res2, 2897346862);
     // REWRITER: f.op = IA2_FN(divide);
     f.op = divide;
-    // REWRITER: printf("div(%d, %d) = %d\n", x, y, IA2_CALL(f.op, 0)(x, y));
-    printf("div(%d, %d) = %d\n", x, y, f.op(x, y));
+    // REWRITER: uint32_t res3 = IA2_CALL(f.op, 0)(x, y);
+    uint32_t res3 = f.op(x, y);
+    cr_assert_eq(res3, 6);
 }
 
-int main(int argc, char **argv) {
-    if (argc > 1) {
-        clean_exit = true;
-    }
+void do_test() {
     // Test calling a function pointer with one of the shared library's functions
     call_fn_ptr();
 
@@ -68,4 +65,14 @@ int main(int argc, char **argv) {
     leak_secret_address(&secret);
     // REWRITER: IA2_CALL((f.op), 0)(0, 0);
     (f.op)(0, 0);
+}
+
+Test(trusted_indirect, no_clean_exit) {
+    clean_exit = false;
+    do_test();
+}
+
+Test(trusted_indirect, clean_exit) {
+    clean_exit = true;
+    do_test();
 }

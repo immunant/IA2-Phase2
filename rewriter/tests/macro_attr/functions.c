@@ -1,36 +1,36 @@
 /*
 RUN: cat macro_attr_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 */
-#include <stdio.h>
+#include <criterion/logging.h>
 #include "functions.h"
 
 // LINKARGS: --wrap=f
 void f() {
-    printf("Called `f()`\n");
+    cr_log_info("Called `f()`");
 }
 
 // LINKARGS: --wrap=g
 void g() {
-    printf("Called `g()`\n");
+    cr_log_info("Called `g()`");
 }
 
 // TODO(src_rewriter_wip): this gets --wrap, but i don't think it should
 void h(CB cb) {
-    printf("Calling `cb(0)` from `h`\n");
+    cr_log_info("Calling `cb(0)` from `h`");
     cb(0);
 }
 
 // LINKARGS: --wrap=i
 void i() {
-    printf("Called `i()`\n");
+    cr_log_info("Called `i()`");
 }
 
 // LINKARGS: --wrap=j
 void j() {
-    printf("Called `j()`\n");
+    cr_log_info("Called `j()`");
 }
 
 // LINKARGS: --wrap=k
 void k() {
-    printf("Called `k()`\n");
+    cr_log_info("Called `k()`");
 }

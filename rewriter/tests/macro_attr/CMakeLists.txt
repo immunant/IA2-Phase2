@@ -7,6 +7,7 @@ define_shared_lib(
 define_test(
     SRCS main.c
     NEEDS_LD_WRAP
+    CRITERION_TEST
 )
 
 # Build the wrapper lib

@@ -11,6 +11,7 @@ define_test(
     PKEY 1
     NEEDS_LD_WRAP
     INCLUDE_DIR include/plugin
+    CRITERION_TEST
 )
 
 define_ia2_wrapper()

@@ -1,5 +1,5 @@
 /*
-RUN: cat read_config_call_gates_2.ld | FileCheck --check-prefix=LINKARGS %s
+RUN: cat read_config_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 */
 #include <stdio.h>
 #include <stdlib.h>

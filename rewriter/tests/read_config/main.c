@@ -1,5 +1,6 @@
 /*
-RUN: cat read_config_call_gates_2.ld | FileCheck --check-prefix=LINKARGS %s
+RUN: cat read_config_call_gates_2.ld | FileCheck --check-prefix=LINKARGS2 %s
+RUN: cat read_config_call_gates_3.ld | FileCheck --check-prefix=LINKARGS3 %s
 RUN: %binary_dir/tests/read_config/read_config_main_wrapped | sed -r -e 's/at 0x[0-9a-f]+ //g' | diff %S/Output/read_config.out -
 RUN: readelf -lW %binary_dir/tests/read_config/read_config_main_wrapped | FileCheck --check-prefix=SEGMENTS %s
 RUN: cat main.c | FileCheck --match-full-lines --check-prefix=REWRITER %s
@@ -53,24 +54,29 @@ name=builtin_config\n\
 num_options=3\n\
 array=\x11\x22\x33";
 
-// LINKARGS: --wrap=parse_bool
+// LINKARGS2: --wrap=parse_bool_from_2
+// LINKARGS3: --wrap=parse_bool_from_3
 void parse_bool(char *opt, void *out) {
   bool *res = out;
   *res = strcmp(opt, "false");
 }
 
-// LINKARGS: --wrap=parse_str
+// LINKARGS2: --wrap=parse_str_from_2
+// LINKARGS3: --wrap=parse_str_from_3
 void parse_str(char *opt, void *out) {
   char **res = out;
   strcpy(*res, opt);
 }
 
-// LINKARGS: --wrap=parse_u32
+// LINKARGS2: --wrap=parse_u32_from_2
+// LINKARGS3: --wrap=parse_u32_from_3
 void parse_u32(char *opt, void *out) {
   uint32_t *res = out;
   *res = strtol(opt, NULL, 10);
 }
 
+// LINKARGS2: --wrap=register_plugin_from_2
+// LINKARGS3: --wrap=register_plugin_from_3
 bool register_plugin(unsigned int idx) {
     if (idx >= 2) {
         return false;

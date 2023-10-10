@@ -1,5 +1,5 @@
 #pragma once
-#include "core.h"
+#include "builtin.h"
 
 struct tuple {
     uint32_t first;

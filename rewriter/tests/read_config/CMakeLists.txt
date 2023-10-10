@@ -2,12 +2,14 @@ define_shared_lib(
     SRCS plugin.c
     PKEY 2
     NEEDS_LD_WRAP
+    NEEDS_OBJCOPY
 )
 
 define_shared_lib(
     SRCS core.c
     PKEY 3
     NEEDS_LD_WRAP
+    NEEDS_OBJCOPY
 )
 
 define_test(

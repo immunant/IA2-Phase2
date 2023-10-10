@@ -8,6 +8,8 @@ RUN: cat main.c | FileCheck --match-full-lines --check-prefix=REWRITER %s
 // Check that readelf shows exactly one executable segment
 // SEGMENTS-COUNT-1: LOAD{{.*}}R E
 // SEGMENTS-NOT:     LOAD{{.*}}R E
+#include "builtin.h"
+#include "core.h"
 #include "plugin.h"
 #include <ia2.h>
 #include <ia2_allocator.h>
@@ -67,6 +69,20 @@ void parse_str(char *opt, void *out) {
 void parse_u32(char *opt, void *out) {
   uint32_t *res = out;
   *res = strtol(opt, NULL, 10);
+}
+
+bool register_plugin(unsigned int idx) {
+    if (idx >= 2) {
+        return false;
+    }
+    printf("Plugin requested registration with index %d\n", idx);
+    static bool used_idxs[2] = {false, false};
+    if (used_idxs[idx]) {
+        printf("Plugin registration failed\n");
+        return false;
+    }
+    used_idxs[idx] = true;
+    return true;
 }
 
 int main(int arcg, char **argv) {

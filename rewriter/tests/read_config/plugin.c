@@ -6,7 +6,7 @@ RUN: readelf -lW %binary_dir/tests/read_config/libread_config_lib_wrapped.so | F
 // SEGMENTS-COUNT-1: LOAD{{.*}}R E
 // SEGMENTS-NOT:     LOAD{{.*}}R E
 #include "plugin.h"
-#include "core.h"
+#include "builtin.h"
 #include <ia2.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -72,6 +72,11 @@ static void parse_tuple(char *opt, void *out) {
 
 // Reading `name` is fine since the heap is shared
 struct cfg_opt *get_opt(char *name) {
+    static bool registered = false;
+    if (!registered) {
+        register_plugin(1);
+        registered = true;
+    }
   for (size_t i = 0; i < 6; i++) {
     if (!strcmp(opts[i].name, name)) {
       // Returning a reference is fine since `opts` is shared and the main

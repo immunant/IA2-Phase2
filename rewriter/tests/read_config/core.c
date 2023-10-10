@@ -5,8 +5,7 @@ RUN: cat read_config_call_gates_2.ld | FileCheck --check-prefix=LINKARGS %s
 #include <stdlib.h>
 #include <string.h>
 #include <ia2.h>
-// This is a hack. See includes in main.c.
-#include "plugin.h"
+#include "builtin.h"
 #include "core.h"
 
 #define IA2_COMPARTMENT 3
@@ -14,7 +13,7 @@ RUN: cat read_config_call_gates_2.ld | FileCheck --check-prefix=LINKARGS %s
 
 static void parse_array(char *opt, void *out);
 
-static struct cfg_opt opts[3] = {
+static struct cfg_opt opts[3] IA2_SHARED_DATA = {
     {
         "name",
         str,
@@ -45,6 +44,11 @@ static void parse_array(char *opt, void *out) {
 
 // LINKARGS: --wrap=get_core_opt
 struct cfg_opt *get_core_opt(char *name) {
+    static bool registered = false;
+    if (!registered) {
+        register_plugin(0);
+        registered = true;
+    }
     for (size_t i = 0; i < 3; i++) {
         if (!strcmp(opts[i].name, name)) {
             return &opts[i];

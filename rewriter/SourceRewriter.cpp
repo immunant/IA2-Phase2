@@ -1121,12 +1121,16 @@ int main(int argc, const char **argv) {
   llvm::raw_fd_ostream *ld_args_out[MAX_PKEYS] = {};
   llvm::raw_fd_ostream *objcopy_redefine_syms_args[MAX_PKEYS] = {};
 
-  std::map<Function, Pkey> single_caller_fns = {};
+  // The set of functions that are called from multiple compartments without the pkey suffix
   std::map<Function, std::set<Pkey>> multicaller_fns = {};
-  // This map only contains entries for multicaller functions
-  std::map<Function, Function> call_gate_targets = {};
+  // This is the set of names for direct call wrappers without the leading
+  // __wrap_. This set is ultimately used to generate all the call gates, but
+  // it's filled out in two phases: first the functions that only have a single
+  // caller compartment then those that are called from multiple compartments.
+  std::map<Function, Pkey> direct_call_wrappers = {};
+
   for (int caller_pkey = 0; caller_pkey < num_pkeys; caller_pkey++) {
-    // For each compartment find the functions that are declared but not defined
+    // Find the functions that are declared but defined in another compartment
     std::set<Function> undefined_fns = {};
     std::set_difference(fn_decl_pass.declared_fns[caller_pkey].begin(),
                         fn_decl_pass.declared_fns[caller_pkey].end(),
@@ -1134,35 +1138,68 @@ int main(int argc, const char **argv) {
                         fn_decl_pass.defined_fns[caller_pkey].end(),
                         std::inserter(undefined_fns, undefined_fns.begin()));
     for (const auto &fn_name : undefined_fns) {
-        if (single_caller_fns.contains(fn_name)) {
-            Pkey other_caller = single_caller_fns.at(fn_name);
-            single_caller_fns.erase(fn_name);
+        if (direct_call_wrappers.contains(fn_name)) {
+            // If previous iterations found only one compartment that calls
+            // fn_name, make sure it's not already in the multicaller set
+            assert(!multicaller_fns.contains(fn_name));
+            Pkey other_caller = direct_call_wrappers.at(fn_name);
+
+            // Remove from the single-caller set and add fn_name to the
+            // multicaller set, making sure to include the two callers found so
+            // far
+            direct_call_wrappers.erase(fn_name);
             multicaller_fns.insert({fn_name, std::set{caller_pkey, other_caller}});
+
         } else if (multicaller_fns.contains(fn_name)) {
+            // If fn_name already has multiple callers just add to the set of
+            // pkeys
             multicaller_fns.at(fn_name).insert(caller_pkey);
         } else {
-            single_caller_fns.insert({fn_name, caller_pkey});
+            // If fn_name has no callers so far, add it to the single-caller set
+            direct_call_wrappers.insert({fn_name, caller_pkey});
         }
     }
   }
+
+  // This maps multicaller function names (ending in _pkey_N) to the original target function
+  std::map<Function, Function> targets_for_multicaller_fns = {};
+
+  // At this point direct_call_wrappers has all the single-caller functions, so
+  // now we'll add the multicaller ones (with their renamed symbols) to allow
+  // generating call gates with a single loop through direct_call_wrappers
   for (const auto &[fn_name, caller_pkey_set] : multicaller_fns) {
     for (int caller_pkey : caller_pkey_set) {
       std::string new_fn_name = fn_name + "_from_" + std::to_string(caller_pkey);
+      // The contents of the objcopy args file
       std::string contents = fn_name + " " + new_fn_name + '\n';
 
       write_to_file(objcopy_redefine_syms_args, caller_pkey, contents, ".objcopy");
 
-      single_caller_fns.insert({new_fn_name, caller_pkey});
+      // Add the renamed symbols to the direct_call_wrappers set
+      direct_call_wrappers.insert({new_fn_name, caller_pkey});
 
+      // The loop that generates the direct call wrappers depends on maps in
+      // FnDecl that are filled out as we parse the source files. Since the
+      // renamed symbols don't appear in these source files, we duplicate the
+      // original entries in these maps for the renamed symbols. While we could
+      // avoid this duplication if necessary, this simplifies the call gate
+      // generation.
       auto c_abi = fn_decl_pass.abi_signatures.at(fn_name);
       fn_decl_pass.abi_signatures.insert({new_fn_name, c_abi});
 
       Pkey pkey = fn_decl_pass.fn_pkeys.at(fn_name);
       fn_decl_pass.fn_pkeys.insert({new_fn_name, pkey});
-      call_gate_targets.insert({new_fn_name, fn_name});
+
+      // The target functions for multicaller function call gates don't have
+      // matching symbol names (since their symbols are renamed) so let's keep
+      // track of the original function names for these symbols.
+      targets_for_multicaller_fns.insert({new_fn_name, fn_name});
     }
   }
-  for (const auto &[fn_name, caller_pkey] : single_caller_fns) {
+
+  // At this point direct_call_wrappers has both single-caller and multicaller
+  // functions so we just need to generate the callgates
+  for (const auto &[fn_name, caller_pkey] : direct_call_wrappers) {
     CAbiSignature c_abi_sig;
     try {
       c_abi_sig = fn_decl_pass.abi_signatures.at(fn_name);
@@ -1172,9 +1209,12 @@ int main(int argc, const char **argv) {
       abort();
     }
     std::string wrapper_name = "__wrap_"s + fn_name;
+    // The target function just matches the callgate name without the leading
+    // __wrap_ unless it's a multicaller function in which case we check the
+    // function name before the symbol was renamed.
     std::string target_fn = fn_name;
-    if (call_gate_targets.contains(fn_name)) {
-      target_fn = call_gate_targets.at(fn_name);
+    if (targets_for_multicaller_fns.contains(fn_name)) {
+      target_fn = targets_for_multicaller_fns.at(fn_name);
     }
     Pkey target_pkey;
     try {

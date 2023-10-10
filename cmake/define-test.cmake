@@ -23,6 +23,9 @@ function(define_shared_lib)
     cmake_parse_arguments(SHARED_LIB "${options}" "${oneValueArgs}"
                           "${multiValueArgs}" ${ARGN})
 
+    if (NOT DEFINED SHARED_LIB_PKEY)
+        set(SHARED_LIB_PKEY "0")
+    endif()
     # Set library and wrapped library target names
     get_filename_component(TEST_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)
     if(DEFINED SHARED_LIB_LIBNAME)
@@ -30,11 +33,10 @@ function(define_shared_lib)
     else()
         set(LIBNAME ${TEST_NAME}_lib)
     endif()
-    set(WRAPPED_LIBNAME ${LIBNAME}_wrapped)
-
-    if (NOT DEFINED SHARED_LIB_PKEY)
-        set(SHARED_LIB_PKEY "0")
+    if (TARGET ${LIBNAME})
+        set(LIBNAME "${LIBNAME}_pkey_${SHARED_LIB_PKEY}")
     endif()
+    set(WRAPPED_LIBNAME ${LIBNAME}_wrapped)
 
     # INCLUDE_DIR is relative to the test target directory
     if(DEFINED SHARED_LIB_INCLUDE_DIR)

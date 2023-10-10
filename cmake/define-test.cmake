@@ -249,7 +249,7 @@ function(define_test)
     if (DEFINED DEFINE_TEST_LIBS)
         target_link_libraries(${MAIN} PRIVATE ${DEFINE_TEST_LIBS})
         foreach(TEST_LIB ${DEFINE_TEST_LIBS})
-            if ("${TEST_LIB}_PKEY" GREATER 0)
+            if (${${TEST_LIB}_PKEY} GREATER 0)
                 target_link_libraries(${WRAPPED_MAIN} PRIVATE
                     ${TEST_LIB}_wrapped-padded)
             else()

@@ -33,6 +33,7 @@ function(define_shared_lib)
     else()
         set(LIBNAME ${TEST_NAME}_lib)
     endif()
+    # If define_shared_lib was previously invoked with the default libname, append the pkey
     if (TARGET ${LIBNAME})
         set(LIBNAME "${LIBNAME}_pkey_${SHARED_LIB_PKEY}")
     endif()
@@ -160,6 +161,10 @@ function(define_test)
 
     if (NOT DEFINED DEFINE_TEST_LIBS AND NOT DEFINE_TEST_NO_LIBS)
         set(DEFINE_TEST_LIBS ${TEST_NAME}_lib)
+        # TODO: generalize this
+        if (TARGET ${TEST_NAME}_lib_pkey_3)
+            list(APPEND DEFINE_TEST_LIBS "${TEST_NAME}_lib_pkey_3")
+        endif()
     endif()
 
     if(DEFINED DEFINE_TEST_INCLUDE_DIR)
@@ -233,21 +238,25 @@ function(define_test)
     set_target_properties(${WRAPPED_MAIN} PROPERTIES LINK_DEPENDS ${PADDING_LINKER_SCRIPT})
     target_link_libraries(${WRAPPED_MAIN} PRIVATE
         ${TEST_NAME}_call_gates)
+
     if (DEFINED DEFINE_TEST_LIBS)
-        get_target_property(LIB_PKEY ${DEFINE_TEST_LIBS} PKEY)
-    else()
-        set(LIB_PKEY 0)
+        foreach(TEST_LIB ${DEFINE_TEST_LIBS})
+            get_target_property(LIB_PKEY ${TEST_LIB} PKEY)
+            set(${TEST_LIB}_PKEY ${LIB_PKEY})
+        endforeach()
     endif()
 
     if (DEFINED DEFINE_TEST_LIBS)
         target_link_libraries(${MAIN} PRIVATE ${DEFINE_TEST_LIBS})
-        if (${LIB_PKEY} GREATER 0)
-            target_link_libraries(${WRAPPED_MAIN} PRIVATE
-                ${DEFINE_TEST_LIBS}_wrapped-padded)
-        else()
-            target_link_libraries(${WRAPPED_MAIN} PRIVATE
-                ${DEFINE_TEST_LIBS}_wrapped)
-        endif()
+        foreach(TEST_LIB ${DEFINE_TEST_LIBS})
+            if ("${TEST_LIB}_PKEY" GREATER 0)
+                target_link_libraries(${WRAPPED_MAIN} PRIVATE
+                    ${TEST_LIB}_wrapped-padded)
+            else()
+                target_link_libraries(${WRAPPED_MAIN} PRIVATE
+                    ${TEST_LIB}_wrapped)
+            endif()
+        endforeach()
     endif()
 
     if (DEFINE_TEST_NEEDS_LD_WRAP)

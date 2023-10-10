@@ -34,9 +34,9 @@ INIT_RUNTIME(2);
 #define IA2_COMPARTMENT 1
 #include <ia2_compartment_init.inc>
 
-// The first 5 entries are plugin options and the rest are builtin
+// The first 5 entries are plugin options and the rest are core
 #define PLUGIN_ENTRIES 5
-#define BUILTIN_ENTRIES 3
+#define CORE_ENTRIES 3
 
 // A config file with one entry per line. The entry name is separated from its
 // value by '=' and the entry type is declared by the corresponding cfg_opt in
@@ -47,7 +47,7 @@ num_options=4\n\
 debug_mode=false\n\
 magic_val=\xef\xbe\xad\xde\xaa\xbb\xcc\xdd\n\
 random_seed=42\n\
-name=builtin_config\n\
+name=core_config\n\
 num_options=3\n\
 array=\x11\x22\x33";
 
@@ -95,7 +95,7 @@ int main(int arcg, char **argv) {
       // fine since we're pretending the heap is intentionally shared for now
       opt = get_opt(tok);
     } else {
-      opt = get_builtin_opt(tok);
+      opt = get_core_opt(tok);
     }
 
     // `opt` may point to other compartment, but this dereference is fine since
@@ -131,7 +131,7 @@ int main(int arcg, char **argv) {
     tok = strtok(NULL, "\n");
   }
 
-  for (size_t i = 0; i < PLUGIN_ENTRIES + BUILTIN_ENTRIES; i++) {
+  for (size_t i = 0; i < PLUGIN_ENTRIES + CORE_ENTRIES; i++) {
     printf("%s ", entries[i].name);
     switch (entries[i].ty) {
     case str: {
@@ -157,7 +157,7 @@ int main(int arcg, char **argv) {
         // shared_malloc.
         print_tuple(entries[i].value.other);
       } else {
-        // This passes a pointer to the builtin module, so it's not an issue.
+        // This passes a pointer to the core module, so it's not an issue.
         print_array(entries[i].value.other);
       }
       break;

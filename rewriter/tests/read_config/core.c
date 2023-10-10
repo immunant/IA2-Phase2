@@ -9,6 +9,9 @@ RUN: cat read_config_call_gates_2.ld | FileCheck --check-prefix=LINKARGS %s
 #include "plugin.h"
 #include "core.h"
 
+#define IA2_COMPARTMENT 3
+#include <ia2_compartment_init.inc>
+
 static void parse_array(char *opt, void *out);
 
 static struct cfg_opt opts[3] = {
@@ -40,8 +43,8 @@ static void parse_array(char *opt, void *out) {
 // The arguments to the following functions point to the main binary so we don't
 // need to use a shared buffer
 
-// LINKARGS: --wrap=get_builtin_opt
-struct cfg_opt *get_builtin_opt(char *name) {
+// LINKARGS: --wrap=get_core_opt
+struct cfg_opt *get_core_opt(char *name) {
     for (size_t i = 0; i < 3; i++) {
         if (!strcmp(opts[i].name, name)) {
             return &opts[i];

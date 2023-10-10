@@ -40,5 +40,5 @@ struct cfg_opt {
     parse_fn parse;
 };
 
-struct cfg_opt *get_builtin_opt(char *name);
+struct cfg_opt *get_core_opt(char *name);
 void print_array(uint8_t ar[3]);

@@ -862,12 +862,12 @@ public:
   std::map<Function, Pkey> fn_pkeys;
 };
 
-void write_to_ld_file(llvm::raw_fd_ostream *file[MAX_PKEYS], int i,
-                      const std::string &contents) {
+void write_to_file(llvm::raw_fd_ostream *file[MAX_PKEYS], int i,
+                      const std::string &contents, const char *extension) {
   if (file[i] == nullptr) {
     std::error_code EC;
     file[i] = new llvm::raw_fd_ostream(
-        OutputPrefix + "_" + std::to_string(i) + ".ld", EC);
+        OutputPrefix + "_" + std::to_string(i) + extension, EC);
     assert(file[i] != nullptr);
   }
   *file[i] << contents;
@@ -1119,9 +1119,12 @@ int main(int argc, const char **argv) {
   // Create wrappers for direct calls. These wrappers are inserted by ld --wrap
   // so the wrapper name cannot be changed.
   llvm::raw_fd_ostream *ld_args_out[MAX_PKEYS] = {};
+  llvm::raw_fd_ostream *objcopy_redefine_syms_args[MAX_PKEYS] = {};
 
   std::map<Function, Pkey> single_caller_fns = {};
   std::map<Function, std::set<Pkey>> multicaller_fns = {};
+  // This map only contains entries for multicaller functions
+  std::map<Function, Function> call_gate_targets = {};
   for (int caller_pkey = 0; caller_pkey < num_pkeys; caller_pkey++) {
     // For each compartment find the functions that are declared but not defined
     std::set<Function> undefined_fns = {};
@@ -1143,7 +1146,21 @@ int main(int argc, const char **argv) {
     }
   }
   for (const auto &[fn_name, caller_pkey_set] : multicaller_fns) {
-    std::cout << "Multiple calls to " << fn_name.c_str() << '\n';
+    for (int caller_pkey : caller_pkey_set) {
+      std::string new_fn_name = fn_name + "_from_" + std::to_string(caller_pkey);
+      std::string contents = fn_name + " " + new_fn_name + '\n';
+
+      write_to_file(objcopy_redefine_syms_args, caller_pkey, contents, ".objcopy");
+
+      single_caller_fns.insert({new_fn_name, caller_pkey});
+
+      auto c_abi = fn_decl_pass.abi_signatures.at(fn_name);
+      fn_decl_pass.abi_signatures.insert({new_fn_name, c_abi});
+
+      Pkey pkey = fn_decl_pass.fn_pkeys.at(fn_name);
+      fn_decl_pass.fn_pkeys.insert({new_fn_name, pkey});
+      call_gate_targets.insert({new_fn_name, fn_name});
+    }
   }
   for (const auto &[fn_name, caller_pkey] : single_caller_fns) {
     CAbiSignature c_abi_sig;
@@ -1154,10 +1171,11 @@ int main(int argc, const char **argv) {
                    << " not found by FnDecl pass\n";
       abort();
     }
-    // TODO: Add the option to append "_from_PKEY" to the wrapper name and use
-    // objcopy --redefine-syms to support calling a function from multiple
-    // compartments
     std::string wrapper_name = "__wrap_"s + fn_name;
+    std::string target_fn = fn_name;
+    if (call_gate_targets.contains(fn_name)) {
+      target_fn = call_gate_targets.at(fn_name);
+    }
     Pkey target_pkey;
     try {
       target_pkey = fn_decl_pass.fn_pkeys.at(fn_name);
@@ -1168,13 +1186,13 @@ int main(int argc, const char **argv) {
       continue;
     }
     std::string asm_wrapper =
-        emit_asm_wrapper(c_abi_sig, wrapper_name, fn_name,
+        emit_asm_wrapper(c_abi_sig, wrapper_name, target_fn,
                          WrapperKind::Direct, caller_pkey, target_pkey);
     wrapper_out << "asm(\n";
     wrapper_out << asm_wrapper;
     wrapper_out << ");\n";
 
-    write_to_ld_file(ld_args_out, caller_pkey, "--wrap="s + fn_name + '\n');
+    write_to_file(ld_args_out, caller_pkey, "--wrap="s + fn_name + '\n', ".ld");
   }
 
   // Create wrapper for compartment destructor
@@ -1196,8 +1214,8 @@ int main(int argc, const char **argv) {
     wrapper_out << asm_wrapper;
     wrapper_out << ");\n";
 
-    write_to_ld_file(ld_args_out, compartment_pkey,
-                     "--wrap="s + fn_name + '\n');
+    write_to_file(ld_args_out, compartment_pkey,
+                     "--wrap="s + fn_name + '\n', ".ld");
   }
 
   std::cout << "Generating function pointer wrappers\n";
@@ -1268,6 +1286,9 @@ int main(int argc, const char **argv) {
   for (int i = 0; i < num_pkeys; i++) {
     if (ld_args_out[i] != nullptr) {
       ld_args_out[i]->close();
+    }
+    if (objcopy_redefine_syms_args[i] != nullptr) {
+      objcopy_redefine_syms_args[i]->close();
     }
   }
 

@@ -49,7 +49,7 @@ num_options=4\n\
 debug_mode=false\n\
 magic_val=\xef\xbe\xad\xde\xaa\xbb\xcc\xdd\n\
 random_seed=42\n\
-name=core_config\n\
+name=builtin_config\n\
 num_options=3\n\
 array=\x11\x22\x33";
 
@@ -75,10 +75,9 @@ bool register_plugin(unsigned int idx) {
     if (idx >= 2) {
         return false;
     }
-    printf("Plugin requested registration with index %d\n", idx);
     static bool used_idxs[2] = {false, false};
     if (used_idxs[idx]) {
-        printf("Plugin registration failed\n");
+        printf("Plugin registration with index %d failed\n", idx);
         return false;
     }
     used_idxs[idx] = true;

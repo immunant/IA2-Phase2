@@ -1163,7 +1163,14 @@ int main(int argc, const char **argv) {
   // Create wrapper for compartment destructor
   for (int compartment_pkey = 1; compartment_pkey < num_pkeys; compartment_pkey++) {
     std::string fn_name = "ia2_compartment_destructor_" + std::to_string(compartment_pkey);
-    auto c_abi_sig = fn_decl_pass.abi_signatures.at(fn_name);
+    CAbiSignature c_abi_sig;
+    try {
+      c_abi_sig = fn_decl_pass.abi_signatures.at(fn_name);
+    } catch (std::out_of_range const &exc) {
+      llvm::errs() << "Could not find ia2_compartment_destructor_" << compartment_pkey << '\n' <<
+        "Make sure to #include ia2_compartment_init.inc for this compartment\n";
+      abort();
+    }
     std::string wrapper_name = "__wrap_"s + fn_name;
     std::string asm_wrapper =
         emit_asm_wrapper(c_abi_sig, wrapper_name, fn_name, WrapperKind::Direct,

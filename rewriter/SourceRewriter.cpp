@@ -1119,6 +1119,9 @@ int main(int argc, const char **argv) {
   // Create wrappers for direct calls. These wrappers are inserted by ld --wrap
   // so the wrapper name cannot be changed.
   llvm::raw_fd_ostream *ld_args_out[MAX_PKEYS] = {};
+
+  std::map<Function, Pkey> single_caller_fns = {};
+  std::map<Function, std::set<Pkey>> multicaller_fns = {};
   for (int caller_pkey = 0; caller_pkey < num_pkeys; caller_pkey++) {
     // For each compartment find the functions that are declared but not defined
     std::set<Function> undefined_fns = {};
@@ -1128,36 +1131,50 @@ int main(int argc, const char **argv) {
                         fn_decl_pass.defined_fns[caller_pkey].end(),
                         std::inserter(undefined_fns, undefined_fns.begin()));
     for (const auto &fn_name : undefined_fns) {
-      CAbiSignature c_abi_sig;
-      try {
-        c_abi_sig = fn_decl_pass.abi_signatures.at(fn_name);
-      } catch (std::out_of_range const &exc) {
-        llvm::errs() << "C ABI signature for function " << fn_name.c_str()
-                     << " not found by FnDecl pass\n";
-        abort();
-      }
-      // TODO: Add the option to append "_from_PKEY" to the wrapper name and use
-      // objcopy --redefine-syms to support calling a function from multiple
-      // compartments
-      std::string wrapper_name = "__wrap_"s + fn_name;
-      Pkey target_pkey;
-      try {
-        target_pkey = fn_decl_pass.fn_pkeys.at(fn_name);
-      } catch (std::out_of_range const &exc) {
-        llvm::errs() << "Assuming pkey for function " << fn_name.c_str()
-                     << " is same as the caller (" << caller_pkey
-                     << ") since its definition was not found by FnDecl pass\n";
-        continue;
-      }
-      std::string asm_wrapper =
-          emit_asm_wrapper(c_abi_sig, wrapper_name, fn_name,
-                           WrapperKind::Direct, caller_pkey, target_pkey);
-      wrapper_out << "asm(\n";
-      wrapper_out << asm_wrapper;
-      wrapper_out << ");\n";
-
-      write_to_ld_file(ld_args_out, caller_pkey, "--wrap="s + fn_name + '\n');
+        if (single_caller_fns.contains(fn_name)) {
+            Pkey other_caller = single_caller_fns.at(fn_name);
+            single_caller_fns.erase(fn_name);
+            multicaller_fns.insert({fn_name, std::set{caller_pkey, other_caller}});
+        } else if (multicaller_fns.contains(fn_name)) {
+            multicaller_fns.at(fn_name).insert(caller_pkey);
+        } else {
+            single_caller_fns.insert({fn_name, caller_pkey});
+        }
     }
+  }
+  for (const auto &[fn_name, caller_pkey_set] : multicaller_fns) {
+    std::cout << "Multiple calls to " << fn_name.c_str() << '\n';
+  }
+  for (const auto &[fn_name, caller_pkey] : single_caller_fns) {
+    CAbiSignature c_abi_sig;
+    try {
+      c_abi_sig = fn_decl_pass.abi_signatures.at(fn_name);
+    } catch (std::out_of_range const &exc) {
+      llvm::errs() << "C ABI signature for function " << fn_name.c_str()
+                   << " not found by FnDecl pass\n";
+      abort();
+    }
+    // TODO: Add the option to append "_from_PKEY" to the wrapper name and use
+    // objcopy --redefine-syms to support calling a function from multiple
+    // compartments
+    std::string wrapper_name = "__wrap_"s + fn_name;
+    Pkey target_pkey;
+    try {
+      target_pkey = fn_decl_pass.fn_pkeys.at(fn_name);
+    } catch (std::out_of_range const &exc) {
+      llvm::errs() << "Assuming pkey for function " << fn_name.c_str()
+                   << " is same as the caller (" << caller_pkey
+                   << ") since its definition was not found by FnDecl pass\n";
+      continue;
+    }
+    std::string asm_wrapper =
+        emit_asm_wrapper(c_abi_sig, wrapper_name, fn_name,
+                         WrapperKind::Direct, caller_pkey, target_pkey);
+    wrapper_out << "asm(\n";
+    wrapper_out << asm_wrapper;
+    wrapper_out << ");\n";
+
+    write_to_ld_file(ld_args_out, caller_pkey, "--wrap="s + fn_name + '\n');
   }
 
   // Create wrapper for compartment destructor

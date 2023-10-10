@@ -4,6 +4,7 @@ set(PADDING_LINKER_SCRIPT ${libia2_BINARY_DIR}/padding.ld)
 #
 # NEEDS_LD_WRAP - If present pass -Wl,@$LD_ARGS_FILE to the wrapped
 #       library. The name of the file is generated from the target name and pkey.
+# NEEDS_OBJCOPY - If present, run the pre-link objcopy step on the target object files.
 # PKEY (optional) - The pkey for the wrapped library (defaults to 0).
 # LIBNAME (optional) - The shared library name (defaults to ${TEST_NAME}_lib)
 # SRCS (required) - The set of source files
@@ -16,7 +17,7 @@ set(PADDING_LINKER_SCRIPT ${libia2_BINARY_DIR}/padding.ld)
 # UNWRAPPED_LIBS (optional) - extra unwrapped libraries that this library links
 #       against.
 function(define_shared_lib)
-    set(options NEEDS_LD_WRAP)
+    set(options NEEDS_LD_WRAP NEEDS_OBJCOPY)
     set(oneValueArgs LIBNAME PKEY)
     set(multiValueArgs SRCS INCLUDE_DIR UNWRAPPED_INCLUDE_DIRS
         UNWRAPPED_LIBRARY_DIRS UNWRAPPED_LIBS)
@@ -108,6 +109,17 @@ function(define_shared_lib)
             "-Wl,@${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME}_call_gates_${SHARED_LIB_PKEY}.ld")
     else()
         set_target_properties(${WRAPPED_LIBNAME} PROPERTIES NEEDS_LD_WRAP NO)
+    endif()
+    if (SHARED_LIB_NEEDS_OBJCOPY)
+        set(OBJCOPY_FILE ${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME}_call_gates_${SHARED_LIB_PKEY}.objcopy)
+        # TODO: Handle more than one .o correctly
+        add_custom_command(TARGET ${WRAPPED_LIBNAME} PRE_LINK
+                           COMMAND ${CMAKE_OBJCOPY} ARGS "--redefine-syms=${OBJCOPY_FILE}" $<TARGET_OBJECTS:${WRAPPED_LIBNAME}>
+                           DEPENDS ${OBJCOPY_FILE}
+                           VERBATIM)
+        set_target_properties(${WRAPPED_LIBNAME} PROPERTIES NEEDS_OBJCOPY_FILE YES)
+    else()
+        set_target_properties(${WRAPPED_LIBNAME} PROPERTIES NEEDS_OBJCOPY_FILE NO)
     endif()
     if (${SHARED_LIB_PKEY} GREATER 0)
         target_link_libraries(${WRAPPED_LIBNAME} PRIVATE

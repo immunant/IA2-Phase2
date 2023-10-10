@@ -42,6 +42,7 @@ function(define_ia2_wrapper)
 
     set(ALL_SRCS "")
     set(LD_ARGS_FILES "")
+    set(OBJCOPY_ARGS_FILES "")
     foreach(target ${DEFINE_IA2_WRAPPER_ORIGINAL_TARGETS})
         get_target_property(SRCS ${target}_wrapped SOURCES)
         list(APPEND ALL_SRCS ${SRCS})
@@ -51,6 +52,12 @@ function(define_ia2_wrapper)
             get_target_property(PKEY ${target}_wrapped PKEY)
             list(APPEND LD_ARGS_FILES ${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME}_call_gates_${PKEY}.ld)
         endif()
+        get_target_property(GENERATES_OBJCOPY_FILE ${target}_wrapped NEEDS_OBJCOPY_FILE)
+        if (GENERATES_OBJCOPY_FILE)
+            get_target_property(PKEY ${target}_wrapped PKEY)
+            list(APPEND OBJCOPY_ARGS_FILES
+                 ${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME}_call_gates_${PKEY}.objcopy)
+        endif()
     endforeach()
     set(ORIGINAL_SRCS ${ALL_SRCS})
     list(TRANSFORM ORIGINAL_SRCS REPLACE ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
@@ -59,7 +66,8 @@ function(define_ia2_wrapper)
     set(CALL_GATE_HDR ${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME}_call_gates.h)
 
     add_custom_command(
-        OUTPUT ${CALL_GATE_SRC} ${CALL_GATE_HDR} ${LD_ARGS_FILES}
+        OUTPUT ${CALL_GATE_SRC} ${CALL_GATE_HDR}
+               ${LD_ARGS_FILES} ${OBJCOPY_ARGS_FILES}
                ${ALL_SRCS}
         COMMAND ia2-rewriter
             --output-prefix=${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME}_call_gates
@@ -77,7 +85,8 @@ function(define_ia2_wrapper)
 
     add_custom_target(
         ${TEST_NAME}_call_gate_generation
-        DEPENDS ${CALL_GATE_SRC} ${CALL_GATE_HDR} ${LD_ARGS_FILES}
+        DEPENDS ${CALL_GATE_SRC} ${CALL_GATE_HDR}
+                ${LD_ARGS_FILES} ${OBJCOPY_ARGS_FILES}
     )
 
     set(CALL_GATE_TARGET ${TEST_NAME}_call_gates)

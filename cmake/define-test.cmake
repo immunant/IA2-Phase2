@@ -112,11 +112,15 @@ function(define_shared_lib)
     endif()
     if (SHARED_LIB_NEEDS_OBJCOPY)
         set(OBJCOPY_FILE ${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME}_call_gates_${SHARED_LIB_PKEY}.objcopy)
-        # TODO: Handle more than one .o correctly
+        # glue for list JOIN in OBJCOPY_CMD
+        set(OBJCOPY_GLUE "${CMAKE_OBJCOPY};--redefine-syms=${OBJCOPY_FILE};")
+        string(APPEND OBJCOPY_CMD "${OBJCOPY_GLUE}"
+                                    $<JOIN:$<TARGET_OBJECTS:${WRAPPED_LIBNAME}>, ";&&;${OBJCOPY_GLUE}"> ";")
         add_custom_command(TARGET ${WRAPPED_LIBNAME} PRE_LINK
-                           COMMAND ${CMAKE_OBJCOPY} ARGS "--redefine-syms=${OBJCOPY_FILE}" $<TARGET_OBJECTS:${WRAPPED_LIBNAME}>
+                           COMMAND "${OBJCOPY_CMD}"
                            DEPENDS ${OBJCOPY_FILE}
-                           VERBATIM)
+                           VERBATIM
+                           COMMAND_EXPAND_LISTS)
         set_target_properties(${WRAPPED_LIBNAME} PROPERTIES NEEDS_OBJCOPY_FILE YES)
     else()
         set_target_properties(${WRAPPED_LIBNAME} PROPERTIES NEEDS_OBJCOPY_FILE NO)
@@ -173,10 +177,6 @@ function(define_test)
 
     if (NOT DEFINED DEFINE_TEST_LIBS AND NOT DEFINE_TEST_NO_LIBS)
         set(DEFINE_TEST_LIBS ${TEST_NAME}_lib)
-        # TODO: generalize this
-        if (TARGET ${TEST_NAME}_lib_pkey_3)
-            list(APPEND DEFINE_TEST_LIBS "${TEST_NAME}_lib_pkey_3")
-        endif()
     endif()
 
     if(DEFINED DEFINE_TEST_INCLUDE_DIR)

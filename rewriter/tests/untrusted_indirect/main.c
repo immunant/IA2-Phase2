@@ -1,7 +1,8 @@
 /*
 RUN: sh -c 'if [ ! -s "untrusted_indirect_call_gates_0.ld" ]; then echo "No link args as expected"; exit 0; fi; echo "Unexpected link args"; exit 1;'
 */
-#include <stdio.h>
+#include <criterion/criterion.h>
+#include <criterion/logging.h>
 #include <stdint.h>
 #include "foo.h"
 #include <ia2.h>
@@ -56,21 +57,28 @@ uint64_t leak_secret_address(uint64_t x, uint64_t y) {
     return (uint64_t)&secret;
 }
 
-int main(int argc, char **argv) {
-    if (argc > 1) {
-        clean_exit = true;
-    }
-    printf("TRUSTED: the secret is 0x%lx\n", secret);
-    printf("0x%lx\n", apply_callback(1, 2));
+void do_test() {
+    cr_log_info("TRUSTED: the secret is 0x%lx\n", secret);
+    cr_log_info("0x%lx\n", apply_callback(1, 2));
 
     // REWRITER: register_callback(IA2_FN(pick_rhs));
     register_callback(pick_rhs);
-    printf("0x%lx\n", apply_callback(3, 4));
+    cr_log_info("0x%lx\n", apply_callback(3, 4));
 
     // REWRITER: register_callback(IA2_FN(leak_secret_address));
     register_callback(leak_secret_address);
-    printf("TRUSTED: oops we leaked the address of the secret\n");
+    cr_log_info("TRUSTED: oops we leaked the address of the secret\n");
     apply_callback(5, 6);
 
    unregister_callback();
+}
+
+Test(untrusted_indirect, no_clean_exit) {
+    clean_exit = false;
+    do_test();
+}
+
+Test(untrusted_indirect, clean_exit) {
+    clean_exit = true;
+    do_test();
 }

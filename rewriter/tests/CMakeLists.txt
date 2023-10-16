@@ -1,3 +1,5 @@
+include(CTest)
+
 enable_testing()
 
 include("../../cmake/define-ia2-wrapper.cmake")
@@ -22,13 +24,12 @@ set_target_properties(check-ia2 PROPERTIES FOLDER "tests")
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# Set up 'check' alias
-add_custom_target(check)
+# Set up 'check' target
+add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure)
 add_dependencies(check check-ia2)
 set_target_properties(check PROPERTIES FOLDER "tests")
 
 # add_subdirectory(ffmpeg)
-add_subdirectory(function_allowlist)
 add_subdirectory(header_includes)
 add_subdirectory(heap_two_keys)
 # add_subdirectory(libusb)

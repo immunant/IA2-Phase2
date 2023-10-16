@@ -1,11 +1,10 @@
 /*
 RUN: cat untrusted_indirect_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
-RUN: %binary_dir/tests/untrusted_indirect/untrusted_indirect_main_wrapped | diff %S/Output/untrusted_indirect.out -
-RUN: %binary_dir/tests/untrusted_indirect/untrusted_indirect_main_wrapped clean_exit | diff %S/Output/untrusted_indirect.clean_exit.out -
 */
+#include <criterion/criterion.h>
+#include <criterion/new/assert.h>
 #include <signal.h>
 #include "foo.h"
-#include "stdio.h"
 #include "test_fault_handler.h"
 
 extern bool clean_exit;
@@ -40,7 +39,7 @@ void unregister_callback() {
         if (!clean_exit) {
             // Check for an mpk violation when the library tries to read the main binary's memory
             uint64_t stolen_secret = CHECK_VIOLATION(*(uint64_t *)last_result);
-            printf("UNTRUSTED: the secret is 0x%lx\n", stolen_secret);
+            cr_fatal("Did not segfault on boundary violation");
         }
     }
 }

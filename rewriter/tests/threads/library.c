@@ -1,6 +1,8 @@
 /*
 RUN: cat threads_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 */
+#include <criterion/criterion.h>
+#include <criterion/logging.h>
 #include "library.h"
 #include <ia2.h>
 #include <stdio.h>
@@ -13,12 +15,16 @@ int library_access_int_ptr(int *ptr) { return *ptr; }
 
 // LINKARGS: --wrap=library_call_fn
 void library_call_fn(Fn what) {
-  printf("in lib, about to call fnptr; lib data: %d\n", data_in_lib);
+  cr_log_info("in lib, about to call fnptr; lib data: %d\n", data_in_lib);
+  cr_assert_eq(data_in_lib, 900);
   what();
 }
 
 // LINKARGS: --wrap=library_foo
-void library_foo() { printf("data in library: %d\n", data_in_lib); }
+void library_foo() {
+  cr_log_info("data in library: %d\n", data_in_lib);
+  cr_assert_eq(data_in_lib, 900);
+}
 
 // LINKARGS: --wrap=library_memset
 void library_memset(void *ptr, uint8_t byte, size_t n) {
@@ -29,7 +35,11 @@ void library_memset(void *ptr, uint8_t byte, size_t n) {
 }
 
 // LINKARGS: --wrap=library_showpkru
-void library_showpkru(void) { printf("library pkru %08x\n", ia2_get_pkru()); }
+void library_showpkru() {
+  uint32_t actual_pkru = ia2_get_pkru();
+  cr_log_info("library pkru %08x", actual_pkru);
+  cr_assert_eq(0xfffffffc, actual_pkru);
+}
 
 static void *library_showpkru_thread_main(void *unused) {
   library_showpkru();

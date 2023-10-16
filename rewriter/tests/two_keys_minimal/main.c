@@ -1,9 +1,6 @@
 /*
 RUN: sh -c 'if [ ! -s "should_segfault_call_gates_0.ld" ]; then echo "No link args as expected"; exit 0; fi; echo "Unexpected link args"; exit 1;'
 RUN: cat two_keys_minimal_call_gates_2.ld | FileCheck --check-prefix=LINKARGS %s
-RUN: %binary_dir/tests/two_keys_minimal/two_keys_minimal_main_wrapped plugin | diff %S/Output/plugin.out -
-RUN: %binary_dir/tests/two_keys_minimal/two_keys_minimal_main_wrapped main | diff %S/Output/main.out -
-RUN: %binary_dir/tests/two_keys_minimal/two_keys_minimal_main_wrapped clean_exit | diff %S/Output/clean_exit.out -
 RUN: readelf -lW %binary_dir/tests/two_keys_minimal/two_keys_minimal_main_wrapped | FileCheck --check-prefix=SEGMENTS %s
 */
 
@@ -11,6 +8,8 @@ RUN: readelf -lW %binary_dir/tests/two_keys_minimal/two_keys_minimal_main_wrappe
 // SEGMENTS-COUNT-1: LOAD{{.*}}R E
 // SEGMENTS-NOT:     LOAD{{.*}}R E
 
+#include <criterion/criterion.h>
+#include <criterion/logging.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <ia2.h>
@@ -35,32 +34,26 @@ bool clean_exit IA2_SHARED_DATA = false;
 
 // LINKARGS: --wrap=print_message
 void print_message(void) {
-    LOG("this is defined in the main binary");
+    cr_log_info("this is defined in the main binary");
     if (debug_mode) {
-        LOG("the main secret is at %p", &secret);
+        cr_log_info("the main secret is at %p", &secret);
     }
-    LOG("the main secret is %x", secret);
+    cr_assert(secret == 0x09431233);
     if (steal_plugin_secret) {
-        LOG("the plugin secret is %x\n", CHECK_VIOLATION(plugin_secret));
+        cr_assert(CHECK_VIOLATION(plugin_secret) == 0x78341244);
     }
 }
 
-int main(int argc, char **argv) {
-    if (argc < 2) {
-        printf("Run with `plugin`, `main` or `clean_exit` as the first argument\n");
-        return -1;
-    }
-    if (!strcmp(argv[1], "plugin")) {
-        LOG("checking if the plugin secret is safe");
-        steal_plugin_secret = true;
-    } else if (!strcmp(argv[1], "main")) {
-        LOG("checking if the main secret is safe");
-    } else {
-        LOG("checking if the program can exit cleanly");
-        clean_exit = true;
-    }
-    if (argc == 3 && !strcmp(argv[2], "debug")) {
-        debug_mode = true;
-    }
+Test(two_keys, main) {
+    start_plugin();
+}
+
+Test(two_keys, plugin) {
+    steal_plugin_secret = true;
+    start_plugin();
+}
+
+Test(two_keys, clean_exit) {
+    clean_exit = true;
     start_plugin();
 }

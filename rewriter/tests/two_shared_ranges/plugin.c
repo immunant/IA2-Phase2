@@ -7,7 +7,7 @@ RUN: readelf -lW %binary_dir/tests/two_shared_ranges/libtwo_shared_ranges_lib_wr
 // SEGMENTS-COUNT-1: LOAD{{.*}}R E
 // SEGMENTS-NOT:     LOAD{{.*}}R E
 
-#include <stdio.h>
+#include <criterion/logging.h>
 #include <ia2.h>
 #include "exported_fn.h"
 #include "test_fault_handler.h"
@@ -22,15 +22,13 @@ extern bool clean_exit;
 
 // LINKARGS: --wrap=start_plugin
 void start_plugin(void) {
-    LOG("this is defined in the plugin");
-    if (debug_mode) {
-        LOG("the plugin secret is at %p", &plugin_secret);
-        LOG("the main shared data is at %p", &shared);
-    }
-    LOG("the plugin secret is %x", plugin_secret);
-    LOG("the main shared data is %x", shared);
+    cr_log_info("this is defined in the plugin");
+    cr_log_info("the plugin secret is at %p", &plugin_secret);
+    cr_log_info("the main shared data is at %p", &shared);
+    cr_log_info("the plugin secret is %x", plugin_secret);
+    cr_log_info("the main shared data is %x", shared);
     print_message();
     if (!clean_exit) {
-        LOG("the main secret is %x", CHECK_VIOLATION(secret));
+        cr_log_info("the main secret is %x", CHECK_VIOLATION(secret));
     }
 }

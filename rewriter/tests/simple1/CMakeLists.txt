@@ -8,6 +8,7 @@ define_test(
     SRCS main.c
     NEEDS_LD_WRAP
     PKEY 1
+    CRITERION_TEST
 )
 
 define_ia2_wrapper()

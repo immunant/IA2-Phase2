@@ -2,6 +2,7 @@
 Source rewriter pass is a noop for PKEY=0.
 RUN: cat simple1_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 */
+#include <criterion/logging.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,7 +12,7 @@ RUN: cat simple1_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 
 static bool did_set_exit_hook = false;
 
-static void simple_exit_hook(void) { printf("libsimple exiting...\n"); }
+static void simple_exit_hook(void) { cr_log_info("libsimple exiting...\n"); }
 
 struct Simple {
   struct SimpleCallbacks scb;
@@ -46,7 +47,7 @@ struct Simple *simple_new(struct SimpleCallbacks scb) {
   if (!did_set_exit_hook) {
     set_exit_hook(simple_exit_hook);
     did_set_exit_hook = true;
-    printf("New exit hook fn: %p\n", get_exit_hook());
+    cr_log_info("New exit hook fn: %p\n", get_exit_hook());
   }
 
   struct Simple *s = malloc(sizeof(struct Simple));

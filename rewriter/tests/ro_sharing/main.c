@@ -1,9 +1,9 @@
 /*
 RUN: sh -c 'if [ ! -s "ro_sharing_call_gates_0.ld" ]; then echo "No link args as expected"; exit 0; fi; echo "Unexpected link args"; exit 1;'
-RUN: %binary_dir/tests/ro_sharing/ro_sharing_main_wrapped plugin | diff %S/Output/plugin.out -
-RUN: %binary_dir/tests/ro_sharing/ro_sharing_main_wrapped main | diff %S/Output/main.out -
 */
-#include "plugin.h"
+#include <criterion/criterion.h>
+#include <criterion/logging.h>
+#include <plugin.h>
 #include <ia2.h>
 #include <stdio.h>
 #define IA2_DEFINE_TEST_HANDLER
@@ -28,21 +28,13 @@ const uint32_t main_shared_ro = 0x09431233;
 // Global in .data
 uint32_t main_secret_rw = 0x88997766;
 
-int main(int argc, char **argv) {
-  if (argc < 2) {
-    printf("Run with `plugin` or `main` as the first argument\n");
-    return -1;
-  }
+Test(ro_sharing, main) {
+  read_main_string(main_str);
+  read_main_uint(&main_shared_ro, &main_secret_rw);
+}
 
-  if (!strcmp(argv[1], "plugin")) {
-    LOG("%s", get_plugin_str());
-    LOG("0x%x", *get_plugin_uint(false));
-    CHECK_VIOLATION(LOG("0x%x", *get_plugin_uint(true)));
-  } else if (!strcmp(argv[1], "main")) {
-    read_main_string(main_str);
-    read_main_uint(&main_shared_ro, &main_secret_rw);
-  } else {
-    printf("Invalid argument\n");
-    return -1;
-  }
+Test(ro_sharing, plugin) {
+  cr_log_info("%s", get_plugin_str());
+  cr_log_info("0x%x", *get_plugin_uint(false));
+  cr_log_info("0x%x", CHECK_VIOLATION(*get_plugin_uint(true)));
 }

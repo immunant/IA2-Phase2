@@ -2,7 +2,9 @@
 RUN: cat trusted_indirect_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 */
 
-#include <stdio.h>
+#include <criterion/criterion.h>
+#include <criterion/logging.h>
+#include <criterion/new/assert.h>
 #include <stdbool.h>
 #include "rand_op.h"
 #include "test_fault_handler.h"
@@ -22,7 +24,8 @@ uint32_t add(uint32_t x, uint32_t y) {
 static uint32_t steal_secret(uint32_t x, uint32_t y) {
     if (!clean_exit) {
         if (secret_address) {
-            printf("the secret is %x\n", CHECK_VIOLATION(*secret_address));
+            cr_log_info("the secret is %x\n", CHECK_VIOLATION(*secret_address));
+            cr_fatal("Should have segfaulted here");
         }
     }
     return 0;

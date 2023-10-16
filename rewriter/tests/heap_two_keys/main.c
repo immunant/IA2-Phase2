@@ -1,11 +1,9 @@
 /*
 RUN: sh -c 'if [ ! -s "heap_two_keys_call_gates_0.ld" ]; then echo "No link args as expected"; exit 0; fi; echo "Unexpected link args"; exit 1;'
-RUN: %binary_dir/tests/heap_two_keys/heap_two_keys_main_wrapped 0 | diff %S/Output/clean_exit.out -
-RUN: %binary_dir/tests/heap_two_keys/heap_two_keys_main_wrapped 1 | diff %S/Output/fault.out -
-RUN: %binary_dir/tests/heap_two_keys/heap_two_keys_main_wrapped 2 | diff %S/Output/fault.out -
-RUN: %binary_dir/tests/heap_two_keys/heap_two_keys_main_wrapped 3 | diff %S/Output/clean_exit.out -
 */
-#include <stdio.h>
+#include <criterion/criterion.h>
+#include <criterion/logging.h>
+#include <criterion/new/assert.h>
 #include <unistd.h>
 #include <assert.h>
 #include <ia2.h>
@@ -20,81 +18,45 @@ INIT_RUNTIME(2);
 #include <ia2_compartment_init.inc>
 
 // Test that the program can exit without error
-int test_0() {
-    return 0;
+Test(heap_two_keys, 0, .init = trigger_compartment_init) {
 }
 
 // Test that the main binary's heap can't be read
-int test_1() {
+Test(heap_two_keys, 1, .init = trigger_compartment_init) {
     uint32_t *x = (uint32_t *)malloc(sizeof(uint32_t));
     if (!x) {
-        LOG("Failed to allocate memory on the heap");
-        return -1;
+        cr_fatal("Failed to allocate memory on the heap");
     }
     *x = 0x09431233;
     read_from_plugin_expect_fault((uint8_t*)x);
     free(x);
     // This test shouldn't return
-    return -1;
+    cr_fatal("Should have segfaulted but didn't");
 }
 
 // Test that the main binary's heap can't be written to
-int test_2() {
+Test(heap_two_keys, 2, .init = trigger_compartment_init) {
     // This zeroes out the allocated memory
     uint8_t *x = (uint8_t *)calloc(sizeof(uint8_t), 12);
     if (!x) {
-        LOG("Failed to allocate memory on the heap");
-        return -1;
+        cr_fatal("Failed to allocate memory on the heap");
     }
     write_from_plugin_expect_fault(x, 12);
     free(x);
     // This test shouldn't return
-    return -1;
+    cr_fatal("Should have segfaulted but didn't");
 }
 
 // Test that the main binary's shared data can be read
-int test_3() {
+Test(heap_two_keys, 3, .init = trigger_compartment_init) {
     uint16_t *x = (uint16_t *)shared_malloc(sizeof(uint16_t));
     if (!x) {
-        LOG("Failed to allocate memory on the heap");
-        return -1;
+        cr_fatal("Failed to allocate memory on the heap");
     }
     *x = 0xffed;
     assert(read_from_plugin((uint8_t*)x) == 0xed);
     shared_free(x);
-    return 0;
 }
 
 // TODO: Add tests for free, realloc, the plugin's heap and reserving more than
 // once from the gigacage (> 2MB in allocations)
-
-int main(int argc, char **argv) {
-    if (argc < 2) {
-        LOG("Run with an integer (0-3) as the first argument to select a test");
-        return -1;
-    }
-
-    // Call a no-op function to switch to this compartment's PKRU
-    trigger_compartment_init();
-
-    int test_num = *argv[1] - '0';
-
-    switch (test_num) {
-        case 0: {
-            return test_0();
-        }
-        case 1: {
-            return test_1();
-        }
-        case 2: {
-            return test_2();
-        }
-        case 3: {
-            return test_3();
-        }
-        default: {
-            LOG("Unknown test selected");
-            return -1;
-        }
-    }
-}

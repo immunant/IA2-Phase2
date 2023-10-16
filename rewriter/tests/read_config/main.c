@@ -1,6 +1,5 @@
 /*
 RUN: cat read_config_call_gates_2.ld | FileCheck --check-prefix=LINKARGS %s
-RUN: %binary_dir/tests/read_config/read_config_main_wrapped | sed -r -e 's/at 0x[0-9a-f]+ //g' | diff %S/Output/read_config.out -
 RUN: readelf -lW %binary_dir/tests/read_config/read_config_main_wrapped | FileCheck --check-prefix=SEGMENTS %s
 RUN: cat main.c | FileCheck --match-full-lines --check-prefix=REWRITER %s
 */
@@ -9,9 +8,10 @@ RUN: cat main.c | FileCheck --match-full-lines --check-prefix=REWRITER %s
 // SEGMENTS-COUNT-1: LOAD{{.*}}R E
 // SEGMENTS-NOT:     LOAD{{.*}}R E
 #include "plugin.h"
+#include <criterion/criterion.h>
+#include <criterion/logging.h>
 #include <ia2.h>
 #include <ia2_allocator.h>
-#include <stdio.h>
 #include <string.h>
 // TODO: Add the `#include output_header.h` to shared headers since they may
 // need wrapped function pointer definitions. For now just hack around this by
@@ -69,11 +69,12 @@ void parse_u32(char *opt, void *out) {
   *res = strtol(opt, NULL, 10);
 }
 
-int main(int arcg, char **argv) {
+Test(read_config, main) {
   // Pretend that the heap is intentionally shared for now
   char *cfg = (char *)shared_malloc(strlen(config_file));
   if (!cfg) {
-    return -1;
+    cr_log_error("Could not perform shared malloc");
+    exit(EXIT_FAILURE);
   }
   strcpy(cfg, config_file);
 
@@ -132,26 +133,26 @@ int main(int arcg, char **argv) {
   }
 
   for (size_t i = 0; i < PLUGIN_ENTRIES + BUILTIN_ENTRIES; i++) {
-    printf("%s ", entries[i].name);
+    cr_log_info("%s ", entries[i].name);
     switch (entries[i].ty) {
     case str: {
-      printf("%s\n", entries[i].value.str);
+      cr_log_info("%s", entries[i].value.str);
       break;
     }
     case boolean: {
       if (entries[i].value.boolean) {
-        printf("true\n");
+        cr_log_info("true");
       } else {
-        printf("false\n");
+        cr_log_info("false");
       }
       break;
     }
     case u32: {
-      printf("%d\n", entries[i].value.integer);
+      cr_log_info("%d", entries[i].value.integer);
       break;
     }
     case other: {
-      printf("at %p ", entries[i].value.other);
+      cr_log_info("at %p ", entries[i].value.other);
       if (i < PLUGIN_ENTRIES) {
         // Passing this pointer to the plugin is fine since we allocate via
         // shared_malloc.

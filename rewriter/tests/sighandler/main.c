@@ -1,5 +1,5 @@
 /*
-RUN: %binary_dir/tests/sighandler/sighandler_main_wrapped | diff %S/Output/main.out -
+RUN: true
 */
 #include "lib.h"
 #include <stddef.h>
@@ -7,6 +7,7 @@ RUN: %binary_dir/tests/sighandler/sighandler_main_wrapped | diff %S/Output/main.
 #include <ia2.h>
 #define IA2_DEFINE_TEST_HANDLER
 #include <test_fault_handler.h>
+#include <criterion/criterion.h>
 
 INIT_RUNTIME(2);
 #define IA2_COMPARTMENT 1
@@ -20,16 +21,8 @@ struct handler {
 int main_secret = 3;
 
 void trap_handler(int sig) {
-    const char *main_msg = "trap_handler: main_secret is ";
-    const char *lib_msg = "trap_handler: lib_secret is ";
-    write(1, main_msg, strlen(main_msg));
-    char num = '0' + main_secret;
-    write(1, &num, 1);
-    write(1, "\n", 1);
-    write(1, lib_msg, strlen(lib_msg));
-    num = '0' + CHECK_VIOLATION(lib_secret);
-    write(1, &num, 1);
-    write(1, "\n", 1);
+    volatile int test = main_secret;
+    volatile int test2 = CHECK_VIOLATION(lib_secret);
 };
 
 IA2_DEFINE_SIGHANDLER(trap_handler, 1);
@@ -47,19 +40,25 @@ void install_sighandler(struct handler *h) {
     sigaction(SIGTRAP, &sa, NULL);
 }
 
-void test_handler(void) {
+Test(sighandler, main_rewriter) {
+    install_sighandler(NULL);
     raise(SIGTRAP);
-    test_handler_from_lib();
 }
 
-int main() {
-    setbuf(stdout, NULL);
-    install_sighandler(NULL);
-    test_handler();
-
+Test(sighandler, main_ignore) {
     static struct handler h = {
         .handler = IA2_SIGHANDLER(trap_handler),
     };
     install_sighandler(&h);
-    test_handler();
+    raise(SIGTRAP);
+}
+
+Test(sighandler, lib_rewriter) {
+    install_sighandler_in_lib(true);
+    test_handler_from_lib();
+}
+
+Test(sighandler, lib_ignore) {
+    install_sighandler_in_lib(false);
+    test_handler_from_lib();
 }

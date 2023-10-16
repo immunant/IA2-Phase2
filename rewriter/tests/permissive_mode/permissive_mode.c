@@ -1,10 +1,12 @@
 /*
-RUN: %binary_dir/tests/permissive_mode/permissive_mode_main_wrapped
+RUN: true
 */
+// TODO remove the above when lit is removed. As of now a RUN line is required.
+
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
-#include <assert.h>
+#include <criterion/criterion.h>
 #include <ia2.h>
 #include <permissive_mode.h>
 
@@ -12,12 +14,12 @@ INIT_RUNTIME(1);
 #define IA2_COMPARTMENT 1
 #include <ia2_compartment_init.inc>
 
-int main(int argc, char** argv) {
+Test(permissive_mode, main) {
     char* buffer = NULL;
-    assert(ia2_get_pkru() == 0xFFFFFFF0);
+    cr_assert(ia2_get_pkru() == 0xFFFFFFF0);
 
     /* allocate an extra pkey */
-    assert(pkey_alloc(0, PKEY_DISABLE_ACCESS | PKEY_DISABLE_WRITE) == 2);
+    cr_assert(pkey_alloc(0, PKEY_DISABLE_ACCESS | PKEY_DISABLE_WRITE) == 2);
 
     buffer = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
 
@@ -27,7 +29,5 @@ int main(int argc, char** argv) {
     pkey_mprotect(buffer, 4096, PROT_READ | PROT_WRITE, 2);
     buffer[0] = 'b';
 
-    assert(ia2_get_pkru() == 0xFFFFFFF0);
-
-    return 0;
+    cr_assert(ia2_get_pkru() == 0xFFFFFFF0);
 }

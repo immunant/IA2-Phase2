@@ -10,5 +10,3 @@ void print_message(void);
 extern uint32_t secret;
 
 extern uint32_t shared;
-
-extern bool debug_mode;

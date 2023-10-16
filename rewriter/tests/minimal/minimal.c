@@ -3,21 +3,21 @@ RUN: cat minimal_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 */
 
 #include "minimal.h"
-#include <stdio.h>
+#include <criterion/logging.h>
 
 // LINKARGS: --wrap=arg1
 void arg1(int x) {
-    printf("arg1\n");
+    cr_log_info("arg1");
 }
 
 // LINKARGS: --wrap=foo
 void foo() {
-    printf("foo\n");
+    cr_log_info("foo");
 }
 
 // LINKARGS: --wrap=return_val
 int return_val() {
-    printf("return_val\n");
+    cr_log_info("return_val");
     return 1;
 }
 

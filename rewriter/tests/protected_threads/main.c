@@ -1,6 +1,5 @@
 /*
 RUN: sh -c 'if [ ! -s "protected_threads_call_gates_0.ld" ]; then echo "No link args as expected"; exit 0; fi; echo "Unexpected link args"; exit 1;'
-RUN: %binary_dir/tests/protected_threads/protected_threads_main_wrapped
 */
 #include "library.h"
 #include <assert.h>
@@ -9,6 +8,7 @@ RUN: %binary_dir/tests/protected_threads/protected_threads_main_wrapped
 #include <string.h>
 #include <sys/wait.h>
 #define IA2_DEFINE_TEST_HANDLER
+#include <criterion/criterion.h>
 #include <test_fault_handler.h>
 #include <unistd.h>
 
@@ -18,12 +18,11 @@ INIT_RUNTIME(2);
 
 void *nop(void *unused) { return NULL; }
 
-int main() {
+Test(protected_threads, main) {
   pthread_t t;
 #if IA2_ENABLE
   int ret = pthread_create(&t, NULL, nop, NULL);
+  cr_assert(!ret);
 #endif
   pthread_join(t, NULL);
-
-  return 0;
 }

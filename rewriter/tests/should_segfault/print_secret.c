@@ -1,6 +1,7 @@
 /*
 RUN: cat should_segfault_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 */
+#include <criterion/criterion.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -21,5 +22,5 @@ void print_secret() {
     if (early_fault) {
         raise(SIGSEGV);
     }
-    printf("UNTRUSTED: the secret is %x\n", CHECK_VIOLATION(secret));
+    cr_assert(CHECK_VIOLATION(secret));
 }

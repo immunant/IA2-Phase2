@@ -1,6 +1,5 @@
 /*
 RUN: cat %t.c.args | FileCheck --check-prefix=LINKARGS %s
-RUN: %binary_dir/tests/global_fn_ptr/global_fn_ptr-main | diff %S/../Output/operations.out -
 */
 
 #pragma once
@@ -8,7 +7,7 @@ RUN: %binary_dir/tests/global_fn_ptr/global_fn_ptr-main | diff %S/../Output/oper
 #include <stdint.h>
 
 // LINKARGS: --wrap=call_operations
-void call_operations(void);
+uint32_t call_operation(size_t i);
 
 // CHECK: typedef struct IA2_fnptr__ZTSPFjjjE WordFn;
 typedef uint32_t (*WordFn)(uint32_t, uint32_t);

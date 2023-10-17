@@ -43,7 +43,7 @@ jobs:
       - name: Check
         run: |
           pushd build
-          ninja -v check-ia2
+          ninja -v check
           popd
   build-nginx:
     runs-on: self-hosted

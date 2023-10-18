@@ -108,7 +108,7 @@ int main(int argc, char **argv) {
 
   int exit_status = 0;
   struct memory_map *map = memory_map_new();
-  bool success = track_memory_map(pid, map, &exit_status);
+  bool success = track_memory_map(pid, map, &exit_status, TRACE_MODE_SECCOMP);
   ptrace(PTRACE_KILL, pid, 0, 0);
   memory_map_destroy(map);
 

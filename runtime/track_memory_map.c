@@ -418,6 +418,7 @@ bool track_memory_map(pid_t pid, struct memory_map *map, int *exit_status_out, e
     enum mmap_event event = EVENT_NONE;
     if (!interpret_syscall(&regs, pkey, &event, &event_info, mode)) {
       fprintf(stderr, "could not interpret syscall!\n");
+      return false;
     }
 
     if (!is_op_permitted(map, event, &event_info)) {

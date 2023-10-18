@@ -9,6 +9,7 @@
 #include "get_inferior_pkru.h"
 #include "memory_map.h"
 #include "mmap_event.h"
+#include "track_memory_map.h"
 
 #ifdef DEBUG
 #define debug(...) fprintf(stderr, __VA_ARGS__)
@@ -186,9 +187,11 @@ unsigned char pkey_for_pkru(uint32_t pkru) {
 /* query pid to determine the mmap-relevant event being requested. returns true
  * unless something horrible happens */
 bool interpret_syscall(struct user_regs_struct *regs, unsigned char pkey,
-                       enum mmap_event *event, union event_info *event_info) {
+                       enum mmap_event *event, union event_info *event_info,
+                       enum trace_mode mode) {
   /* determine event from syscall # */
-  *event = event_from_syscall(regs->orig_rax);
+  unsigned long long syscall = regs->orig_rax;
+  *event = event_from_syscall(syscall);
 
   debug_op("event: %s\n", event_names[*event]);
 
@@ -267,6 +270,10 @@ bool interpret_syscall(struct user_regs_struct *regs, unsigned char pkey,
   case EVENT_NONE: {
     /* when ptracing alone, this may occur; when we are a seccomp helper, this
     should not happen */
+    if (mode == TRACE_MODE_SECCOMP) {
+      fprintf(stderr, "seccomp tracer stopped on unexpected syscall (%llu)\n", syscall);
+      return false;
+    }
     break;
   }
   }
@@ -364,10 +371,11 @@ void return_syscall_eperm(pid_t pid) {
 returns true if the inferior exits, false on trace error.
 
 if true is returned, the inferior's exit status will be stored to *exit_status_out if not NULL. */
-bool track_memory_map(pid_t pid, struct memory_map *map, int *exit_status_out) {
+bool track_memory_map(pid_t pid, struct memory_map *map, int *exit_status_out, enum trace_mode mode) {
+  enum __ptrace_request continue_request = mode == TRACE_MODE_PTRACE_SYSCALL ? PTRACE_SYSCALL : PTRACE_CONT;
   while (true) {
-    /* run until the next syscall entry */
-    if (ptrace(PTRACE_SYSCALL, pid, 0, 0) < 0) {
+    /* run until the next syscall entry or traced syscall (depending on mode) */
+    if (ptrace(continue_request, pid, 0, 0) < 0) {
       perror("could not PTRACE_SYSCALL...");
     }
     /* wait for the process to get signalled */
@@ -408,7 +416,7 @@ bool track_memory_map(pid_t pid, struct memory_map *map, int *exit_status_out) {
 
     union event_info event_info = {0};
     enum mmap_event event = EVENT_NONE;
-    if (!interpret_syscall(&regs, pkey, &event, &event_info)) {
+    if (!interpret_syscall(&regs, pkey, &event, &event_info, mode)) {
       fprintf(stderr, "could not interpret syscall!\n");
     }
 

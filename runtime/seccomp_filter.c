@@ -15,7 +15,7 @@ struct sock_filter forbid_seccomp_filter[] = {
     /* compare syscall number to seccomp() and jump 0 ahead if equal, 1 ahead if
     not */
     BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_seccomp, 0, 1),
-    BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_KILL),
+    BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_KILL_PROCESS),
     BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW),
 };
 struct sock_fprog forbid_seccomp_prog = prog_for_filter(forbid_seccomp_filter);
@@ -40,7 +40,7 @@ struct sock_filter example_filter[] = {
     /* if argument 1 is equal to O_RDONLY, allow */
     BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, O_RDONLY, 0, 1),
     BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW),
-    BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_KILL),
+    BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_KILL_PROCESS),
 };
 struct sock_fprog example_filter_prog = prog_for_filter(example_filter);
 

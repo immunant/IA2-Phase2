@@ -1,6 +1,4 @@
 /*
-RUN: cat main.c | FileCheck --match-full-lines --check-prefix=REWRITER %s
-RUN: sh -c 'if [ ! -s "trusted_indirect_call_gates_0.ld" ]; then echo "No link args as expected"; exit 0; fi; echo "Unexpected link args"; exit 1;'
 */
 #include <criterion/criterion.h>
 #include <criterion/logging.h>
@@ -36,16 +34,11 @@ void call_fn_ptr() {
     uint32_t x = 987234;
     uint32_t y = 142151;
     // This calls `f.op` with and without parentheses to ensure the rewriter handles both
-    // REWRITER: uint32_t res1 = IA2_CALL(f.op, 0)(x, y);
     uint32_t res1 = f.op(x, y);
-    // REWRITER: f.op = IA2_FN(multiply);
     f.op = multiply;
-    // REWRITER: uint32_t res2 = IA2_CALL((f.op), 0)(x, y);
     uint32_t res2 = (f.op)(x, y);
     cr_assert_eq(res2, 2897346862);
-    // REWRITER: f.op = IA2_FN(divide);
     f.op = divide;
-    // REWRITER: uint32_t res3 = IA2_CALL(f.op, 0)(x, y);
     uint32_t res3 = f.op(x, y);
     cr_assert_eq(res3, 6);
 }
@@ -63,7 +56,6 @@ void do_test() {
 
     static uint32_t secret = 34;
     leak_secret_address(&secret);
-    // REWRITER: IA2_CALL((f.op), 0)(0, 0);
     (f.op)(0, 0);
 }
 

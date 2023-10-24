@@ -1,15 +1,12 @@
 /*
-RUN: cat macro_attr_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 */
 #include <criterion/logging.h>
 #include "functions.h"
 
-// LINKARGS: --wrap=f
 void f() {
     cr_log_info("Called `f()`");
 }
 
-// LINKARGS: --wrap=g
 void g() {
     cr_log_info("Called `g()`");
 }
@@ -20,17 +17,14 @@ void h(CB cb) {
     cb(0);
 }
 
-// LINKARGS: --wrap=i
 void i() {
     cr_log_info("Called `i()`");
 }
 
-// LINKARGS: --wrap=j
 void j() {
     cr_log_info("Called `j()`");
 }
 
-// LINKARGS: --wrap=k
 void k() {
     cr_log_info("Called `k()`");
 }

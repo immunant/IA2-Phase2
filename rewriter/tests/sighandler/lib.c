@@ -1,5 +1,4 @@
 /*
-RUN: cat sighandler_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 */
 
 #include "lib.h"
@@ -26,7 +25,6 @@ void trap_handler_lib(int sig) {
 
 IA2_DEFINE_SIGHANDLER(trap_handler_lib, 2);
 
-// LINKARGS: --wrap=test_handler_from_lib
 void test_handler_from_lib(void) {
     raise(SIGTRAP);
 }

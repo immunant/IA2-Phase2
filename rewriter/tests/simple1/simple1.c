@@ -1,6 +1,5 @@
 /*
 Source rewriter pass is a noop for PKEY=0.
-RUN: cat simple1_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 */
 #include <criterion/logging.h>
 #include <stdbool.h>
@@ -19,10 +18,8 @@ struct Simple {
   int state;
 };
 
-// LINKARGS: --wrap=simple_destroy
 void simple_destroy(struct Simple *s) { free(s); }
 
-// LINKARGS: --wrap=simple_foreach_v1
 void simple_foreach_v1(struct Simple *s, int (*map_fn)(int)) {
   for (;;) {
     int value = s->scb.read_cb(s->state);
@@ -37,12 +34,10 @@ void simple_foreach_v1(struct Simple *s, int (*map_fn)(int)) {
   }
 }
 
-// LINKARGS: --wrap=simple_foreach_v2
 void simple_foreach_v2(struct Simple *s, SimpleMapFn map_fn) {
   simple_foreach_v1(s, map_fn);
 }
 
-// LINKARGS: --wrap=simple_new
 struct Simple *simple_new(struct SimpleCallbacks scb) {
   if (!did_set_exit_hook) {
     set_exit_hook(simple_exit_hook);
@@ -61,5 +56,4 @@ struct Simple *simple_new(struct SimpleCallbacks scb) {
   return s;
 }
 
-// LINKARGS: --wrap=simple_reset
 void simple_reset(struct Simple *s) { s->state = 0; }

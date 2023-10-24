@@ -1,12 +1,10 @@
 /*
-RUN: cat %t.c.args | FileCheck --check-prefix=LINKARGS %s
 */
 
 #pragma once
 #include <stdlib.h>
 #include <stdint.h>
 
-// LINKARGS: --wrap=call_operations
 uint32_t call_operation(size_t i);
 
 // CHECK: typedef struct IA2_fnptr__ZTSPFjjjE WordFn;

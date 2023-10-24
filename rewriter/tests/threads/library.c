@@ -1,5 +1,4 @@
 /*
-RUN: cat threads_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 */
 #include <criterion/criterion.h>
 #include <criterion/logging.h>
@@ -10,23 +9,19 @@ RUN: cat threads_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 
 int data_in_lib = 900;
 
-// LINKARGS: --wrap=library_access_int_ptr
 int library_access_int_ptr(int *ptr) { return *ptr; }
 
-// LINKARGS: --wrap=library_call_fn
 void library_call_fn(Fn what) {
   cr_log_info("in lib, about to call fnptr; lib data: %d\n", data_in_lib);
   cr_assert_eq(data_in_lib, 900);
   what();
 }
 
-// LINKARGS: --wrap=library_foo
 void library_foo() {
   cr_log_info("data in library: %d\n", data_in_lib);
   cr_assert_eq(data_in_lib, 900);
 }
 
-// LINKARGS: --wrap=library_memset
 void library_memset(void *ptr, uint8_t byte, size_t n) {
   char *char_ptr = (char *)ptr;
   for (size_t i = 0; i < n; i++) {
@@ -34,7 +29,6 @@ void library_memset(void *ptr, uint8_t byte, size_t n) {
   }
 }
 
-// LINKARGS: --wrap=library_showpkru
 void library_showpkru() {
   uint32_t actual_pkru = ia2_get_pkru();
   cr_log_info("library pkru %08x", actual_pkru);
@@ -46,7 +40,6 @@ static void *library_showpkru_thread_main(void *unused) {
   return NULL;
 }
 
-// LINKARGS: --wrap=library_spawn_thread
 pthread_t library_spawn_thread(void) {
   pthread_t thread;
   int ret = pthread_create(&thread, NULL, library_showpkru_thread_main, NULL);

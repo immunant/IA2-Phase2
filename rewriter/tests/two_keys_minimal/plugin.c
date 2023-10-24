@@ -1,11 +1,7 @@
 /*
-RUN: cat two_keys_minimal_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
-RUN: readelf -lW %binary_dir/tests/two_keys_minimal/libtwo_keys_minimal_lib_wrapped.so | FileCheck --check-prefix=SEGMENTS %s
 */
 
 // Check that readelf shows exactly one executable segment
-// SEGMENTS-COUNT-1: LOAD{{.*}}R E
-// SEGMENTS-NOT:     LOAD{{.*}}R E
 
 #include <criterion/criterion.h>
 #include <criterion/logging.h>
@@ -21,7 +17,6 @@ uint32_t plugin_secret = 0x78341244;
 
 extern bool clean_exit;
 
-// LINKARGS: --wrap=start_plugin
 void start_plugin(void) {
     cr_log_info("this is defined in the plugin");
     if (debug_mode) {

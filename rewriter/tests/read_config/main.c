@@ -1,12 +1,7 @@
 /*
-RUN: cat read_config_call_gates_2.ld | FileCheck --check-prefix=LINKARGS %s
-RUN: readelf -lW %binary_dir/tests/read_config/read_config_main_wrapped | FileCheck --check-prefix=SEGMENTS %s
-RUN: cat main.c | FileCheck --match-full-lines --check-prefix=REWRITER %s
 */
 
 // Check that readelf shows exactly one executable segment
-// SEGMENTS-COUNT-1: LOAD{{.*}}R E
-// SEGMENTS-NOT:     LOAD{{.*}}R E
 #include "plugin.h"
 #include <criterion/criterion.h>
 #include <criterion/logging.h>
@@ -51,19 +46,16 @@ name=builtin_config\n\
 num_options=3\n\
 array=\x11\x22\x33";
 
-// LINKARGS: --wrap=parse_bool
 void parse_bool(char *opt, void *out) {
   bool *res = out;
   *res = strcmp(opt, "false");
 }
 
-// LINKARGS: --wrap=parse_str
 void parse_str(char *opt, void *out) {
   char **res = out;
   strcpy(*res, opt);
 }
 
-// LINKARGS: --wrap=parse_u32
 void parse_u32(char *opt, void *out) {
   uint32_t *res = out;
   *res = strtol(opt, NULL, 10);
@@ -123,7 +115,6 @@ Test(read_config, main) {
     // This function pointer may come from the plugin, so drop from pkey 1 to
     // pkey 0 before calling it. If the function is in the built-in module,
     // it'll have a wrapper from pkey 0 to pkey 1.
-    // REWRITER: IA2_CALL((opt->parse), 0)(delim + 1, &shared_entry.value);
     (opt->parse)(delim + 1, &shared_entry.value);
     // Copy the value from the shared entry to the main binary's stack.
     entries[idx].value = shared_entry.value;

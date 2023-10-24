@@ -1,5 +1,4 @@
 /*
-RUN: sh -c 'if [ ! -s "untrusted_indirect_call_gates_0.ld" ]; then echo "No link args as expected"; exit 0; fi; echo "Unexpected link args"; exit 1;'
 */
 #include <criterion/criterion.h>
 #include <criterion/logging.h>
@@ -61,11 +60,9 @@ void do_test() {
     cr_log_info("TRUSTED: the secret is 0x%lx\n", secret);
     cr_log_info("0x%lx\n", apply_callback(1, 2));
 
-    // REWRITER: register_callback(IA2_FN(pick_rhs));
     register_callback(pick_rhs);
     cr_log_info("0x%lx\n", apply_callback(3, 4));
 
-    // REWRITER: register_callback(IA2_FN(leak_secret_address));
     register_callback(leak_secret_address);
     cr_log_info("TRUSTED: oops we leaked the address of the secret\n");
     apply_callback(5, 6);

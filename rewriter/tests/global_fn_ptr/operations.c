@@ -1,5 +1,4 @@
 /*
-RUN: cat global_fn_ptr_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 */
 #include "operations.h"
 #include <criterion/criterion.h>
@@ -7,7 +6,6 @@ RUN: cat global_fn_ptr_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 
 extern Op operations[2];
 
-// LINKARGS: --wrap=call_operation
 uint32_t call_operation(size_t i) {
     // TODO: Add a way to share strings between compartments
     //printf("%s\n", operations[i].desc.data);

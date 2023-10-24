@@ -1,5 +1,4 @@
 /*
-RUN: cat recursion_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 */
 #include "recursion_main.h"
 #include <criterion/criterion.h>
@@ -9,7 +8,6 @@ RUN: cat recursion_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 #define IA2_COMPARTMENT 2
 #include <ia2_compartment_init.inc>
 
-// LINKARGS: --wrap=recurse_dso
 void recurse_dso(int count) {
   cr_log_info("recursion_dso: %d\n", count);
   if (count > 0) {

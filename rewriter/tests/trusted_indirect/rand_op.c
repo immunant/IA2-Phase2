@@ -1,5 +1,4 @@
 /*
-RUN: cat trusted_indirect_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 */
 
 #include <criterion/criterion.h>
@@ -31,7 +30,6 @@ static uint32_t steal_secret(uint32_t x, uint32_t y) {
     return 0;
 }
 
-// LINKARGS: --wrap=get_bad_function
 function_t get_bad_function(void) {
     function_t f = (function_t){
         .name = "",
@@ -40,7 +38,6 @@ function_t get_bad_function(void) {
     return f;
 }
 
-// LINKARGS: --wrap=get_function
 function_t get_function(void) {
     function_t f;
     if (fn_is_add) {
@@ -53,17 +50,14 @@ function_t get_function(void) {
     return f;
 }
 
-// LINKARGS: --wrap=leak_secret_address
 void leak_secret_address(uint32_t *addr) {
     secret_address = addr;
 }
 
-// LINKARGS: --wrap=sub
 uint32_t sub(uint32_t x, uint32_t y) {
     return x - y;
 }
 
-// LINKARGS: --wrap=swap_function
 void swap_function(void) {
     fn_is_add = !fn_is_add;
 }

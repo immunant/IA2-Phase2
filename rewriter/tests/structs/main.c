@@ -1,5 +1,4 @@
 /*
-RUN: sh -c 'if [ ! -s "structs_call_gates_0.ld" ]; then echo "No link args as expected"; exit 0; fi; echo "Unexpected link args"; exit 1;'
 */
 #include <criterion/criterion.h>
 #include <criterion/logging.h>

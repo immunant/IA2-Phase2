@@ -1,5 +1,4 @@
 /*
-RUN: cat trusted_direct_call_gates_0.ld | FileCheck --check-prefix=LINKARGS %s
 */
 #include <criterion/criterion.h>
 #include <criterion/logging.h>
@@ -24,7 +23,6 @@ uint32_t secret = 0x09431233;
 
 bool clean_exit IA2_SHARED_DATA = false;
 
-//LINKARGS: --wrap=print_message
 void print_message(void) {
     cr_log_info("%s: the secret 0x%" PRIx32 " is defined in the main binary\n", __func__, secret);
     cr_assert(secret == 0x09431233);

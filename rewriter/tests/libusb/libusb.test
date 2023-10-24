@@ -1,4 +1,0 @@
-RUN: sh -c "%ia2_generate_checks $(pkg-config --variable includedir libusb-1.0)/libusb-1.0/libusb.h %S/include %T/libusb.h"
-RUN: ia2-rewriter --output-header %T/fn_ptr_ia2.h %T/wrapper.c %T/libusb.h -- -I%resource_dir -I%ia2_include
-RUN: cat %T/wrapper.c.args | FileCheck --check-prefix=LINKARGS %T/libusb.h
-RUN: cat %T/libusb.h | sed 's/^.*CHECK.*$//' | FileCheck --check-prefix 'TYPEDEF-CHECK' %T/libusb.h

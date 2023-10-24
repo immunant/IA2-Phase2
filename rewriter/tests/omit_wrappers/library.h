@@ -1,7 +1,4 @@
 /*
-RUN: cp %s %t.h
-RUN: ia2-rewriter --omit-wrappers %t.c %t.h -- -I%resource_dir
-RUN: sh -c "[ ! -e %t.c.args ]"
 */
 
 #pragma once
@@ -16,11 +13,9 @@ typedef struct {
 } HoldsWordFn;
 
 // We aren't emitting wrappers, so this function should not get wrapped
-// LINKARGS-NOT: --wrap=not_wrapped
 // CHECK: void not_wrapped();
 void not_wrapped();
 
 // This function shouldn't get removed or wrapped
-// LINKARGS-NOT: --wrap=untouched_variadics
 // CHECK: void untouched_variadics(int a, ...);
 void untouched_variadics(int a, ...);

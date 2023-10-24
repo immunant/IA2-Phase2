@@ -1,5 +1,4 @@
 /*
-RUN: true
 */
 #include "lib.h"
 #include <stddef.h>

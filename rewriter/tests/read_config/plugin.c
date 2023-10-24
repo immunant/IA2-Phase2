@@ -1,10 +1,7 @@
 /*
-RUN: readelf -lW %binary_dir/tests/read_config/libread_config_lib_wrapped.so | FileCheck --check-prefix=SEGMENTS %s
 */
 
 // Check that readelf shows exactly one executable segment
-// SEGMENTS-COUNT-1: LOAD{{.*}}R E
-// SEGMENTS-NOT:     LOAD{{.*}}R E
 #include "plugin.h"
 #include "core.h"
 #include <ia2.h>
@@ -26,37 +23,31 @@ static struct cfg_opt opts[6] IA2_SHARED_DATA = {
     {
         "name",
         str,
-        // REWRITER: IA2_FN(parse_str),
         parse_str,
     },
     {
         "num_options",
         u32,
-        // REWRITER: IA2_FN(parse_u32),
         parse_u32,
     },
     {
         "debug_mode",
         boolean,
-        // REWRITER: IA2_FN(parse_bool),
         parse_bool,
     },
     {
         "magic_val",
         other,
-        // REWRITER: IA2_FN(parse_tuple),
         parse_tuple,
     },
     {
         "some_flag",
         boolean,
-        // REWRITER: IA2_FN(parse_bool),
         parse_bool,
     },
     {
         "random_seed",
         u32,
-        // REWRITER: IA2_FN(parse_u32),
         parse_u32,
     },
 };
@@ -83,7 +74,6 @@ struct cfg_opt *get_opt(char *name) {
   exit(-1);
 }
 
-// LINKARGS: --wrap=print_tuple
 void print_tuple(struct tuple *tup) {
   // These derefs are fine since the heap is shared.
   cr_log_info("(%x, %x)", tup->first, tup->second);

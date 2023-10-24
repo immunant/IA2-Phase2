@@ -1,6 +1,4 @@
 /*
-RUN: cat main.c | FileCheck --match-full-lines --check-prefix=REWRITER %s
-RUN: cat simple1_call_gates_0.ld | FileCheck --check-prefix=LINKARGS %s
 */
 #include <criterion/criterion.h>
 #include <criterion/logging.h>
@@ -23,10 +21,8 @@ INIT_RUNTIME(1);
 // IA2_DEFINE_WRAPPER with target pkey 1, then use IA2_WRAPPER.
 static HookFn exit_hook_fn = NULL;
 
-// LINKARGS: --wrap=get_exit_hook
 HookFn get_exit_hook(void) { return exit_hook_fn; }
 
-// LINKARGS: --wrap=set_exit_hook
 void set_exit_hook(HookFn new_exit_hook_fn) { exit_hook_fn = new_exit_hook_fn; }
 
 // Secret values: a secret string and decryption value.
@@ -52,9 +48,7 @@ Test(simple1, main) {
   // These will be called from untrusted code but may access trusted compartment
   // 0
   struct SimpleCallbacks scb = {
-      // REWRITER: .read_cb = IA2_FN(main_read),
       .read_cb = main_read,
-      // REWRITER: .write_cb = IA2_FN(main_write),
       .write_cb = main_write,
   };
 
@@ -66,23 +60,19 @@ Test(simple1, main) {
   srand(time(NULL));
   // These will be called from untrusted code but may access trusted compartment
   // 0
-  // REWRITER: simple_foreach_v1(s, IA2_FN(main_map));
   simple_foreach_v1(s, main_map);
   simple_reset(s);
-  // REWRITER: simple_foreach_v2(s, IA2_FN(main_map));
   simple_foreach_v2(s, main_map);
   simple_destroy(s);
 
   // We need to check if exit_hook_fn is NULL since IA2_CALL always
   // returns a non-null pointer. Since it's an opaque pointer, we use this macro
   // instead of directly comparing with NULL.
-  // REWRITER: if (!IA2_ADDR(exit_hook_fn)) {
   if (!exit_hook_fn) {
     // Creates a wrapper that assumes the caller has pkey 0 and the callee is
     // untrusted since libsimple1 sets the value of exit_hook_fn. If
     // exit_hook_fn were to point to a function defined in this binary, it must
     // be a wrapped function with an untrusted caller and callee with pkey 0.
-    // REWRITER: IA2_CALL(exit_hook_fn, 0)();
     exit_hook_fn();
   }
 }

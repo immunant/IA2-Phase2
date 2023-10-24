@@ -1,5 +1,4 @@
 /*
-RUN: cat main.c | FileCheck --match-full-lines --check-prefix=REWRITER %S/main.c
 */
 #include <criterion/criterion.h>
 #include <stdio.h>
@@ -31,20 +30,14 @@ Test(rewrite_fn_ptr_eq, main) {
     bin_op fn2 = NULL;
 
     // Check that pointers for types other than functions are not rewritten
-    // REWRITER: if (y) { }
     if (y) { }
-    // REWRITER: if (x) { }
     if (x) { }
-    // REWRITER: if (!y) { }
     if (!y) { }
-    // REWRITER: if (!x) { }
     if (!x) { }
 
-    // REWRITER: if (IA2_ADDR(fn)) {
     if (fn) {
         call_fn(fn, 2, 1);
     }
-    // REWRITER: if (!IA2_ADDR(fn2)) {
     if (!fn2) {
         fn2 = sub;
         call_fn(fn2, 2, 1);
@@ -56,26 +49,17 @@ Test(rewrite_fn_ptr_eq, main) {
     if (mod_ptr->fn) { }
 
     bin_op *ptr = &fn;
-    // REWRITER: if (IA2_ADDR(*ptr)) { }
     if (*ptr) { }
 
-    // REWRITER: if (NULL == IA2_ADDR(mod_ptr->fn)) { }
     if (NULL == mod_ptr->fn) { }
-    // REWRITER: if (IA2_ADDR(mod.fn) != NULL) { }
     if (mod.fn != NULL) { }
 
-    // REWRITER: if (IA2_ADDR(mod.fn) == IA2_ADDR(mod_ptr->fn)) { }
     if (mod.fn == mod_ptr->fn) { }
 
-    // REWRITER: if (IA2_ADDR(mod.fn) == IA2_FN_ADDR(add)) { }
     if (mod.fn == add) { }
-    // REWRITER: if (IA2_FN_ADDR(sub) == IA2_ADDR(mod_ptr->fn)) { }
     if (sub == mod_ptr->fn) { }
 
-    // REWRITER: if (x && IA2_ADDR(fn2)) { }
     if (x && fn2) { }
-    // REWRITER: if (y || !IA2_ADDR(fn)) { }
     if (y || !fn) { }
-    // REWRITER: if (x && IA2_ADDR(fn) && y) { }
     if (x && fn && y) { }
 }

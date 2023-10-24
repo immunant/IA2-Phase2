@@ -1,5 +1,4 @@
 /*
-RUN: true
 */
 // TODO remove the above when lit is removed. As of now a RUN line is required.
 

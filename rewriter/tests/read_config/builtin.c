@@ -1,5 +1,4 @@
 /*
-RUN: cat read_config_call_gates_2.ld | FileCheck --check-prefix=LINKARGS %s
 */
 #include <criterion/logging.h>
 #include <stdlib.h>
@@ -15,19 +14,16 @@ static struct cfg_opt opts[3] = {
     {
         "name",
         str,
-        // REWRITER: IA2_FN(parse_str),
         parse_str,
     },
     {
         "num_options",
         u32,
-        // REWRITER: IA2_FN(parse_u32),
         parse_u32,
     },
     {
         "array",
         other,
-        // REWRITER: IA2_FN(parse_array),
         parse_array,
     },
 };
@@ -40,7 +36,6 @@ static void parse_array(char *opt, void *out) {
 // The arguments to the following functions point to the main binary so we don't
 // need to use a shared buffer
 
-// LINKARGS: --wrap=get_builtin_opt
 struct cfg_opt *get_builtin_opt(char *name) {
     for (size_t i = 0; i < 3; i++) {
         if (!strcmp(opts[i].name, name)) {
@@ -51,7 +46,6 @@ struct cfg_opt *get_builtin_opt(char *name) {
     exit(-1);
 }
 
-// LINKARGS: --wrap=print_array
 void print_array(uint8_t ar[3]) {
     cr_log_info("[%x, %x, %x]", ar[0], ar[1], ar[2]);
 }

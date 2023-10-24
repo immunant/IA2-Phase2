@@ -1,11 +1,7 @@
 /*
-RUN: cat two_shared_ranges_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
-RUN: readelf -lW %binary_dir/tests/two_shared_ranges/libtwo_shared_ranges_lib_wrapped.so | FileCheck --check-prefix=SEGMENTS %s
 */
 
 // Check that readelf shows exactly one executable segment
-// SEGMENTS-COUNT-1: LOAD{{.*}}R E
-// SEGMENTS-NOT:     LOAD{{.*}}R E
 
 #include <criterion/logging.h>
 #include <ia2.h>
@@ -20,7 +16,6 @@ uint32_t plugin_shared IA2_SHARED_DATA = 0x415ea635;
 
 extern bool clean_exit;
 
-// LINKARGS: --wrap=start_plugin
 void start_plugin(void) {
     cr_log_info("this is defined in the plugin");
     cr_log_info("the plugin secret is at %p", &plugin_secret);

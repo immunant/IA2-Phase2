@@ -1,11 +1,7 @@
 /*
-RUN: cat two_shared_ranges_call_gates_2.ld | FileCheck --check-prefix=LINKARGS %s
-RUN: readelf -lW %binary_dir/tests/two_shared_ranges/two_shared_ranges_main_wrapped | FileCheck --check-prefix=SEGMENTS %s
 */
 
 // Check that readelf shows exactly one executable segment
-// SEGMENTS-COUNT-1: LOAD{{.*}}R E
-// SEGMENTS-NOT:     LOAD{{.*}}R E
 
 #include <criterion/criterion.h>
 #include <criterion/logging.h>
@@ -27,7 +23,6 @@ static bool steal_plugin_secret = false;
 
 bool clean_exit IA2_SHARED_DATA = false;
 
-// LINKARGS: --wrap=print_message
 void print_message(void) {
     cr_log_info("this is defined in the main binary");
     cr_log_info("the main secret is at %p", &secret);

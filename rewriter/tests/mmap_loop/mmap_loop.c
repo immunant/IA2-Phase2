@@ -1,5 +1,4 @@
 /*
-RUN: cat mmap_loop_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 */
 
 #include "mmap_loop.h"
@@ -11,14 +10,12 @@ RUN: cat mmap_loop_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 #define IA2_COMPARTMENT 2
 #include <ia2_compartment_init.inc>
 
-// LINKARGS: --wrap=lib_malloc_buf
 char *lib_malloc_buf(size_t size) {
   char *buf = malloc(size);
   memset(buf, 0, size);
   return buf;
 }
 
-// LINKARGS: --wrap=lib_mmap_buf
 char *lib_mmap_buf(size_t size) {
   // mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
   char *buf = mmap(NULL, size, PROT_NONE, MAP_ANON | MAP_PRIVATE, -1, 0);

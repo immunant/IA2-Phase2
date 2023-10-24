@@ -1,5 +1,4 @@
 /*
-RUN: true
 */
 
 #include <criterion/criterion.h>

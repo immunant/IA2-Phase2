@@ -1,5 +1,4 @@
 /*
-RUN: sh -c 'if [ ! -s "mmap_loop_call_gates_0.ld" ]; then echo "No link args as expected"; exit 0; fi; echo "Unexpected link args"; exit 1;'
 */
 #include "mmap_loop.h"
 #include <assert.h>

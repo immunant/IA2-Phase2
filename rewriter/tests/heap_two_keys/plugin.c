@@ -1,5 +1,3 @@
-/*
-*/
 #include <stdio.h>
 #include <ia2.h>
 #include "exported_fn.h"

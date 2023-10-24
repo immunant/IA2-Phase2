@@ -1,5 +1,3 @@
-/*
-*/
 #include "structs.h"
 #include <math.h>
 #include <criterion/criterion.h>

@@ -1,5 +1,3 @@
-/*
-*/
 #include <criterion/logging.h>
 #include <stdlib.h>
 #include <string.h>

@@ -1,5 +1,3 @@
-/*
-*/
 
 #include "recursion_dso.h"
 #include <criterion/criterion.h>

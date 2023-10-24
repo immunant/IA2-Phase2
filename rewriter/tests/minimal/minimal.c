@@ -1,5 +1,3 @@
-/*
-*/
 
 #include "minimal.h"
 #include <criterion/logging.h>

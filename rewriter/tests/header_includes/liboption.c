@@ -1,5 +1,3 @@
-/*
-*/
 #include <criterion/logging.h>
 #include "liboption.h"
 #include "types.h"

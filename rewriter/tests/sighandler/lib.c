@@ -1,5 +1,3 @@
-/*
-*/
 
 #include "lib.h"
 #include <signal.h>

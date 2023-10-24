@@ -1,5 +1,3 @@
-/*
-*/
 #include <stdint.h>
 #include <assert.h>
 #include <ia2.h>

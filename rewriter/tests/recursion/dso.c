@@ -1,5 +1,3 @@
-/*
-*/
 #include "recursion_main.h"
 #include <criterion/criterion.h>
 #include <ia2.h>

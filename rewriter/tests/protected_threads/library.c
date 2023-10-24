@@ -1,5 +1,3 @@
-/*
-*/
 #include "library.h"
 #include <ia2.h>
 #include <stdio.h>

@@ -1,5 +1,3 @@
-/*
-*/
 #include "test_fault_handler.h"
 #include <criterion/logging.h>
 #include <ia2.h>

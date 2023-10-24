@@ -1,5 +1,3 @@
-/*
-*/
 #include <criterion/criterion.h>
 #include <stdio.h>
 #include <lib.h>

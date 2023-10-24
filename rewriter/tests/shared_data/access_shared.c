@@ -1,5 +1,3 @@
-/*
-*/
 #include <stdio.h>
 #include "access_shared.h"
 #include <criterion/logging.h>

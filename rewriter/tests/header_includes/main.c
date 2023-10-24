@@ -1,5 +1,3 @@
-/*
-*/
 #include "liboption.h"
 #include "types.h"
 #include <criterion/criterion.h>

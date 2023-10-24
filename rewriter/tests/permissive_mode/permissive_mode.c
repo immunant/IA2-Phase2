@@ -1,7 +1,3 @@
-/*
-*/
-// TODO remove the above when lit is removed. As of now a RUN line is required.
-
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif

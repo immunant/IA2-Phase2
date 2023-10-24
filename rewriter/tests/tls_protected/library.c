@@ -1,5 +1,3 @@
-/*
-*/
 
 // Check that readelf shows exactly one executable segment
 #include "library.h"

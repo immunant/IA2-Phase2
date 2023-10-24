@@ -1,5 +1,3 @@
-/*
-*/
 #include "library.h"
 #include <assert.h>
 #include <ia2.h>

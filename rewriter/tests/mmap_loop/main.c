@@ -1,5 +1,3 @@
-/*
-*/
 #include "mmap_loop.h"
 #include <assert.h>
 #include <ia2.h>

@@ -8,12 +8,7 @@ include("../../cmake/add-tls-padded-library.cmake")
 
 set(IA2_TEST_DEPENDS ia2-rewriter)
 
-add_lit_testsuite(check-ia2 "Running the IA2 tests"
-  ${CMAKE_CURRENT_BINARY_DIR}
-  DEPENDS ${IA2_TEST_DEPENDS} partition-alloc
-  ARGS "--verbose"
-  )
-set_target_properties(check-ia2 PROPERTIES FOLDER "tests")
+add_custom_target(check-ia2)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 

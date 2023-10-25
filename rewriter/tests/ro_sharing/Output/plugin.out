@@ -1,4 +1,0 @@
-main: this is the plugin's string
-
-main: 0x730283
-CHECK_VIOLATION: seg faulted as expected

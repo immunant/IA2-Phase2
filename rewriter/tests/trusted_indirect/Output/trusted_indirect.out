@@ -1,9 +1,0 @@
-Got the function add from the library
-add(987234, 142151) = 1129385
-mul(987234, 142151) = -1397620434
-div(987234, 142151) = 6
-Got the function sub from the library
-sub(987234, 142151) = 845083
-mul(987234, 142151) = -1397620434
-div(987234, 142151) = 6
-CHECK_VIOLATION: seg faulted as expected

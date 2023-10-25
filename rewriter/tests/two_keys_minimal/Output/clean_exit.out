@@ -1,5 +1,0 @@
-main: checking if the program can exit cleanly
-start_plugin: this is defined in the plugin
-start_plugin: the plugin secret is 78341244
-print_message: this is defined in the main binary
-print_message: the main secret is 9431233

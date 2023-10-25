@@ -1,2 +1,0 @@
-TRUSTED: the secret is deadbeef
-CHECK_VIOLATION: seg faulted as expected

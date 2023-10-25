@@ -1,4 +1,0 @@
-TRUSTED: the secret is 0xcafed00d
-0x1
-0x4
-TRUSTED: oops we leaked the address of the secret

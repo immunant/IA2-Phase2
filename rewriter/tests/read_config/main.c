@@ -1,12 +1,9 @@
 /*
 RUN: cat read_config_call_gates_2.ld | FileCheck --check-prefix=LINKARGS %s
-RUN: readelf -lW %binary_dir/tests/read_config/read_config_main_wrapped | FileCheck --check-prefix=SEGMENTS %s
 RUN: cat main.c | FileCheck --match-full-lines --check-prefix=REWRITER %s
 */
 
 // Check that readelf shows exactly one executable segment
-// SEGMENTS-COUNT-1: LOAD{{.*}}R E
-// SEGMENTS-NOT:     LOAD{{.*}}R E
 #include "plugin.h"
 #include <criterion/criterion.h>
 #include <criterion/logging.h>

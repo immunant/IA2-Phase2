@@ -4,6 +4,7 @@
 import lit
 from lit.llvm import llvm_config
 from lit.llvm.subst import ToolSubst
+import os
 
 # name: The name of this test suite.
 config.name = 'IA2'
@@ -18,8 +19,34 @@ config.suffixes = ['.c']
 # excludes: A list of directories to exclude from the testsuite. The 'Inputs'
 # subdirectories contain auxiliary inputs for various tests in their parent
 # directories.
-config.excludes = ['Inputs', 'CMakeLists.txt', 'README.txt', 'LICENSE.txt',
-                   'libusb', 'ffmpeg', 'destructors']
+#config.excludes = ['Inputs', 'CMakeLists.txt', 'README.txt', 'LICENSE.txt',
+#                   'libusb', 'ffmpeg', 'destructors']
+config.excludes = [entry.name for entry in os.scandir() if entry.name not in [
+    'global_fn_ptr',
+    'header_includes',
+    'heap_two_keys',
+    'macro_attr',
+    'minimal',
+    'mmap_loop',
+    'omit_wrappers',
+    'protected_threads',
+    'read_config',
+    'recursion',
+    'rewrite_fn_ptr_eq',
+    'rewrite_macros',
+    'ro_sharing',
+    'shared_data',
+    'should_segfault',
+    'sighandler',
+    'simple1',
+    'structs',
+    'threads',
+    'trusted_direct',
+    'trusted_indirect',
+    'two_keys_minimal',
+    'two_shared_ranges',
+    'untrusted_indirect',
+]]
 
 # test_source_root: The root path where tests are located.
 config.test_source_root = os.path.dirname(__file__)

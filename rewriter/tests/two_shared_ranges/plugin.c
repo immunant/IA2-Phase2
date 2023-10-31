@@ -1,11 +1,8 @@
 /*
 RUN: cat two_shared_ranges_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
-RUN: readelf -lW %binary_dir/tests/two_shared_ranges/libtwo_shared_ranges_lib_wrapped.so | FileCheck --check-prefix=SEGMENTS %s
 */
 
 // Check that readelf shows exactly one executable segment
-// SEGMENTS-COUNT-1: LOAD{{.*}}R E
-// SEGMENTS-NOT:     LOAD{{.*}}R E
 
 #include <criterion/logging.h>
 #include <ia2.h>

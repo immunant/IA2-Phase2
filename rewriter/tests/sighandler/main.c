@@ -1,6 +1,8 @@
 /*
 RUN: true
+We need this because lib.c uses LINKARGS checks but not this file.
 */
+
 #include "lib.h"
 #include <stddef.h>
 #include <signal.h>

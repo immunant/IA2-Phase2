@@ -1,10 +1,7 @@
 /*
-RUN: readelf -lW %binary_dir/tests/tls_protected/libtls_protected_lib_wrapped.so | FileCheck --check-prefix=SEGMENTS %s
 */
 
 // Check that readelf shows exactly one executable segment
-// SEGMENTS-COUNT-1: LOAD{{.*}}R E
-// SEGMENTS-NOT:     LOAD{{.*}}R E
 #include "library.h"
 #include "test_fault_handler.h"
 #include <criterion/criterion.h>

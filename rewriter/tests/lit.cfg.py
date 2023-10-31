@@ -21,7 +21,7 @@ config.suffixes = ['.c']
 # directories.
 #config.excludes = ['Inputs', 'CMakeLists.txt', 'README.txt', 'LICENSE.txt',
 #                   'libusb', 'ffmpeg', 'destructors']
-config.excludes = [entry.name for entry in os.scandir() if entry.name not in [
+config.excludes = [entry.name for entry in os.scandir(os.path.dirname(os.path.abspath(__file__))) if entry.name not in [
     'global_fn_ptr',
     'header_includes',
     'heap_two_keys',

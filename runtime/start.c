@@ -108,7 +108,8 @@ int main(int argc, char **argv) {
 
   int exit_status = 0;
   bool success = track_memory_map(pid, &exit_status, TRACE_MODE_SECCOMP);
-  ptrace(PTRACE_KILL, pid, 0, 0);
+  /* ensure the child is dead */
+  kill(pid, SIGKILL);
 
   if (success)
     exit(exit_status);

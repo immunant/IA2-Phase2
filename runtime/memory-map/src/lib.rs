@@ -80,6 +80,7 @@ use nonoverlapping_interval_tree as disjoint_interval_tree;
 
 use disjoint_interval_tree::NonOverlappingIntervalTree;
 
+#[derive(Clone)]
 pub struct MemoryMap {
     regions: NonOverlappingIntervalTree<usize, State>,
     init_finished: bool,
@@ -427,4 +428,14 @@ pub extern "C" fn memory_map_mprotect_region(map: &mut MemoryMap, range: Range, 
         // it may have come from brk() or the initial mappings from exec().
         true
     }
+}
+
+#[no_mangle]
+pub extern "C" fn memory_map_clear(map: &mut MemoryMap) {
+    map.regions = Default::default()
+}
+
+#[no_mangle]
+pub extern "C" fn memory_map_clone(map: &mut MemoryMap) -> Box<MemoryMap> {
+    Box::new(map.clone())
 }

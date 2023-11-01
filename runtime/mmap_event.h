@@ -49,11 +49,20 @@ enum mmap_event {
   EVENT_MREMAP,
   EVENT_MPROTECT,
   EVENT_PKEY_MPROTECT,
+  EVENT_CLONE,
+  EVENT_EXEC,
   EVENT_NONE,
 };
 
 static const char *event_names[] = {
-    "MMAP", "MUNMAP", "MREMAP", "MPROTECT", "PKEY_MPROTECT", "NONE",
+    "MMAP",
+    "MUNMAP",
+    "MREMAP",
+    "MPROTECT",
+    "PKEY_MPROTECT",
+    "CLONE",
+    "EXEC",
+    "NONE",
 };
 
 static const char *event_name(enum mmap_event event) {

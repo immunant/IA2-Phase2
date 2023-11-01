@@ -59,4 +59,8 @@ bool memory_map_pkey_mprotect_region(struct memory_map *map, struct range range,
 
 bool memory_map_mprotect_region(struct memory_map *map, struct range range, uint32_t prot);
 
+void memory_map_clear(struct memory_map *map);
+
+struct memory_map *memory_map_clone(struct memory_map *map);
+
 /* clang-format on */

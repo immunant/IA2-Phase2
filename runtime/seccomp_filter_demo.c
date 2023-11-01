@@ -92,7 +92,7 @@ int main(int argc, char *argv[]) {
   char buffer[1024];
 
   if (argc < 3) {
-    printf("Usage:\n\tdup_file <input path> <output_path>\n");
+    printf("Usage:\n\tseccomp-demo <file_to_read> <file_to_create>\n");
     return -1;
   }
 

@@ -1,7 +1,6 @@
 #define _GNU_SOURCE
+#include <stdbool.h>
 #include <sys/wait.h>
-
-#include "memory_map.h"
 
 enum trace_mode {
   /* run the program with PTRACE_CONT and only expect interruptions at traced
@@ -11,4 +10,4 @@ enum trace_mode {
   TRACE_MODE_PTRACE_SYSCALL,
 };
 
-bool track_memory_map(pid_t pid, struct memory_map *map, int *exit_status_out, enum trace_mode mode);
+bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode);

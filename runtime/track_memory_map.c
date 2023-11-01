@@ -371,7 +371,9 @@ void return_syscall_eperm(pid_t pid) {
 returns true if the inferior exits, false on trace error.
 
 if true is returned, the inferior's exit status will be stored to *exit_status_out if not NULL. */
-bool track_memory_map(pid_t pid, struct memory_map *map, int *exit_status_out, enum trace_mode mode) {
+bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
+  struct memory_map *map = memory_map_new();
+
   enum __ptrace_request continue_request = mode == TRACE_MODE_PTRACE_SYSCALL ? PTRACE_SYSCALL : PTRACE_CONT;
   while (true) {
     /* run until the next syscall entry or traced syscall (depending on mode) */

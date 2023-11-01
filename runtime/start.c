@@ -78,6 +78,10 @@ static pid_t fork_and_trace(char *const *argv) {
   options |= PTRACE_O_EXITKILL;
   /* stop tracee when seccomp returns RET_TRACE */
   options |= PTRACE_O_TRACESECCOMP;
+  /* we want to know about clone() and fork() */
+  options |= PTRACE_O_TRACECLONE | PTRACE_O_TRACEVFORK | PTRACE_O_TRACEFORK;
+  /* and exec() */
+  options |= PTRACE_O_TRACEEXEC;
 
   ptrace(PTRACE_SETOPTIONS, child_pid, 0, options);
 
@@ -88,6 +92,11 @@ static pid_t fork_and_trace(char *const *argv) {
   }
   if (waitpid(child_pid, NULL, 0) < 0) {
     perror("waitpid");
+    return -1;
+  }
+
+  if (ptrace(PTRACE_CONT, child_pid, NULL, NULL) < 0) {
+    perror("PTRACE_CONT");
     return -1;
   }
 

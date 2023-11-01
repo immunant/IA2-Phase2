@@ -84,6 +84,14 @@ bool is_op_permitted(struct memory_map *map, int event,
       return true;
     break;
   }
+  case EVENT_CLONE: {
+    return true;
+    break;
+  }
+  case EVENT_EXEC: {
+    return true;
+    break;
+  }
   case EVENT_NONE:
     return true;
     break;
@@ -143,6 +151,15 @@ bool update_memory_map(struct memory_map *map, int event,
   case EVENT_PKEY_MPROTECT: {
     return memory_map_pkey_mprotect_region(map, info->mprotect.range,
                                            info->pkey_mprotect.new_owner_pkey);
+    break;
+  }
+  case EVENT_CLONE: {
+    return true;
+    break;
+  }
+  case EVENT_EXEC: {
+    memory_map_clear(map);
+    return true;
     break;
   }
   case EVENT_NONE:
@@ -280,6 +297,9 @@ bool interpret_syscall(struct user_regs_struct *regs, unsigned char pkey,
              info->new_owner_pkey, info->prot);
     break;
   }
+  case EVENT_CLONE: {
+    break;
+  }
   case EVENT_NONE: {
     /* when ptracing alone, this may occur; when we are a seccomp helper, this
     should not happen */
@@ -324,7 +344,11 @@ enum wait_trap_result {
   WAIT_TRAP,
   WAIT_EXITED,
   WAIT_SIGNALED,
+  WAIT_SIGCHLD,
   WAIT_ERROR,
+  WAIT_PTRACE_CLONE,
+  WAIT_PTRACE_FORK,
+  WAIT_EXEC,
 };
 
 /* wait for the next trap from the inferior.
@@ -333,10 +357,18 @@ returns the wait_trap_result corresponding to the event.
 
 if the exit is WAIT_EXITED, the exit status will be placed in *exit_status_out
 if it is non-NULL. */
-enum wait_trap_result wait_for_next_trap(pid_t pid, int *exit_status_out) {
+enum wait_trap_result wait_for_next_trap(pid_t pid, pid_t *pid_out, int *exit_status_out) {
   int stat = 0;
-  int ret = waitpid(pid, &stat, 0);
-  if (ret < 0) {
+  static pid_t last_pid = 0;
+  pid_t waited_pid = waitpid(pid, &stat, __WALL);
+  if (pid_out)
+    *pid_out = waited_pid;
+  if (last_pid != waited_pid) {
+    fprintf(stderr, "waited, pid=%d\n", waited_pid);
+    last_pid = waited_pid;
+  }
+  // fprintf(stderr, "waited, stat=%x\n", stat);
+  if (waited_pid < 0) {
     perror("waitpid");
     return WAIT_ERROR;
   }
@@ -349,7 +381,42 @@ enum wait_trap_result wait_for_next_trap(pid_t pid, int *exit_status_out) {
     fprintf(stderr, "inferior killed by signal %d\n", WTERMSIG(stat));
     return WAIT_SIGNALED;
   }
-  return WAIT_TRAP;
+  if (WIFSTOPPED(stat)) {
+    /* stopped by a signal or by ptrace/seccomp which shows up as SIGTRAP */
+    // fprintf(stderr, "child stopped by signal %d\n", WSTOPSIG(stat));
+    /* the next 8 bits of status give the ptrace event, if any */
+    int ptrace_event = stat >> 16;
+    if (ptrace_event > 0) {
+      if (ptrace_event == PTRACE_EVENT_CLONE) {
+        return WAIT_PTRACE_CLONE;
+      }
+      if (ptrace_event == PTRACE_EVENT_FORK) {
+        return WAIT_PTRACE_FORK;
+      }
+      if (ptrace_event == PTRACE_EVENT_SECCOMP) {
+        return WAIT_TRAP;
+      }
+      if (ptrace_event == PTRACE_EVENT_EXEC) {
+        printf("exec event\n");
+        return WAIT_EXEC;
+      }
+      fprintf(stderr, "unknown ptrace event %d\n", ptrace_event);
+    }
+    switch (WSTOPSIG(stat)) {
+    case SIGCHLD:
+      fprintf(stderr, "child stopped by sigchld\n");
+      return WAIT_SIGCHLD;
+    case SIGTRAP:
+      return WAIT_TRAP;
+    case SIGSTOP:
+      return WAIT_TRAP;
+    default:
+      fprintf(stderr, "child stopped by unexpected signal %d\n", WSTOPSIG(stat));
+      return WAIT_ERROR;
+    }
+  }
+  fprintf(stderr, "unknown wait status %x\n", stat);
+  return WAIT_ERROR;
 }
 
 void return_syscall_eperm(pid_t pid) {
@@ -366,7 +433,7 @@ void return_syscall_eperm(pid_t pid) {
 
   /* run syscall until exit */
   ptrace(PTRACE_SYSCALL, pid, 0, 0);
-  waitpid(pid, NULL, 0);
+  waitpid(pid, NULL, __WALL);
   fprintf(stderr, "continued\n");
 
   if (ptrace(PTRACE_GETREGS, pid, 0, &regs) < 0) {
@@ -379,33 +446,127 @@ void return_syscall_eperm(pid_t pid) {
   fprintf(stderr, "wrote -eperm to rax\n");
 }
 
+struct memory_map_for_processes {
+  struct memory_map *map;
+  pid_t *pids;
+  size_t n_pids;
+};
+
+struct memory_maps {
+  struct memory_map_for_processes *maps_for_processes;
+  size_t n_maps;
+};
+
+struct memory_map_for_processes *find_memory_map(struct memory_maps *maps, pid_t pid) {
+  for (int i = 0; i < maps->n_maps; i++) {
+    struct memory_map_for_processes *map_for_procs = &maps->maps_for_processes[i];
+    for (int j = 0; j < map_for_procs->n_pids; j++) {
+      if (map_for_procs->pids[j] == pid) {
+        return map_for_procs;
+      }
+    }
+  }
+  return NULL;
+}
+
+struct memory_map_for_processes for_processes_new(struct memory_map *map, pid_t pid) {
+  pid_t *pids = malloc(sizeof(pid_t));
+  pids[0] = pid;
+  struct memory_map_for_processes for_processes = {.map = map, .pids = pids, .n_pids = 1};
+  return for_processes;
+}
+
 /* track the inferior process' memory map.
 
 returns true if the inferior exits, false on trace error.
 
 if true is returned, the inferior's exit status will be stored to *exit_status_out if not NULL. */
 bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
+
   struct memory_map *map = memory_map_new();
+  struct memory_map_for_processes *for_processes = malloc(sizeof(struct memory_map_for_processes));
+  *for_processes = for_processes_new(map, pid);
+
+  struct memory_maps maps = {
+      .maps_for_processes = for_processes,
+      .n_maps = 1,
+  };
 
   enum __ptrace_request continue_request = mode == TRACE_MODE_PTRACE_SYSCALL ? PTRACE_SYSCALL : PTRACE_CONT;
   while (true) {
-    /* run until the next syscall entry or traced syscall (depending on mode) */
-    if (ptrace(continue_request, pid, 0, 0) < 0) {
-      perror("could not PTRACE_SYSCALL...");
-    }
     /* wait for the process to get signalled */
-    switch (wait_for_next_trap(pid, exit_status_out)) {
+    pid_t waited_pid = pid;
+    switch (wait_for_next_trap(-1, &waited_pid, exit_status_out)) {
     case WAIT_TRAP:
       break;
-    case WAIT_ERROR:
+    case WAIT_ERROR: {
+      struct user_regs_struct regs = {0};
+      if (ptrace(PTRACE_GETREGS, waited_pid, 0, &regs) < 0) {
+        perror("could not PTRACE_GETREGS");
+        return false;
+      }
+      fprintf(stderr, "error at rip=%p\n", (void *)regs.rip);
+      for (int i = 0; i < maps.n_maps; i++) {
+        for (int j = 0; j < maps.maps_for_processes[i].n_pids; j++) {
+          pid_t pid = maps.maps_for_processes[i].pids[j];
+          kill(pid, SIGSTOP);
+          ptrace(PTRACE_DETACH, pid, 0, 0);
+        }
+      }
       return false;
+    }
+    case WAIT_SIGCHLD:
+      break;
+    case WAIT_PTRACE_CLONE: {
+      pid_t cloned_pid = 0;
+      int ret = ptrace(PTRACE_GETEVENTMSG, waited_pid, 0, &cloned_pid);
+      if (ret < 0) {
+        perror("ptrace(PTRACE_GETEVENTMSG) upon clone");
+        return WAIT_ERROR;
+      }
+      printf("should track child pid %d\n", cloned_pid);
+
+      struct memory_map_for_processes *map_for_procs = find_memory_map(&maps, waited_pid);
+      map_for_procs->n_pids++;
+      map_for_procs->pids = realloc(map_for_procs->pids, map_for_procs->n_pids * sizeof(pid_t));
+      map_for_procs->pids[map_for_procs->n_pids - 1] = cloned_pid;
+      break;
+    }
+    case WAIT_PTRACE_FORK: {
+      pid_t cloned_pid = 0;
+      int ret = ptrace(PTRACE_GETEVENTMSG, waited_pid, 0, &cloned_pid);
+      if (ret < 0) {
+        perror("ptrace(PTRACE_GETEVENTMSG) upon fork");
+        return WAIT_ERROR;
+      }
+      printf("should track forked child pid %d\n", cloned_pid);
+
+      struct memory_map_for_processes *map_for_procs = find_memory_map(&maps, waited_pid);
+      struct memory_map *cloned = memory_map_clone(map_for_procs->map);
+
+      maps.n_maps++;
+      maps.maps_for_processes = realloc(maps.maps_for_processes, maps.n_maps * sizeof(struct memory_map_for_processes));
+      maps.maps_for_processes[maps.n_maps - 1] = for_processes_new(cloned, cloned_pid);
+      break;
+    }
+    case WAIT_EXEC: {
+      break;
+    }
     default:
       return true;
     }
 
+    struct memory_map_for_processes *map_for_procs = find_memory_map(&maps, waited_pid);
+    if (!map_for_procs) {
+      fprintf(stderr, "could not find memory map for process %d\n", waited_pid);
+      return false;
+    }
+
+    struct memory_map *map = map_for_procs->map;
+
     /* read which syscall is being called and its args */
     struct user_regs_struct regs = {0};
-    if (ptrace(PTRACE_GETREGS, pid, 0, &regs) < 0) {
+    if (ptrace(PTRACE_GETREGS, waited_pid, 0, &regs) < 0) {
       perror("could not PTRACE_GETREGS");
       return false;
     }
@@ -417,7 +578,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
 
     /* read pkru */
     uint32_t pkru = -1;
-    bool res = get_inferior_pkru(pid, &pkru);
+    bool res = get_inferior_pkru(waited_pid, &pkru);
     if (!res) {
       fprintf(stderr, "could not get pkey\n");
       return false;
@@ -460,7 +621,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
 
     if (!is_op_permitted(map, event, &event_info)) {
       fprintf(stderr, "forbidden operation requested: %s\n", event_name(event));
-      return_syscall_eperm(pid);
+      return_syscall_eperm(waited_pid);
       continue;
     } else {
       debug_policy("operation allowed: %s (syscall %lld)\n", event_name(event),
@@ -468,20 +629,25 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
     }
 
     /* run the actual syscall until syscall exit so we can read its result */
-    if (ptrace(PTRACE_SYSCALL, pid, 0, 0) < 0) {
+    if (ptrace(PTRACE_SYSCALL, waited_pid, 0, 0) < 0) {
       perror("could not PTRACE_SYSCALL");
     }
-    switch (wait_for_next_trap(pid, exit_status_out)) {
+    switch (wait_for_next_trap(waited_pid, NULL, exit_status_out)) {
     case WAIT_TRAP:
       break;
     case WAIT_ERROR:
+      return false;
+    case WAIT_SIGCHLD:
+      break;
+    case WAIT_PTRACE_CLONE:
+      printf("ptrace???\n");
       return false;
     default:
       return true;
     }
 
     /* read syscall result from registers */
-    if (ptrace(PTRACE_GETREGS, pid, 0, &regs) < 0) {
+    if (ptrace(PTRACE_GETREGS, waited_pid, 0, &regs) < 0) {
       perror("could not PTRACE_GETREGS");
       return false;
     }
@@ -493,6 +659,11 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
     if (!update_memory_map(map, event, &event_info)) {
       fprintf(stderr, "could not update memory map! (operation=%s, rip=%p)\n", event_name(event), (void *)regs.rip);
       return false;
+    }
+
+    /* run until the next syscall entry or traced syscall (depending on mode) */
+    if (ptrace(continue_request, waited_pid, 0, 0) < 0) {
+      perror("could not PTRACE_SYSCALL...");
     }
   }
 }

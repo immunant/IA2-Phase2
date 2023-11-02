@@ -1,7 +1,3 @@
-/*
-RUN: true
-*/
-
 #include <criterion/criterion.h>
 #include <criterion/logging.h>
 #include <ia2.h>

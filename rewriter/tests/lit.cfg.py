@@ -19,8 +19,6 @@ config.suffixes = ['.c']
 # excludes: A list of directories to exclude from the testsuite. The 'Inputs'
 # subdirectories contain auxiliary inputs for various tests in their parent
 # directories.
-#config.excludes = ['Inputs', 'CMakeLists.txt', 'README.txt', 'LICENSE.txt',
-#                   'libusb', 'ffmpeg', 'destructors']
 config.excludes = [entry.name for entry in os.scandir(os.path.dirname(os.path.abspath(__file__))) if entry.name not in [
     'global_fn_ptr',
     'header_includes',

@@ -862,14 +862,18 @@ public:
   std::map<Function, Pkey> fn_pkeys;
 };
 
-void write_to_ld_file(llvm::raw_fd_ostream *file[MAX_PKEYS], int i,
-                      const std::string &contents) {
+static void create_ld_file(llvm::raw_fd_ostream *file[MAX_PKEYS], int i) {
   if (file[i] == nullptr) {
     std::error_code EC;
     file[i] = new llvm::raw_fd_ostream(
         OutputPrefix + "_" + std::to_string(i) + ".ld", EC);
     assert(file[i] != nullptr);
   }
+}
+
+static void write_to_ld_file(llvm::raw_fd_ostream *file[MAX_PKEYS], int i,
+                      const std::string &contents) {
+  create_ld_file(file, i);
   *file[i] << contents;
 }
 
@@ -1120,6 +1124,7 @@ int main(int argc, const char **argv) {
   // so the wrapper name cannot be changed.
   llvm::raw_fd_ostream *ld_args_out[MAX_PKEYS] = {};
   for (int caller_pkey = 0; caller_pkey < num_pkeys; caller_pkey++) {
+    create_ld_file(ld_args_out, caller_pkey);
     // For each compartment find the functions that are declared but not defined
     std::set<Function> undefined_fns = {};
     std::set_difference(fn_decl_pass.declared_fns[caller_pkey].begin(),

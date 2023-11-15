@@ -1,7 +1,9 @@
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.13)
 project(IA2Phase2)
 
 find_package(PkgConfig REQUIRED)
+
+include(cmake/ia2.cmake)
 
 set(EXTERNAL_DIR ${PROJECT_SOURCE_DIR}/external)
 

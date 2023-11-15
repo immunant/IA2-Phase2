@@ -427,7 +427,7 @@ static pthread_t logging_thread IA2_SHARED_DATA;
 typeof(IA2_IGNORE(pthread_create)) __real_pthread_create;
 
 // The constructor that installs the signal handlers
-__attribute__((constructor)) void install_permissive_mode_handler(void) {
+void install_permissive_mode_handler(void) {
   struct sigaction act = {
       .sa_sigaction = IA2_IGNORE(permissive_mode_trampoline),
       .sa_flags = SA_SIGINFO,
@@ -447,9 +447,15 @@ __attribute__((constructor)) void install_permissive_mode_handler(void) {
   // Create the logging thread
   __real_pthread_create(&logging_thread, NULL, IA2_IGNORE(log_mpk_violations),
                         NULL);
+}
+
+// The constructor that installs the signal handlers
+__attribute__((constructor)) void permissive_mode_init(void) {
   // When the process forks call this function again to reinstall these signal
   // handlers and call pthread_atfork again
   pthread_atfork(NULL, NULL, IA2_IGNORE(install_permissive_mode_handler));
+
+  install_permissive_mode_handler();
 }
 
 /*

@@ -18,3 +18,4 @@ add_ia2_compartment(video_player EXECUTABLE
   INCLUDE_DIRECTORIES include ${SDL2_INCLUDE_DIRS}
 )
 
+add_subdirectory(benchmark)

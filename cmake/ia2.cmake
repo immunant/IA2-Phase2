@@ -32,23 +32,7 @@ function(add_ia2_compartment NAME TYPE)
   elseif("${ARG_PKEY}" GREATER "0")
     set(UNPADDED_LIB ${NAME}_unpadded)
     add_library(${UNPADDED_LIB} SHARED)
-    # Add command and target to generate the padded, sonamed library
-    add_custom_command(
-        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/lib${NAME}.so
-        COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${UNPADDED_LIB}> ${CMAKE_CURRENT_BINARY_DIR}/lib${NAME}.so
-        COMMAND pad-tls --allow-no-tls ${CMAKE_CURRENT_BINARY_DIR}/lib${NAME}.so
-        DEPENDS pad-tls $<TARGET_FILE:${UNPADDED_LIB}>
-        COMMENT "Padding TLS segment of wrapped library"
-    )
-    add_custom_target(${NAME}-padding DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/lib${NAME}.so")
-    add_library(${NAME} SHARED IMPORTED)
-    set_property(TARGET ${NAME} PROPERTY IMPORTED_LOCATION "${CMAKE_CURRENT_BINARY_DIR}/lib${NAME}.so")
-    add_dependencies(${NAME} ${NAME}-padding)
-
-    set_target_properties(${UNPADDED_LIB} PROPERTIES
-      LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/unpadded"
-      OUTPUT_NAME "${NAME}"
-    )
+    pad_tls_library(${UNPADDED_LIB} ${NAME})
     set(NAME ${UNPADDED_LIB})
   else()
     add_library(${NAME} SHARED)
@@ -103,6 +87,26 @@ function(relative_to_absolute OUTPUT BASEDIR)
     endif()
   endforeach()
   set(${OUTPUT} ${paths} PARENT_SCOPE)
+endfunction()
+
+function(pad_tls_library INPUT OUTPUT)
+  # Add command and target to generate the padded, sonamed library
+  add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/lib${OUTPUT}.so
+    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${INPUT}> ${CMAKE_CURRENT_BINARY_DIR}/lib${OUTPUT}.so
+    COMMAND pad-tls --allow-no-tls ${CMAKE_CURRENT_BINARY_DIR}/lib${OUTPUT}.so
+    DEPENDS pad-tls $<TARGET_FILE:${INPUT}>
+    COMMENT "Padding TLS segment of wrapped library"
+  )
+  add_custom_target(${OUTPUT}-padding DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/lib${OUTPUT}.so")
+  add_library(${OUTPUT} SHARED IMPORTED GLOBAL)
+  set_property(TARGET ${OUTPUT} PROPERTY IMPORTED_LOCATION "${CMAKE_CURRENT_BINARY_DIR}/lib${OUTPUT}.so")
+  add_dependencies(${OUTPUT} ${OUTPUT}-padding)
+
+  set_target_properties(${INPUT} PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/unpadded"
+    OUTPUT_NAME "${OUTPUT}"
+  )
 endfunction()
 
 # Create a fake target that builds the given sources

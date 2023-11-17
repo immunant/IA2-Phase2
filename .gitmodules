@@ -1,0 +1,3 @@
+[submodule "external/b63"]
+	path = external/b63
+	url = https://github.com/okuvshynov/b63.git

@@ -1,5 +1,9 @@
 #pragma once
 
+#ifndef IA2_ENABLE
+#define IA2_ENABLE 0
+#endif
+
 // This include must come first so we define _GNU_SOURCE before including
 // standard headers. ia2_internal.h requires GNU-specific headers.
 #if IA2_ENABLE

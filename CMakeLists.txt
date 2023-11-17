@@ -12,8 +12,10 @@ set(EXTERNAL_DIR ${PROJECT_SOURCE_DIR}/external)
 # runtime needs to be first so it defines libia2_BINARY_DIR
 add_subdirectory(runtime)
 
+add_subdirectory(benchmarks)
+
 if (NOT LIBIA2_AARCH64)
-    add_subdirectory(examples)
+  add_subdirectory(examples)
 endif()
 add_subdirectory(misc)
 

@@ -195,7 +195,8 @@ void permissive_mode_handler(int sig, siginfo_t *info, void *ctxt) {
     uint64_t fp = (uint64_t)uctxt->uc_mcontext.gregs[REG_RBP];
     // Ensure that the logging thread is not popping values
     struct queue *q = get_queue();
-    uint64_t val = *(uint64_t *)info->si_addr;
+    uint64_t val;
+    memcpy(&val, info->si_addr, sizeof(uint64_t));
     mpk_err err = {.addr = (uint64_t)info->si_addr, .val = val, .pc = pc, .sp = sp, .fp = fp, .pkru = old_pkru, .local_addr = (uint64_t)&pc};
     push_queue(q, err);
     release_queue(q);

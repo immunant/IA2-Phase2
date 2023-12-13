@@ -17,6 +17,7 @@
 
 INIT_RUNTIME(2);
 #define IA2_COMPARTMENT 1
+#define IA2_COMPARTMENT_LIBRARIES "libSDL2-2.0.so;libswscale.so"
 #include <ia2_compartment_init.inc>
 
 static char *video_data;

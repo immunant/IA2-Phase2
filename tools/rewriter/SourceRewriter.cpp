@@ -868,18 +868,22 @@ public:
   std::map<Function, Pkey> fn_pkeys;
 };
 
-static void create_ld_file(llvm::raw_fd_ostream *file[MAX_PKEYS], int i) {
+static void create_file(llvm::raw_fd_ostream *file[MAX_PKEYS], int i, const char *extension) {
   if (file[i] == nullptr) {
     std::error_code EC;
     file[i] = new llvm::raw_fd_ostream(
-        OutputPrefix + "_" + std::to_string(i) + ".ld", EC);
+        OutputPrefix + "_" + std::to_string(i) + extension, EC);
     assert(file[i] != nullptr);
   }
 }
 
-static void write_to_ld_file(llvm::raw_fd_ostream *file[MAX_PKEYS], int i,
-                             const std::string &contents) {
-  create_ld_file(file, i);
+static void create_ld_file(llvm::raw_fd_ostream *file[MAX_PKEYS], int i) {
+  create_file(file, i, ".ld");
+}
+
+static void write_to_file(llvm::raw_fd_ostream *file[MAX_PKEYS], int i,
+                          const std::string &contents, const char *extension) {
+  create_file(file, i, extension);
   *file[i] << contents;
 }
 
@@ -1182,9 +1186,19 @@ int main(int argc, const char **argv) {
   // Create wrappers for direct calls. These wrappers are inserted by ld --wrap
   // so the wrapper name cannot be changed.
   llvm::raw_fd_ostream *ld_args_out[MAX_PKEYS] = {};
+  llvm::raw_fd_ostream *objcopy_redefine_syms_args[MAX_PKEYS] = {};
+
+  // The set of functions that are called from multiple compartments without the pkey suffix
+  std::map<Function, std::set<Pkey>> multicaller_fns = {};
+  // This is the set of names for direct call wrappers without the leading
+  // __wrap_. This set is ultimately used to generate all the call gates, but
+  // it's filled out in two phases: first the functions that only have a single
+  // caller compartment then those that are called from multiple compartments.
+  std::map<Function, Pkey> direct_call_wrappers = {};
+
   for (int caller_pkey = 0; caller_pkey < num_pkeys; caller_pkey++) {
     create_ld_file(ld_args_out, caller_pkey);
-    // For each compartment find the functions that are declared but not defined
+    // Find the functions that are declared but defined in another compartment
     std::set<Function> undefined_fns = {};
     std::set_difference(fn_decl_pass.declared_fns[caller_pkey].begin(),
                         fn_decl_pass.declared_fns[caller_pkey].end(),
@@ -1192,36 +1206,101 @@ int main(int argc, const char **argv) {
                         fn_decl_pass.defined_fns[caller_pkey].end(),
                         std::inserter(undefined_fns, undefined_fns.begin()));
     for (const auto &fn_name : undefined_fns) {
-      CAbiSignature c_abi_sig;
-      try {
-        c_abi_sig = fn_decl_pass.abi_signatures.at(fn_name);
-      } catch (std::out_of_range const &exc) {
-        llvm::errs() << "C ABI signature for function " << fn_name.c_str()
-                     << " not found by FnDecl pass\n";
-        abort();
-      }
-      // TODO: Add the option to append "_from_PKEY" to the wrapper name and use
-      // objcopy --redefine-syms to support calling a function from multiple
-      // compartments
-      std::string wrapper_name = "__wrap_"s + fn_name;
-      Pkey target_pkey;
-      try {
-        target_pkey = fn_decl_pass.fn_pkeys.at(fn_name);
-      } catch (std::out_of_range const &exc) {
-        llvm::errs() << "Assuming pkey for function " << fn_name.c_str()
-                     << " is same as the caller (" << caller_pkey
-                     << ") since its definition was not found by FnDecl pass\n";
-        continue;
-      }
-      std::string asm_wrapper =
-          emit_asm_wrapper(c_abi_sig, wrapper_name, fn_name,
-                           WrapperKind::Direct, caller_pkey, target_pkey, Target);
-      wrapper_out << "asm(\n";
-      wrapper_out << asm_wrapper;
-      wrapper_out << ");\n";
+      if (direct_call_wrappers.contains(fn_name)) {
+        // If previous iterations found only one compartment that calls
+        // fn_name, make sure it's not already in the multicaller set
+        assert(!multicaller_fns.contains(fn_name));
+        Pkey other_caller = direct_call_wrappers.at(fn_name);
 
-      write_to_ld_file(ld_args_out, caller_pkey, "--wrap="s + fn_name + '\n');
+        // Remove from the single-caller set and add fn_name to the
+        // multicaller set, making sure to include the two callers found so
+        // far
+        direct_call_wrappers.erase(fn_name);
+        multicaller_fns.insert({fn_name, std::set{caller_pkey, other_caller}});
+
+      } else if (multicaller_fns.contains(fn_name)) {
+        // If fn_name already has multiple callers just add to the set of
+        // pkeys
+        multicaller_fns.at(fn_name).insert(caller_pkey);
+      } else {
+        // If fn_name has no callers so far, add it to the single-caller set
+        direct_call_wrappers.insert({fn_name, caller_pkey});
+      }
     }
+  }
+
+  // This maps multicaller function names (ending in _pkey_N) to the original target function
+  std::map<Function, Function> targets_for_multicaller_fns = {};
+
+  // At this point direct_call_wrappers has all the single-caller functions, so
+  // now we'll add the multicaller ones (with their renamed symbols) to allow
+  // generating call gates with a single loop through direct_call_wrappers
+  for (const auto &[fn_name, caller_pkey_set] : multicaller_fns) {
+    for (int caller_pkey : caller_pkey_set) {
+      std::string new_fn_name = fn_name + "_from_" + std::to_string(caller_pkey);
+      // The contents of the objcopy args file
+      std::string contents = fn_name + " " + new_fn_name + '\n';
+
+      write_to_file(objcopy_redefine_syms_args, caller_pkey, contents, ".objcopy");
+
+      // Add the renamed symbols to the direct_call_wrappers set
+      direct_call_wrappers.insert({new_fn_name, caller_pkey});
+
+      // The loop that generates the direct call wrappers depends on maps in
+      // FnDecl that are filled out as we parse the source files. Since the
+      // renamed symbols don't appear in these source files, we duplicate the
+      // original entries in these maps for the renamed symbols. While we could
+      // avoid this duplication if necessary, this simplifies the call gate
+      // generation.
+      auto c_abi = fn_decl_pass.abi_signatures.at(fn_name);
+      fn_decl_pass.abi_signatures.insert({new_fn_name, c_abi});
+
+      Pkey pkey = fn_decl_pass.fn_pkeys.at(fn_name);
+      fn_decl_pass.fn_pkeys.insert({new_fn_name, pkey});
+
+      // The target functions for multicaller function call gates don't have
+      // matching symbol names (since their symbols are renamed) so let's keep
+      // track of the original function names for these symbols.
+      targets_for_multicaller_fns.insert({new_fn_name, fn_name});
+    }
+  }
+
+  // At this point direct_call_wrappers has both single-caller and multicaller
+  // functions so we just need to generate the callgates
+  for (const auto &[fn_name, caller_pkey] : direct_call_wrappers) {
+    CAbiSignature c_abi_sig;
+    try {
+      c_abi_sig = fn_decl_pass.abi_signatures.at(fn_name);
+    } catch (std::out_of_range const &exc) {
+      llvm::errs() << "C ABI signature for function " << fn_name.c_str()
+                   << " not found by FnDecl pass\n";
+      abort();
+    }
+    std::string wrapper_name = "__wrap_"s + fn_name;
+    // The target function just matches the callgate name without the leading
+    // __wrap_ unless it's a multicaller function in which case we check the
+    // function name before the symbol was renamed.
+    std::string target_fn = fn_name;
+    if (targets_for_multicaller_fns.contains(fn_name)) {
+      target_fn = targets_for_multicaller_fns.at(fn_name);
+    }
+    Pkey target_pkey;
+    try {
+      target_pkey = fn_decl_pass.fn_pkeys.at(fn_name);
+    } catch (std::out_of_range const &exc) {
+      llvm::errs() << "Assuming pkey for function " << fn_name.c_str()
+                   << " is same as the caller (" << caller_pkey
+                   << ") since its definition was not found by FnDecl pass\n";
+      continue;
+    }
+    std::string asm_wrapper =
+        emit_asm_wrapper(c_abi_sig, wrapper_name, target_fn,
+                         WrapperKind::Direct, caller_pkey, target_pkey, Target);
+    wrapper_out << "asm(\n";
+    wrapper_out << asm_wrapper;
+    wrapper_out << ");\n";
+
+    write_to_file(ld_args_out, caller_pkey, "--wrap="s + fn_name + '\n', ".ld");
   }
 
   // Create wrapper for compartment destructor
@@ -1243,8 +1322,8 @@ int main(int argc, const char **argv) {
     wrapper_out << asm_wrapper;
     wrapper_out << ");\n";
 
-    write_to_ld_file(ld_args_out, compartment_pkey,
-                     "--wrap="s + fn_name + '\n');
+    write_to_file(ld_args_out, compartment_pkey,
+                  "--wrap="s + fn_name + '\n', ".ld");
   }
 
   std::cout << "Generating function pointer wrappers\n";
@@ -1323,6 +1402,9 @@ int main(int argc, const char **argv) {
   for (int i = 0; i < num_pkeys; i++) {
     if (ld_args_out[i] != nullptr) {
       ld_args_out[i]->close();
+    }
+    if (objcopy_redefine_syms_args[i] != nullptr) {
+      objcopy_redefine_syms_args[i]->close();
     }
   }
 

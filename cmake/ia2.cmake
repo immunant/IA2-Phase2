@@ -247,6 +247,16 @@ function(add_ia2_call_gates NAME)
       target_link_options(${target} PRIVATE "-Wl,@${target_ld_args_file}")
       list(APPEND LD_ARGS_FILES "${target_ld_args_file}")
 
+      set(target_objcopy_args_file "${REWRITER_OUTPUT_PREFIX}_${target_pkey}.objcopy")
+      set(OBJCOPY_GLUE ${CMAKE_OBJCOPY} "--redefine-syms=${target_objcopy_args_file}")
+      set(OBJCOPY_CMD ${OBJCOPY_GLUE} $<JOIN:$<TARGET_OBJECTS:${target}>, \\\; && ${OBJCOPY_GLUE} >)
+      add_custom_command(TARGET ${target} PRE_LINK
+                         COMMAND "${OBJCOPY_CMD}"
+                         DEPENDS ${target_objcopy_args_file}
+                         VERBATIM
+                         COMMAND_EXPAND_LISTS)
+      list(APPEND OBJCOPY_ARGS_FILES "${target_objcopy_args_file}")
+
       get_target_property(target_srcs ${target} ORIGINAL_SOURCES)
       relative_to_absolute(target_original_srcs ${target_source_dir} ${target_srcs})
       list(APPEND SOURCES ${target_original_srcs})
@@ -287,7 +297,8 @@ function(add_ia2_call_gates NAME)
       set(ARCH_FLAG "--arch=aarch64")
   endif()
   add_custom_command(
-    OUTPUT ${CALL_GATE_SRC} ${CALL_GATE_HDR} ${LD_ARGS_FILES} ${REWRITTEN_SOURCES}
+    OUTPUT ${CALL_GATE_SRC} ${CALL_GATE_HDR}
+           ${LD_ARGS_FILES} ${OBJCOPY_ARGS_FILES} ${REWRITTEN_SOURCES}
     COMMAND ${CMAKE_BINARY_DIR}/tools/rewriter/ia2-rewriter
         --output-prefix=${REWRITER_OUTPUT_PREFIX}
         --root-directory=${CMAKE_CURRENT_SOURCE_DIR}
@@ -309,7 +320,8 @@ function(add_ia2_call_gates NAME)
   )
 
   add_custom_target(${NAME}-rewrite
-    DEPENDS ${CALL_GATE_SRC} ${CALL_GATE_HDR} ${LD_ARGS_FILES} ${REWRITTEN_SOURCES})
+    DEPENDS ${CALL_GATE_SRC} ${CALL_GATE_HDR}
+            ${LD_ARGS_FILES} ${OBJCOPY_ARGS_FILES} ${REWRITTEN_SOURCES})
 
   add_library(${CALL_GATE_TARGET} SHARED ${CALL_GATE_SRC})
   add_dependencies(${CALL_GATE_TARGET} ${NAME}-rewrite)

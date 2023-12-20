@@ -1198,6 +1198,7 @@ int main(int argc, const char **argv) {
 
   for (int caller_pkey = 0; caller_pkey < num_pkeys; caller_pkey++) {
     create_ld_file(ld_args_out, caller_pkey);
+    create_file(objcopy_redefine_syms_args, caller_pkey, ".objcopy");
     // Find the functions that are declared but defined in another compartment
     std::set<Function> undefined_fns = {};
     std::set_difference(fn_decl_pass.declared_fns[caller_pkey].begin(),

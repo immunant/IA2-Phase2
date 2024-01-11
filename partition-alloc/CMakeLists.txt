@@ -65,37 +65,43 @@ set(PA_SRCS
 
 list(TRANSFORM PA_SRCS PREPEND ${EXTERNAL_DIR}/chromium/src/base/allocator/partition_allocator/)
 
-add_library(partition-alloc SHARED
+add_library(partition-alloc_unpadded SHARED
 	src/allocator_shim_default_dispatch_to_partition_alloc.cc
 	src/get_pkey.cc
 	src/shared_allocator.cc
     ${PA_SRCS})
 
+pad_tls_library(partition-alloc_unpadded partition-alloc)
+
 target_include_directories(partition-alloc BEFORE
-    INTERFACE
+	INTERFACE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_include_directories(partition-alloc_unpadded BEFORE
+    PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${EXTERNAL_DIR}/chromium/src)
 
-target_compile_options(partition-alloc
+target_compile_options(partition-alloc_unpadded
 	PRIVATE
 		"-fPIC"
 		"-std=c++17"
 		"-Wno-invalid-offsetof"
 		"-Wno-return-type"
 )
-target_compile_options(partition-alloc
+target_compile_options(partition-alloc_unpadded
 	PUBLIC
 		"-fno-exceptions"
 )
-target_link_options(partition-alloc
+target_link_options(partition-alloc_unpadded
     PRIVATE
         "-Wl,-z,now"
 )
 
 # Wrapping options from upstream BUILD.gn
-target_link_options(partition-alloc
+target_link_options(partition-alloc_unpadded
 	PUBLIC
 		"-Wl,-wrap,calloc"
 		"-Wl,-wrap,free"

@@ -2,9 +2,7 @@ include(CTest)
 
 enable_testing()
 
-include("../../cmake/define-ia2-wrapper.cmake")
 include("../../cmake/define-test.cmake")
-include("../../cmake/add-tls-padded-library.cmake")
 
 configure_lit_site_cfg(
   ${CMAKE_CURRENT_SOURCE_DIR}/lit.site.cfg.py.in
@@ -60,3 +58,4 @@ add_subdirectory(rewrite_fn_ptr_eq)
 add_subdirectory(rewrite_macros)
 add_subdirectory(sighandler)
 add_subdirectory(permissive_mode)
+add_subdirectory(three_keys_minimal)

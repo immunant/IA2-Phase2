@@ -47,7 +47,7 @@ pid_t spawn_with_tracker(char *const *argv) {
   }
 
   /* do not let the tracee continue if our process dies */
-  ptrace(PTRACE_SETOPTIONS, child_pid, 0, PTRACE_O_EXITKILL);
+  ptrace(PTRACE_SETOPTIONS, child_pid, 0, PTRACE_O_EXITKILL|PTRACE_O_TRACESYSGOOD);
 
   /* run the child up to the next syscall */
   ptrace(PTRACE_SYSCALL, child_pid, NULL, NULL);

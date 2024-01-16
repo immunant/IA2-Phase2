@@ -372,7 +372,7 @@ if the exit is WAIT_EXITED, the exit status will be placed in *exit_status_out
 if it is non-NULL. */
 enum wait_trap_result wait_for_next_trap(pid_t pid, pid_t *pid_out, int *exit_status_out) {
   int stat = 0;
-  static pid_t last_pid = 0;
+  static pid_t last_pid = 0; /* used to limit logs to when pid changes */
   pid_t waited_pid = waitpid(pid, &stat, __WALL);
   if (pid_out)
     *pid_out = waited_pid;
@@ -380,7 +380,6 @@ enum wait_trap_result wait_for_next_trap(pid_t pid, pid_t *pid_out, int *exit_st
     fprintf(stderr, "waited, pid=%d\n", waited_pid);
     last_pid = waited_pid;
   }
-  // fprintf(stderr, "waited, stat=%x\n", stat);
   if (waited_pid < 0) {
     perror("waitpid");
     return WAIT_ERROR;
@@ -396,7 +395,6 @@ enum wait_trap_result wait_for_next_trap(pid_t pid, pid_t *pid_out, int *exit_st
   }
   if (WIFSTOPPED(stat)) {
     /* stopped by a signal or by ptrace/seccomp which shows up as SIGTRAP */
-    // fprintf(stderr, "child stopped by signal %d\n", WSTOPSIG(stat));
     /* the next 8 bits of status give the ptrace event, if any */
     int ptrace_event = stat >> 16;
     if (ptrace_event > 0) {

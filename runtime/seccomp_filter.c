@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <sys/syscall.h>
+#include <unistd.h>
 
 #include "seccomp_filter.h"
 
@@ -133,8 +134,7 @@ struct sock_filter example_filter[] = {
 };
 struct sock_fprog example_filter_prog = prog_for_filter(example_filter);
 
-/* declare syscall() and wrap syscall(SYS_seccomp) */
-long syscall(long no, ...);
+/* wrap syscall(SYS_seccomp) */
 long seccomp(unsigned int mode, unsigned int flags, void *data) {
   return syscall(SYS_seccomp, mode, flags, data);
 }

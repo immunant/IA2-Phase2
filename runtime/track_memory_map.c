@@ -313,9 +313,13 @@ bool interpret_syscall(struct user_regs_struct *regs, unsigned char pkey,
   return true;
 }
 
-void update_event_with_result(struct user_regs_struct *regs,
+/* returns whether the syscall succeeded (returned non-negative) */
+bool update_event_with_result(struct user_regs_struct *regs,
                               enum mmap_event event,
                               union event_info *event_info) {
+  if ((int64_t)regs->rax < 0) {
+    return false;
+  }
   /* if mremap(MREMAP_MAYMOVE) or regular mmap() sans MAP_FIXED, we need to
   find out what addr came back */
 
@@ -338,6 +342,7 @@ void update_event_with_result(struct user_regs_struct *regs,
     break;
   }
   }
+  return true;
 }
 
 enum wait_trap_result {
@@ -653,13 +658,13 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       return false;
     }
 
-    /* update event */
-    update_event_with_result(&regs, event, &event_info);
-
-    /* track effect of syscall on memory map */
-    if (!update_memory_map(map, event, &event_info)) {
-      fprintf(stderr, "could not update memory map! (operation=%s, rip=%p)\n", event_name(event), (void *)regs.rip);
-      return false;
+    /* if syscall succeeded, update event */
+    if (update_event_with_result(&regs, event, &event_info)) {
+      /* track effect of syscall on memory map */
+      if (!update_memory_map(map, event, &event_info)) {
+        fprintf(stderr, "could not update memory map! (operation=%s, rip=%p)\n", event_name(event), (void *)regs.rip);
+        return false;
+      }
     }
 
     /* run until the next syscall entry or traced syscall (depending on mode) */

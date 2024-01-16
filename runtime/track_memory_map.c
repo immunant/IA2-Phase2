@@ -341,7 +341,7 @@ void update_event_with_result(struct user_regs_struct *regs,
 }
 
 enum wait_trap_result {
-  WAIT_TRAP,
+  WAIT_SYSCALL,
   WAIT_EXITED,
   WAIT_SIGNALED,
   WAIT_SIGCHLD,
@@ -394,7 +394,7 @@ enum wait_trap_result wait_for_next_trap(pid_t pid, pid_t *pid_out, int *exit_st
         return WAIT_PTRACE_FORK;
       }
       if (ptrace_event == PTRACE_EVENT_SECCOMP) {
-        return WAIT_TRAP;
+        return WAIT_SYSCALL;
       }
       if (ptrace_event == PTRACE_EVENT_EXEC) {
         printf("exec event\n");
@@ -403,11 +403,12 @@ enum wait_trap_result wait_for_next_trap(pid_t pid, pid_t *pid_out, int *exit_st
       fprintf(stderr, "unknown ptrace event %d\n", ptrace_event);
     }
     switch (WSTOPSIG(stat)) {
+    case SIGTRAP | 0x80:
+      debug_event("child stopped by syscall entry/exit\n");
+      return WAIT_SYSCALL;
     case SIGCHLD:
       fprintf(stderr, "child stopped by sigchld\n");
       return WAIT_SIGCHLD;
-    case SIGTRAP:
-      return WAIT_TRAP;
     case SIGSTOP:
       return WAIT_TRAP;
     default:
@@ -497,7 +498,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
     /* wait for the process to get signalled */
     pid_t waited_pid = pid;
     switch (wait_for_next_trap(-1, &waited_pid, exit_status_out)) {
-    case WAIT_TRAP:
+    case WAIT_SYSCALL:
       break;
     case WAIT_ERROR: {
       struct user_regs_struct regs = {0};
@@ -609,7 +610,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
         perror("could not PTRACE_SYSCALL");
       }
       switch (wait_for_next_trap(pid, exit_status_out)) {
-      case WAIT_TRAP:
+      case WAIT_SYSCALL:
         break;
       case WAIT_ERROR:
         return false;
@@ -633,7 +634,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       perror("could not PTRACE_SYSCALL");
     }
     switch (wait_for_next_trap(waited_pid, NULL, exit_status_out)) {
-    case WAIT_TRAP:
+    case WAIT_SYSCALL:
       break;
     case WAIT_ERROR:
       return false;

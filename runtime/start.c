@@ -82,6 +82,8 @@ static pid_t fork_and_trace(char *const *argv) {
   options |= PTRACE_O_TRACECLONE | PTRACE_O_TRACEVFORK | PTRACE_O_TRACEFORK;
   /* and exec() */
   options |= PTRACE_O_TRACEEXEC;
+  /* distinguish syscall stops from SIGTRAP receipt */
+  options |= PTRACE_O_TRACESYSGOOD;
 
   ptrace(PTRACE_SETOPTIONS, child_pid, 0, options);
 

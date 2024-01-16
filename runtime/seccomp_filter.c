@@ -103,6 +103,16 @@ struct sock_filter ia2_filter[] = {
     BPF_SYSCALL_POLICY(set_tid_address, ALLOW),
     BPF_SYSCALL_POLICY(write, ALLOW),
     BPF_SYSCALL_POLICY(writev, ALLOW),
+    BPF_SYSCALL_POLICY(exit, ALLOW),
+    BPF_SYSCALL_POLICY(clock_nanosleep, ALLOW),
+    BPF_SYSCALL_POLICY(sigaltstack, ALLOW),
+    BPF_SYSCALL_POLICY(epoll_wait, ALLOW),
+    BPF_SYSCALL_POLICY(setsid, ALLOW),
+    BPF_SYSCALL_POLICY(pipe2, ALLOW),
+    BPF_SYSCALL_POLICY(poll, ALLOW),
+    BPF_SYSCALL_POLICY(waitid, ALLOW),
+    BPF_SYSCALL_POLICY(madvise, ALLOW),
+    BPF_SYSCALL_POLICY(restart_syscall, ALLOW),
     /* tracee syscalls */
     /* ptrace(PTRACE_TRACEME) dance requires raising SIGSTOP */
     BPF_SYSCALL_POLICY(kill, ALLOW),

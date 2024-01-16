@@ -17,12 +17,14 @@
 #define debug_policy(...) fprintf(stderr, __VA_ARGS__)
 #define debug_event(...) fprintf(stderr, __VA_ARGS__)
 #define debug_event_update(...) fprintf(stderr, __VA_ARGS__)
+#define debug_exit(...) fprintf(stderr, __VA_ARGS__)
 #else
 #define debug(...)
 #define debug_op(...)
 #define debug_policy(...)
 #define debug_event(...)
 #define debug_event_update(...)
+#define debug_exit(...)
 #endif
 
 bool is_op_permitted(struct memory_map *map, int event,
@@ -501,6 +503,33 @@ struct memory_map_for_processes *find_memory_map(struct memory_maps *maps, pid_t
   return NULL;
 }
 
+bool remove_pid(struct memory_map_for_processes *map_for_procs, pid_t pid) {
+  bool found_pid = false;
+  for (int j = 0; j < map_for_procs->n_pids; j++) {
+    if (found_pid) {
+      map_for_procs->pids[j] = map_for_procs->pids[j - 1];
+    } else if (map_for_procs->pids[j] == pid) {
+      found_pid = true;
+      map_for_procs->n_pids--;
+    }
+  }
+  return found_pid;
+}
+
+bool remove_map(struct memory_maps *maps, struct memory_map_for_processes *map_to_remove) {
+  bool found_map = false;
+  for (int i = 0; i < maps->n_maps; i++) {
+    struct memory_map_for_processes *map_for_procs = &maps->maps_for_processes[i];
+    if (found_map) {
+      maps->maps_for_processes[i] = maps->maps_for_processes[i - 1];
+    } else if (&maps->maps_for_processes[i] == map_to_remove) {
+      found_map = true;
+      maps->n_maps--;
+    }
+  }
+  return found_map;
+}
+
 struct memory_map_for_processes for_processes_new(struct memory_map *map, pid_t pid) {
   pid_t *pids = malloc(sizeof(pid_t));
   pids[0] = pid;
@@ -631,8 +660,28 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       return true;
     }
     case WAIT_EXITED: {
-      fprintf(stderr, "pid %d exited (syscall entry)\n", waited_pid);
-      // TODO: remove from pid map
+      debug_exit("pid %d exited (syscall entry)\n", waited_pid);
+      struct memory_map_for_processes *map_for_procs = find_memory_map(&maps, waited_pid);
+      if (!map_for_procs) {
+        fprintf(stderr, "could not find memory map for process %d\n", waited_pid);
+        return false;
+      }
+      if (!remove_pid(map_for_procs, waited_pid)) {
+        fprintf(stderr, "could not remove pid %d from memory map\n", pid);
+        return false;
+      }
+      if (map_for_procs->n_pids == 0) {
+        if (!remove_map(&maps, map_for_procs)) {
+          fprintf(stderr, "could not remove memory map for pid %d\n", pid);
+        }
+      }
+
+      // if all maps are gone, exit
+      if (maps.n_maps == 0) {
+        return true;
+      }
+
+      // in any case, this process is gone, so wait for a new one
       continue;
     }
     }
@@ -714,6 +763,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
                    regs.orig_rax);
     }
 
+  // if we are in TRACE_MODE_PTRACE_SYSCALL, we will see EXITED/PTRACE_CLONE here
   syscall_exit:
     /* run the actual syscall until syscall exit so we can read its result */
     if (ptrace(PTRACE_SYSCALL, waited_pid, 0, 0) < 0) {
@@ -728,13 +778,46 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       return false;
     case WAIT_SIGCHLD:
       break;
-    case WAIT_PTRACE_CLONE:
-      printf("ptrace???\n");
+    case WAIT_PTRACE_CLONE: {
+      pid_t cloned_pid = 0;
+      int ret = ptrace(PTRACE_GETEVENTMSG, waited_pid, 0, &cloned_pid);
+      if (ret < 0) {
+        perror("ptrace(PTRACE_GETEVENTMSG) upon clone");
+        return WAIT_ERROR;
+      }
+      printf("should track child pid %d\n", cloned_pid);
+
+      struct memory_map_for_processes *map_for_procs = find_memory_map(&maps, waited_pid);
+      map_for_procs->n_pids++;
+      map_for_procs->pids = realloc(map_for_procs->pids, map_for_procs->n_pids * sizeof(pid_t));
+      map_for_procs->pids[map_for_procs->n_pids - 1] = cloned_pid;
+      break;
       goto syscall_exit;
-      return false;
+    }
     case WAIT_EXITED:
-      fprintf(stderr, "pid %d exited (syscall exit)\n", waited_pid);
-      return true;
+      debug_exit("pid %d exited (syscall exit)\n", waited_pid);
+      struct memory_map_for_processes *map_for_procs = find_memory_map(&maps, waited_pid);
+      if (!map_for_procs) {
+        fprintf(stderr, "could not find memory map for process %d\n", waited_pid);
+        return false;
+      }
+      if (!remove_pid(map_for_procs, waited_pid)) {
+        fprintf(stderr, "could not remove pid %d from memory map\n", pid);
+        return false;
+      }
+      if (map_for_procs->n_pids == 0) {
+        if (!remove_map(&maps, map_for_procs)) {
+          fprintf(stderr, "could not remove memory map for pid %d\n", pid);
+        }
+      }
+
+      // if all maps are gone, exit
+      if (maps.n_maps == 0) {
+        return true;
+      }
+
+      // in any case, this process is gone, so wait for a new one
+      continue;
     case WAIT_EXEC:
       /* we don't really need to do anything here, but we do need to retry
       ptrace because it was not actually syscall exit this time arounds */

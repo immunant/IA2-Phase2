@@ -15,11 +15,13 @@
 #define debug(...) fprintf(stderr, __VA_ARGS__)
 #define debug_op(...) fprintf(stderr, __VA_ARGS__)
 #define debug_policy(...) fprintf(stderr, __VA_ARGS__)
+#define debug_event(...) fprintf(stderr, __VA_ARGS__)
 #define debug_event_update(...) fprintf(stderr, __VA_ARGS__)
 #else
 #define debug(...)
 #define debug_op(...)
 #define debug_policy(...)
+#define debug_event(...)
 #define debug_event_update(...)
 #endif
 
@@ -300,6 +302,9 @@ bool interpret_syscall(struct user_regs_struct *regs, unsigned char pkey,
   case EVENT_CLONE: {
     break;
   }
+  case EVENT_EXEC: {
+    break;
+  }
   case EVENT_NONE: {
     /* when ptracing alone, this may occur; when we are a seccomp helper, this
     should not happen */
@@ -347,6 +352,8 @@ bool update_event_with_result(struct user_regs_struct *regs,
 
 enum wait_trap_result {
   WAIT_SYSCALL,
+  WAIT_STOP,
+  WAIT_GROUP_STOP,
   WAIT_EXITED,
   WAIT_SIGNALED,
   WAIT_SIGCHLD,
@@ -354,6 +361,7 @@ enum wait_trap_result {
   WAIT_PTRACE_CLONE,
   WAIT_PTRACE_FORK,
   WAIT_EXEC,
+  WAIT_CONT,
 };
 
 /* wait for the next trap from the inferior.
@@ -402,8 +410,12 @@ enum wait_trap_result wait_for_next_trap(pid_t pid, pid_t *pid_out, int *exit_st
         return WAIT_SYSCALL;
       }
       if (ptrace_event == PTRACE_EVENT_EXEC) {
-        printf("exec event\n");
+        debug_event("exec event\n");
         return WAIT_EXEC;
+      }
+      if (ptrace_event == PTRACE_EVENT_STOP) {
+        debug_event("stop event\n");
+        return WAIT_STOP;
       }
       fprintf(stderr, "unknown ptrace event %d\n", ptrace_event);
     }
@@ -411,11 +423,27 @@ enum wait_trap_result wait_for_next_trap(pid_t pid, pid_t *pid_out, int *exit_st
     case SIGTRAP | 0x80:
       debug_event("child stopped by syscall entry/exit\n");
       return WAIT_SYSCALL;
+    case SIGSTOP:
+    case SIGTSTP:
+    case SIGTTIN:
+    case SIGTTOU:
+      debug_event("possibly group stop\n");
+      siginfo_t siginfo = {0};
+      if (ptrace(PTRACE_GETSIGINFO, waited_pid, 0, &siginfo) < 0) {
+        if (errno == EINVAL) {
+          debug_event("child in group-stop\n");
+          return WAIT_GROUP_STOP;
+        }
+      } else {
+        debug_event("child stopped by SIGSTOP\n");
+      }
+      return WAIT_STOP;
+    case SIGCONT:
+      debug_event("child hit SIGCONT\n");
+      return WAIT_CONT;
     case SIGCHLD:
       fprintf(stderr, "child stopped by sigchld\n");
       return WAIT_SIGCHLD;
-    case SIGSTOP:
-      return WAIT_TRAP;
     default:
       fprintf(stderr, "child stopped by unexpected signal %d\n", WSTOPSIG(stat));
       return WAIT_ERROR;
@@ -502,7 +530,42 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
   while (true) {
     /* wait for the process to get signalled */
     pid_t waited_pid = pid;
-    switch (wait_for_next_trap(-1, &waited_pid, exit_status_out)) {
+    int signal_to_deliver = 0;
+    enum wait_trap_result wait_result = wait_for_next_trap(-1, &waited_pid, exit_status_out);
+    switch (wait_result) {
+    /* we need to handle events relating to process lifetime upfront: these
+    include clone()/fork()/exec() and sigchld */
+    case WAIT_CONT: {
+      fprintf(stderr, "cont with SIGCONT\n");
+      signal_to_deliver = SIGCONT;
+      if (ptrace(continue_request, waited_pid, 0, SIGCONT) < 0) {
+        perror("could not PTRACE_SYSCALL...");
+      }
+      continue;
+    }
+    case WAIT_STOP: {
+      signal_to_deliver = SIGSTOP;
+      fprintf(stderr, "cont with SIGSTOP\n");
+      if (ptrace(continue_request, waited_pid, 0, SIGSTOP) < 0) {
+        perror("could not PTRACE_SYSCALL...");
+      }
+      continue;
+      break;
+    }
+    case WAIT_SIGCHLD:
+      fprintf(stderr, "cont with SIGCHLD\n");
+      if (ptrace(continue_request, waited_pid, 0, SIGCHLD) < 0) {
+        perror("could not PTRACE_SYSCALL...");
+      }
+      continue;
+      break;
+    case WAIT_GROUP_STOP:
+      printf("group stop in syscall entry\n");
+      if (ptrace(PTRACE_LISTEN, waited_pid, 0, 0) < 0) {
+        perror("could not PTRACE_LISTEN...");
+      }
+      continue;
+      break;
     case WAIT_SYSCALL:
       break;
     case WAIT_ERROR: {
@@ -521,8 +584,6 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       }
       return false;
     }
-    case WAIT_SIGCHLD:
-      break;
     case WAIT_PTRACE_CLONE: {
       pid_t cloned_pid = 0;
       int ret = ptrace(PTRACE_GETEVENTMSG, waited_pid, 0, &cloned_pid);
@@ -556,10 +617,26 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       break;
     }
     case WAIT_EXEC: {
+      /* not expected because the PTRACE_O_TRACEEXEC stop should come between sycall entry and exit */
+      fprintf(stderr, "unexpected PTRACE_O_TRACEEXEC stop at syscall entry\n");
+      struct memory_map_for_processes *map_for_procs = find_memory_map(&maps, waited_pid);
+      if (!map_for_procs) {
+        fprintf(stderr, "could not find memory map for process %d\n", waited_pid);
+        return false;
+      }
+      struct memory_map *map = map_for_procs->map;
+      memory_map_clear(map);
       break;
     }
-    default:
+    case WAIT_SIGNALED: {
+      fprintf(stderr, "process received fatal signal\n");
       return true;
+    }
+    case WAIT_EXITED: {
+      fprintf(stderr, "pid %d exited (syscall entry)\n", waited_pid);
+      // TODO: remove from pid map
+      continue;
+    }
     }
 
     struct memory_map_for_processes *map_for_procs = find_memory_map(&maps, waited_pid);
@@ -611,16 +688,21 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       }
       debug_op("init finished\n");
       /* finish syscall; it will fail benignly */
-      if (ptrace(PTRACE_SYSCALL, pid, 0, 0) < 0) {
+      if (ptrace(PTRACE_SYSCALL, waited_pid, 0, 0) < 0) {
         perror("could not PTRACE_SYSCALL");
       }
-      switch (wait_for_next_trap(pid, exit_status_out)) {
+      switch (wait_for_next_trap(waited_pid, NULL, exit_status_out)) {
       case WAIT_SYSCALL:
         break;
       case WAIT_ERROR:
         return false;
+      case WAIT_SIGCHLD:
+        break;
       default:
-        return true;
+        return false;
+      }
+      if (ptrace(PTRACE_SYSCALL, waited_pid, 0, 0) < 0) {
+        perror("could not PTRACE_SYSCALL");
       }
       continue;
     }
@@ -634,11 +716,14 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
                    regs.orig_rax);
     }
 
+  syscall_exit:
     /* run the actual syscall until syscall exit so we can read its result */
     if (ptrace(PTRACE_SYSCALL, waited_pid, 0, 0) < 0) {
       perror("could not PTRACE_SYSCALL");
     }
     switch (wait_for_next_trap(waited_pid, NULL, exit_status_out)) {
+    case WAIT_STOP:
+      break;
     case WAIT_SYSCALL:
       break;
     case WAIT_ERROR:
@@ -647,8 +732,17 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       break;
     case WAIT_PTRACE_CLONE:
       printf("ptrace???\n");
+      goto syscall_exit;
       return false;
+    case WAIT_EXITED:
+      fprintf(stderr, "pid %d exited (syscall exit)\n", waited_pid);
+      return true;
+    case WAIT_EXEC:
+      /* we don't really need to do anything here, but we do need to retry
+      ptrace because it was not actually syscall exit this time arounds */
+      goto syscall_exit;
     default:
+      printf("unexpected wait result on syscall exit\n");
       return true;
     }
 

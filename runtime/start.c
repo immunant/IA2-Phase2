@@ -32,13 +32,6 @@ static pid_t fork_and_trace(char *const *argv) {
     /* forbid access to /proc/self/mem via landlock LSM */
     forbid_proc_self_mem_or_exit();
 
-    /* ptrace(PTRACE_TRACEME) before we seccomp() away the ability to ptrace */
-    int ptrace_ret = ptrace(PTRACE_TRACEME, 0, 0, 0);
-    if (ptrace_ret < 0) {
-      perror("PTRACE_TRACEME");
-      exit(1);
-    }
-
     /* in order to use seccomp() without CAP_SYS_SECCOMP, we must opt out of being
     able to gain privs via exec() of setuid binaries as they would inherit our
     seccomp filters. handily, we did that when we forbade /proc/self/mem with
@@ -63,16 +56,6 @@ static pid_t fork_and_trace(char *const *argv) {
     return -1;
   }
 
-  /* wait to get hold of the tracee */
-  int status;
-  pid_t ret_pid;
-  while ((ret_pid = waitpid(child_pid, &status, 0)) == 0) {
-    if (ret_pid < 0) {
-      perror("waitpid");
-      return -1;
-    }
-  }
-
   unsigned long options = 0;
   /* do not let the tracee continue if our process dies */
   options |= PTRACE_O_EXITKILL;
@@ -85,13 +68,27 @@ static pid_t fork_and_trace(char *const *argv) {
   /* distinguish syscall stops from SIGTRAP receipt */
   options |= PTRACE_O_TRACESYSGOOD;
 
-  ptrace(PTRACE_SETOPTIONS, child_pid, 0, options);
+  if (ptrace(PTRACE_SEIZE, child_pid, 0, options) < 0) {
+    perror("PTRACE_SEIZE");
+    return -1;
+  }
+
+  /* wait to get hold of the tracee */
+  int status;
+  pid_t ret_pid;
+  while ((ret_pid = waitpid(child_pid, &status, 0)) == 0) {
+    if (ret_pid < 0) {
+      perror("waitpid");
+      return -1;
+    }
+  }
 
   /* run the child up to the first traced syscall */
   if (ptrace(PTRACE_CONT, child_pid, NULL, NULL) < 0) {
     perror("PTRACE_CONT");
     return -1;
   }
+
   if (waitpid(child_pid, NULL, 0) < 0) {
     perror("waitpid");
     return -1;

@@ -16,12 +16,6 @@ pid_t spawn_with_tracker(char *const *argv) {
   pid_t child_pid = fork();
   bool in_child = (child_pid == 0);
   if (in_child) {
-    int ptrace_ret = ptrace(PTRACE_TRACEME, 0, 0, 0);
-    if (ptrace_ret < 0) {
-      perror("PTRACE_TRACEME");
-      exit(1);
-    }
-
     /* wait for tracer */
     kill(getpid(), SIGSTOP);
 
@@ -36,6 +30,18 @@ pid_t spawn_with_tracker(char *const *argv) {
     return -1;
   }
 
+  unsigned long options = 0;
+  /* do not let the tracee continue if our process dies */
+  options |= PTRACE_O_EXITKILL;
+  /* we want to know about clone() and fork() */
+  options |= PTRACE_O_TRACECLONE | PTRACE_O_TRACEVFORK | PTRACE_O_TRACEFORK;
+  /* and exec() */
+  options |= PTRACE_O_TRACEEXEC;
+  /* distinguish syscall stops from userspace SIGTRAP receipt */
+  options |= PTRACE_O_TRACESYSGOOD;
+
+  ptrace(PTRACE_SEIZE, child_pid, 0, options);
+
   /* wait to get hold of the tracee */
   int status;
   pid_t ret_pid;
@@ -46,12 +52,21 @@ pid_t spawn_with_tracker(char *const *argv) {
     }
   }
 
-  /* do not let the tracee continue if our process dies */
-  ptrace(PTRACE_SETOPTIONS, child_pid, 0, PTRACE_O_EXITKILL|PTRACE_O_TRACESYSGOOD);
-
   /* run the child up to the next syscall */
-  ptrace(PTRACE_SYSCALL, child_pid, NULL, NULL);
-  waitpid(child_pid, NULL, 0);
+  if (ptrace(PTRACE_SYSCALL, child_pid, NULL, NULL) < 0) {
+    perror("PTRACE_SYSCALL");
+    return -1;
+  }
+
+  ret_pid = waitpid(child_pid, &status, 0);
+  if (ret_pid < 0) {
+    perror("waitpid");
+    return -1;
+  }
+  if (ptrace(PTRACE_SYSCALL, child_pid, NULL, NULL) < 0) {
+    perror("PTRACE_SYSCALL");
+    return -1;
+  }
 
   return child_pid;
 }

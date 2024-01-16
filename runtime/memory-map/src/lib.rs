@@ -432,7 +432,8 @@ pub extern "C" fn memory_map_mprotect_region(map: &mut MemoryMap, range: Range, 
 
 #[no_mangle]
 pub extern "C" fn memory_map_clear(map: &mut MemoryMap) {
-    map.regions = Default::default()
+    map.regions = Default::default();
+    map.init_finished = false;
 }
 
 #[no_mangle]

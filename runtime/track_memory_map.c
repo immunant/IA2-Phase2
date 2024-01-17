@@ -357,6 +357,22 @@ static bool update_event_with_result(struct user_regs_struct *regs,
   return true;
 }
 
+enum control_flow {
+  RETURN_TRUE,
+  RETURN_FALSE,
+  CONTINUE,
+};
+
+#define propagate(control_flow) \
+  switch (control_flow) {       \
+  case RETURN_TRUE:             \
+    return true;                \
+  case RETURN_FALSE:            \
+    return false;               \
+  case CONTINUE:                \
+    break;                      \
+  }
+
 enum wait_trap_result {
   WAIT_SYSCALL,
   WAIT_STOP,
@@ -546,6 +562,29 @@ static struct memory_map_for_processes for_processes_new(struct memory_map *map,
   return for_processes;
 }
 
+static enum control_flow handle_process_exit(struct memory_maps *maps, pid_t waited_pid) {
+  struct memory_map_for_processes *map_for_procs = find_memory_map(maps, waited_pid);
+  if (!map_for_procs) {
+    fprintf(stderr, "exited: could not find memory map for process %d\n", waited_pid);
+    return RETURN_FALSE;
+  }
+  if (!remove_pid(map_for_procs, waited_pid)) {
+    fprintf(stderr, "could not remove pid %d from memory map\n", waited_pid);
+    return RETURN_FALSE;
+  }
+  if (map_for_procs->n_pids == 0) {
+    if (!remove_map(maps, map_for_procs)) {
+      fprintf(stderr, "could not remove memory map for pid %d\n", waited_pid);
+    }
+  }
+
+  // if all maps are gone, exit
+  if (maps->n_maps == 0) {
+    return RETURN_TRUE;
+  }
+  return CONTINUE;
+}
+
 /* track the inferior process' memory map.
 
 returns true if the inferior exits, false on trace error.
@@ -670,30 +709,13 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       break;
     }
     case WAIT_SIGNALED: {
-      fprintf(stderr, "process received fatal signal\n");
-      return true;
+      fprintf(stderr, "process received fatal signal (syscall entry)\n");
+      propagate(handle_process_exit(&maps, waited_pid));
+      continue;
     }
     case WAIT_EXITED: {
       debug_exit("pid %d exited (syscall entry)\n", waited_pid);
-      struct memory_map_for_processes *map_for_procs = find_memory_map(&maps, waited_pid);
-      if (!map_for_procs) {
-        fprintf(stderr, "could not find memory map for process %d\n", waited_pid);
-        return false;
-      }
-      if (!remove_pid(map_for_procs, waited_pid)) {
-        fprintf(stderr, "could not remove pid %d from memory map\n", pid);
-        return false;
-      }
-      if (map_for_procs->n_pids == 0) {
-        if (!remove_map(&maps, map_for_procs)) {
-          fprintf(stderr, "could not remove memory map for pid %d\n", pid);
-        }
-      }
-
-      // if all maps are gone, exit
-      if (maps.n_maps == 0) {
-        return true;
-      }
+      propagate(handle_process_exit(&maps, waited_pid));
 
       // in any case, this process is gone, so wait for a new one
       continue;
@@ -810,25 +832,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
     }
     case WAIT_EXITED:
       debug_exit("pid %d exited (syscall exit)\n", waited_pid);
-      struct memory_map_for_processes *map_for_procs = find_memory_map(&maps, waited_pid);
-      if (!map_for_procs) {
-        fprintf(stderr, "could not find memory map for process %d\n", waited_pid);
-        return false;
-      }
-      if (!remove_pid(map_for_procs, waited_pid)) {
-        fprintf(stderr, "could not remove pid %d from memory map\n", pid);
-        return false;
-      }
-      if (map_for_procs->n_pids == 0) {
-        if (!remove_map(&maps, map_for_procs)) {
-          fprintf(stderr, "could not remove memory map for pid %d\n", pid);
-        }
-      }
-
-      // if all maps are gone, exit
-      if (maps.n_maps == 0) {
-        return true;
-      }
+      propagate(handle_process_exit(&maps, waited_pid));
 
       // in any case, this process is gone, so wait for a new one
       continue;

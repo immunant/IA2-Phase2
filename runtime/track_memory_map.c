@@ -363,6 +363,7 @@ enum wait_trap_result {
   WAIT_GROUP_STOP,
   WAIT_EXITED,
   WAIT_SIGNALED,
+  WAIT_SIGSEGV,
   WAIT_SIGCHLD,
   WAIT_ERROR,
   WAIT_PTRACE_CLONE,
@@ -449,6 +450,9 @@ static enum wait_trap_result wait_for_next_trap(pid_t pid, pid_t *pid_out, int *
     case SIGCHLD:
       debug_event("child stopped by sigchld\n");
       return WAIT_SIGCHLD;
+    case SIGSEGV:
+      debug_event("child stopped by sigsegv\n");
+      return WAIT_SIGSEGV;
     default:
       fprintf(stderr, "child stopped by unexpected signal %d\n", WSTOPSIG(stat));
       return WAIT_ERROR;
@@ -586,6 +590,12 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
     }
     case WAIT_SIGCHLD:
       if (ptrace(continue_request, waited_pid, 0, SIGCHLD) < 0) {
+        perror("could not PTRACE_SYSCALL...");
+      }
+      continue;
+      break;
+    case WAIT_SIGSEGV:
+      if (ptrace(continue_request, waited_pid, 0, SIGSEGV) < 0) {
         perror("could not PTRACE_SYSCALL...");
       }
       continue;

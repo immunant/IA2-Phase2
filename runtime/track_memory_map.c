@@ -18,6 +18,9 @@
 #define debug_event(...) fprintf(stderr, __VA_ARGS__)
 #define debug_event_update(...) fprintf(stderr, __VA_ARGS__)
 #define debug_exit(...) fprintf(stderr, __VA_ARGS__)
+#define debug_proc(...) fprintf(stderr, __VA_ARGS__)
+#define debug_wait(...) fprintf(stderr, __VA_ARGS__)
+#define debug_forbid(...) fprintf(stderr, __VA_ARGS__)
 #else
 #define debug(...)
 #define debug_op(...)
@@ -25,6 +28,9 @@
 #define debug_event(...)
 #define debug_event_update(...)
 #define debug_exit(...)
+#define debug_proc(...)
+#define debug_wait(...)
+#define debug_forbid(...)
 #endif
 
 bool is_op_permitted(struct memory_map *map, int event,
@@ -113,7 +119,6 @@ bool update_memory_map(struct memory_map *map, int event,
       // mapping a fixed address is allowed to overlap/split existing regions
       if (!memory_map_split_region(map, info->mmap.range, info->mmap.pkey,
                                    info->mmap.prot)) {
-        fprintf(stderr, "no split, adding region\n");
         return memory_map_add_region(map, info->mmap.range, info->mmap.pkey,
                                      info->mmap.prot);
       } else {
@@ -379,7 +384,7 @@ enum wait_trap_result wait_for_next_trap(pid_t pid, pid_t *pid_out, int *exit_st
   if (pid_out)
     *pid_out = waited_pid;
   if (last_pid != waited_pid) {
-    fprintf(stderr, "waited, pid=%d\n", waited_pid);
+    debug_wait("waited, pid=%d\n", waited_pid);
     last_pid = waited_pid;
   }
   if (waited_pid < 0) {
@@ -442,7 +447,7 @@ enum wait_trap_result wait_for_next_trap(pid_t pid, pid_t *pid_out, int *exit_st
       debug_event("child hit SIGCONT\n");
       return WAIT_CONT;
     case SIGCHLD:
-      fprintf(stderr, "child stopped by sigchld\n");
+      debug_event("child stopped by sigchld\n");
       return WAIT_SIGCHLD;
     default:
       fprintf(stderr, "child stopped by unexpected signal %d\n", WSTOPSIG(stat));
@@ -463,12 +468,12 @@ void return_syscall_eperm(pid_t pid) {
   /* set to invalid syscall */
   regs.orig_rax = -1;
   ptrace(PTRACE_SETREGS, pid, 0, &regs);
-  fprintf(stderr, "set syscall # to -1\n");
+  debug_forbid("set syscall # to -1\n");
 
   /* run syscall until exit */
   ptrace(PTRACE_SYSCALL, pid, 0, 0);
   waitpid(pid, NULL, __WALL);
-  fprintf(stderr, "continued\n");
+  debug_forbid("continued\n");
 
   if (ptrace(PTRACE_GETREGS, pid, 0, &regs) < 0) {
     perror("could not PTRACE_GETREGS");
@@ -477,7 +482,7 @@ void return_syscall_eperm(pid_t pid) {
   /* return -EPERM */
   regs.rax = -EPERM;
   ptrace(PTRACE_SETREGS, pid, 0, &regs);
-  fprintf(stderr, "wrote -eperm to rax\n");
+  debug_forbid("wrote -eperm to rax\n");
 }
 
 struct memory_map_for_processes {
@@ -580,7 +585,6 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       break;
     }
     case WAIT_SIGCHLD:
-      fprintf(stderr, "cont with SIGCHLD\n");
       if (ptrace(continue_request, waited_pid, 0, SIGCHLD) < 0) {
         perror("could not PTRACE_SYSCALL...");
       }
@@ -618,7 +622,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
         perror("ptrace(PTRACE_GETEVENTMSG) upon clone");
         return WAIT_ERROR;
       }
-      printf("should track child pid %d\n", cloned_pid);
+      debug_proc("should track child pid %d\n", cloned_pid);
 
       struct memory_map_for_processes *map_for_procs = find_memory_map(&maps, waited_pid);
       map_for_procs->n_pids++;
@@ -633,7 +637,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
         perror("ptrace(PTRACE_GETEVENTMSG) upon fork");
         return WAIT_ERROR;
       }
-      printf("should track forked child pid %d\n", cloned_pid);
+      debug_proc("should track forked child pid %d\n", cloned_pid);
 
       struct memory_map_for_processes *map_for_procs = find_memory_map(&maps, waited_pid);
       struct memory_map *cloned = memory_map_clone(map_for_procs->map);
@@ -648,7 +652,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       fprintf(stderr, "unexpected PTRACE_O_TRACEEXEC stop at syscall entry\n");
       struct memory_map_for_processes *map_for_procs = find_memory_map(&maps, waited_pid);
       if (!map_for_procs) {
-        fprintf(stderr, "could not find memory map for process %d\n", waited_pid);
+        fprintf(stderr, "exec: could not find memory map for process %d\n", waited_pid);
         return false;
       }
       struct memory_map *map = map_for_procs->map;

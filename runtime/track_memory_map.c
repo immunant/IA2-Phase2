@@ -684,6 +684,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       struct memory_map_for_processes *map_for_procs = find_memory_map(&maps, waited_pid);
       struct memory_map *cloned = memory_map_clone(map_for_procs->map);
 
+      remove_pid(map_for_procs, cloned_pid);
       maps.n_maps++;
       maps.maps_for_processes = realloc(maps.maps_for_processes, maps.n_maps * sizeof(struct memory_map_for_processes));
       maps.maps_for_processes[maps.n_maps - 1] = for_processes_new(cloned, cloned_pid);

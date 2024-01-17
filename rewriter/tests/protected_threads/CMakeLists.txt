@@ -10,6 +10,7 @@ define_test(
     PKEY 1
     NEEDS_LD_WRAP
     CRITERION_TEST
+    WITHOUT_RUNTIME
 )
 
 define_ia2_wrapper()

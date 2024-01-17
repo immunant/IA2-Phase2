@@ -4,6 +4,7 @@ define_test(
     PKEY 1
     NO_LIBS
     CRITERION_TEST
+    WITHOUT_RUNTIME
 )
 
 define_ia2_wrapper(

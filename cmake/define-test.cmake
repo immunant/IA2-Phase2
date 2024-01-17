@@ -142,7 +142,7 @@ endfunction()
 #                  cmake test infrastructure.
 function(define_test)
     # Parse options
-    set(options NEEDS_LD_WRAP NOT_IN_CHECK_IA2 NO_LIBS CRITERION_TEST)
+    set(options NEEDS_LD_WRAP NOT_IN_CHECK_IA2 NO_LIBS CRITERION_TEST WITHOUT_RUNTIME)
     set(oneValueArgs PKEY)
     set(multiValueArgs LIBS SRCS INCLUDE_DIR
         UNWRAPPED_INCLUDE_DIRS UNWRAPPED_LIBRARY_DIRS UNWRAPPED_LIBS)
@@ -160,14 +160,6 @@ function(define_test)
 
     if (NOT DEFINED DEFINE_TEST_LIBS AND NOT DEFINE_TEST_NO_LIBS)
         set(DEFINE_TEST_LIBS ${TEST_NAME}_lib)
-    endif()
-
-    if (DEFINE_TEST_CRITERION_TEST)
-        list(APPEND DEFINE_TEST_UNWRAPPED_LIBS criterion)
-        if (NOT DEFINE_TEST_NOT_IN_CHECK_IA2)
-            add_test(${TEST_NAME} ${WRAPPED_MAIN})
-            add_dependencies(check ${WRAPPED_MAIN})
-        endif()
     endif()
 
     if(DEFINED DEFINE_TEST_INCLUDE_DIR)
@@ -192,6 +184,19 @@ function(define_test)
     add_executable(${WRAPPED_MAIN} ${COPIED_SRCS})
     add_dependencies(${WRAPPED_MAIN} ${TEST_NAME}_call_gate_generation)
     set_target_properties(${MAIN} PROPERTIES EXCLUDE_FROM_ALL 1)
+
+    if (DEFINE_TEST_CRITERION_TEST)
+        list(APPEND DEFINE_TEST_UNWRAPPED_LIBS criterion)
+        if (NOT DEFINE_TEST_NOT_IN_CHECK_IA2)
+            if (DEFINE_TEST_WITHOUT_RUNTIME)
+                add_test(${TEST_NAME} ${WRAPPED_MAIN})
+            else()
+                add_test(NAME ${TEST_NAME} COMMAND ${CMAKE_BINARY_DIR}/runtime/ia2-sandbox ${CMAKE_CURRENT_BINARY_DIR}/${WRAPPED_MAIN} WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+                add_dependencies(${WRAPPED_MAIN} ia2-sandbox)
+            endif()
+            add_dependencies(check ${WRAPPED_MAIN})
+        endif()
+    endif()
 
     target_compile_definitions(${MAIN} PRIVATE IA2_ENABLE=0)
     target_compile_definitions(${WRAPPED_MAIN} PRIVATE IA2_ENABLE=1)

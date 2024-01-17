@@ -528,31 +528,29 @@ static struct memory_map_for_processes *find_memory_map(struct memory_maps *maps
   return NULL;
 }
 
-bool remove_pid(struct memory_map_for_processes *map_for_procs, pid_t pid) {
-  bool found_pid = false;
+static bool remove_pid(struct memory_map_for_processes *map_for_procs, pid_t pid) {
   for (int j = 0; j < map_for_procs->n_pids; j++) {
-    if (found_pid) {
-      map_for_procs->pids[j] = map_for_procs->pids[j - 1];
-    } else if (map_for_procs->pids[j] == pid) {
-      found_pid = true;
+    if (map_for_procs->pids[j] == pid) {
+      // swap last into its place and decrement count
+      map_for_procs->pids[j] = map_for_procs->pids[map_for_procs->n_pids - 1];
       map_for_procs->n_pids--;
+      return true;
     }
   }
-  return found_pid;
+  return false;
 }
 
-bool remove_map(struct memory_maps *maps, struct memory_map_for_processes *map_to_remove) {
-  bool found_map = false;
+static bool remove_map(struct memory_maps *maps, struct memory_map_for_processes *map_to_remove) {
   for (int i = 0; i < maps->n_maps; i++) {
     struct memory_map_for_processes *map_for_procs = &maps->maps_for_processes[i];
-    if (found_map) {
-      maps->maps_for_processes[i] = maps->maps_for_processes[i - 1];
-    } else if (&maps->maps_for_processes[i] == map_to_remove) {
-      found_map = true;
+    if (map_for_procs == map_to_remove) {
+      // swap last into its place and decrement count
+      maps->maps_for_processes[i] = maps->maps_for_processes[maps->n_maps - 1];
       maps->n_maps--;
+      return true;
     }
   }
-  return found_map;
+  return false;
 }
 
 static struct memory_map_for_processes for_processes_new(struct memory_map *map, pid_t pid) {

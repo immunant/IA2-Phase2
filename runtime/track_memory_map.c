@@ -33,8 +33,8 @@
 #define debug_forbid(...)
 #endif
 
-bool is_op_permitted(struct memory_map *map, int event,
-                     union event_info *info) {
+static bool is_op_permitted(struct memory_map *map, int event,
+                            union event_info *info) {
   switch (event) {
   case EVENT_MMAP:
     // non-FIXED maps of NULL don't need to check for overlap
@@ -111,8 +111,8 @@ bool is_op_permitted(struct memory_map *map, int event,
 
 /* update the memory map. returns whether the memory map could be updated as
  * requested */
-bool update_memory_map(struct memory_map *map, int event,
-                       union event_info *info) {
+static bool update_memory_map(struct memory_map *map, int event,
+                              union event_info *info) {
   switch (event) {
   case EVENT_MMAP:
     if (info->mmap.flags & MAP_FIXED) {
@@ -181,7 +181,7 @@ bool update_memory_map(struct memory_map *map, int event,
 #define PKEY_INVALID 255
 #define PKRU(pkey) (~((3 << (2 * pkey)) | 3))
 
-unsigned char pkey_for_pkru(uint32_t pkru) {
+static unsigned char pkey_for_pkru(uint32_t pkru) {
 #define CHECK(x) \
   case PKRU(x):  \
     return x;
@@ -217,7 +217,7 @@ unsigned char pkey_for_pkru(uint32_t pkru) {
 /* Pass to mmap to signal end of program init */
 #define IA2_FINISH_INIT_MAGIC 0x1a21face1a21faceULL
 
-bool event_marks_init_finished(enum mmap_event event, const union event_info *event_info) {
+static bool event_marks_init_finished(enum mmap_event event, const union event_info *event_info) {
   return event == EVENT_MMAP &&
          event_info->mmap.range.start == IA2_FINISH_INIT_MAGIC &&
          event_info->mmap.flags & MAP_FIXED;
@@ -225,9 +225,9 @@ bool event_marks_init_finished(enum mmap_event event, const union event_info *ev
 
 /* query pid to determine the mmap-relevant event being requested. returns true
  * unless something horrible happens */
-bool interpret_syscall(struct user_regs_struct *regs, unsigned char pkey,
-                       enum mmap_event *event, union event_info *event_info,
-                       enum trace_mode mode) {
+static bool interpret_syscall(struct user_regs_struct *regs, unsigned char pkey,
+                              enum mmap_event *event, union event_info *event_info,
+                              enum trace_mode mode) {
   /* determine event from syscall # */
   unsigned long long syscall = regs->orig_rax;
   *event = event_from_syscall(syscall);
@@ -326,9 +326,9 @@ bool interpret_syscall(struct user_regs_struct *regs, unsigned char pkey,
 }
 
 /* returns whether the syscall succeeded (returned non-negative) */
-bool update_event_with_result(struct user_regs_struct *regs,
-                              enum mmap_event event,
-                              union event_info *event_info) {
+static bool update_event_with_result(struct user_regs_struct *regs,
+                                     enum mmap_event event,
+                                     union event_info *event_info) {
   if ((int64_t)regs->rax < 0) {
     return false;
   }
@@ -377,7 +377,7 @@ returns the wait_trap_result corresponding to the event.
 
 if the exit is WAIT_EXITED, the exit status will be placed in *exit_status_out
 if it is non-NULL. */
-enum wait_trap_result wait_for_next_trap(pid_t pid, pid_t *pid_out, int *exit_status_out) {
+static enum wait_trap_result wait_for_next_trap(pid_t pid, pid_t *pid_out, int *exit_status_out) {
   int stat = 0;
   static pid_t last_pid = 0; /* used to limit logs to when pid changes */
   pid_t waited_pid = waitpid(pid, &stat, __WALL);
@@ -458,7 +458,7 @@ enum wait_trap_result wait_for_next_trap(pid_t pid, pid_t *pid_out, int *exit_st
   return WAIT_ERROR;
 }
 
-void return_syscall_eperm(pid_t pid) {
+static void return_syscall_eperm(pid_t pid) {
   struct user_regs_struct regs = {0};
   if (ptrace(PTRACE_GETREGS, pid, 0, &regs) < 0) {
     perror("could not PTRACE_GETREGS");
@@ -496,7 +496,7 @@ struct memory_maps {
   size_t n_maps;
 };
 
-struct memory_map_for_processes *find_memory_map(struct memory_maps *maps, pid_t pid) {
+static struct memory_map_for_processes *find_memory_map(struct memory_maps *maps, pid_t pid) {
   for (int i = 0; i < maps->n_maps; i++) {
     struct memory_map_for_processes *map_for_procs = &maps->maps_for_processes[i];
     for (int j = 0; j < map_for_procs->n_pids; j++) {
@@ -535,7 +535,7 @@ bool remove_map(struct memory_maps *maps, struct memory_map_for_processes *map_t
   return found_map;
 }
 
-struct memory_map_for_processes for_processes_new(struct memory_map *map, pid_t pid) {
+static struct memory_map_for_processes for_processes_new(struct memory_map *map, pid_t pid) {
   pid_t *pids = malloc(sizeof(pid_t));
   pids[0] = pid;
   struct memory_map_for_processes for_processes = {.map = map, .pids = pids, .n_pids = 1};

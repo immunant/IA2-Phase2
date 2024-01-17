@@ -603,22 +603,17 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
   while (true) {
     /* wait for the process to get signalled */
     pid_t waited_pid = pid;
-    int signal_to_deliver = 0;
     enum wait_trap_result wait_result = wait_for_next_trap(-1, &waited_pid, exit_status_out);
     switch (wait_result) {
     /* we need to handle events relating to process lifetime upfront: these
     include clone()/fork()/exec() and sigchld */
     case WAIT_CONT: {
-      fprintf(stderr, "cont with SIGCONT\n");
-      signal_to_deliver = SIGCONT;
       if (ptrace(continue_request, waited_pid, 0, SIGCONT) < 0) {
         perror("could not PTRACE_SYSCALL...");
       }
       continue;
     }
     case WAIT_STOP: {
-      signal_to_deliver = SIGSTOP;
-      fprintf(stderr, "cont with SIGSTOP\n");
       if (ptrace(continue_request, waited_pid, 0, SIGSTOP) < 0) {
         perror("could not PTRACE_SYSCALL...");
       }

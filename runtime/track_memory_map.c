@@ -777,13 +777,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       default:
         return false;
       }
-      if (ptrace(PTRACE_SYSCALL, waited_pid, 0, 0) < 0) {
-        perror("could not PTRACE_SYSCALL");
-      }
-      continue;
-    }
-
-    if (!is_op_permitted(map, event, &event_info)) {
+    } else if (!is_op_permitted(map, event, &event_info)) {
       fprintf(stderr, "forbidden operation requested: %s\n", event_name(event));
       return_syscall_eperm(waited_pid);
       if (ptrace(continue_request, waited_pid, 0, 0) < 0) {

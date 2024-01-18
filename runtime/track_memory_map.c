@@ -395,6 +395,7 @@ returns the wait_trap_result corresponding to the event.
 if the exit is WAIT_EXITED, the exit status will be placed in *exit_status_out
 if it is non-NULL. */
 static enum wait_trap_result wait_for_next_trap(pid_t pid, pid_t *pid_out, int *exit_status_out) {
+  bool entry = (pid == -1);
   int stat = 0;
   static pid_t last_pid = 0; /* used to limit logs to when pid changes */
   pid_t waited_pid = waitpid(pid, &stat, __WALL);
@@ -443,7 +444,7 @@ static enum wait_trap_result wait_for_next_trap(pid_t pid, pid_t *pid_out, int *
     }
     switch (WSTOPSIG(stat)) {
     case SIGTRAP | 0x80:
-      debug_event("child stopped by syscall entry/exit\n");
+      debug_event("child stopped by syscall %s\n", entry ? "entry" : "exit");
       return WAIT_SYSCALL;
     case SIGSTOP:
     case SIGTSTP:

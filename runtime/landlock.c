@@ -69,7 +69,7 @@ int landlock_setup(struct landlock_ctx *ctx) {
   default:
     fprintf(
         stderr,
-        "rebuild sandboxer to use features from ABI version %d instead of %d\n",
+        "ia2 warning: rebuild runtime to use landlock features from ABI version %d instead of %d\n",
         abi_ver, LANDLOCK_ABI_LAST);
   }
   return 0;

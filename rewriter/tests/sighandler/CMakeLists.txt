@@ -10,6 +10,7 @@ define_test(
     NEEDS_LD_WRAP
     PKEY 1
     CRITERION_TEST
+    NOT_IN_CHECK_IA2
 )
 
 define_ia2_wrapper()

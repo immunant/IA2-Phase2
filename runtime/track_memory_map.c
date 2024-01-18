@@ -692,8 +692,6 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       break;
     }
     case WAIT_EXEC: {
-      /* not expected because the PTRACE_O_TRACEEXEC stop should come between sycall entry and exit */
-      fprintf(stderr, "unexpected PTRACE_O_TRACEEXEC stop at syscall entry\n");
       struct memory_map_for_processes *map_for_procs = find_memory_map(&maps, waited_pid);
       if (!map_for_procs) {
         fprintf(stderr, "exec: could not find memory map for process %d\n", waited_pid);
@@ -836,8 +834,16 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       // in any case, this process is gone, so wait for a new one
       continue;
     case WAIT_EXEC:
-      /* we don't really need to do anything here, but we do need to retry
-      ptrace because it was not actually syscall exit this time arounds */
+      fprintf(stderr, "unexpected PTRACE_O_TRACEEXEC stop at syscall exit\n");
+      struct memory_map_for_processes *map_for_procs = find_memory_map(&maps, waited_pid);
+      if (!map_for_procs) {
+        fprintf(stderr, "exec: could not find memory map for process %d\n", waited_pid);
+        return false;
+      }
+      struct memory_map *map = map_for_procs->map;
+      memory_map_clear(map);
+
+      /* retry ptrace because it was not actually syscall exit this time around */
       goto syscall_exit;
     default:
       printf("unexpected wait result on syscall exit\n");

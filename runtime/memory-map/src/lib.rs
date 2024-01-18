@@ -16,6 +16,9 @@ fn panic(_info: &core::panic::PanicInfo) -> ! {
 #[no_mangle]
 extern "C" fn rust_eh_personality() {}
 
+#[link(name = "gcc_s")]
+extern "C" {}
+
 /* print errors via libc */
 macro_rules! printerrln {
     ($($items: expr),+) => {{

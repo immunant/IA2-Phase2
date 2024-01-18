@@ -12,7 +12,9 @@ nonoverlapping_interval_tree = { version = "0.1.5", default_features = false }
 [profile.dev]
 panic = "abort"
 strip = "symbols"
+lto = true
 
 [profile.release]
 panic = "abort"
 strip = "symbols"
+lto = true

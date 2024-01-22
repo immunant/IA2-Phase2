@@ -22,6 +22,11 @@ struct mremap_info {
   unsigned char pkey;
 };
 
+struct madvise_info {
+  struct range range;
+  unsigned char pkey;
+};
+
 struct mprotect_info {
   struct range range;
   int prot;
@@ -39,6 +44,7 @@ union event_info {
   struct mmap_info mmap;
   struct munmap_info munmap;
   struct mremap_info mremap;
+  struct madvise_info madvise;
   struct mprotect_info mprotect;
   struct pkey_mprotect_info pkey_mprotect;
 };
@@ -47,6 +53,7 @@ enum mmap_event {
   EVENT_MMAP,
   EVENT_MUNMAP,
   EVENT_MREMAP,
+  EVENT_MADVISE,
   EVENT_MPROTECT,
   EVENT_PKEY_MPROTECT,
   EVENT_CLONE,
@@ -58,6 +65,7 @@ static const char *event_names[] = {
     "MMAP",
     "MUNMAP",
     "MREMAP",
+    "MADVISE",
     "MPROTECT",
     "PKEY_MPROTECT",
     "CLONE",

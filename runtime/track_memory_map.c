@@ -56,6 +56,11 @@ static bool is_op_permitted(struct memory_map *map, int event,
             map, info->mremap.old_range, info->mremap.pkey))
       return true;
     break;
+  case EVENT_MADVISE:
+    if (memory_map_all_overlapping_regions_have_pkey(
+            map, info->madvise.range, info->madvise.pkey))
+      return true;
+    break;
   case EVENT_MPROTECT: {
     /* allow mprotecting memory that has not been mprotected */
     bool impacts_only_unprotected_memory =
@@ -153,6 +158,11 @@ static bool update_memory_map(struct memory_map *map, int event,
     }
     break;
   }
+  case EVENT_MADVISE:
+    /* madvise does not modify the memory map state we care about here, but can
+    clear memory contents with MADV_DONTNEED */
+    return true;
+    break;
   case EVENT_MPROTECT:
     return memory_map_mprotect_region(map, info->mprotect.range,
                                       info->mprotect.prot);
@@ -280,6 +290,18 @@ static bool interpret_syscall(struct user_regs_struct *regs, unsigned char pkey,
     debug_op("compartment %d mremap (%08zx, %zd) to (%08zx, %zd)\n", info->pkey,
              info->old_range.start, info->old_range.len, info->new_range.start,
              info->new_range.len);
+    break;
+  }
+  case EVENT_MADVISE: {
+    struct madvise_info *info = &event_info->madvise;
+    info->range.start = regs->rdi;
+    info->range.len = regs->rsi;
+    info->pkey = pkey;
+
+    int advice = regs->rdx;
+
+    debug_op("compartment %d madvise (%08zx, %zd) with advice=%d\n", info->pkey,
+             info->range.start, info->range.len, advice);
     break;
   }
   case EVENT_MPROTECT: {

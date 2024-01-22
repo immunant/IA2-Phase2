@@ -34,6 +34,7 @@ struct sock_filter ia2_filter[] = {
     BPF_SYSCALL_POLICY(mprotect, TRACE),
     BPF_SYSCALL_POLICY(mremap, TRACE),
     BPF_SYSCALL_POLICY(munmap, TRACE),
+    BPF_SYSCALL_POLICY(madvise, TRACE),
     /* pkey syscalls */
     BPF_SYSCALL_POLICY(pkey_alloc, ALLOW),
     BPF_SYSCALL_POLICY(pkey_mprotect, TRACE),

@@ -140,9 +140,10 @@ endfunction()
 # UNWRAPPED_LIBS (optional) - extra libraries that are not wrapped.
 # CRITERION_TEST - If present, link against criterion and add the test to the
 #                  cmake test infrastructure.
+# WITHOUT_SANDBOX - If present, test is run without the IA2 sandbox runtime.
 function(define_test)
     # Parse options
-    set(options NEEDS_LD_WRAP NOT_IN_CHECK_IA2 NO_LIBS CRITERION_TEST WITHOUT_RUNTIME)
+    set(options NEEDS_LD_WRAP NOT_IN_CHECK_IA2 NO_LIBS CRITERION_TEST WITHOUT_SANDBOX)
     set(oneValueArgs PKEY)
     set(multiValueArgs LIBS SRCS INCLUDE_DIR
         UNWRAPPED_INCLUDE_DIRS UNWRAPPED_LIBRARY_DIRS UNWRAPPED_LIBS)
@@ -188,7 +189,7 @@ function(define_test)
     if (DEFINE_TEST_CRITERION_TEST)
         list(APPEND DEFINE_TEST_UNWRAPPED_LIBS criterion)
         if (NOT DEFINE_TEST_NOT_IN_CHECK_IA2)
-            if (DEFINE_TEST_WITHOUT_RUNTIME)
+            if (DEFINE_TEST_WITHOUT_SANDBOX)
                 add_test(${TEST_NAME} ${WRAPPED_MAIN})
             else()
                 add_test(NAME ${TEST_NAME} COMMAND ${CMAKE_BINARY_DIR}/runtime/ia2-sandbox ${CMAKE_CURRENT_BINARY_DIR}/${WRAPPED_MAIN} WORKING_DIRECTORY ${CMAKE_BINARY_DIR})

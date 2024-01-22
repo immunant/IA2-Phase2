@@ -4,6 +4,7 @@
 #include <linux/seccomp.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <sys/ioctl.h>
 #include <sys/syscall.h>
 #include <unistd.h>
 
@@ -64,7 +65,6 @@ struct sock_filter ia2_filter[] = {
     BPF_SYSCALL_POLICY(getpid, ALLOW),
     BPF_SYSCALL_POLICY(getrandom, ALLOW),
     BPF_SYSCALL_POLICY(prctl, ALLOW),
-    BPF_SYSCALL_POLICY(ioctl, ALLOW),
     BPF_SYSCALL_POLICY(faccessat2, ALLOW),
     BPF_SYSCALL_POLICY(sched_getaffinity, ALLOW),
     BPF_SYSCALL_POLICY(sched_setaffinity, ALLOW),
@@ -111,11 +111,15 @@ struct sock_filter ia2_filter[] = {
     BPF_SYSCALL_POLICY(pipe2, ALLOW),
     BPF_SYSCALL_POLICY(poll, ALLOW),
     BPF_SYSCALL_POLICY(waitid, ALLOW),
-    BPF_SYSCALL_POLICY(madvise, ALLOW),
     BPF_SYSCALL_POLICY(restart_syscall, ALLOW),
     /* tracee syscalls */
     /* ptrace(PTRACE_TRACEME) dance requires raising SIGSTOP */
     BPF_SYSCALL_POLICY(kill, ALLOW),
+    /* allow ioctl(TCGETS) */
+    BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_ioctl, 0, 3),
+    BPF_STMT(BPF_LD | BPF_W | BPF_ABS, (offsetof(struct seccomp_data, args[1]))),
+    BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, TCGETS, 0, 1),
+    BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW),
     /* any other syscall => kill process */
     BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_KILL_PROCESS),
 };

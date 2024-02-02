@@ -24,6 +24,7 @@ struct mremap_info {
 
 struct madvise_info {
   struct range range;
+  int advice;
   unsigned char pkey;
 };
 

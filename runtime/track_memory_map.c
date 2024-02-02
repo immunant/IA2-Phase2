@@ -297,11 +297,10 @@ static bool interpret_syscall(struct user_regs_struct *regs, unsigned char pkey,
     info->range.start = regs->rdi;
     info->range.len = regs->rsi;
     info->pkey = pkey;
-
-    int advice = regs->rdx;
+    info->advice = regs->rdx;
 
     debug_op("compartment %d madvise (%08zx, %zd) with advice=%d\n", info->pkey,
-             info->range.start, info->range.len, advice);
+             info->range.start, info->range.len, info->advice);
     break;
   }
   case EVENT_MPROTECT: {

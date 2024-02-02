@@ -43,6 +43,8 @@ bool memory_map_all_overlapping_regions_mprotected(const struct memory_map *map,
 
 uint32_t memory_map_region_get_prot(const struct memory_map *map, struct range needle);
 
+uint8_t memory_map_region_get_owner_pkey(const struct memory_map *map, struct range needle);
+
 bool memory_map_unmap_region(struct memory_map *map, struct range needle);
 
 bool memory_map_add_region(struct memory_map *map,

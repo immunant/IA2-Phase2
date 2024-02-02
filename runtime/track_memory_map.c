@@ -839,6 +839,10 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
     } else if (!is_op_permitted(map, event, &event_info)) {
       fprintf(stderr, "forbidden operation requested: ");
       print_event(event, &event_info);
+      const struct range *range = event_target_range(event, &event_info);
+      if (range != NULL) {
+        printf("region pkey: %d\n", memory_map_region_get_owner_pkey(map, *range));
+      }
       return_syscall_eperm(waited_pid);
       if (ptrace(continue_request, waited_pid, 0, 0) < 0) {
         perror("could not PTRACE_SYSCALL");

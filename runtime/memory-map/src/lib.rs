@@ -337,6 +337,28 @@ pub extern "C" fn memory_map_region_get_prot(map: &MemoryMap, needle: Range) -> 
 /** memory_map_region_get_prot found no or multiple protections in the given range */
 pub const PROT_INDETERMINATE: u32 = 0xFFFFFFFFu32;
 
+const PKEY_MULTIPLE: u8 = 255;
+const PKEY_NONE: u8 = 254;
+
+/// return the pkey (0-15) that covers the given range, or PKEY_MULTIPLE or
+/// PKEY_NONE if the entire range is not protected by exactly one pkey
+#[no_mangle]
+pub extern "C" fn memory_map_region_get_owner_pkey(map: &MemoryMap, needle: Range) -> u8 {
+    let mut pkey = None;
+    let same = map.all_overlapping_regions(needle, |region| match pkey {
+        None => {
+            pkey = Some(region.state.owner_pkey);
+            true
+        }
+        Some(pkey) => region.state.owner_pkey == pkey,
+    });
+    if same {
+        pkey.unwrap_or(PKEY_NONE) // all same (return pkey) or no pkey
+    } else {
+        PKEY_MULTIPLE // multiple pkeys
+    }
+}
+
 #[no_mangle]
 pub extern "C" fn memory_map_unmap_region(map: &mut MemoryMap, needle: Range) -> bool {
     map.split_out_region(needle).is_some()

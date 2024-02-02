@@ -78,4 +78,28 @@ static const char *event_name(enum mmap_event event) {
   return event_names[event];
 }
 
+static inline const struct range *event_target_range(enum mmap_event event, const union event_info *info) {
+  switch (event) {
+  case EVENT_MMAP:
+    return &info->mmap.range;
+  case EVENT_MUNMAP:
+    return &info->munmap.range;
+  case EVENT_MREMAP:
+    return &info->mremap.old_range;
+  case EVENT_MADVISE:
+    return &info->madvise.range;
+  case EVENT_MPROTECT:
+    return &info->mprotect.range;
+  case EVENT_PKEY_MPROTECT:
+    return &info->pkey_mprotect.range;
+  case EVENT_CLONE:
+    return NULL;
+  case EVENT_EXEC:
+    return NULL;
+  case EVENT_NONE:
+    return NULL;
+    break;
+  }
+}
+
 enum mmap_event event_from_syscall(uint64_t rax);

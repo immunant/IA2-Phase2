@@ -233,6 +233,62 @@ static bool event_marks_init_finished(enum mmap_event event, const union event_i
          event_info->mmap.flags & MAP_FIXED;
 }
 
+static void print_event(enum mmap_event event, const union event_info *event_info) {
+  switch (event) {
+  case EVENT_MMAP: {
+    const struct mmap_info *info = &event_info->mmap;
+    fprintf(stderr, "compartment %d mmap (%08zx, %zd, prot=%d, flags=%x, fd=%d)\n",
+            info->pkey, info->range.start, info->range.len, info->prot,
+            info->flags, info->fildes);
+    break;
+  }
+  case EVENT_MUNMAP: {
+    const struct munmap_info *info = &event_info->munmap;
+    fprintf(stderr, "compartment %d munmap (%08zx, %zd)\n", info->pkey,
+            info->range.start, info->range.len);
+    break;
+  }
+  case EVENT_MREMAP: {
+    const struct mremap_info *info = &event_info->mremap;
+    fprintf(stderr, "compartment %d mremap (%08zx, %zd) to (%08zx, %zd)\n", info->pkey,
+            info->old_range.start, info->old_range.len, info->new_range.start,
+            info->new_range.len);
+    break;
+  }
+  case EVENT_MADVISE: {
+    const struct madvise_info *info = &event_info->madvise;
+    fprintf(stderr, "compartment %d madvise (%08zx, %zd) with advice=%d\n", info->pkey,
+            info->range.start, info->range.len, info->advice);
+    break;
+  }
+  case EVENT_MPROTECT: {
+    const struct mprotect_info *info = &event_info->mprotect;
+    fprintf(stderr, "compartment %d mprotect (%08zx, %zd) to prot=%d\n", info->pkey,
+            info->range.start, info->range.len, info->prot);
+    break;
+  }
+  case EVENT_PKEY_MPROTECT: {
+    const struct pkey_mprotect_info *info = &event_info->pkey_mprotect;
+    fprintf(stderr, "compartment %d pkey_mprotect (%08zx, %zd) to %d prot=%d\n",
+            info->pkey, info->range.start, info->range.len,
+            info->new_owner_pkey, info->prot);
+    break;
+  }
+  case EVENT_CLONE: {
+    fprintf(stderr, "clone()\n");
+    break;
+  }
+  case EVENT_EXEC: {
+    fprintf(stderr, "exec()\n");
+    break;
+  }
+  case EVENT_NONE: {
+    fprintf(stderr, "untraced syscall\n");
+    break;
+  }
+  }
+}
+
 /* query pid to determine the mmap-relevant event being requested. returns true
  * unless something horrible happens */
 static bool interpret_syscall(struct user_regs_struct *regs, unsigned char pkey,
@@ -241,8 +297,6 @@ static bool interpret_syscall(struct user_regs_struct *regs, unsigned char pkey,
   /* determine event from syscall # */
   unsigned long long syscall = regs->orig_rax;
   *event = event_from_syscall(syscall);
-
-  debug_op("event: %s\n", event_names[*event]);
 
   /* dispatch on event and read args from registers.
   arg order is: rdi, rsi, rdx, r10, r8, r9 */
@@ -256,10 +310,6 @@ static bool interpret_syscall(struct user_regs_struct *regs, unsigned char pkey,
     info->flags = regs->r10;
     info->fildes = regs->r8;
     info->pkey = pkey;
-
-    debug_op("compartment %d mmap (%08zx, %zd, prot=%d, flags=%x, fd=%d)\n",
-             info->pkey, info->range.start, info->range.len, info->prot,
-             info->flags, info->fildes);
     break;
   }
   case EVENT_MUNMAP: {
@@ -267,9 +317,6 @@ static bool interpret_syscall(struct user_regs_struct *regs, unsigned char pkey,
     info->range.start = regs->rdi;
     info->range.len = regs->rsi;
     info->pkey = pkey;
-
-    debug_op("compartment %d munmap (%08zx, %zd)\n", info->pkey,
-             info->range.start, info->range.len);
     break;
   }
   case EVENT_MREMAP: {
@@ -286,10 +333,6 @@ static bool interpret_syscall(struct user_regs_struct *regs, unsigned char pkey,
       info->new_range.start = info->old_range.start;
 
     info->pkey = pkey;
-
-    debug_op("compartment %d mremap (%08zx, %zd) to (%08zx, %zd)\n", info->pkey,
-             info->old_range.start, info->old_range.len, info->new_range.start,
-             info->new_range.len);
     break;
   }
   case EVENT_MADVISE: {
@@ -298,9 +341,6 @@ static bool interpret_syscall(struct user_regs_struct *regs, unsigned char pkey,
     info->range.len = regs->rsi;
     info->pkey = pkey;
     info->advice = regs->rdx;
-
-    debug_op("compartment %d madvise (%08zx, %zd) with advice=%d\n", info->pkey,
-             info->range.start, info->range.len, info->advice);
     break;
   }
   case EVENT_MPROTECT: {
@@ -309,9 +349,6 @@ static bool interpret_syscall(struct user_regs_struct *regs, unsigned char pkey,
     info->range.len = regs->rsi;
     info->prot = regs->rdx;
     info->pkey = pkey;
-
-    debug_op("compartment %d mprotect (%08zx, %zd) to prot=%d\n", info->pkey,
-             info->range.start, info->range.len, info->prot);
     break;
   }
   case EVENT_PKEY_MPROTECT: {
@@ -321,10 +358,6 @@ static bool interpret_syscall(struct user_regs_struct *regs, unsigned char pkey,
     info->prot = regs->rdx;
     info->new_owner_pkey = regs->r10;
     info->pkey = pkey;
-
-    debug_op("compartment %d pkey_mprotect (%08zx, %zd) to %d prot=%d\n",
-             info->pkey, info->range.start, info->range.len,
-             info->new_owner_pkey, info->prot);
     break;
   }
   case EVENT_CLONE: {
@@ -343,6 +376,11 @@ static bool interpret_syscall(struct user_regs_struct *regs, unsigned char pkey,
     break;
   }
   }
+
+#ifdef DEBUG
+  print_event(*event, event_info);
+#endif
+
   return true;
 }
 

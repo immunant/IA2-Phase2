@@ -762,8 +762,8 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
     }
     case WAIT_SIGNALED: {
       fprintf(stderr, "process received fatal signal (syscall entry)\n");
-      propagate(handle_process_exit(&maps, waited_pid));
-      continue;
+      enum control_flow cf = handle_process_exit(&maps, waited_pid);
+      return false;
     }
     case WAIT_EXITED: {
       debug_exit("pid %d exited (syscall entry)\n", waited_pid);

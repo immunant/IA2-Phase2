@@ -28,7 +28,7 @@ bool get_inferior_pkru(pid_t pid, uint32_t *pkru_out) {
      Intel Skylake CPUs") that sometimes causes the mxcsr location in
      xstateregs not to be copied by PTRACE_GETREGSET.  Make sure that
      the location is at least initialized with a defined value.  */
-  memset(xstateregs, 0, sizeof(xstateregs));
+  memset(xstateregs, 0x69, sizeof(xstateregs));
   iov.iov_base = xstateregs;
   iov.iov_len = sizeof(xstateregs);
   if (ptrace(PTRACE_GETREGSET, pid, (unsigned int)NT_X86_XSTATE, (long)&iov) <

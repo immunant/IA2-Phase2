@@ -40,6 +40,7 @@ struct sock_filter ia2_filter[] = {
     BPF_SYSCALL_POLICY(pkey_mprotect, TRACE),
     /* basic process syscalls */
     BPF_SYSCALL_POLICY(access, ALLOW),
+    BPF_SYSCALL_POLICY(open, ALLOW),
     BPF_SYSCALL_POLICY(arch_prctl, ALLOW),
     BPF_SYSCALL_POLICY(brk, ALLOW),
     BPF_SYSCALL_POLICY(clone3, ALLOW),

@@ -21,7 +21,8 @@ static int allow_path(const char *path, const int ruleset_fd, bool shallow) {
   struct stat statbuf;
 
   path_beneath.parent_fd = open(path, O_PATH | O_CLOEXEC);
-  if (path_beneath.parent_fd < 0) {
+  /* error on inability to open dir, unless it simply no longer exists */
+  if (path_beneath.parent_fd < 0 && errno != ENOENT) {
     fprintf(stderr, "Failed to open \"%s\": %s\n", path, strerror(errno));
     return -1;
   }

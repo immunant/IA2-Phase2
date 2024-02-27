@@ -74,6 +74,7 @@ static llvm::cl::opt<std::string>
                  llvm::cl::cat(SourceRewriterCategory),
                  llvm::cl::desc("<prefix for output files>"));
 
+
 // Map each translation unit's filename to its pkey.
 static std::map<Filename, Pkey> file_pkeys;
 
@@ -1101,6 +1102,7 @@ int main(int argc, const char **argv) {
       std::string wrapper_name = "__ia2_indirect_callgate_"s +
                                  mangled_ty + "_pkey_" +
                                  std::to_string(caller_pkey);
+
       std::string asm_wrapper =
           emit_asm_wrapper(c_abi_sig, wrapper_name, std::nullopt,
                            WrapperKind::IndirectCallsite, caller_pkey, 0, Target);

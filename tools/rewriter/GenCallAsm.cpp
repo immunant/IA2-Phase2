@@ -280,6 +280,44 @@ static std::string sig_string(const CAbiSignature &sig,
   return ss.str();
 }
 
+static void call_string(
+    const std::optional<std::string> target_name,
+    WrapperKind kind,
+    AsmWriter &aw,
+    Arch arch) {
+
+  add_comment_line(aw, "Call wrapped function");
+
+  if (arch == Arch::X86) {
+    if (!target_name) {
+      // indirect call
+      assert(kind == WrapperKind::IndirectCallsite);
+      add_asm_line(aw, "call *%r12");
+    } else {
+      // direct call
+      add_asm_line(aw, "call "s + target_name.value());
+    }
+  } else if (arch == Arch::Aarch64) {
+    if (!target_name) {
+      // indirect call
+      assert(kind == WrapperKind::IndirectCallsite);
+      add_asm_line(aw, "br "s + target_name.value());
+    } else {
+      // direct call
+      add_asm_line(aw, "b "s + target_name.value());
+    }
+  }
+}
+
+static AsmWriter get_asmwriter(bool as_macro) {
+  std::string terminator = {};
+  // Code generated as a macro needs to terminate each line with '\'
+  if (as_macro) {
+    terminator = "\\"s;
+  }
+  return {.ss = {}, .terminator = terminator};
+}
+
 std::string emit_asm_wrapper(const CAbiSignature &sig,
                              const std::string &wrapper_name,
                              const std::optional<std::string> target_name,
@@ -288,13 +326,8 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
 
   // Small sanity check
   assert(caller_pkey != target_pkey);
-  std::string terminator = {};
-  // Code generated as a macro needs to terminate each line with '\'
-  if (as_macro) {
-    terminator = "\\"s;
-  }
-  AsmWriter aw = {.ss = {}, .terminator = terminator};
 
+  AsmWriter aw = get_asmwriter(as_macro);
   auto param_locs = param_locations(sig);
   size_t stack_arg_count = std::count_if(param_locs.begin(), param_locs.end(),
                                          [](auto &x) { return x.is_stack(); });
@@ -388,9 +421,8 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
   add_asm_line(aw, wrapper_name + ":");
 
   if (arch == Arch::Aarch64) {
-      if (target_name) {
-        add_asm_line(aw, "b "s + target_name.value());
-      }
+      add_asm_line(aw, "b "s + target_name.value());
+      call_string(target_name, kind, aw, arch);
   } else {
   // Save the old frame pointer and set the frame pointer for the call gate
   add_asm_line(aw, "pushq %rbp");
@@ -516,14 +548,9 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
   add_asm_line(aw, "movq %r10, %rcx");
   add_asm_line(aw, "movq %r11, %rdx");
 
+
   // Call wrapped function
-  add_comment_line(aw, "Call wrapped function");
-  if (!target_name) {
-    assert(kind == WrapperKind::IndirectCallsite);
-    add_asm_line(aw, "call *%r12");
-  } else {
-    add_asm_line(aw, "call "s + target_name.value());
-  }
+  call_string(target_name, kind, aw, arch);
 
   // After calling the wrapped function, rax and rdx may contain a return value
   // so use r10 and r11 as scratch registers

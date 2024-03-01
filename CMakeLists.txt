@@ -5,11 +5,9 @@ find_package(PkgConfig REQUIRED)
 
 set(EXTERNAL_DIR ${PROJECT_SOURCE_DIR}/external)
 
-# libia2 needs to be first so it defines ${libia2_BINARY_DIR}
-add_subdirectory(libia2)
+# runtime needs to be first so it defines libia2_BINARY_DIR
+add_subdirectory(runtime)
 
 add_subdirectory(examples)
-add_subdirectory(partition-alloc)
-add_subdirectory(runtime)
 add_subdirectory(tests)
 add_subdirectory(tools)

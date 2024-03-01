@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.12)
-project(IA2Rewriter)
+project(rewriter)
 
 find_package(LLVM REQUIRED CONFIG)
 message(STATUS "Found LLVM: ${LLVM_DIR} (found version \"${LLVM_PACKAGE_VERSION}\")")

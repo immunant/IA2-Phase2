@@ -49,7 +49,7 @@ config.excludes = [entry.name for entry in os.scandir(os.path.dirname(os.path.ab
 # test_source_root: The root path where tests are located.
 config.test_source_root = os.path.dirname(__file__)
 
-llvm_config.add_tool_substitutions([ToolSubst('ia2-rewriter')], search_dirs=os.path.join(config.ia2_obj_root, "rewriter"))
+llvm_config.add_tool_substitutions([ToolSubst('ia2-rewriter')], search_dirs=os.path.join(config.ia2_obj_root, "tools", "rewriter"))
 
 llvm_config.use_default_substitutions()
 llvm_config.use_clang()

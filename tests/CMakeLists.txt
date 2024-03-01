@@ -2,9 +2,18 @@ include(CTest)
 
 enable_testing()
 
-include("../../cmake/define-ia2-wrapper.cmake")
-include("../../cmake/define-test.cmake")
-include("../../cmake/add-tls-padded-library.cmake")
+include("../cmake/define-ia2-wrapper.cmake")
+include("../cmake/define-test.cmake")
+include("../cmake/add-tls-padded-library.cmake")
+
+find_package(LLVM REQUIRED CONFIG)
+message(STATUS "Found LLVM: ${LLVM_DIR} (found version \"${LLVM_PACKAGE_VERSION}\")")
+find_package(Clang REQUIRED CONFIG)
+message(STATUS "Found Clang: ${Clang_DIR}")
+
+# We use the lit CMake functions from LLVM
+list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
+include(AddLLVM)
 
 configure_lit_site_cfg(
   ${CMAKE_CURRENT_SOURCE_DIR}/lit.site.cfg.py.in

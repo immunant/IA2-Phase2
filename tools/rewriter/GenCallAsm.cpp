@@ -318,6 +318,263 @@ static AsmWriter get_asmwriter(bool as_macro) {
   return {.ss = {}, .terminator = terminator};
 }
 
+static void switch_stacks(AsmWriter &aw, uint32_t caller_pkey, uint32_t target_pkey, Arch arch) {
+  if (arch == Arch::X86) {
+    // Save the old frame pointer and set the frame pointer for the call gate
+    add_asm_line(aw, "pushq %rbp");
+    add_asm_line(aw, "movq %rsp, %rbp");
+    // Save registers that are preserved across function calls before switching to
+    // the other compartment's stack. This is on the caller's stack so it's not in
+    // the diagram above.
+    for (auto &r : preserved_registers) {
+      add_asm_line(aw, "pushq %"s + r);
+    }
+
+    uint32_t caller_pkru = ~((0b11 << (2 * caller_pkey)) | 0b11);
+    add_raw_line(aw, llvm::formatv("ASSERT_PKRU({0:x8}) \"\\n\"", caller_pkru));
+    // Change pkru to the intermediate value before copying args
+    add_comment_line(aw, "Set PKRU to the intermediate value to move arguments");
+    // wrpkru requires zeroing rcx and rdx, but they may have arguments so use r10
+    // and r11 as scratch registers
+    add_asm_line(aw, "movq %rcx, %r10");
+    add_asm_line(aw, "movq %rdx, %r11");
+    emit_mixed_wrpkru(aw, caller_pkey, target_pkey);
+    add_asm_line(aw, "movq %r10, %rcx");
+    add_asm_line(aw, "movq %r11, %rdx");
+
+    // Switch stacks to the target stack
+    emit_switch_stacks(aw, caller_pkey, target_pkey, "r11"s);
+  } else if (arch == Arch::Aarch64) {
+    // no-op for now
+  }
+}
+
+static void copy_args(AsmWriter &aw, size_t stack_return_size, size_t stack_return_padding, int stack_alignment, int stack_arg_count, size_t stack_arg_size, uint32_t caller_pkey, Arch arch) {
+  if (arch == Arch::X86) {
+    // When returning via memory, the address of the return value is passed in
+    // rdi. Since this memory belongs to the caller, we first allocate space for
+    // the return value, then save a pointer to the caller's return value and set
+    // rdi to the newly allocated space. Allocating space before saving the old
+    // pointer makes it easier to undo these operations after the call. The System
+    // V ABI only specifies that the memory for the return value must not overlap
+    // any other memory available to the target so the order of these two stack
+    // items doesn't matter.
+    if (stack_return_size > 0) {
+      add_comment_line(
+          aw, "Allocate space on the compartment's stack for the return value");
+      size_t padded_return_size = stack_return_size + stack_return_padding;
+      add_asm_line(aw, "subq $"s + std::to_string(padded_return_size) + ", %rsp");
+      add_comment_line(aw, "Save address of the caller's return value");
+      add_asm_line(aw, "pushq %rdi");
+      add_comment_line(aw, "Set rdi to the compartment's return value memory");
+      add_asm_line(aw, "movq %rsp, %rdi");
+      // The new return value is 8 bytes above the bottom of the stack so we need
+      // to add 8 to rdi
+      add_asm_line(aw, "addq $8, %rdi");
+    }
+
+    // Insert 8 bytes to align the stack to 16 bytes if necessary.
+    if (stack_alignment != 0) {
+      assert(stack_alignment == 8);
+      add_asm_line(aw, "subq $8, %rsp");
+    }
+
+    // Copy stack args to target stack
+    if (stack_arg_count > 0) {
+      // Set rax to the caller's stack so we can copy the stack args to the
+      // compartment's stack.
+      add_comment_line(
+          aw, "Copy stack arguments from the caller's stack to the compartment");
+      // Load addr of top of caller compartment's stack into rax, clobbering r12
+      std::string expr = emit_load_sp_offset(aw, caller_pkey, "r12"s);
+      add_asm_line(aw, "movq %" + expr + ", %rax");
+      // This is effectively a memcpy of size `stack_arg_size` from the caller's
+      // stack to the compartment's
+      for (int i = 0; i < stack_arg_size; i += 8) {
+        // We must take the preserved registers we pushed on the caller's stack
+        // into account (including rbp) when determining the location of the stack
+        // args
+        size_t caller_stack_size =
+            stack_arg_size + ((preserved_registers.size() + 1) * 8);
+        // The index into the caller's stack is backwards since pushq will copy to
+        // the compartment's stack from the highest addresses to the lowest.
+        add_asm_line(aw,
+                     "pushq " + std::to_string(caller_stack_size - i) + "(%rax)");
+      }
+    }
+  } else if (arch == Arch::Aarch64) {
+    // no-op for now
+  }
+}
+
+static void zero_regs(AsmWriter &aw, uint32_t caller_pkey, int reg_arg_count, const std::vector<ParamLocation> &param_locs, Arch arch) {
+  if (arch == Arch::X86) {
+    // Before calling the target function, we only need to zero out registers not
+    // used for arguments if the caller is a protected compartment (i.e. pkey is
+    // not zero).
+    if (caller_pkey != 0) {
+      // Zero out all unused registers. First we save all registers containing args.
+      // These pushes have matching pops before calling the wrapped function so this
+      // stack space is not shown in the diagram above.
+      if (reg_arg_count > 0) {
+        add_comment_line(aw, "Save registers containing arguments");
+        for (const auto &loc : param_locs) {
+          if (!loc.is_stack()) {
+            emit_reg_push(aw, loc);
+          }
+        }
+      }
+
+      // Zero all registers except rsp
+      add_comment_line(aw, "Zero all registers except rsp");
+      // FIXME: If this will use the System V ABI make sure that the %rsp is aligned
+      // before this call
+      add_asm_line(aw, "call __libia2_scrub_registers");
+
+      // Restore used arg regs after zeroing registers
+      if (reg_arg_count > 0) {
+        add_comment_line(aw, "Restore registers containing arguments");
+        for (auto loc = param_locs.rbegin(); loc != param_locs.rend(); loc++) {
+          if (!loc->is_stack()) {
+            emit_reg_pop(aw, *loc);
+          }
+        }
+      }
+    }
+  } else if (arch == Arch::Aarch64) {
+    // no-op for now
+  }
+}
+
+static void set_pkru(AsmWriter &aw, uint32_t target_pkey, WrapperKind kind, Arch arch) {
+  if (arch == Arch::X86) {
+    if (kind == WrapperKind::IndirectCallsite) {
+      add_asm_line(aw, "movq ia2_fn_ptr@GOTPCREL(%rip), %r12");
+      add_asm_line(aw, "movq (%r12), %r12");
+    }
+    // Change pkru to the compartment's value
+    add_comment_line(aw, "Set PKRU to the compartment's value");
+    // wrpkru requires zeroing rcx and rdx, but they may have arguments so use r10
+    // and r11 as scratch registers
+    add_asm_line(aw, "movq %rcx, %r10");
+    add_asm_line(aw, "movq %rdx, %r11");
+    emit_wrpkru(aw, target_pkey);
+    add_asm_line(aw, "movq %r10, %rcx");
+    add_asm_line(aw, "movq %r11, %rdx");
+  }
+}
+
+static void cleanup_and_restore_after_call(AsmWriter &aw, uint32_t caller_pkey, uint32_t target_pkey, size_t stack_arg_size, int stack_alignment, Arch arch) {
+  if (arch == Arch::X86) {
+    // After calling the wrapped function, rax and rdx may contain a return value
+    // so use r10 and r11 as scratch registers
+    add_comment_line(aw,
+                     "Set PKRU to the intermediate value to move return value");
+    add_asm_line(aw, "movq %rax, %r10");
+    add_asm_line(aw, "movq %rdx, %r11");
+    // Change pkru to the intermediate value. This uses rax, r10 and r11 as
+    // scratch registers.
+    emit_mixed_wrpkru(aw, caller_pkey, target_pkey);
+    add_asm_line(aw, "movq %r10, %rax");
+    add_asm_line(aw, "movq %r11, %rdx");
+
+    // Free stack space used for stack args on the target stack
+    if (stack_arg_size > 0) {
+      add_comment_line(aw, "Free stack space used for stack args");
+      add_asm_line(aw, "addq $"s + std::to_string(stack_arg_size) + ", %rsp");
+    }
+
+    // If we inserted 8 bytes to align the stack before calling the wrapped
+    // function, free this space.
+    if (stack_alignment != 0) {
+      assert(stack_alignment == 8);
+      add_asm_line(aw, "addq $8, %rsp");
+    }
+  }
+}
+
+static void copy_stack_returns_and_switch_back(AsmWriter &aw, size_t stack_return_size, size_t stack_return_padding, uint32_t caller_pkey, uint32_t target_pkey, Arch arch) {
+  if (arch == Arch::X86) {
+    // Copy any stack returns to caller's stack
+    if (stack_return_size > 0) {
+      // If the return value is in memory, we pushed the initial rdi (which
+      // pointed to the caller's return value memory) onto the compartment's
+      // stack. Now we pop it into rax which is where the address of the return
+      // value must be on return.
+      add_asm_line(aw, "popq %rax");
+
+      // After the pop rsp points to the memory for the return value on the
+      // compartment's stack.
+      add_comment_line(aw,
+                       "Copy "s + std::to_string(stack_return_size) +
+                           " bytes for the return value to the caller's stack");
+      for (int i = 0; i < stack_return_size; i += 8) {
+        add_asm_line(aw, "popq "s + std::to_string(i) + "(%rax)");
+      }
+
+      if (stack_return_padding > 0) {
+        add_asm_line(aw, "addq $8, %rsp");
+      }
+    }
+
+    // Switch back to the caller's stack
+    emit_switch_stacks(aw, target_pkey, caller_pkey, "r11"s);
+  }
+}
+
+static void finalize_and_return_to_caller(AsmWriter &aw, uint32_t target_pkey, uint32_t caller_pkey, const std::vector<ParamLocation> &return_locs, Arch arch) {
+  if (arch == Arch::X86) {
+    // After calling the target function, we only need to zero out registers not
+    // used for return values if the target is a protected compartment
+    if (target_pkey != 0) {
+      add_comment_line(
+          aw, "Push return regs to caller's stack before scrubbing registers");
+      // Push return regs to the caller's stack. These pushes have matching pops
+      // before the return so it has no net effect on the caller's stack pointer.
+      for (auto loc : return_locs) {
+        if (!loc.is_stack()) {
+          emit_reg_push(aw, loc);
+        }
+      }
+
+      // Zero all registers except rsp
+      add_comment_line(aw, "Scrub registers after call");
+      // FIXME: If this will use the System V ABI make sure that the %rsp is aligned
+      // before this call
+      add_asm_line(aw, "call __libia2_scrub_registers");
+
+      // pop return regs
+      add_comment_line(aw, "Pop return regs");
+      for (auto loc = return_locs.rbegin(); loc != return_locs.rend(); loc++) {
+        if (!loc->is_stack()) {
+          emit_reg_pop(aw, *loc);
+        }
+      }
+    }
+    // Once again use r10 and r11 as scratch registers
+    add_comment_line(aw, "Set PKRU to the caller's value");
+    add_asm_line(aw, "movq %rax, %r10");
+    add_asm_line(aw, "movq %rdx, %r11");
+    emit_wrpkru(aw, caller_pkey);
+    add_asm_line(aw, "movq %r10, %rax");
+    add_asm_line(aw, "movq %r11, %rdx");
+
+    // Load registers that are preserved across function calls after switching
+    // back to the caller's compartment's stack. This is on the caller's stack so
+    // it's not in the diagram above.
+    for (auto r = preserved_registers.rbegin(); r != preserved_registers.rend();
+         r++) {
+      add_asm_line(aw, "popq %"s + *r);
+    }
+    // Restore the caller's frame pointer
+    add_asm_line(aw, "popq %rbp");
+
+    // Return to the caller
+    add_comment_line(aw, "Return to the caller");
+    add_asm_line(aw, "ret");
+  }
+}
+
 std::string emit_asm_wrapper(const CAbiSignature &sig,
                              const std::string &wrapper_name,
                              const std::optional<std::string> target_name,
@@ -420,237 +677,22 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
   add_asm_line(aw, ".type "s + wrapper_name + ", @function");
   add_asm_line(aw, wrapper_name + ":");
 
-  if (arch == Arch::Aarch64) {
-      add_asm_line(aw, "b "s + target_name.value());
-      call_string(target_name, kind, aw, arch);
-  } else {
-  // Save the old frame pointer and set the frame pointer for the call gate
-  add_asm_line(aw, "pushq %rbp");
-  add_asm_line(aw, "movq %rsp, %rbp");
-  // Save registers that are preserved across function calls before switching to
-  // the other compartment's stack. This is on the caller's stack so it's not in
-  // the diagram above.
-  for (auto &r : preserved_registers) {
-    add_asm_line(aw, "pushq %"s + r);
-  }
+  switch_stacks(aw, caller_pkey, target_pkey, arch);
 
-  uint32_t caller_pkru = ~((0b11 << (2 * caller_pkey)) | 0b11);
-  add_raw_line(aw, llvm::formatv("ASSERT_PKRU({0:x8}) \"\\n\"", caller_pkru));
-  // Change pkru to the intermediate value before copying args
-  add_comment_line(aw, "Set PKRU to the intermediate value to move arguments");
-  // wrpkru requires zeroing rcx and rdx, but they may have arguments so use r10
-  // and r11 as scratch registers
-  add_asm_line(aw, "movq %rcx, %r10");
-  add_asm_line(aw, "movq %rdx, %r11");
-  emit_mixed_wrpkru(aw, caller_pkey, target_pkey);
-  add_asm_line(aw, "movq %r10, %rcx");
-  add_asm_line(aw, "movq %r11, %rdx");
+  copy_args(aw, stack_return_size, stack_return_padding, stack_alignment, stack_arg_count, stack_arg_size, caller_pkey, arch);
 
-  // Switch stacks to the target stack
-  emit_switch_stacks(aw, caller_pkey, target_pkey, "r11"s);
+  zero_regs(aw, caller_pkey, reg_arg_count, param_locs, arch);
 
-  // When returning via memory, the address of the return value is passed in
-  // rdi. Since this memory belongs to the caller, we first allocate space for
-  // the return value, then save a pointer to the caller's return value and set
-  // rdi to the newly allocated space. Allocating space before saving the old
-  // pointer makes it easier to undo these operations after the call. The System
-  // V ABI only specifies that the memory for the return value must not overlap
-  // any other memory available to the target so the order of these two stack
-  // items doesn't matter.
-  if (stack_return_size > 0) {
-    add_comment_line(
-        aw, "Allocate space on the compartment's stack for the return value");
-    size_t padded_return_size = stack_return_size + stack_return_padding;
-    add_asm_line(aw, "subq $"s + std::to_string(padded_return_size) + ", %rsp");
-    add_comment_line(aw, "Save address of the caller's return value");
-    add_asm_line(aw, "pushq %rdi");
-    add_comment_line(aw, "Set rdi to the compartment's return value memory");
-    add_asm_line(aw, "movq %rsp, %rdi");
-    // The new return value is 8 bytes above the bottom of the stack so we need
-    // to add 8 to rdi
-    add_asm_line(aw, "addq $8, %rdi");
-  }
+  set_pkru(aw, target_pkey, kind, arch);
 
-  // Insert 8 bytes to align the stack to 16 bytes if necessary.
-  if (stack_alignment != 0) {
-    assert(stack_alignment == 8);
-    add_asm_line(aw, "subq $8, %rsp");
-  }
-
-  // Copy stack args to target stack
-  if (stack_arg_count > 0) {
-    // Set rax to the caller's stack so we can copy the stack args to the
-    // compartment's stack.
-    add_comment_line(
-        aw, "Copy stack arguments from the caller's stack to the compartment");
-    // Load addr of top of caller compartment's stack into rax, clobbering r12
-    std::string expr = emit_load_sp_offset(aw, caller_pkey, "r12"s);
-    add_asm_line(aw, "movq %" + expr + ", %rax");
-    // This is effectively a memcpy of size `stack_arg_size` from the caller's
-    // stack to the compartment's
-    for (int i = 0; i < stack_arg_size; i += 8) {
-      // We must take the preserved registers we pushed on the caller's stack
-      // into account (including rbp) when determining the location of the stack
-      // args
-      size_t caller_stack_size =
-          stack_arg_size + ((preserved_registers.size() + 1) * 8);
-      // The index into the caller's stack is backwards since pushq will copy to
-      // the compartment's stack from the highest addresses to the lowest.
-      add_asm_line(aw,
-                   "pushq " + std::to_string(caller_stack_size - i) + "(%rax)");
-    }
-  }
-
-  // Before calling the target function, we only need to zero out registers not
-  // used for arguments if the caller is a protected compartment (i.e. pkey is
-  // not zero).
-  if (caller_pkey != 0) {
-    // Zero out all unused registers. First we save all registers containing args.
-    // These pushes have matching pops before calling the wrapped function so this
-    // stack space is not shown in the diagram above.
-    if (reg_arg_count > 0) {
-      add_comment_line(aw, "Save registers containing arguments");
-      for (const auto &loc : param_locs) {
-        if (!loc.is_stack()) {
-          emit_reg_push(aw, loc);
-        }
-      }
-    }
-
-    // Zero all registers except rsp
-    add_comment_line(aw, "Zero all registers except rsp");
-    // FIXME: If this will use the System V ABI make sure that the %rsp is aligned
-    // before this call
-    add_asm_line(aw, "call __libia2_scrub_registers");
-
-    // Restore used arg regs after zeroing registers
-    if (reg_arg_count > 0) {
-      add_comment_line(aw, "Restore registers containing arguments");
-      for (auto loc = param_locs.rbegin(); loc != param_locs.rend(); loc++) {
-        if (!loc->is_stack()) {
-          emit_reg_pop(aw, *loc);
-        }
-      }
-    }
-  }
-
-  if (kind == WrapperKind::IndirectCallsite) {
-    add_asm_line(aw, "movq ia2_fn_ptr@GOTPCREL(%rip), %r12");
-    add_asm_line(aw, "movq (%r12), %r12");
-  }
-  // Change pkru to the compartment's value
-  add_comment_line(aw, "Set PKRU to the compartment's value");
-  // wrpkru requires zeroing rcx and rdx, but they may have arguments so use r10
-  // and r11 as scratch registers
-  add_asm_line(aw, "movq %rcx, %r10");
-  add_asm_line(aw, "movq %rdx, %r11");
-  emit_wrpkru(aw, target_pkey);
-  add_asm_line(aw, "movq %r10, %rcx");
-  add_asm_line(aw, "movq %r11, %rdx");
-
-
-  // Call wrapped function
   call_string(target_name, kind, aw, arch);
 
-  // After calling the wrapped function, rax and rdx may contain a return value
-  // so use r10 and r11 as scratch registers
-  add_comment_line(aw,
-                   "Set PKRU to the intermediate value to move return value");
-  add_asm_line(aw, "movq %rax, %r10");
-  add_asm_line(aw, "movq %rdx, %r11");
-  // Change pkru to the intermediate value. This uses rax, r10 and r11 as
-  // scratch registers.
-  emit_mixed_wrpkru(aw, caller_pkey, target_pkey);
-  add_asm_line(aw, "movq %r10, %rax");
-  add_asm_line(aw, "movq %r11, %rdx");
+  cleanup_and_restore_after_call(aw, caller_pkey, target_pkey, stack_arg_size, stack_alignment, arch);
 
-  // Free stack space used for stack args on the target stack
-  if (stack_arg_size > 0) {
-    add_comment_line(aw, "Free stack space used for stack args");
-    add_asm_line(aw, "addq $"s + std::to_string(stack_arg_size) + ", %rsp");
-  }
+  copy_stack_returns_and_switch_back(aw, stack_return_size, stack_return_padding, caller_pkey, target_pkey, arch);
 
-  // If we inserted 8 bytes to align the stack before calling the wrapped
-  // function, free this space.
-  if (stack_alignment != 0) {
-    assert(stack_alignment == 8);
-    add_asm_line(aw, "addq $8, %rsp");
-  }
+  finalize_and_return_to_caller(aw, target_pkey, caller_pkey, return_locs, arch);
 
-  // Copy any stack returns to caller's stack
-  if (stack_return_size > 0) {
-    // If the return value is in memory, we pushed the initial rdi (which
-    // pointed to the caller's return value memory) onto the compartment's
-    // stack. Now we pop it into rax which is where the address of the return
-    // value must be on return.
-    add_asm_line(aw, "popq %rax");
-
-    // After the pop rsp points to the memory for the return value on the
-    // compartment's stack.
-    add_comment_line(aw,
-                     "Copy "s + std::to_string(stack_return_size) +
-                         " bytes for the return value to the caller's stack");
-    for (int i = 0; i < stack_return_size; i += 8) {
-      add_asm_line(aw, "popq "s + std::to_string(i) + "(%rax)");
-    }
-
-    if (stack_return_padding > 0) {
-      add_asm_line(aw, "addq $8, %rsp");
-    }
-  }
-
-  // Switch back to the caller's stack
-  emit_switch_stacks(aw, target_pkey, caller_pkey, "r11"s);
-
-  // After calling the target function, we only need to zero out registers not
-  // used for return values if the target is a protected compartment
-  if (target_pkey != 0) {
-    add_comment_line(
-        aw, "Push return regs to caller's stack before scrubbing registers");
-    // Push return regs to the caller's stack. These pushes have matching pops
-    // before the return so it has no net effect on the caller's stack pointer.
-    for (auto loc : return_locs) {
-      if (!loc.is_stack()) {
-        emit_reg_push(aw, loc);
-      }
-    }
-
-    // Zero all registers except rsp
-    add_comment_line(aw, "Scrub registers after call");
-    // FIXME: If this will use the System V ABI make sure that the %rsp is aligned
-    // before this call
-    add_asm_line(aw, "call __libia2_scrub_registers");
-
-    // pop return regs
-    add_comment_line(aw, "Pop return regs");
-    for (auto loc = return_locs.rbegin(); loc != return_locs.rend(); loc++) {
-      if (!loc->is_stack()) {
-        emit_reg_pop(aw, *loc);
-      }
-    }
-  }
-  // Once again use r10 and r11 as scratch registers
-  add_comment_line(aw, "Set PKRU to the caller's value");
-  add_asm_line(aw, "movq %rax, %r10");
-  add_asm_line(aw, "movq %rdx, %r11");
-  emit_wrpkru(aw, caller_pkey);
-  add_asm_line(aw, "movq %r10, %rax");
-  add_asm_line(aw, "movq %r11, %rdx");
-
-  // Load registers that are preserved across function calls after switching
-  // back to the caller's compartment's stack. This is on the caller's stack so
-  // it's not in the diagram above.
-  for (auto r = preserved_registers.rbegin(); r != preserved_registers.rend();
-       r++) {
-    add_asm_line(aw, "popq %"s + *r);
-  }
-  // Restore the caller's frame pointer
-  add_asm_line(aw, "popq %rbp");
-
-  // Return to the caller
-  add_comment_line(aw, "Return to the caller");
-  add_asm_line(aw, "ret");
-  }
   // Set the symbol size
   add_asm_line(aw, ".size "s + wrapper_name + ", .-" + wrapper_name);
 

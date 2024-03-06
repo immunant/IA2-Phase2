@@ -42,7 +42,7 @@ CORE_DEPS="src/core/nginx.h \
            src/core/ngx_crypt.h \
            src/core/ngx_proxy_protocol.h \
            src/core/ngx_syslog.h \
-           $REPO_ROOT/libia2/include/permissive_mode.h"
+           $REPO_ROOT/runtime/libia2/include/permissive_mode.h"
 
 
 CORE_SRCS="src/core/nginx.c \

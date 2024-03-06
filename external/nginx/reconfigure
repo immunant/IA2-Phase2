@@ -7,8 +7,8 @@ IA2_BUILD_DIR=${BUILD_DIR}/ia2
 NGINX_BUILD_DIR=${BUILD_DIR}/nginx
 NGINX_ROOT=${EXTERNAL_ROOT}/nginx
 NGINX_RTMP_ROOT=${EXTERNAL_ROOT}/nginx-rtmp-module
-SRC_REWRITER=$IA2_BUILD_DIR/rewriter/ia2-rewriter
-LIBIA2=$IA2_BUILD_DIR/libia2/liblibia2.a
+SRC_REWRITER=$IA2_BUILD_DIR/tools/rewriter/ia2-rewriter
+LIBIA2=$IA2_BUILD_DIR/runtime/libia2/liblibia2.a
 TEMP_FILES=(
     nginx.pid
     err.log

@@ -27,14 +27,23 @@ LINK =	$LINK
 
 C_SYSTEM_INCLUDE = `$CC -print-file-name=include`
 C_SYSTEM_INCLUDE_FIXED = `$CC -print-file-name=include-fixed`
+
+# Directory for IA2 build artifacts
 IA2_ROOT = $NGX_OBJS/../ia2
-PAD_TLS = \$(IA2_ROOT)/pad-tls/pad-tls
+
+LIBIA2_DIR = $REPO_ROOT/runtime/libia2
+LIBIA2_BUILD_DIR = \$(IA2_ROOT)/runtime/libia2
+
+PA_DIR = $REPO_ROOT/runtime/partition-alloc
+PA_BUILD_DIR = \$(IA2_ROOT)/runtime/partition-alloc
+
+PAD_TLS = \$(IA2_ROOT)/tools/pad-tls/pad-tls
 
 IA2_ENABLE = 1
 
 IA2_CALLGATES_TARGET = $NGX_OBJS/libia2_callgates.so
 ifneq (\$(IA2_ENABLE),0)
-IA2_LIBS = $NGX_OBJS/libia2_callgates.so \$(IA2_ROOT)/libia2/liblibia2.a
+IA2_LIBS = $NGX_OBJS/libia2_callgates.so \$(LIBIA2_BUILD_DIR)/liblibia2.a
 else
 IA2_LIBS =
 endif
@@ -50,8 +59,8 @@ IA2_CFLAGS = \\
 	-Wno-error \\
 	-Werror=incompatible-pointer-types \\
 	\$(IA2_EXTRA_CFLAGS) \\
-	-I $REPO_ROOT/libia2/include \\
-	-I $REPO_ROOT/partition-alloc/include
+	-I \$(LIBIA2_DIR)/include \\
+	-I \$(PA_DIR)/include
 
 IA2_PREREWRITER_LDFLAGS = \\
 	-Wl,--wrap=pthread_create
@@ -61,10 +70,10 @@ IA2_LDFLAGS = \\
 	-Wl,--wrap=main \\
 	-Wl,-z,now \\
 	-Wl,-z,relro \\
-	-Wl,-T\$(IA2_ROOT)/libia2/padding.ld \\
-	-Wl,--dynamic-list=\$(IA2_ROOT)/libia2/dynsym.syms \\
+	-Wl,-T\$(LIBIA2_BUILD_DIR)/padding.ld \\
+	-Wl,--dynamic-list=\$(LIBIA2_BUILD_DIR)/dynsym.syms \\
 	-Wl,--export-dynamic \\
-    -Wl,--rpath=\$(IA2_ROOT)/partition-alloc/
+    -Wl,--rpath=\$(PA_BUILD_DIR)/
 
 ifneq (\$(IA2_ENABLE),0)
 IA2_LDFLAGS += \\
@@ -88,8 +97,8 @@ IA2_MODULE_CFLAGS = \\
 	-Wno-error \\
 	-Werror=incompatible-pointer-types \\
 	\$(IA2_EXTRA_CFLAGS) \\
-	-I $REPO_ROOT/libia2/include \\
-	-I $REPO_ROOT/partition-alloc/include
+	-I \$(LIBIA2_DIR)/include \\
+	-I \$(PA_DIR)/include
 
 IA2_MODULE_LDFLAGS = \\
 	-Wl,-z,now \\
@@ -97,11 +106,11 @@ IA2_MODULE_LDFLAGS = \\
 	-pthread \\
 	-Wl,--wrap=pthread_create \\
 	-Wl,@$NGX_OBJS/../wrapper_2.ld \\
-	-Wl,-T\$(IA2_ROOT)/libia2/padding.ld
+	-Wl,-T\$(LIBIA2_BUILD_DIR)/padding.ld
 
 END
 
-CORE_LIBS="$CORE_LIBS \$(IA2_ROOT)/partition-alloc/libpartition-alloc.so"
+CORE_LIBS="$CORE_LIBS \$(PA_BUILD_DIR)/libpartition-alloc.so"
 
 if test -n "$NGX_PERL_CFLAGS"; then
     echo NGX_PERL_CFLAGS = $NGX_PERL_CFLAGS                   >> $NGX_MAKEFILE
@@ -305,7 +314,7 @@ binary:	$NGX_OBJS${ngx_dirsep}nginx$ngx_binext
 
 \$(IA2_CALLGATES_TARGET):
 	\$(CC) -shared -fPIC -Wl,-z,now $NGX_OBJS/../wrapper.c \
-		-I $REPO_ROOT/libia2/include -o \$(IA2_CALLGATES_TARGET)
+		-I \$(LIBIA2_DIR)/include -o \$(IA2_CALLGATES_TARGET)
 
 $NGX_OBJS/ngx_rtmp_module_tls_padded.so: $NGX_OBJS/ngx_rtmp_module.so
 	cp $NGX_OBJS/ngx_rtmp_module.so $NGX_OBJS/ngx_rtmp_module_tls_padded.so

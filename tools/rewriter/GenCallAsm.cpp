@@ -342,7 +342,8 @@ static void switch_stacks(AsmWriter &aw, uint32_t caller_pkey, uint32_t target_p
     // Switch stacks to the target stack
     emit_switch_stacks(aw, caller_pkey, target_pkey, "r11"s);
   } else if (arch == Arch::Aarch64) {
-    // no-op for now
+    // TODO ARM stack switching
+    llvm::errs() << "TODO stack switching not implemented on ARM\n";
   }
 }
 
@@ -400,7 +401,8 @@ static void copy_args(AsmWriter &aw, size_t stack_return_size, size_t stack_retu
       }
     }
   } else if (arch == Arch::Aarch64) {
-    // no-op for now
+    // TODO ARM arguments
+    llvm::errs() << "TODO arguments not implemented on ARM\n";
   }
 }
 
@@ -439,7 +441,8 @@ static void zero_regs(AsmWriter &aw, uint32_t caller_pkey, int reg_arg_count, co
       }
     }
   } else if (arch == Arch::Aarch64) {
-    // no-op for now
+    // TODO ARM reg zero
+    llvm::errs() << "TODO register zeroing not implemented on ARM\n";
   }
 }
 
@@ -458,6 +461,9 @@ static void set_pkru(AsmWriter &aw, uint32_t target_pkey, WrapperKind kind, Arch
     emit_wrpkru(aw, target_pkey);
     add_asm_line(aw, "movq %r10, %rcx");
     add_asm_line(aw, "movq %r11, %rdx");
+  } else if (arch == Arch::Aarch64) {
+    // TODO ARM set compartment
+    llvm::errs() << "TODO compartment setting not implemented on ARM\n";
   }
 }
 
@@ -487,6 +493,9 @@ static void cleanup_and_restore_after_call(AsmWriter &aw, uint32_t caller_pkey, 
       assert(stack_alignment == 8);
       add_asm_line(aw, "addq $8, %rsp");
     }
+  } else if (arch == Arch::Aarch64) {
+    // TODO ARM cleanup and restore
+    llvm::errs() << "TODO cleanup not implemented on ARM\n";
   }
 }
 
@@ -516,6 +525,9 @@ static void copy_stack_returns_and_switch_back(AsmWriter &aw, size_t stack_retur
 
     // Switch back to the caller's stack
     emit_switch_stacks(aw, target_pkey, caller_pkey, "r11"s);
+  } else if (arch == Arch::Aarch64) {
+    // TODO ARM stack switch back
+    llvm::errs() << "TODO stack switch-back not implemented on ARM\n";
   }
 }
 
@@ -569,6 +581,9 @@ static void finalize_and_return_to_caller(AsmWriter &aw, uint32_t target_pkey, u
     // Return to the caller
     add_comment_line(aw, "Return to the caller");
     add_asm_line(aw, "ret");
+  } else if (arch == Arch::Aarch64) {
+    // TODO ARM return to called
+    llvm::errs() << "TODO return to caller not implemented on ARM\n";
   }
 }
 

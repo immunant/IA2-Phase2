@@ -288,22 +288,19 @@ static void call_string(
 
   add_comment_line(aw, "Call wrapped function");
 
-  if (arch == Arch::X86) {
-    if (!target_name) {
-      // indirect call
-      assert(kind == WrapperKind::IndirectCallsite);
+  if (!target_name) {
+    // indirect call
+    assert(kind == WrapperKind::IndirectCallsite);
+    if (arch == Arch::X86) {
       add_asm_line(aw, "call *%r12");
-    } else {
-      // direct call
-      add_asm_line(aw, "call "s + target_name.value());
+    } else if (arch == Arch::Aarch64) {
+      add_asm_line(aw, "br x12"); // TODO, which register?
     }
-  } else if (arch == Arch::Aarch64) {
-    if (!target_name) {
-      // indirect call
-      assert(kind == WrapperKind::IndirectCallsite);
-      add_asm_line(aw, "br "s + target_name.value());
-    } else {
-      // direct call
+  } else {
+    // direct call
+    if (arch == Arch::X86) {
+      add_asm_line(aw, "call "s + target_name.value());
+    } else if (arch == Arch::Aarch64) {
       add_asm_line(aw, "b "s + target_name.value());
     }
   }

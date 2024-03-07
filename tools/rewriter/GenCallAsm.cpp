@@ -462,8 +462,9 @@ static void emit_set_pkru(AsmWriter &aw, uint32_t target_pkey, WrapperKind kind,
     add_asm_line(aw, "movq %r10, %rcx");
     add_asm_line(aw, "movq %r11, %rdx");
   } else if (arch == Arch::Aarch64) {
-    // TODO ARM set compartment
-    llvm::errs() << "TODO compartment setting not implemented on ARM\n";
+    // set X18 to the pointer key (compartment number left-shifted 56 bits)
+    add_asm_line(aw, "mov x18, #" + std::to_string(target_pkey & 0xF));
+    add_asm_line(aw, "lsl x18, x18, #56");
   }
 }
 

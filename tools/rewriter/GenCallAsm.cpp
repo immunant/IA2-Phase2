@@ -280,7 +280,7 @@ static std::string sig_string(const CAbiSignature &sig,
   return ss.str();
 }
 
-static void call_string(
+static void emit_fn_call(
     const std::optional<std::string> target_name,
     WrapperKind kind,
     AsmWriter &aw,
@@ -315,7 +315,7 @@ static AsmWriter get_asmwriter(bool as_macro) {
   return {.ss = {}, .terminator = terminator};
 }
 
-static void switch_stacks(AsmWriter &aw, uint32_t caller_pkey, uint32_t target_pkey, Arch arch) {
+static void emit_switch_stack_to_callee(AsmWriter &aw, uint32_t caller_pkey, uint32_t target_pkey, Arch arch) {
   if (arch == Arch::X86) {
     // Save the old frame pointer and set the frame pointer for the call gate
     add_asm_line(aw, "pushq %rbp");
@@ -347,7 +347,7 @@ static void switch_stacks(AsmWriter &aw, uint32_t caller_pkey, uint32_t target_p
   }
 }
 
-static void copy_args(AsmWriter &aw, size_t stack_return_size, size_t stack_return_padding, int stack_alignment, int stack_arg_count, size_t stack_arg_size, uint32_t caller_pkey, Arch arch) {
+static void emit_copy_args(AsmWriter &aw, size_t stack_return_size, size_t stack_return_padding, int stack_alignment, int stack_arg_count, size_t stack_arg_size, uint32_t caller_pkey, Arch arch) {
   if (arch == Arch::X86) {
     // When returning via memory, the address of the return value is passed in
     // rdi. Since this memory belongs to the caller, we first allocate space for
@@ -406,7 +406,7 @@ static void copy_args(AsmWriter &aw, size_t stack_return_size, size_t stack_retu
   }
 }
 
-static void zero_regs(AsmWriter &aw, uint32_t caller_pkey, int reg_arg_count, const std::vector<ParamLocation> &param_locs, Arch arch) {
+static void emit_zero_regs(AsmWriter &aw, uint32_t caller_pkey, int reg_arg_count, const std::vector<ParamLocation> &param_locs, Arch arch) {
   if (arch == Arch::X86) {
     // Before calling the target function, we only need to zero out registers not
     // used for arguments if the caller is a protected compartment (i.e. pkey is
@@ -446,7 +446,7 @@ static void zero_regs(AsmWriter &aw, uint32_t caller_pkey, int reg_arg_count, co
   }
 }
 
-static void set_pkru(AsmWriter &aw, uint32_t target_pkey, WrapperKind kind, Arch arch) {
+static void emit_set_pkru(AsmWriter &aw, uint32_t target_pkey, WrapperKind kind, Arch arch) {
   if (arch == Arch::X86) {
     if (kind == WrapperKind::IndirectCallsite) {
       add_asm_line(aw, "movq ia2_fn_ptr@GOTPCREL(%rip), %r12");
@@ -467,7 +467,7 @@ static void set_pkru(AsmWriter &aw, uint32_t target_pkey, WrapperKind kind, Arch
   }
 }
 
-static void cleanup_and_restore_after_call(AsmWriter &aw, uint32_t caller_pkey, uint32_t target_pkey, size_t stack_arg_size, int stack_alignment, Arch arch) {
+static void emit_cleanup_and_restore_after_call(AsmWriter &aw, uint32_t caller_pkey, uint32_t target_pkey, size_t stack_arg_size, int stack_alignment, Arch arch) {
   if (arch == Arch::X86) {
     // After calling the wrapped function, rax and rdx may contain a return value
     // so use r10 and r11 as scratch registers
@@ -499,7 +499,7 @@ static void cleanup_and_restore_after_call(AsmWriter &aw, uint32_t caller_pkey, 
   }
 }
 
-static void copy_stack_returns_and_switch_back(AsmWriter &aw, size_t stack_return_size, size_t stack_return_padding, uint32_t caller_pkey, uint32_t target_pkey, Arch arch) {
+static void emit_copy_stack_returns_and_switch_back(AsmWriter &aw, size_t stack_return_size, size_t stack_return_padding, uint32_t caller_pkey, uint32_t target_pkey, Arch arch) {
   if (arch == Arch::X86) {
     // Copy any stack returns to caller's stack
     if (stack_return_size > 0) {
@@ -531,7 +531,7 @@ static void copy_stack_returns_and_switch_back(AsmWriter &aw, size_t stack_retur
   }
 }
 
-static void finalize_and_return_to_caller(AsmWriter &aw, uint32_t target_pkey, uint32_t caller_pkey, const std::vector<ParamLocation> &return_locs, Arch arch) {
+static void emit_finalize_and_return_to_caller(AsmWriter &aw, uint32_t target_pkey, uint32_t caller_pkey, const std::vector<ParamLocation> &return_locs, Arch arch) {
   if (arch == Arch::X86) {
     // After calling the target function, we only need to zero out registers not
     // used for return values if the target is a protected compartment
@@ -689,21 +689,21 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
   add_asm_line(aw, ".type "s + wrapper_name + ", @function");
   add_asm_line(aw, wrapper_name + ":");
 
-  switch_stacks(aw, caller_pkey, target_pkey, arch);
+  emit_switch_stack_to_callee(aw, caller_pkey, target_pkey, arch);
 
-  copy_args(aw, stack_return_size, stack_return_padding, stack_alignment, stack_arg_count, stack_arg_size, caller_pkey, arch);
+  emit_copy_args(aw, stack_return_size, stack_return_padding, stack_alignment, stack_arg_count, stack_arg_size, caller_pkey, arch);
 
-  zero_regs(aw, caller_pkey, reg_arg_count, param_locs, arch);
+  emit_zero_regs(aw, caller_pkey, reg_arg_count, param_locs, arch);
 
-  set_pkru(aw, target_pkey, kind, arch);
+  emit_set_pkru(aw, target_pkey, kind, arch);
 
-  call_string(target_name, kind, aw, arch);
+  emit_fn_call(target_name, kind, aw, arch);
 
-  cleanup_and_restore_after_call(aw, caller_pkey, target_pkey, stack_arg_size, stack_alignment, arch);
+  emit_cleanup_and_restore_after_call(aw, caller_pkey, target_pkey, stack_arg_size, stack_alignment, arch);
 
-  copy_stack_returns_and_switch_back(aw, stack_return_size, stack_return_padding, caller_pkey, target_pkey, arch);
+  emit_copy_stack_returns_and_switch_back(aw, stack_return_size, stack_return_padding, caller_pkey, target_pkey, arch);
 
-  finalize_and_return_to_caller(aw, target_pkey, caller_pkey, return_locs, arch);
+  emit_finalize_and_return_to_caller(aw, target_pkey, caller_pkey, return_locs, arch);
 
   // Set the symbol size
   add_asm_line(aw, ".size "s + wrapper_name + ", .-" + wrapper_name);

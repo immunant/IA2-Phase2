@@ -230,24 +230,30 @@ static std::string emit_load_sp_offset(AsmWriter &aw, int pkey,
 // for the old and new stack pointer.
 // \p compartment_offset_reg is a register name (sans % prefix) that will be
 // clobbered.
-static void emit_switch_stacks(AsmWriter &aw, int old_pkey, int new_pkey,
-                               const std::string &compartment_offset_reg) {
-  add_comment_line(
-      aw,
-      llvm::formatv("Compute location to save old stack pointer (using {0})",
-                    compartment_offset_reg));
-  std::string expr = emit_load_sp_offset(aw, old_pkey, compartment_offset_reg);
-  add_comment_line(aw, "Write the old stack pointer to memory");
-  add_asm_line(aw, llvm::formatv("movq %rsp, %{0}", expr));
+static void emit_switch_stacks(AsmWriter &aw, int old_pkey, int new_pkey, Arch arch) {
+  if (arch == Arch::X86) {
+    const std::string compartment_offset_reg = "r11"s;
 
-  // After saving the old sp, we switch stacks by loading the new one
-  add_comment_line(
-      aw,
-      llvm::formatv("Compute location to load new stack pointer (using {0})",
-                    compartment_offset_reg));
-  expr = emit_load_sp_offset(aw, new_pkey, compartment_offset_reg);
-  add_comment_line(aw, "Read the new stack pointer from memory");
-  add_asm_line(aw, llvm::formatv("movq %{0}, %rsp", expr));
+    add_comment_line(
+        aw,
+        llvm::formatv("Compute location to save old stack pointer (using {0})",
+                      compartment_offset_reg));
+    std::string expr = emit_load_sp_offset(aw, old_pkey, compartment_offset_reg);
+    add_comment_line(aw, "Write the old stack pointer to memory");
+    add_asm_line(aw, llvm::formatv("movq %rsp, %{0}", expr));
+
+    // After saving the old sp, we switch stacks by loading the new one
+    add_comment_line(
+        aw,
+        llvm::formatv("Compute location to load new stack pointer (using {0})",
+                      compartment_offset_reg));
+    expr = emit_load_sp_offset(aw, new_pkey, compartment_offset_reg);
+    add_comment_line(aw, "Read the new stack pointer from memory");
+    add_asm_line(aw, llvm::formatv("movq %{0}, %rsp", expr));
+  } else if (arch == Arch::Aarch64) {
+    // TODO ARM stack switching
+    llvm::errs() << "TODO stack switching not implemented on ARM\n";
+  }
 }
 
 static void append_arg_kinds(std::stringstream &ss,
@@ -315,7 +321,7 @@ static AsmWriter get_asmwriter(bool as_macro) {
   return {.ss = {}, .terminator = terminator};
 }
 
-static void emit_switch_stack_to_callee(AsmWriter &aw, uint32_t caller_pkey, uint32_t target_pkey, Arch arch) {
+static void emit_save_regs(AsmWriter &aw, uint32_t caller_pkey, uint32_t target_pkey, Arch arch) {
   if (arch == Arch::X86) {
     // Save the old frame pointer and set the frame pointer for the call gate
     add_asm_line(aw, "pushq %rbp");
@@ -326,7 +332,14 @@ static void emit_switch_stack_to_callee(AsmWriter &aw, uint32_t caller_pkey, uin
     for (auto &r : preserved_registers) {
       add_asm_line(aw, "pushq %"s + r);
     }
+  } else if (arch == Arch::Aarch64) {
+    // TODO ARM stack switching
+    llvm::errs() << "TODO register saving not implemented on ARM\n";
+  }
+}
 
+static void emit_intermediate_pkru(AsmWriter &aw, uint32_t caller_pkey, uint32_t target_pkey, Arch arch) {
+  if (arch == Arch::X86) {
     uint32_t caller_pkru = ~((0b11 << (2 * caller_pkey)) | 0b11);
     add_raw_line(aw, llvm::formatv("ASSERT_PKRU({0:x8}) \"\\n\"", caller_pkru));
     // Change pkru to the intermediate value before copying args
@@ -338,12 +351,9 @@ static void emit_switch_stack_to_callee(AsmWriter &aw, uint32_t caller_pkey, uin
     emit_mixed_wrpkru(aw, caller_pkey, target_pkey);
     add_asm_line(aw, "movq %r10, %rcx");
     add_asm_line(aw, "movq %r11, %rdx");
-
-    // Switch stacks to the target stack
-    emit_switch_stacks(aw, caller_pkey, target_pkey, "r11"s);
   } else if (arch == Arch::Aarch64) {
     // TODO ARM stack switching
-    llvm::errs() << "TODO stack switching not implemented on ARM\n";
+    llvm::errs() << "TODO intermediate PKRU not implemented on ARM\n";
   }
 }
 
@@ -465,10 +475,13 @@ static void emit_set_pkru(AsmWriter &aw, uint32_t target_pkey, WrapperKind kind,
     // set X18 to the pointer key (compartment number left-shifted 56 bits)
     add_asm_line(aw, "mov x18, #" + std::to_string(target_pkey & 0xF));
     add_asm_line(aw, "lsl x18, x18, #56");
+  } else if (arch == Arch::Aarch64) {
+    // TODO ARM set PKRU
+    llvm::errs() << "TODO set PKRU not implemented on ARM\n";
   }
 }
 
-static void emit_cleanup_and_restore_after_call(AsmWriter &aw, uint32_t caller_pkey, uint32_t target_pkey, size_t stack_arg_size, int stack_alignment, Arch arch) {
+static void emit_return_intermediate_pkru(AsmWriter &aw, uint32_t caller_pkey, uint32_t target_pkey, Arch arch) {
   if (arch == Arch::X86) {
     // After calling the wrapped function, rax and rdx may contain a return value
     // so use r10 and r11 as scratch registers
@@ -481,7 +494,14 @@ static void emit_cleanup_and_restore_after_call(AsmWriter &aw, uint32_t caller_p
     emit_mixed_wrpkru(aw, caller_pkey, target_pkey);
     add_asm_line(aw, "movq %r10, %rax");
     add_asm_line(aw, "movq %r11, %rdx");
+  } else if (arch == Arch::Aarch64) {
+    // TODO ARM return intermediate PKRU
+    llvm::errs() << "TODO intermediate PKRU for return value not implemented on ARM\n";
+  }
+}
 
+static void emit_free_stack_space(AsmWriter &aw, size_t stack_arg_size, int stack_alignment, Arch arch) {
+  if (arch == Arch::X86) {
     // Free stack space used for stack args on the target stack
     if (stack_arg_size > 0) {
       add_comment_line(aw, "Free stack space used for stack args");
@@ -495,12 +515,12 @@ static void emit_cleanup_and_restore_after_call(AsmWriter &aw, uint32_t caller_p
       add_asm_line(aw, "addq $8, %rsp");
     }
   } else if (arch == Arch::Aarch64) {
-    // TODO ARM cleanup and restore
-    llvm::errs() << "TODO cleanup not implemented on ARM\n";
+    // TODO ARM free stack space
+    llvm::errs() << "TODO stack space freeing not implemented on ARM\n";
   }
 }
 
-static void emit_copy_stack_returns_and_switch_back(AsmWriter &aw, size_t stack_return_size, size_t stack_return_padding, uint32_t caller_pkey, uint32_t target_pkey, Arch arch) {
+static void emit_copy_stack_returns(AsmWriter &aw, size_t stack_return_size, size_t stack_return_padding, uint32_t caller_pkey, uint32_t target_pkey, Arch arch) {
   if (arch == Arch::X86) {
     // Copy any stack returns to caller's stack
     if (stack_return_size > 0) {
@@ -523,16 +543,13 @@ static void emit_copy_stack_returns_and_switch_back(AsmWriter &aw, size_t stack_
         add_asm_line(aw, "addq $8, %rsp");
       }
     }
-
-    // Switch back to the caller's stack
-    emit_switch_stacks(aw, target_pkey, caller_pkey, "r11"s);
   } else if (arch == Arch::Aarch64) {
     // TODO ARM stack switch back
     llvm::errs() << "TODO stack switch-back not implemented on ARM\n";
   }
 }
 
-static void emit_finalize_and_return_to_caller(AsmWriter &aw, uint32_t target_pkey, uint32_t caller_pkey, const std::vector<ParamLocation> &return_locs, Arch arch) {
+static void emit_push_return_regs_to_caller_stack(AsmWriter &aw, uint32_t target_pkey, const std::vector<ParamLocation> &return_locs, Arch arch) {
   if (arch == Arch::X86) {
     // After calling the target function, we only need to zero out registers not
     // used for return values if the target is a protected compartment
@@ -546,21 +563,32 @@ static void emit_finalize_and_return_to_caller(AsmWriter &aw, uint32_t target_pk
           emit_reg_push(aw, loc);
         }
       }
+    }
+  } else if (arch == Arch::Aarch64) {
+    // TODO ARM push return regs to caller's stack
+    llvm::errs() << "TODO push return regs to caller's stack not implemented on ARM\n";
+  }
+}
 
+static void emit_return_zero_regs(AsmWriter &aw, uint32_t target_pkey, Arch arch) {
+  if (arch == Arch::X86) {
+    // After calling the target function, we only need to zero out registers not
+    // used for return values if the target is a protected compartment
+    if (target_pkey != 0) {
       // Zero all registers except rsp
       add_comment_line(aw, "Scrub registers after call");
       // FIXME: If this will use the System V ABI make sure that the %rsp is aligned
       // before this call
       add_asm_line(aw, "call __libia2_scrub_registers");
-
-      // pop return regs
-      add_comment_line(aw, "Pop return regs");
-      for (auto loc = return_locs.rbegin(); loc != return_locs.rend(); loc++) {
-        if (!loc->is_stack()) {
-          emit_reg_pop(aw, *loc);
-        }
-      }
     }
+  } else if (arch == Arch::Aarch64) {
+    // TODO ARM return register zeroing
+    llvm::errs() << "TODO zero regs on return not implemented on ARM\n";
+  }
+}
+
+static void emit_set_return_pkru(AsmWriter &aw, uint32_t caller_pkey, Arch arch) {
+  if (arch == Arch::X86) {
     // Once again use r10 and r11 as scratch registers
     add_comment_line(aw, "Set PKRU to the caller's value");
     add_asm_line(aw, "movq %rax, %r10");
@@ -568,7 +596,15 @@ static void emit_finalize_and_return_to_caller(AsmWriter &aw, uint32_t target_pk
     emit_wrpkru(aw, caller_pkey);
     add_asm_line(aw, "movq %r10, %rax");
     add_asm_line(aw, "movq %r11, %rdx");
+  } else if (arch == Arch::Aarch64) {
+    // TODO ARM set PKRU on return
+    llvm::errs() << "TODO set return PKRU not implemented on ARM\n";
+  }
 
+}
+
+static void emit_restore_regs(AsmWriter &aw, uint32_t caller_pkey, Arch arch) {
+  if (arch == Arch::X86) {
     // Load registers that are preserved across function calls after switching
     // back to the caller's compartment's stack. This is on the caller's stack so
     // it's not in the diagram above.
@@ -578,13 +614,37 @@ static void emit_finalize_and_return_to_caller(AsmWriter &aw, uint32_t target_pk
     }
     // Restore the caller's frame pointer
     add_asm_line(aw, "popq %rbp");
+  } else if (arch == Arch::Aarch64) {
+    // TODO ARM return regs
+    llvm::errs() << "TODO restore regs not implemented on ARM\n";
+  }
+}
 
+static void emit_pop_return_regs(AsmWriter &aw, uint32_t target_pkey, const std::vector<ParamLocation> &return_locs, Arch arch) {
+  if (arch == Arch::X86) {
+    if (target_pkey != 0) {
+      // pop return regs
+      add_comment_line(aw, "Pop return regs");
+      for (auto loc = return_locs.rbegin(); loc != return_locs.rend(); loc++) {
+        if (!loc->is_stack()) {
+          emit_reg_pop(aw, *loc);
+        }
+      }
+    }
+  } else if (arch == Arch::Aarch64) {
+    // TODO ARM pop return regs
+    llvm::errs() << "TODO pop return regs not implemented on ARM\n";
+  }
+}
+
+static void emit_return(AsmWriter &aw, Arch arch) {
+  if (arch == Arch::X86) {
     // Return to the caller
     add_comment_line(aw, "Return to the caller");
     add_asm_line(aw, "ret");
   } else if (arch == Arch::Aarch64) {
     // TODO ARM return to called
-    llvm::errs() << "TODO return to caller not implemented on ARM\n";
+    llvm::errs() << "TODO return not implemented on ARM\n";
   }
 }
 
@@ -690,7 +750,11 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
   add_asm_line(aw, ".type "s + wrapper_name + ", @function");
   add_asm_line(aw, wrapper_name + ":");
 
-  emit_switch_stack_to_callee(aw, caller_pkey, target_pkey, arch);
+  emit_save_regs(aw, caller_pkey, target_pkey, arch);
+
+  emit_intermediate_pkru(aw, caller_pkey, target_pkey, arch);
+
+  emit_switch_stacks(aw, caller_pkey, target_pkey, arch);
 
   emit_copy_args(aw, stack_return_size, stack_return_padding, stack_alignment, stack_arg_count, stack_arg_size, caller_pkey, arch);
 
@@ -700,11 +764,26 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
 
   emit_fn_call(target_name, kind, aw, arch);
 
-  emit_cleanup_and_restore_after_call(aw, caller_pkey, target_pkey, stack_arg_size, stack_alignment, arch);
+  emit_return_intermediate_pkru(aw, caller_pkey, target_pkey, arch);
 
-  emit_copy_stack_returns_and_switch_back(aw, stack_return_size, stack_return_padding, caller_pkey, target_pkey, arch);
+  emit_free_stack_space(aw, stack_arg_size, stack_alignment, arch);
 
-  emit_finalize_and_return_to_caller(aw, target_pkey, caller_pkey, return_locs, arch);
+  emit_copy_stack_returns(aw, stack_return_size, stack_return_padding, caller_pkey, target_pkey, arch);
+
+  emit_switch_stacks(aw, target_pkey, caller_pkey, arch);
+
+  emit_push_return_regs_to_caller_stack(aw, target_pkey, return_locs, arch);
+
+  emit_return_zero_regs(aw, target_pkey, arch);
+
+  emit_pop_return_regs(aw, target_pkey, return_locs, arch);
+
+  emit_set_return_pkru(aw, caller_pkey, arch);
+
+  emit_restore_regs(aw, caller_pkey, arch);
+
+  emit_return(aw, arch);
+
 
   // Set the symbol size
   add_asm_line(aw, ".size "s + wrapper_name + ", .-" + wrapper_name);

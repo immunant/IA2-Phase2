@@ -1,46 +1,21 @@
-# Intent-capturing Annotations for Isolation and Assurance (IA<sup>2</sup> Phase 2)
+# IA2 Sandboxing Runtime
 
-This repo provides tools for compartmentalizing an application and its dependencies using Intel's memory protection keys (MPK) for userspace. The repo includes a tool that rewrites headers to create call gate wrappers as well as the runtime to initialize the protection keys for trusted compartments.
+IA2 (or Intent-capturing Annotations for Isolation and Assurance) is a runtime and set of tools for compartmentalizing C/C++ applications to provide coarse spatial memory-safety.
+
+Applications typically use many third-party C/C++ libraries that may introduce memory-safety vulnerabilities if developers don't have the resources to exhaustively audit them. Putting everything in a single process means that a vulnerability in one library can compromise another and that's a problem for programs that handle security-sensitive information. The IA2 sandbox splits applications into isolated compartments and uses CPU hardware features (Memory Protection Keys on x86-64) to forbid cross-compartment memory accesses. Compartments are delineated along pre-existing boundaries (at the shared library level) avoiding the need to rearchitect a codebase and source-code annotations are used to mark variables that are intentionally shared between compartments. The runtime also ensures that each set of shared libraries in a compartment uses a distinct region of memory for its stack, heap, static and thread-local variables.
+
+## Sandboxing workflow
+
+IA2 uses source-code transformations as part of the build process to sandbox programs. Our [rewriter tool](docs/source_rewriter.md) processes a codebase's source files before each build to produce a set of intermediate sources with annotations for compartment transitions at cross-DSO calls. These intermediate sources are then passed on to a build system using off-the-shelf compilers with some additional flags and the IA2 runtime is linked in to create the compartmentalized program. See the [design doc](docs/design.md) for details.
+
+This workflow treats intermediate sources as build artifacts so the only annotations that need to be checked-in are those that can't be inferred. These are primarily annotations for shared variables and cross-library indirect calls when round-tripping function pointers through `void *`. For the latter the rewriter also does type-system transformations to turn missing annotations into compiler errors and avoid accidental miscompartmentalization. In compartmentalized programs cross-compartment memory accesses kill the process, but they also support a permissive mode which just logs the accesses to aid developers adding shared variable annotations.
+
+## Features
+
+- **Hardware checks** Coarse spatial memory safety enforced using CPU hardware features to reduce the runtime cost of bounds checking. On x86-64 this means Memory Protection Keys ([`wrpkru`](https://www.kernel.org/doc/html/next/core-api/protection-keys.html)) for memory permissions and Control-flow Enforcement Technology (`endbr` and [SHSTK](https://docs.kernel.org/next/x86/shstk.html)) to prevent call gate misuse. Support for Aarch64 using Memory Tagging Extensions is in-progress.
+- **Minimal developer-facing annotations** Compartment transition annotations that can be inferred are automatically added by the rewriter and only appear in build artifacts. This reduces the developer-facing annotations while allowing developers to audit source-code changes made by the rewriter if necessary.
+- **Toolchain-independent** Compartmentalized programs are built with off-the shelf compilers and linkers.
 
 ## Usage
 
-### Defining compartments
-
-First invoke the [`INIT_RUNTIME`](https://github.com/immunant/IA2-Phase2/blob/5cdb743d3a42e8df8e4d8cf61fb3551656001c73/libia2/include/ia2.h#L204) macro once in any binary or shared library to define the number of protection keys that need to be allocated. The argument passed to `INIT_RUNTIME` must be a number between 1 and 15. Then the [`IA2_COMPARTMENT`](https://github.com/immunant/IA2-Phase2/blob/4a3a0c8d2a2b1881e0e41c89db070db3da187f9e/libia2/include/ia2_compartment_init.inc#L3) `#define` is used to define trusted compartments at the shared object level. This can be the main executable ELF or any dynamically-linked shared libraries. Memory belonging to a trusted compartment is assigned one of the [15 protection keys](https://man7.org/linux/man-pages/man7/pkeys.7.html) and can only be accessed by the shared object itself. Objects that don't explicitly define a compartment are treated as untrusted by default.
-
-To assign a protection key to a trusted compartment, insert `#define IA2_COMPARTMENT n` with an argument between 1-15 specifying the index of the protection key, and include `ia2_compartment_init.inc`:
-
-```c
-#define IA2_COMPARTMENT 1
-#include <ia2_compartment_init.inc>
-```
-
-This argument must differ from the other trusted compartments. Trusted compartments must also be aligned and padded properly by using the `padding.ld` script in `libia2/`. In CMake this is done automatically for executables built with `define_test` while libraries built with `define_shared_lib` must add `LINK_OPTS "-Wl,-T${libia2_BINARY_DIR}/padding.ld"`. To use in manual builds just include `-Wl,-T/path/to/padding.ld` in the final compilation step. Manual builds also require disabling lazy binding with `-Wl,-z,now`.
-
-### Wrapping calls
-
-Calls between compartments must have call gates to toggle the PKRU permissions at each transition. For direct calls, this is done by rewriting headers to generate the source for a wrapper that provides versions of every function with call gates. These wrappers are specific to both the wrapped library and caller. This means that the generated source must be compiled once per compartment that links against the wrapped library. Each caller's wrapper must define the `CALLER_PKEY` macro with the appropriate value for the caller.
-
-#### From CMake
-
-We provide a CMake rule to wrap a library or the main executable. This rule builds a wrapper and provides its dependency information to consumers of its outputs. Specifically, wrapper libs also depend on libia2 and have additional required compilation flags (-fno-omit-frame-pointer) for application code.
-
-[Usage from CMake](https://github.com/immunant/IA2-Phase2/blob/main/cmake/define-ia2-wrapper.cmake#L10-L32) looks like this (wrapping `myunsafelib` which is used by your existing `my_prog` target):
-```diff
-+define_ia2_wrapper(
-+    WRAPPER my_wrapper_target
-+    WRAPPED_LIB myunsafelib-1.0
-+    HEADERS myunsafelib.h myunsafelib_config.h
-+    CALLER_PKEY 0
-+)
-+
- add_executable(my_prog main.c)
--target_link_libraries(my_prog PRIVATE myunsafelib-1.0)
-+target_link_libraries(my_prog PRIVATE my_wrapper_target)
-```
-
-Wrapped libraries are treated as untrusted by default. If the library being wrapped defined a trusted compartment, `COMPARTMENT_PKEY n` must be specified in define_ia2_wrapper. Here `n` is the argument used in `IA2_COMPARTMENT` to define the compartment. If the caller is an untrusted compartment, set `CALLER_PKEY UNTRUSTED`. To create a wrapper for the main binary (i.e. if shared libraries call it directly) the `WRAP_MAIN` option must be specified.
-
-#### Manual usage
-
-See [this doc](https://github.com/immunant/IA2-Phase2/blob/main/docs/usage.md) for notes on manual usage.
+See [this doc](docs/build_instructions.md) for instructions on building the tools and tests in this repo. For more detailed instructions on the compartmentalization process see the [usage doc](docs/usage.md).

@@ -50,6 +50,7 @@ struct sock_filter ia2_filter[] = {
     BPF_SYSCALL_POLICY(execve, ALLOW),
     BPF_SYSCALL_POLICY(exit_group, ALLOW),
     BPF_SYSCALL_POLICY(fcntl, ALLOW),
+    BPF_SYSCALL_POLICY(fstat, ALLOW),
     BPF_SYSCALL_POLICY(futex, ALLOW),
     BPF_SYSCALL_POLICY(sysinfo, ALLOW), // simple1 uses sysinfo inside qsort inside CRYPTO_THREAD_run_once
     BPF_SYSCALL_POLICY(getcwd, ALLOW),

@@ -40,7 +40,7 @@ public:
 };
 
 const std::array<const char *, 6> int_param_reg_order = {"rdi", "rsi", "rdx",
-                                                         "rcx", "r8",  "r9"};
+                                                         "rcx", "r8", "r9"};
 const std::array<const char *, 8> xmms = {"xmm0", "xmm1", "xmm2", "xmm3",
                                           "xmm4", "xmm5", "xmm6", "xmm7"};
 
@@ -416,7 +416,7 @@ static void emit_copy_args(AsmWriter &aw, size_t stack_return_size, size_t stack
   }
 }
 
-static void emit_zero_regs(AsmWriter &aw, uint32_t caller_pkey, int reg_arg_count, const std::vector<ParamLocation> &param_locs, Arch arch) {
+static void emit_zero_regs(AsmWriter &aw, uint32_t caller_pkey, int reg_arg_count, const std::vector<ParamLocation> &param_locs, WrapperKind kind, Arch arch) {
   if (arch == Arch::X86) {
     // Before calling the target function, we only need to zero out registers not
     // used for arguments if the caller is a protected compartment (i.e. pkey is
@@ -450,18 +450,18 @@ static void emit_zero_regs(AsmWriter &aw, uint32_t caller_pkey, int reg_arg_coun
         }
       }
     }
+    if (kind == WrapperKind::IndirectCallsite) {
+      add_asm_line(aw, "movq ia2_fn_ptr@GOTPCREL(%rip), %r12");
+      add_asm_line(aw, "movq (%r12), %r12");
+    }
   } else if (arch == Arch::Aarch64) {
     // TODO ARM reg zero
     llvm::errs() << "TODO register zeroing not implemented on ARM\n";
   }
 }
 
-static void emit_set_pkru(AsmWriter &aw, uint32_t target_pkey, WrapperKind kind, Arch arch) {
+static void emit_set_pkru(AsmWriter &aw, uint32_t target_pkey, Arch arch) {
   if (arch == Arch::X86) {
-    if (kind == WrapperKind::IndirectCallsite) {
-      add_asm_line(aw, "movq ia2_fn_ptr@GOTPCREL(%rip), %r12");
-      add_asm_line(aw, "movq (%r12), %r12");
-    }
     // Change pkru to the compartment's value
     add_comment_line(aw, "Set PKRU to the compartment's value");
     // wrpkru requires zeroing rcx and rdx, but they may have arguments so use r10
@@ -563,27 +563,24 @@ static void emit_push_return_regs_to_caller_stack(AsmWriter &aw, uint32_t target
           emit_reg_push(aw, loc);
         }
       }
-    }
-  } else if (arch == Arch::Aarch64) {
-    // TODO ARM push return regs to caller's stack
-    llvm::errs() << "TODO push return regs to caller's stack not implemented on ARM\n";
-  }
-}
 
-static void emit_return_zero_regs(AsmWriter &aw, uint32_t target_pkey, Arch arch) {
-  if (arch == Arch::X86) {
-    // After calling the target function, we only need to zero out registers not
-    // used for return values if the target is a protected compartment
-    if (target_pkey != 0) {
       // Zero all registers except rsp
       add_comment_line(aw, "Scrub registers after call");
       // FIXME: If this will use the System V ABI make sure that the %rsp is aligned
       // before this call
       add_asm_line(aw, "call __libia2_scrub_registers");
+
+      // pop return regs
+      add_comment_line(aw, "Pop return regs");
+      for (auto loc = return_locs.rbegin(); loc != return_locs.rend(); loc++) {
+        if (!loc->is_stack()) {
+          emit_reg_pop(aw, *loc);
+        }
+      }
     }
   } else if (arch == Arch::Aarch64) {
-    // TODO ARM return register zeroing
-    llvm::errs() << "TODO zero regs on return not implemented on ARM\n";
+    // TODO ARM push return regs to caller's stack
+    llvm::errs() << "TODO push return regs to caller's stack not implemented on ARM\n";
   }
 }
 
@@ -600,7 +597,6 @@ static void emit_set_return_pkru(AsmWriter &aw, uint32_t caller_pkey, Arch arch)
     // TODO ARM set PKRU on return
     llvm::errs() << "TODO set return PKRU not implemented on ARM\n";
   }
-
 }
 
 static void emit_restore_regs(AsmWriter &aw, uint32_t caller_pkey, Arch arch) {
@@ -617,23 +613,6 @@ static void emit_restore_regs(AsmWriter &aw, uint32_t caller_pkey, Arch arch) {
   } else if (arch == Arch::Aarch64) {
     // TODO ARM return regs
     llvm::errs() << "TODO restore regs not implemented on ARM\n";
-  }
-}
-
-static void emit_pop_return_regs(AsmWriter &aw, uint32_t target_pkey, const std::vector<ParamLocation> &return_locs, Arch arch) {
-  if (arch == Arch::X86) {
-    if (target_pkey != 0) {
-      // pop return regs
-      add_comment_line(aw, "Pop return regs");
-      for (auto loc = return_locs.rbegin(); loc != return_locs.rend(); loc++) {
-        if (!loc->is_stack()) {
-          emit_reg_pop(aw, *loc);
-        }
-      }
-    }
-  } else if (arch == Arch::Aarch64) {
-    // TODO ARM pop return regs
-    llvm::errs() << "TODO pop return regs not implemented on ARM\n";
   }
 }
 
@@ -758,9 +737,9 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
 
   emit_copy_args(aw, stack_return_size, stack_return_padding, stack_alignment, stack_arg_count, stack_arg_size, caller_pkey, arch);
 
-  emit_zero_regs(aw, caller_pkey, reg_arg_count, param_locs, arch);
+  emit_zero_regs(aw, caller_pkey, reg_arg_count, param_locs, kind, arch);
 
-  emit_set_pkru(aw, target_pkey, kind, arch);
+  emit_set_pkru(aw, target_pkey, arch);
 
   emit_fn_call(target_name, kind, aw, arch);
 
@@ -774,16 +753,11 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
 
   emit_push_return_regs_to_caller_stack(aw, target_pkey, return_locs, arch);
 
-  emit_return_zero_regs(aw, target_pkey, arch);
-
-  emit_pop_return_regs(aw, target_pkey, return_locs, arch);
-
   emit_set_return_pkru(aw, caller_pkey, arch);
 
   emit_restore_regs(aw, caller_pkey, arch);
 
   emit_return(aw, arch);
-
 
   // Set the symbol size
   add_asm_line(aw, ".size "s + wrapper_name + ", .-" + wrapper_name);

@@ -9,6 +9,7 @@ NGINX_ROOT=${EXTERNAL_ROOT}/nginx
 NGINX_RTMP_ROOT=${EXTERNAL_ROOT}/nginx-rtmp-module
 SRC_REWRITER=$IA2_BUILD_DIR/tools/rewriter/ia2-rewriter
 LIBIA2=$IA2_BUILD_DIR/runtime/libia2/liblibia2.a
+PA_LIBRARY=runtime/partition-alloc/libpartition-alloc.so
 TEMP_FILES=(
     nginx.pid
     err.log
@@ -28,7 +29,7 @@ fi
 mkdir -p $IA2_BUILD_DIR
 pushd $IA2_BUILD_DIR
 cmake -GNinja $REPO_ROOT ${IA2_CMAKE_FLAGS:-}
-ninja ia2-rewriter libia2 pad-tls partition-alloc
+ninja ia2-rewriter libia2 pad-tls ${PA_LIBRARY}
 popd
 
 mkdir -p $NGINX_BUILD_DIR

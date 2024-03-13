@@ -8,6 +8,8 @@
 #include "ia2_internal.h"
 #include "ia2.h"
 
+#if LIBIA2_X86_64
+
 __attribute__((__used__)) uint32_t ia2_get_pkru() {
   uint32_t pkru = 0;
   __asm__ volatile("rdpkru" : "=a"(pkru) : "a"(0), "d"(0), "c"(0));
@@ -77,6 +79,69 @@ size_t ia2_get_pkey() {
   }
   }
 }
+size_t ia2_get_tag(void) __attribute__((alias("ia2_get_pkey")));
+
+#elif LIBIA2_AARCH64
+
+size_t ia2_get_x18(void) {
+    size_t x18;
+    asm("mov %0, x18" : "=r"(x18));
+    return x18;
+}
+size_t ia2_get_tag(void) __attribute__((alias("ia2_get_x18")));
+
+// TODO: insert_tag could probably be cleaned up a bit, but I'm not sure if the
+// generated code could be simplified since addg encodes the tag as an imm field
+#define _addg(out_ptr, in_ptr, tag) \
+    asm("addg %0, %1, #0, %2" : "=r"(out_ptr) : "r"(in_ptr), "i"(tag)); \
+
+#define insert_tag(ptr, tag) \
+    ({ \
+        uint64_t _res; \
+        switch (tag) { \
+            case 0: { _addg(_res, ptr, 0); break; } \
+            case 1: { _addg(_res, ptr, 1); break; } \
+            case 2: { _addg(_res, ptr, 2); break; } \
+            case 3: { _addg(_res, ptr, 3); break; } \
+            case 4: { _addg(_res, ptr, 4); break; } \
+            case 5: { _addg(_res, ptr, 5); break; } \
+            case 6: { _addg(_res, ptr, 6); break; } \
+            case 7: { _addg(_res, ptr, 7); break; } \
+            case 8: { _addg(_res, ptr, 8); break; } \
+            case 9: { _addg(_res, ptr, 9); break; } \
+            case 10: { _addg(_res, ptr, 10); break; } \
+            case 11: { _addg(_res, ptr, 11); break; } \
+            case 12: { _addg(_res, ptr, 12); break; } \
+            case 13: { _addg(_res, ptr, 13); break; } \
+            case 14: { _addg(_res, ptr, 14); break; } \
+            case 15: { _addg(_res, ptr, 15); break; } \
+        } \
+        _res; \
+    })
+
+
+#define set_tag(tagged_ptr) \
+    asm volatile("st2g %0, [%0]" :: "r"(tagged_ptr) : "memory");
+
+int ia2_mprotect_with_tag(void *addr, size_t len, int prot, int tag) {
+    int res = mprotect(addr, len, prot | PROT_MTE);
+    if (res != 0) {
+        /* Skip memory tagging if mprotect returned an error */
+        return res;
+    }
+    assert((len % PAGE_SIZE) == 0);
+    /* Assuming we're using st2g. stgm is undefined at EL0 so it's not an option */
+    const int granule_sz = 32;
+    const int granules_per_page = PAGE_SIZE / 32;
+    size_t tag = ia2_get_tag();
+    for (int i = 0; i < granules_per_page; i++) {
+        // TODO: It may be possible to simplify this to be more efficient using the addg imm offset
+        uint64_t tagged_ptr = insert_tag((uint64_t)addr + (i * granule_sz), tag);
+        set_tag(tagged_ptr);
+    }
+    return 0;
+}
+#endif
 
 // Reserve one extra shared range for the RELRO segment that we are
 // also sharing, in addition to the special shared sections in PhdrSearchArgs.
@@ -229,31 +294,31 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
     if (untrusted_stackptr_addr >= start && untrusted_stackptr_addr < end) {
       // Protect TLS region start to the beginning of the untrusted region.
       if (untrusted_stackptr_addr > start_round_down) {
-        int mprotect_err = pkey_mprotect(
+        int mprotect_err = ia2_mprotect_with_tag(
             (void *)start_round_down, untrusted_stackptr_addr - start_round_down,
             PROT_READ | PROT_WRITE, search_args->pkey);
         if (mprotect_err != 0) {
-          printf("pkey_mprotect failed: %s\n", strerror(errno));
+          printf("ia2_mprotect_with_tag failed: %s\n", strerror(errno));
           exit(-1);
         }
       }
       uint64_t after_untrusted_region_start = untrusted_stackptr_addr + 0x1000;
       uint64_t after_untrusted_region_len = end - after_untrusted_region_start;
       if (after_untrusted_region_len > 0) {
-        int mprotect_err = pkey_mprotect((void *)after_untrusted_region_start,
+        int mprotect_err = ia2_mprotect_with_tag((void *)after_untrusted_region_start,
                                          after_untrusted_region_len,
                                          PROT_READ | PROT_WRITE, search_args->pkey);
         if (mprotect_err != 0) {
-          printf("pkey_mprotect failed: %s\n", strerror(errno));
+          printf("ia2_mprotect_with_tag failed: %s\n", strerror(errno));
           exit(-1);
         }
       }
     } else {
       int mprotect_err =
-          pkey_mprotect((void *)start_round_down, len_round_up,
+          ia2_mprotect_with_tag((void *)start_round_down, len_round_up,
                         PROT_READ | PROT_WRITE, search_args->pkey);
       if (mprotect_err != 0) {
-        printf("pkey_mprotect failed: %s\n", strerror(errno));
+        printf("ia2_mprotect_with_tag failed: %s\n", strerror(errno));
         exit(-1);
       }
     }
@@ -270,12 +335,16 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
 
   struct PhdrSearchArgs *search_args = (struct PhdrSearchArgs *)data;
 
-  size_t cur_pkey = ia2_get_pkey();
+  size_t cur_pkey = ia2_get_tag();
+#if LIBIA2_X86_64
   if (cur_pkey != search_args->pkey) {
     fprintf(stderr, "Invalid pkey, expected %" PRId32 ", found %zu\n",
             search_args->pkey, cur_pkey);
     abort();
   }
+#elif LIBIA2_AARCH64
+#warning "libia2 missing tag validation in protect_pages"
+#endif
   Elf64_Addr address = (Elf64_Addr)search_args->address;
   bool extra = in_extra_libraries(info, search_args->extra_libraries);
   if (!in_loaded_segment(info, address) && !extra) {
@@ -389,7 +458,7 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
 
       if (cur_end > start) {
         // Probe each page to ensure that we can read from it. This ensures that
-        // we at least have read permission to the page before we pkey_mprotect
+        // we at least have read permission to the page before we ia2_mprotect_with_tag
         // it to exclude all other compartments from accessing the page. We only
         // use pkeys to grant both read and write permission together and rely
         // on normal page permissions to create read-only regions, so reading is
@@ -400,12 +469,12 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
           volatile char *cur = (volatile char *)start + i;
           (void)*cur;
         }
-        // TODO: Inline pkey_mprotect call and make sure the pkey is in a
+        // TODO: Inline ia2_mprotect_with_tag call and make sure the pkey is in a
         // register here so we can disallow calls to the libc function
-        int mprotect_err = pkey_mprotect((void *)start, cur_end - start,
+        int mprotect_err = ia2_mprotect_with_tag((void *)start, cur_end - start,
                                          access_flags, (int)cur_pkey);
         if (mprotect_err != 0) {
-          printf("pkey_mprotect failed: %s\n", strerror(errno));
+          printf("ia2_mprotect_with_tag failed: %s\n", strerror(errno));
           exit(-1);
         }
 

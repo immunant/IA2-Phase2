@@ -13,6 +13,7 @@ static void call_libc_exit(int status) {
 
 __attribute__((naked)) void exit(int status) {
   __asm__(
+#if LIBIA2_X86_64
       /* clang-format off */
       "pushq %%rbp\n"
       "movq %%rsp, %%rbp\n"
@@ -29,5 +30,9 @@ __attribute__((naked)) void exit(int status) {
       // Call the real exit function.
       "call call_libc_exit\n"
       /* clang-format on */
+#elif LIBIA2_AARCH64
+#warning "libia2 does not properly wrap `exit` yet"
+      "udf #0\n"
+#endif
       ::);
 }

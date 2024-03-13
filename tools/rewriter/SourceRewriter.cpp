@@ -1259,8 +1259,16 @@ int main(int argc, const char **argv) {
       }
     }
   }
+  const char *undef_insn_x86 = "ud2";
+  const char *undef_insn_arm = "udf #0";
+  const char *undef_insn;
+  if (Target == Arch::Aarch64) {
+    undef_insn = undef_insn_arm;
+  } else {
+    undef_insn = undef_insn_x86;
+  }
   header_out << "asm(\"__libia2_abort:\\n\"\n"
-             << "    \"ud2\");\n";
+             << "    \"" << undef_insn << "\");\n";
   header_out << static_wrappers.c_str();
 
   for (int i = 0; i < num_pkeys; i++) {

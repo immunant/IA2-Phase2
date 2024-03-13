@@ -145,6 +145,7 @@ asm(".macro mov_pkru_eax pkey\n"
 
 #define IA2_ROUND_DOWN(x, y) ((x) & ~((y)-1))
 
+#if LIBIA2_X86_64
 /* clang-format can't handle inline asm in macros */
 /* clang-format off */
 /* Allocate and protect the stack for this thread's i'th compartment. */
@@ -203,7 +204,12 @@ asm(".macro mov_pkru_eax pkey\n"
         : "rdi", "rcx", "rdx", "r10", "r11", "r12");                           \
   }
 /* clang-format on */
+#elif LIBIA2_AARCH64
+#warning "libia2 does not implement ALLOCATE_COMPARTMENT_STACK_AND_SETUP_TLS yet"
+#define ALLOCATE_COMPARTMENT_STACK_AND_SETUP_TLS(i)
+#endif
 
+#if LIBIA2_X86_64
 #define return_stackptr_if_compartment(compartment)                            \
   if (pkru == PKRU(compartment)) {                                             \
     register void *out asm("rax");                                             \
@@ -215,6 +221,10 @@ asm(".macro mov_pkru_eax pkey\n"
         :);                                                                    \
     return out;                                                                \
   }
+#elif LIBIA2_AARCH64
+#warning "libia2 does not implement return_stackptr_if_compartment yet"
+#define return_stackptr_if_compartment(compartment)
+#endif
 
 /* Pass to mmap to signal end of program init */
 #define IA2_FINISH_INIT_MAGIC 0x1a21face1a21faceULL
@@ -228,6 +238,12 @@ works as a reasonable signpost no-op. */
   void ia2_setup_destructors_##n(void);                                        \
   ia2_setup_destructors_##n();
 
+#if LIBIA2_AARCH64
+int ia2_mprotect_with_tag(void *addr, size_t len, int prot, int tag);
+#elif LIBIA2_X86_64
+/* We can't use an alias attribute since this points to a function outside the translation unit */
+#define ia2_mprotect_with_tag pkey_mprotect
+#endif
 char *allocate_stack(int i);
 void verify_tls_padding(void);
 void ensure_pkeys_allocated(int *n_to_alloc);

@@ -6,7 +6,7 @@
 /* Ensure that ia2_stackptr_0 is at least a page long to ensure that the */
 /* last page of the TLS segment of compartment 0 does not contain any */
 /* variables that will be used, because the last page-1 bytes may be */
-/* ia2_memkey_mprotected by the next compartment depending on sizes/alignment. */
+/* ia2_mprotect_with_taged by the next compartment depending on sizes/alignment. */
 extern __thread void *ia2_stackptr_0[PAGE_SIZE / sizeof(void *)]
     __attribute__((aligned(4096)));
 
@@ -20,7 +20,7 @@ char *allocate_stack(int i) {
     exit(-1);
   }
   if (i != 0) {
-    int res = pkey_mprotect(stack, STACK_SIZE, PROT_READ | PROT_WRITE, i);
+    int res = ia2_mprotect_with_tag(stack, STACK_SIZE, PROT_READ | PROT_WRITE, i);
     if (res == -1) {
       printf("Failed to mprotect stack %d (%s)\n", i, errno_s);
       exit(-1);

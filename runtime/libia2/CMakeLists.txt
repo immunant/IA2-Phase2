@@ -4,6 +4,13 @@ project(libia2)
 add_library(libia2 ia2.c init.c threads.c main.c exit.c)
 target_compile_options(libia2 PRIVATE "-fPIC")
 
+if (LIBIA2_AARCH64)
+    target_compile_definitions(libia2 PUBLIC LIBIA2_AARCH64=1)
+    target_compile_options(libia2 PUBLIC "-march=armv8.5-a+memtag" "-ffixed-x18")
+else()
+    target_compile_definitions(libia2 PUBLIC LIBIA2_X86_64=1)
+endif()
+
 if(LIBIA2_DEBUG)
     target_compile_definitions(libia2 PUBLIC LIBIA2_DEBUG=1)
 endif()

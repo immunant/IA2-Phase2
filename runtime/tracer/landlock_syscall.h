@@ -79,4 +79,4 @@ static inline int landlock_restrict_self(const int ruleset_fd,
 
 /* clang-format on */
 
-#define LANDLOCK_ABI_LAST 3
+#define LANDLOCK_ABI_LAST 4

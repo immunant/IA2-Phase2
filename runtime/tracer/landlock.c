@@ -64,6 +64,7 @@ int landlock_setup(struct landlock_ctx *ctx) {
             "provided by ABI version %d (instead of %d).\n",
             LANDLOCK_ABI_LAST, abi_ver);
     __attribute__((fallthrough));
+  case 3:
   case LANDLOCK_ABI_LAST:
     break;
   default:

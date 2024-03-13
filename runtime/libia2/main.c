@@ -8,6 +8,7 @@ static void *main_sp __attribute__((used)) = 0;
 /* XXX: Assumes main compartment has pkey 1. */
 __attribute__((naked)) int __wrap_main(int argc, char **argv) {
   __asm__(
+#if LIBIA2_X86_64
       /* clang-format off */
       "pushq %%rbp\n"
       "movq %%rsp, %%rbp\n"
@@ -39,5 +40,9 @@ __attribute__((naked)) int __wrap_main(int argc, char **argv) {
       "popq %%rbp\n"
       "ret\n"
       /* clang-format on */
+#elif LIBIA2_AARCH64
+#warning "libia2 does not properly wrap `main` yet"
+      "b __real_main\n"
+#endif
       ::);
 }

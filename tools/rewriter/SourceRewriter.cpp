@@ -48,6 +48,17 @@ typedef std::string OpaqueStruct;
 static llvm::cl::OptionCategory
     SourceRewriterCategory("Source rewriter options");
 
+static llvm::cl::opt<Arch> Target("arch",
+    llvm::cl::init(Arch::X86),
+    llvm::cl::Optional,
+    llvm::cl::cat(SourceRewriterCategory),
+    llvm::cl::desc("<aarch64 or x86>"),
+    llvm::cl::values(
+        clEnumValN(Arch::X86, "x86", "Generate code for compartmentalization on x86 using MPK"),
+        clEnumValN(Arch::Aarch64, "aarch64", "Generate code for compartmentalization on Aarch64 using MTE")
+    ));
+
+
 static llvm::cl::opt<std::string>
     RootDirectory("root-directory", llvm::cl::Required,
                   llvm::cl::cat(SourceRewriterCategory),
@@ -895,6 +906,9 @@ int main(int argc, const char **argv) {
       new_args.erase(std::remove_if(new_args.begin(), new_args.end(),
                                     [](std::string &x) { return x.starts_with("-DIA2_ENABLE="); }),
                      new_args.end());
+      if (Target == Arch::Aarch64) {
+        new_args.push_back("--target=arm64"s);
+      }
       new_args.push_back("-DIA2_ENABLE=0"s);
       return new_args;
   });
@@ -1089,7 +1103,7 @@ int main(int argc, const char **argv) {
                                  std::to_string(caller_pkey);
       std::string asm_wrapper =
           emit_asm_wrapper(c_abi_sig, wrapper_name, std::nullopt,
-                           WrapperKind::IndirectCallsite, caller_pkey, 0);
+                           WrapperKind::IndirectCallsite, caller_pkey, 0, Target);
       wrapper_out << "asm(\n";
       wrapper_out << asm_wrapper;
       wrapper_out << ");\n";
@@ -1152,7 +1166,7 @@ int main(int argc, const char **argv) {
       }
       std::string asm_wrapper =
           emit_asm_wrapper(c_abi_sig, wrapper_name, fn_name,
-                           WrapperKind::Direct, caller_pkey, target_pkey);
+                           WrapperKind::Direct, caller_pkey, target_pkey, Target);
       wrapper_out << "asm(\n";
       wrapper_out << asm_wrapper;
       wrapper_out << ");\n";
@@ -1175,7 +1189,7 @@ int main(int argc, const char **argv) {
     std::string wrapper_name = "__wrap_"s + fn_name;
     std::string asm_wrapper =
         emit_asm_wrapper(c_abi_sig, wrapper_name, fn_name, WrapperKind::Direct,
-                         0, compartment_pkey);
+                         0, compartment_pkey, Target);
     wrapper_out << "asm(\n";
     wrapper_out << asm_wrapper;
     wrapper_out << ");\n";
@@ -1204,7 +1218,7 @@ int main(int argc, const char **argv) {
       CAbiSignature c_abi_sig = fn_decl_pass.abi_signatures[fn_name];
       std::string asm_wrapper =
           emit_asm_wrapper(c_abi_sig, wrapper_name, fn_name,
-                           WrapperKind::Pointer, 0, target_pkey);
+                           WrapperKind::Pointer, 0, target_pkey, Target);
       wrapper_out << "asm(\n";
       wrapper_out << asm_wrapper;
       wrapper_out << ");\n";
@@ -1233,7 +1247,7 @@ int main(int argc, const char **argv) {
 
         std::string asm_wrapper = emit_asm_wrapper(
             c_abi_sig, wrapper_name, fn_name, WrapperKind::Pointer, 0,
-            target_pkey, true /* as_macro */);
+            target_pkey, Target, true /* as_macro */);
         static_wrappers += "#define IA2_DEFINE_WRAPPER_"s + fn_name + " \\\n";
         static_wrappers += "asm(\\\n";
         static_wrappers += asm_wrapper;

@@ -65,3 +65,34 @@ jobs:
           make
           popd
           popd
+  aarch64-wip-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+      - name: Test ARM build
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+                gcc-aarch64-linux-gnu \
+                g++-aarch64-linux-gnu \
+                clang-15 pkg-config \
+                cmake ninja-build \
+                llvm-15-dev libclang-15-dev \
+                zlib1g-dev \
+                qemu-user-static
+          LLVM_DIR=`llvm-config-15 --cmakedir`
+          Clang_DIR=`realpath $LLVM_DIR/../clang`
+          mkdir build
+          pushd build
+          cmake .. \
+            -DCMAKE_TOOLCHAIN_FILE=../cmake/aarch64-toolchain.cmake \
+            -DClang_DIR=$Clang_DIR                                  \
+            -DCLANG_EXE=`which clang-15`                            \
+            -DLLVM_DIR=$LLVM_DIR                                    \
+            -G Ninja
+          ninja -v minimal_no_criterion_main_wrapped
+          qemu-aarch64 -L /usr/aarch64-linux-gnu/ \
+            tests/minimal_no_criterion/minimal_no_criterion_main_wrapped
+          popd
+

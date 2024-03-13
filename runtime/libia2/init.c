@@ -43,8 +43,9 @@ void verify_tls_padding(void) {
   }
 }
 
-/* Ensure that all required pkeys are allocated. */
+/* Ensure that all required pkeys are allocated or no-op on aarch64. */
 void ensure_pkeys_allocated(int *n_to_alloc) {
+#if LIBIA2_X86_64
   if (*n_to_alloc != 0) {
     for (int pkey = 1; pkey <= *n_to_alloc; pkey++) {
       int allocated = pkey_alloc(0, 0);
@@ -61,6 +62,7 @@ void ensure_pkeys_allocated(int *n_to_alloc) {
     }
     *n_to_alloc = 0;
   }
+#endif
 }
 
 /* Forbid overwriting an existing stack. */

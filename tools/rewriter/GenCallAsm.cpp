@@ -387,6 +387,11 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
   add_asm_line(aw, ".type "s + wrapper_name + ", @function");
   add_asm_line(aw, wrapper_name + ":");
 
+  if (arch == Arch::Aarch64) {
+      if (target_name) {
+        add_asm_line(aw, "b "s + target_name.value());
+      }
+  } else {
   // Save the old frame pointer and set the frame pointer for the call gate
   add_asm_line(aw, "pushq %rbp");
   add_asm_line(aw, "movq %rsp, %rbp");
@@ -618,6 +623,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
   // Return to the caller
   add_comment_line(aw, "Return to the caller");
   add_asm_line(aw, "ret");
+  }
   // Set the symbol size
   add_asm_line(aw, ".size "s + wrapper_name + ", .-" + wrapper_name);
 

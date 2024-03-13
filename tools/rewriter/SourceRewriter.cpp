@@ -23,7 +23,6 @@
 #include <dirent.h>
 #include <fstream>
 #include <iostream>
-#include <llvm/ADT/Optional.h>
 #include <map>
 #include <optional>
 #include <string>
@@ -138,7 +137,7 @@ static bool ignore_file(const Filename &filename) {
 }
 
 static bool ignore_function(const clang::Decl &decl,
-                            const llvm::Optional<clang::SourceLocation> &loc,
+                            const std::optional<clang::SourceLocation> &loc,
                             const clang::SourceManager &sm) {
   if (const auto *named_decl = dyn_cast<clang::NamedDecl>(&decl)) {
     if (named_decl->getNameAsString().starts_with(

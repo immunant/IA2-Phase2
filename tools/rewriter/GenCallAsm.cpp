@@ -284,7 +284,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
                              const std::string &wrapper_name,
                              const std::optional<std::string> target_name,
                              WrapperKind kind, int caller_pkey, int target_pkey,
-                             bool as_macro) {
+                             Arch arch, bool as_macro) {
 
   // Small sanity check
   assert(caller_pkey != target_pkey);

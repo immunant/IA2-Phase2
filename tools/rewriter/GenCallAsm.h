@@ -13,6 +13,10 @@ enum class WrapperKind {
   IndirectCallsite,
 };
 
+enum class Arch {
+    Aarch64, X86
+};
+
 // Generates a wrapper for a function named \p name with the signature \p sig.
 // The WrapperKind parameter \p kind determines the type of call which may
 // affect the order of operations and the layout of the wrapper stack frame.
@@ -28,4 +32,4 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
                              const std::string &wrapper_name,
                              const std::optional<std::string> target_name,
                              WrapperKind kind, int caller_pkey, int target_pkey,
-                             bool as_macro = false);
+                             Arch arch, bool as_macro = false);

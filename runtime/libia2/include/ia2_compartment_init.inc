@@ -66,6 +66,7 @@ __attribute__((constructor)) static void COMPARTMENT_IDENT(init_pkey)() {
       .shared_sections = shared_sections,
   };
 
+#if LIBIA2_X86_64
   __asm__ volatile(
       /* Set PKRU to the compartment's value */
       "xorl %%ecx, %%ecx\n"
@@ -75,7 +76,13 @@ __attribute__((constructor)) static void COMPARTMENT_IDENT(init_pkey)() {
       :
       :
       : "rax", "rcx", "rdx");
+#elif LIBIA2_AARCH64
+#warning "libia2 may use incorrect memory permissions in init_pkey"
+#endif
+
   dl_iterate_phdr(protect_pages, &args);
+
+#if LIBIA2_X86_64
   __asm__ volatile(
       /* Set PKRU to fully untrusted (no access) */
       "xorl %%ecx, %%ecx\n"
@@ -85,6 +92,9 @@ __attribute__((constructor)) static void COMPARTMENT_IDENT(init_pkey)() {
       :
       :
       : "rax", "rcx", "rdx");
+#elif LIBIA2_AARCH64
+#warning "libia2 may use incorrect memory permissions in init_pkey"
+#endif
 
   /* Check that we found all extra libraries */
   const char *cur_pos = args.extra_libraries;

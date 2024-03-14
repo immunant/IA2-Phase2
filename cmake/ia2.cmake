@@ -94,8 +94,8 @@ function(pad_tls_library INPUT OUTPUT)
   add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/lib${OUTPUT}.so
     COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${INPUT}> ${CMAKE_CURRENT_BINARY_DIR}/lib${OUTPUT}.so
-    COMMAND pad-tls --allow-no-tls ${CMAKE_CURRENT_BINARY_DIR}/lib${OUTPUT}.so
-    DEPENDS pad-tls $<TARGET_FILE:${INPUT}>
+    COMMAND ${CMAKE_BINARY_DIR}/tools/pad-tls/pad-tls --allow-no-tls ${CMAKE_CURRENT_BINARY_DIR}/lib${OUTPUT}.so
+    DEPENDS tools $<TARGET_FILE:${INPUT}>
     COMMENT "Padding TLS segment of wrapped library"
   )
   add_custom_target(${OUTPUT}-padding DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/lib${OUTPUT}.so")
@@ -246,7 +246,7 @@ function(add_ia2_call_gates NAME)
 
   add_custom_command(
     OUTPUT ${CALL_GATE_SRC} ${CALL_GATE_HDR} ${LD_ARGS_FILES} ${REWRITTEN_SOURCES}
-    COMMAND ia2-rewriter
+    COMMAND ${CMAKE_BINARY_DIR}/tools/rewriter/ia2-rewriter
         --output-prefix=${REWRITER_OUTPUT_PREFIX}
         --root-directory=${CMAKE_CURRENT_SOURCE_DIR}
         --output-directory=${CMAKE_CURRENT_BINARY_DIR}
@@ -257,7 +257,7 @@ function(add_ia2_call_gates NAME)
         ${ARG_EXTRA_REWRITER_ARGS}
         ${SOURCES}
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    DEPENDS ia2-rewriter ${SOURCES}
+    DEPENDS tools ${SOURCES}
     VERBATIM
   )
 

@@ -20,7 +20,7 @@ configure_lit_site_cfg(
   ${CMAKE_CURRENT_SOURCE_DIR}/lit.cfg.py
   )
 
-set(IA2_TEST_DEPENDS ia2-rewriter)
+set(IA2_TEST_DEPENDS tools)
 
 add_lit_testsuite(check-ia2 "Running the IA2 tests"
   ${CMAKE_CURRENT_BINARY_DIR}

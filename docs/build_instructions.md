@@ -1,27 +1,38 @@
 # Setup
 
-Ubuntu 20.04 is used for testing. Other Linux distributions may or may not work. Adjust the commands below accordingly.
+Ubuntu 22.04 is used for testing. Other Linux distributions may or may not work.
+Adjust the commands below accordingly.
 
 ## Install the package prerequisites.
 
 ```
-sudo apt install -y libusb-1.0-0-dev libclang-dev llvm-dev \
-            ninja-build zlib1g-dev python3-pip cmake \
-            libavformat-dev libavutil-dev pcregrep patchelf
+# This includes dependencies for tools, testing and examples
+sudo apt install -y g++ pkg-config clang libclang-dev llvm-dev \
+                    ninja-build zlib1g-dev python3-pip cmake   \
+                    libavformat-dev libavutil-dev              \
+                    libswscale-dev libsdl2-dev                 \
+                    libusb-1.0-0-dev libcriterion-dev
+
+# Install LLVM's LIT tool
 pip install lit
+
+# Get rustc nightly. See https://rustup.rs for alternative install methods
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+# May need to log out and back in to the shell to see rustup in $PATH
 rustup install nightly
 ```
 
 ## Configure with CMake
 
-*Note*: Adjust paths to your version of Clang/LLVM or using `llvm-config --cmakedir`
+*Note*: Adjust paths to your version of Clang/LLVM or use `llvm-config --cmakedir`.
+We currently test with LLVM 16 and older versions of libclang may or may not work.
 
 ```
 mkdir build && pushd build
-cmake ..                                        \
-            -DClang_DIR=/usr/lib/cmake/clang-15 \
-            -DLLVM_DIR=/usr/lib/cmake/llvm-15   \
-            -DLLVM_EXTERNAL_LIT=`which lit`     \
+cmake ..                                                 \
+            -DClang_DIR`llvm-config --cmakedir`/../clang \
+            -DLLVM_DIR=`llvm-config --cmakedir`          \
+            -DLLVM_EXTERNAL_LIT=`which lit`              \
             -G Ninja
 ```
 
@@ -40,4 +51,4 @@ cmake ..                                        \
 - `partition-alloc` - builds the compartment-aware shim for Chromium's PartitionAlloc allocator.
 - `ia2-sandbox` - builds the syscall tracer.
 
-Tests are enumerated in `tests/CMakeLists.txt`. To build a specific test use `$TEST_main_wrapped` as the target. See the [`directory structure doc`](docs/directory_structure.md) for an overview of the rest of the repo's contents.
+Tests are enumerated in `tests/CMakeLists.txt`. To build a specific test use `$TEST_main_wrapped` as the target. See the [`directory structure doc`](directory_structure.md) for an overview of the rest of the repo's contents.

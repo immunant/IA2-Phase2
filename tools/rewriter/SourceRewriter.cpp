@@ -907,7 +907,7 @@ int main(int argc, const char **argv) {
                                     [](std::string &x) { return x.starts_with("-DIA2_ENABLE="); }),
                      new_args.end());
       if (Target == Arch::Aarch64) {
-        new_args.push_back("--target=arm64"s);
+        new_args.push_back("--target=aarch64-linux-gnu"s);
       }
       new_args.push_back("-DIA2_ENABLE=0"s);
       return new_args;

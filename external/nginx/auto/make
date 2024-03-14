@@ -316,7 +316,7 @@ binary:	$NGX_OBJS${ngx_dirsep}nginx$ngx_binext
 
 \$(IA2_CALLGATES_TARGET):
 	\$(CC) -shared -fPIC -Wl,-z,now $NGX_OBJS/../wrapper.c \
-		-I \$(LIBIA2_DIR)/include -o \$(IA2_CALLGATES_TARGET)
+		-I \$(LIBIA2_DIR)/include -DLIBIA2_X86_64=1 -o \$(IA2_CALLGATES_TARGET)
 
 $NGX_OBJS/ngx_rtmp_module_tls_padded.so: $NGX_OBJS/ngx_rtmp_module.so
 	cp $NGX_OBJS/ngx_rtmp_module.so $NGX_OBJS/ngx_rtmp_module_tls_padded.so

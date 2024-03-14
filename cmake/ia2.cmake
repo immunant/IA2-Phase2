@@ -241,6 +241,12 @@ function(add_ia2_call_gates NAME)
         endif()
       endif()
 
+      # FIXME: This shouldn't be necessary but it seems aarch64-gcc < v13 might
+      # default to --as-needed so this is needed to fix some runtime ld.so lookup
+      # error
+      if (LIBIA2_AARCH64)
+          target_link_options(${target} PRIVATE "-Wl,--no-as-needed")
+      endif()
       target_link_libraries(${target} PRIVATE ${CALL_GATE_TARGET})
 
       if("${target_pkey}" GREATER "0")

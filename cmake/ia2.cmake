@@ -1,3 +1,10 @@
+if(LIBIA2_AARCH64)
+    set(UBSAN_FLAG "")
+    set(PARTITION_ALLOC "")
+else()
+    set(UBSAN_FLAG "-fsanitize=undefined")
+    set(PARTITION_ALLOC "partition-alloc")
+endif()
 # Creates a compartmentalized IA2 target
 #
 # add_ia2_compartment(<name> <EXECUTABLE|LIBRARY> PKEY <n> SOURCES <src>...
@@ -53,11 +60,11 @@ function(add_ia2_compartment NAME TYPE)
 
   if (ARG_ENABLE_UBSAN)
     # UBSAN requires passing this as both a compiler and linker flag
-    target_compile_options(${NAME} PRIVATE "-fsanitize=undefined")
-    target_link_options(${NAME} PRIVATE "-fsanitize=undefined")
+    target_compile_options(${NAME} PRIVATE ${UBSAN_FLAG})
+    target_link_options(${NAME} PRIVATE ${UBSAN_FLAG})
   endif()
 
-  target_link_libraries(${NAME} PRIVATE dl libia2 partition-alloc)
+  target_link_libraries(${NAME} PRIVATE dl libia2 ${PARTITION_ALLOC})
   target_link_options(${NAME} PRIVATE "-Wl,--export-dynamic")
 
   target_link_libraries(${NAME} PRIVATE ${ARG_LIBRARIES})

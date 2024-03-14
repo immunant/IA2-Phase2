@@ -108,6 +108,10 @@ function(define_test)
         set(DEFINE_TEST_LIBS ${TEST_NAME}_lib)
     endif()
 
+    if (LIBIA2_AARCH64)
+        set(DEFINE_TEST_WITHOUT_SANDBOX TRUE)
+    endif()
+
 #    if(DEFINED DEFINE_TEST_INCLUDE_DIR)
 #        set(RELATIVE_INCLUDE_DIR ${DEFINE_TEST_INCLUDE_DIR})
 #    else()

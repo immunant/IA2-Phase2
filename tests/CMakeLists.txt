@@ -2,6 +2,7 @@ include(CTest)
 
 enable_testing()
 
+include("../cmake/define-ia2-wrapper.cmake")
 include("../cmake/define-test.cmake")
 
 find_package(LLVM REQUIRED CONFIG)

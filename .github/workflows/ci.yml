@@ -92,7 +92,7 @@ jobs:
             -DLLVM_DIR=$LLVM_DIR                                    \
             -G Ninja
           ninja -v minimal_no_criterion_main_wrapped
-          qemu-aarch64 -L /usr/aarch64-linux-gnu/ \
+          qemu-aarch64-static -L /usr/aarch64-linux-gnu/ \
             tests/minimal_no_criterion/minimal_no_criterion_main_wrapped
           popd
 

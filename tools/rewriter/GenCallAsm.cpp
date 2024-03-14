@@ -338,18 +338,25 @@ static void emit_save_regs(AsmWriter &aw, uint32_t caller_pkey, uint32_t target_
   }
 }
 
-static void emit_intermediate_pkru(AsmWriter &aw, uint32_t caller_pkey, uint32_t target_pkey, Arch arch) {
+static void emit_intermediate_pkru(AsmWriter &aw, uint32_t caller_pkey, uint32_t target_pkey, bool returning, Arch arch) {
   if (arch == Arch::X86) {
-    uint32_t caller_pkru = ~((0b11 << (2 * caller_pkey)) | 0b11);
-    add_raw_line(aw, llvm::formatv("ASSERT_PKRU({0:x8}) \"\\n\"", caller_pkru));
     // Change pkru to the intermediate value before copying args
     add_comment_line(aw, "Set PKRU to the intermediate value to move arguments");
     // wrpkru requires zeroing rcx and rdx, but they may have arguments so use r10
-    // and r11 as scratch registers
-    add_asm_line(aw, "movq %rcx, %r10");
+    // and r11 as scratch registers.
+    // When we're returning from the callee, rax may have a return value so we save that instead of rcx.
+    if (!returning) {
+      add_asm_line(aw, "movq %rcx, %r10");
+    } else {
+      add_asm_line(aw, "movq %rax, %r10");
+    }
     add_asm_line(aw, "movq %rdx, %r11");
     emit_mixed_wrpkru(aw, caller_pkey, target_pkey);
-    add_asm_line(aw, "movq %r10, %rcx");
+    if (!returning) {
+      add_asm_line(aw, "movq %r10, %rcx");
+    } else {
+      add_asm_line(aw, "movq %r10, %rax");
+    }
     add_asm_line(aw, "movq %r11, %rdx");
   } else if (arch == Arch::Aarch64) {
     // TODO ARM stack switching
@@ -478,25 +485,6 @@ static void emit_set_pkru(AsmWriter &aw, uint32_t target_pkey, Arch arch) {
   } else if (arch == Arch::Aarch64) {
     // TODO ARM set PKRU
     llvm::errs() << "TODO set PKRU not implemented on ARM\n";
-  }
-}
-
-static void emit_return_intermediate_pkru(AsmWriter &aw, uint32_t caller_pkey, uint32_t target_pkey, Arch arch) {
-  if (arch == Arch::X86) {
-    // After calling the wrapped function, rax and rdx may contain a return value
-    // so use r10 and r11 as scratch registers
-    add_comment_line(aw,
-                     "Set PKRU to the intermediate value to move return value");
-    add_asm_line(aw, "movq %rax, %r10");
-    add_asm_line(aw, "movq %rdx, %r11");
-    // Change pkru to the intermediate value. This uses rax, r10 and r11 as
-    // scratch registers.
-    emit_mixed_wrpkru(aw, caller_pkey, target_pkey);
-    add_asm_line(aw, "movq %r10, %rax");
-    add_asm_line(aw, "movq %r11, %rdx");
-  } else if (arch == Arch::Aarch64) {
-    // TODO ARM return intermediate PKRU
-    llvm::errs() << "TODO intermediate PKRU for return value not implemented on ARM\n";
   }
 }
 
@@ -731,7 +719,9 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
 
   emit_save_regs(aw, caller_pkey, target_pkey, arch);
 
-  emit_intermediate_pkru(aw, caller_pkey, target_pkey, arch);
+  add_raw_line(aw, llvm::formatv("ASSERT_PKRU({0:x8}) \"\\n\"", ~((0b11 << (2 * caller_pkey)) | 0b11)));
+
+  emit_intermediate_pkru(aw, caller_pkey, target_pkey, false, arch);
 
   emit_switch_stacks(aw, caller_pkey, target_pkey, arch);
 
@@ -743,7 +733,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
 
   emit_fn_call(target_name, kind, aw, arch);
 
-  emit_return_intermediate_pkru(aw, caller_pkey, target_pkey, arch);
+  emit_intermediate_pkru(aw, caller_pkey, target_pkey, true, arch);
 
   emit_free_stack_space(aw, stack_arg_size, stack_alignment, arch);
 

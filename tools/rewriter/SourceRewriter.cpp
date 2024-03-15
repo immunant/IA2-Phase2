@@ -49,15 +49,13 @@ static llvm::cl::OptionCategory
     SourceRewriterCategory("Source rewriter options");
 
 static llvm::cl::opt<Arch> Target("arch",
-    llvm::cl::init(Arch::X86),
-    llvm::cl::Optional,
-    llvm::cl::cat(SourceRewriterCategory),
-    llvm::cl::desc("<aarch64 or x86>"),
-    llvm::cl::values(
-        clEnumValN(Arch::X86, "x86", "Generate code for compartmentalization on x86 using MPK"),
-        clEnumValN(Arch::Aarch64, "aarch64", "Generate code for compartmentalization on Aarch64 using MTE")
-    ));
-
+                                  llvm::cl::init(Arch::X86),
+                                  llvm::cl::Optional,
+                                  llvm::cl::cat(SourceRewriterCategory),
+                                  llvm::cl::desc("<aarch64 or x86>"),
+                                  llvm::cl::values(
+                                      clEnumValN(Arch::X86, "x86", "Generate code for compartmentalization on x86 using MPK"),
+                                      clEnumValN(Arch::Aarch64, "aarch64", "Generate code for compartmentalization on Aarch64 using MTE")));
 
 static llvm::cl::opt<std::string>
     RootDirectory("root-directory", llvm::cl::Required,
@@ -74,7 +72,6 @@ static llvm::cl::opt<std::string>
                  llvm::cl::cat(SourceRewriterCategory),
                  llvm::cl::desc("<prefix for output files>"));
 
-
 // Map each translation unit's filename to its pkey.
 static std::map<Filename, Pkey> file_pkeys;
 
@@ -84,12 +81,12 @@ static Filename get_expansion_filename(const clang::SourceLocation loc,
                                        const clang::SourceManager &sm) {
   llvm::SmallString<256> s(sm.getFilename(sm.getExpansionLoc(loc)));
   if (llvm::sys::path::is_relative(s) && s != "") {
-      try {
-        return rel_path_to_full.at(s.str().str());
-      } catch(std::out_of_range const &exc) {
-          llvm::errs() << "get_filename failed to find full path for " << s.str().str() << '\n';
-          abort();
-      }
+    try {
+      return rel_path_to_full.at(s.str().str());
+    } catch (std::out_of_range const &exc) {
+      llvm::errs() << "get_filename failed to find full path for " << s.str().str() << '\n';
+      abort();
+    }
   }
   llvm::sys::path::replace_path_prefix(s, RootDirectory, OutputDirectory);
   return s.str().str();
@@ -99,12 +96,12 @@ static Filename get_filename(const clang::SourceLocation loc,
                              const clang::SourceManager &sm) {
   llvm::SmallString<256> s(sm.getFilename(sm.getSpellingLoc(loc)));
   if (llvm::sys::path::is_relative(s) && s != "") {
-      try {
-        return rel_path_to_full.at(s.str().str());
-      } catch(std::out_of_range const &exc) {
-          llvm::errs() << "get_filename failed to find full path for " << s.str().str() << '\n';
-          abort();
-      }
+    try {
+      return rel_path_to_full.at(s.str().str());
+    } catch (std::out_of_range const &exc) {
+      llvm::errs() << "get_filename failed to find full path for " << s.str().str() << '\n';
+      abort();
+    }
   }
   llvm::sys::path::replace_path_prefix(s, RootDirectory, OutputDirectory);
   return s.str().str();
@@ -154,7 +151,7 @@ static bool ignore_function(const clang::Decl &decl,
   if (const auto *named_decl = dyn_cast<clang::NamedDecl>(&decl)) {
     if (named_decl->getNameAsString().starts_with(
             "ia2_compartment_destructor")) {
-          return false;
+      return false;
     }
   }
 
@@ -434,7 +431,8 @@ public:
     // Matches function calls excluding direct calls. Only the callee nodes are
     // bound to "fnPtrCall"
     StatementMatcher fn_ptr_call = callExpr(callee(
-        expr(unless(ignoringImplicit(declared_function))).bind("fnPtrExpr"))).bind("fnPtrCall");
+                                                expr(unless(ignoringImplicit(declared_function))).bind("fnPtrExpr")))
+                                       .bind("fnPtrCall");
 
     refactorer.addMatcher(fn_ptr_call, this);
   }
@@ -600,7 +598,7 @@ public:
     // wrappers. We modify the PKRU register directly in the signal handler and
     // can't assume that the PKRU starts with pkey 0.
     if (fn_name.starts_with("ia2_sighandler_")) {
-        return;
+      return;
     }
     std::string new_expr = "IA2_FN("s + fn_name + ")";
 
@@ -838,7 +836,7 @@ public:
     if (fn_node->isVariadic()) {
       static std::set<Function> variadic_warnings_printed = {};
       if (variadic_warnings_printed.contains(fn_name)) {
-          return;
+        return;
       }
       variadic_warnings_printed.insert(fn_name);
       llvm::errs()
@@ -880,7 +878,7 @@ static void create_ld_file(llvm::raw_fd_ostream *file[MAX_PKEYS], int i) {
 }
 
 static void write_to_ld_file(llvm::raw_fd_ostream *file[MAX_PKEYS], int i,
-                      const std::string &contents) {
+                             const std::string &contents) {
   create_ld_file(file, i);
   *file[i] << contents;
 }
@@ -902,16 +900,16 @@ int main(int argc, const char **argv) {
   RefactoringTool tool(options_parser.getCompilations(),
                        options_parser.getSourcePathList());
   tool.appendArgumentsAdjuster([&](const CommandLineArguments &args, llvm::StringRef filename) {
-      CommandLineArguments new_args(args);
-      // Try to remove existing definition from command line to avoid warnings.
-      new_args.erase(std::remove_if(new_args.begin(), new_args.end(),
-                                    [](std::string &x) { return x.starts_with("-DIA2_ENABLE="); }),
-                     new_args.end());
-      if (Target == Arch::Aarch64) {
-        new_args.push_back("--target=aarch64-linux-gnu"s);
-      }
-      new_args.push_back("-DIA2_ENABLE=0"s);
-      return new_args;
+    CommandLineArguments new_args(args);
+    // Try to remove existing definition from command line to avoid warnings.
+    new_args.erase(std::remove_if(new_args.begin(), new_args.end(),
+                                  [](std::string &x) { return x.starts_with("-DIA2_ENABLE="); }),
+                   new_args.end());
+    new_args.push_back("-DIA2_ENABLE=0"s);
+    if (Target == Arch::Aarch64) {
+      new_args.push_back("--target=aarch64-linux-gnu"s);
+    }
+    return new_args;
   });
   CompilationDatabase &comp_db = options_parser.getCompilations();
 
@@ -928,25 +926,25 @@ int main(int argc, const char **argv) {
       llvm::SmallString<256> output_file(input_file);
       bool needs_copy = false;
       if (llvm::sys::path::is_relative(input_file)) {
-          // FileManager::makeAbsolutePath just prepends the working directory
-          // which is not what we want here. Luckily we only have to
-          // canonicalize paths once then we can reuse the same results.
+        // FileManager::makeAbsolutePath just prepends the working directory
+        // which is not what we want here. Luckily we only have to
+        // canonicalize paths once then we can reuse the same results.
 
-          auto main_c_file = ast->getMainFileName().str();
-          auto cc_cmd = comp_db.getCompileCommands(main_c_file);
+        auto main_c_file = ast->getMainFileName().str();
+        auto cc_cmd = comp_db.getCompileCommands(main_c_file);
 
-          assert(cc_cmd.size() == 1);
+        assert(cc_cmd.size() == 1);
 
-          auto rel_path = file_it->getFirst()->getName().str();
-          input_file = cc_cmd[0].Directory;
-          input_file.append("/" + rel_path);
-          output_file = input_file;
-          llvm::sys::path::replace_path_prefix(output_file, RootDirectory, OutputDirectory);
+        auto rel_path = file_it->getFirst()->getName().str();
+        input_file = cc_cmd[0].Directory;
+        input_file.append("/" + rel_path);
+        output_file = input_file;
+        llvm::sys::path::replace_path_prefix(output_file, RootDirectory, OutputDirectory);
 
-          rel_path_to_full[rel_path] = output_file.str().str();
-          needs_copy = true;
+        rel_path_to_full[rel_path] = output_file.str().str();
+        needs_copy = true;
       } else {
-          needs_copy = llvm::sys::path::replace_path_prefix(output_file, RootDirectory, OutputDirectory);
+        needs_copy = llvm::sys::path::replace_path_prefix(output_file, RootDirectory, OutputDirectory);
       }
       if (needs_copy && !copied_files.contains(input_file)) {
         copied_files.insert(input_file);
@@ -963,7 +961,7 @@ int main(int argc, const char **argv) {
              subdir_it++) {
           int mkdir_rc = mkdir(subdir_it->c_str(), 0766);
           if (mkdir_rc != 0) {
-              llvm::errs() << "Failed to create dir " << subdir_it->c_str() << ": " << strerror(errno) << '\n';
+            llvm::errs() << "Failed to create dir " << subdir_it->c_str() << ": " << strerror(errno) << '\n';
           }
           assert(mkdir_rc == 0);
         }
@@ -1070,7 +1068,7 @@ int main(int argc, const char **argv) {
 
   auto rc = tool.runAndSave(newFrontendActionFactory(&refactorer).get());
   if (rc != 0) {
-      return rc;
+    return rc;
   }
 
   header_out << "#include <ia2.h>\n";
@@ -1184,8 +1182,8 @@ int main(int argc, const char **argv) {
     try {
       c_abi_sig = fn_decl_pass.abi_signatures.at(fn_name);
     } catch (std::out_of_range const &exc) {
-      llvm::errs() << "Could not find ia2_compartment_destructor_" << compartment_pkey << '\n' <<
-        "Make sure to #include ia2_compartment_init.inc for this compartment\n";
+      llvm::errs() << "Could not find ia2_compartment_destructor_" << compartment_pkey << '\n'
+                   << "Make sure to #include ia2_compartment_init.inc for this compartment\n";
       abort();
     }
     std::string wrapper_name = "__wrap_"s + fn_name;

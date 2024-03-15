@@ -883,40 +883,8 @@ static void write_to_ld_file(llvm::raw_fd_ostream *file[MAX_PKEYS], int i,
   *file[i] << contents;
 }
 
-int main(int argc, const char **argv) {
-#if LLVM_VERSION_MAJOR >= 13
-  auto parser_ptr =
-      CommonOptionsParser::create(argc, argv, SourceRewriterCategory);
-  if (!parser_ptr) {
-    auto error = parser_ptr.takeError();
-    llvm::errs() << error;
-    return 1;
-  }
-  CommonOptionsParser &options_parser = *parser_ptr;
-#else
-  CommonOptionsParser options_parser(argc, argv, SourceRewriterCategory);
-#endif
-
-  RefactoringTool tool(options_parser.getCompilations(),
-                       options_parser.getSourcePathList());
-  tool.appendArgumentsAdjuster([&](const CommandLineArguments &args, llvm::StringRef filename) {
-    CommandLineArguments new_args(args);
-    // Try to remove existing definition from command line to avoid warnings.
-    new_args.erase(std::remove_if(new_args.begin(), new_args.end(),
-                                  [](std::string &x) { return x.starts_with("-DIA2_ENABLE="); }),
-                   new_args.end());
-    new_args.push_back("-DIA2_ENABLE=0"s);
-    if (Target == Arch::Aarch64) {
-      new_args.push_back("--target=aarch64-linux-gnu"s);
-    }
-    return new_args;
-  });
-  CompilationDatabase &comp_db = options_parser.getCompilations();
-
+std::set<llvm::SmallString<256>> copy_files(std::vector<std::unique_ptr<clang::ASTUnit>> &asts, const CompilationDatabase &comp_db) {
   std::set<llvm::SmallString<256>> copied_files;
-  auto asts = std::vector<std::unique_ptr<clang::ASTUnit>>();
-  auto sources_full_paths = options_parser.getSourcePathList();
-  tool.buildASTs(asts);
   for (auto &ast : asts) {
     auto &sm = ast->getSourceManager();
     for (auto file_it = sm.fileinfo_begin(); file_it != sm.fileinfo_end();
@@ -972,6 +940,41 @@ int main(int argc, const char **argv) {
       }
     }
   }
+  return copied_files;
+}
+
+int main(int argc, const char **argv) {
+#if LLVM_VERSION_MAJOR >= 13
+  auto parser_ptr =
+      CommonOptionsParser::create(argc, argv, SourceRewriterCategory);
+  if (!parser_ptr) {
+    auto error = parser_ptr.takeError();
+    llvm::errs() << error;
+    return 1;
+  }
+  CommonOptionsParser &options_parser = *parser_ptr;
+#else
+  CommonOptionsParser options_parser(argc, argv, SourceRewriterCategory);
+#endif
+
+  RefactoringTool tool(options_parser.getCompilations(),
+                       options_parser.getSourcePathList());
+  tool.appendArgumentsAdjuster([&](const CommandLineArguments &args, llvm::StringRef filename) {
+    CommandLineArguments new_args(args);
+    // Try to remove existing definition from command line to avoid warnings.
+    new_args.erase(std::remove_if(new_args.begin(), new_args.end(),
+                                  [](std::string &x) { return x.starts_with("-DIA2_ENABLE="); }),
+                   new_args.end());
+    new_args.push_back("-DIA2_ENABLE=0"s);
+    if (Target == Arch::Aarch64) {
+      new_args.push_back("--target=aarch64-linux-gnu"s);
+    }
+    return new_args;
+  });
+  CompilationDatabase &comp_db = options_parser.getCompilations();
+  auto asts = std::vector<std::unique_ptr<clang::ASTUnit>>();
+  tool.buildASTs(asts);
+  auto copied_files = copy_files(asts, comp_db);
 
   std::set<Pkey> pkeys_used;
   for (auto s : options_parser.getSourcePathList()) {

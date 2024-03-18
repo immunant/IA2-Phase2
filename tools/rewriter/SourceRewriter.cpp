@@ -883,7 +883,14 @@ static void write_to_ld_file(llvm::raw_fd_ostream *file[MAX_PKEYS], int i,
   *file[i] << contents;
 }
 
-std::set<llvm::SmallString<256>> copy_files(std::vector<std::unique_ptr<clang::ASTUnit>> &asts, const CompilationDatabase &comp_db) {
+/* Copy files to the output directory.
+ * Populates `rel_path_to_full` which is used by `get_expansion_filename` and
+ * `get_filename`.
+ */
+std::set<llvm::SmallString<256>> copy_files(std::vector<std::unique_ptr<clang::ASTUnit>> &asts,
+                                            const CompilationDatabase &comp_db,
+                                            const std::string &input_root,
+                                            const std::string &output_dir) {
   std::set<llvm::SmallString<256>> copied_files;
   for (auto &ast : asts) {
     auto &sm = ast->getSourceManager();
@@ -907,12 +914,12 @@ std::set<llvm::SmallString<256>> copy_files(std::vector<std::unique_ptr<clang::A
         input_file = cc_cmd[0].Directory;
         input_file.append("/" + rel_path);
         output_file = input_file;
-        llvm::sys::path::replace_path_prefix(output_file, RootDirectory, OutputDirectory);
+        llvm::sys::path::replace_path_prefix(output_file, input_root, output_dir);
 
         rel_path_to_full[rel_path] = output_file.str().str();
         needs_copy = true;
       } else {
-        needs_copy = llvm::sys::path::replace_path_prefix(output_file, RootDirectory, OutputDirectory);
+        needs_copy = llvm::sys::path::replace_path_prefix(output_file, input_root, output_dir);
       }
       if (needs_copy && !copied_files.contains(input_file)) {
         copied_files.insert(input_file);
@@ -972,9 +979,11 @@ int main(int argc, const char **argv) {
     return new_args;
   });
   CompilationDatabase &comp_db = options_parser.getCompilations();
+
+  // Copy files to output directory before modifying them in place
   auto asts = std::vector<std::unique_ptr<clang::ASTUnit>>();
   tool.buildASTs(asts);
-  auto copied_files = copy_files(asts, comp_db);
+  auto copied_files = copy_files(asts, comp_db, RootDirectory, OutputDirectory);
 
   std::set<Pkey> pkeys_used;
   for (auto s : options_parser.getSourcePathList()) {

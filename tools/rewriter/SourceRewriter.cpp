@@ -1029,15 +1029,20 @@ int main(int argc, const char **argv) {
 
   RefactoringTool tool(options_parser.getCompilations(),
                        options_parser.getSourcePathList());
+
+  // Ensure that exactly one -DIA2_ENABLE is present, defined to zero, so we do
+  // not try to rewrite our own implementation details
   tool.appendArgumentsAdjuster([&](const CommandLineArguments &args, llvm::StringRef filename) {
     CommandLineArguments new_args(args);
     // Try to remove existing definition from command line to avoid warnings.
     new_args.erase(std::remove_if(new_args.begin(), new_args.end(),
                                   [](std::string &x) { return x.starts_with("-DIA2_ENABLE="); }),
                    new_args.end());
-    new_args.push_back("-DIA2_ENABLE=0"s);
+    // Insert prior to the "end of flags" double hyphen; if not present, append
+    auto double_hyphen_pos = std::find(new_args.begin(), new_args.end(), "--");
+    new_args.insert(double_hyphen_pos, "-DIA2_ENABLE=0"s);
     if (Target == Arch::Aarch64) {
-      new_args.push_back("--target=aarch64-linux-gnu"s);
+      new_args.insert(double_hyphen_pos, "--target=aarch64-linux-gnu"s);
     }
     return new_args;
   });

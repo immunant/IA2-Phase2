@@ -126,7 +126,7 @@ Running the source rewriter produces a `.c` which will be used to build the
 callgate shim library. To compile it use
 
 ```
-$CC -shared -fPIC -Wl,-z,now callgate_wrapper.c -I /path/to/libia2/include -o libcallgates.so
+$CC -shared -fPIC -Wl,-z,now callgate_wrapper.c -I /path/to/ia2/runtime/libia2/include -o libcallgates.so
 ```
 
 ## Compiling and linking the program
@@ -145,11 +145,11 @@ are also required
 -pthread
 -Wl,-z,now
 -Wl,-z,relro
--Wl,-T/path/to/libia2/padding.ld
+-Wl,-T/path/to/ia2/runtime/libia2/padding.ld
 
 # For the DSO that initializes the runtime
 -Wl,--wrap=main
--Wl,--dynamic-list=/path/to/libia2/dynsym.syms
+-Wl,--dynamic-list=/path/to/ia2/runtime/libia2/dynsym.syms
 -Wl,--export-dynamic
 ```
 

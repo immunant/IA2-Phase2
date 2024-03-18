@@ -950,6 +950,69 @@ std::set<llvm::SmallString<256>> copy_files(std::vector<std::unique_ptr<clang::A
   return copied_files;
 }
 
+std::optional<Pkey> pkey_from_commands(std::function<std::optional<std::vector<CompileCommand>>(std::string &)> get_commands, std::string s) {
+  std::cout << "looking at commands for " << s << std::endl;
+  // Get the compile commands for each input source
+  auto commands = get_commands(s);
+  if (commands == std::nullopt) {
+    llvm::errs() << "No compilation command found for " << s.c_str()
+                 << '\n';
+    return {};
+  }
+
+  auto comp_cmds = *commands;
+  auto is_pkey_define = [](const std::string &s) {
+    return s.starts_with(PKEY_DEFINE);
+  };
+
+  // Files may be compiled more than once, but we don't support that yet. If
+  // the file is not found in the compilation database then there's a problem
+  // with it.
+  auto has_pkey_define = [=](const CompileCommand &cc) {
+    for (const auto &flag : cc.CommandLine) {
+      if (is_pkey_define(flag)) {
+        return true;
+      }
+    }
+    return false;
+  };
+  // All files must be compiled with -DPKEY=N
+  auto comp_cmd_with_pkey =
+      std::find_if(comp_cmds.begin(), comp_cmds.end(), has_pkey_define);
+  if (comp_cmd_with_pkey == comp_cmds.end()) {
+    llvm::errs() << "No compilation command with -DPKEY found for " << s.c_str()
+                 << '\n';
+    llvm::errs() << "Modify compile_commands.json to specify the compartment "
+                 << "for this file by adding -DPKEY=N (for compartment N) to "
+                 << "its compilation command line."
+                 << "\n";
+    return {};
+  }
+
+  assert(comp_cmds.size() == 1);
+  auto cc_cmd = *comp_cmd_with_pkey;
+
+  auto pkey_define = std::find_if(cc_cmd.CommandLine.begin(),
+                                  cc_cmd.CommandLine.end(), is_pkey_define);
+
+  if (pkey_define == cc_cmd.CommandLine.end()) {
+    llvm::errs() << cc_cmd.Filename.c_str()
+                 << " was not compiled with -DPKEY=\n";
+    for (const auto &flag : cc_cmd.CommandLine) {
+      llvm::errs() << flag.c_str() << " ";
+    }
+    llvm::errs() << '\n';
+    return {};
+  }
+
+  assert(s == cc_cmd.Filename);
+
+  // Using sizeof - 1 avoids counting the null terminator in PKEY_DEFINE
+  Pkey pkey = std::stoi(pkey_define->substr(sizeof(PKEY_DEFINE) - 1));
+
+  return pkey;
+}
+
 int main(int argc, const char **argv) {
 #if LLVM_VERSION_MAJOR >= 13
   auto parser_ptr =
@@ -985,58 +1048,27 @@ int main(int argc, const char **argv) {
   tool.buildASTs(asts);
   auto copied_files = copy_files(asts, comp_db, RootDirectory, OutputDirectory);
 
+  auto all_files = comp_db.getAllFiles();
+  auto all_files_set = std::set(all_files.begin(), all_files.end());
+  auto get_commands = [&](std::string &s) -> std::optional<std::vector<CompileCommand>> {
+    // getCompileCommands returns bogus results instead of nothing for files not
+    // present in the compile_commands.json, so filter them out explicitly
+    if (!all_files_set.contains(s)) {
+      return std::nullopt;
+    }
+    return {comp_db.getCompileCommands(llvm::StringRef(s))};
+  };
+
+  // Collect mapping of filenames to pkeys and used pkeys
   std::set<Pkey> pkeys_used;
   for (auto s : options_parser.getSourcePathList()) {
-    // Get the compile commands for each input source
-    std::vector<CompileCommand> comp_cmds =
-        comp_db.getCompileCommands(llvm::StringRef(s));
-
-    // Files may be compiled more than once, but we don't support that yet. If
-    // the file is not found in the compilation database then there's a problem
-    // with it.
-    auto has_pkey_define = [](const CompileCommand &cc) {
-      bool has_pkey_define = false;
-      for (const auto &flag : cc.CommandLine) {
-        if (flag.starts_with(PKEY_DEFINE)) {
-          has_pkey_define = true;
-        }
-      }
-      return has_pkey_define;
-    };
-    auto comp_cmd_with_pkey =
-        std::find_if(comp_cmds.begin(), comp_cmds.end(), has_pkey_define);
-    if (comp_cmd_with_pkey == comp_cmds.end()) {
-      llvm::errs() << "No compile commands with -DPKEY found for " << s.c_str()
-                   << '\n';
+    auto pkey = pkey_from_commands(get_commands, s);
+    if (!pkey) {
       return -1;
     }
 
-    assert(comp_cmds.size() == 1);
-    auto cc_cmd = *comp_cmd_with_pkey;
-
-    auto is_pkey_define = [](const std::string &s) {
-      return s.starts_with(PKEY_DEFINE);
-    };
-
-    auto pkey_define = std::find_if(cc_cmd.CommandLine.begin(),
-                                    cc_cmd.CommandLine.end(), is_pkey_define);
-
-    // All files must be compiled with -DPKEY=N
-    if (pkey_define == cc_cmd.CommandLine.end()) {
-      llvm::errs() << cc_cmd.Filename.c_str()
-                   << " was not compiled with -DPKEY=\n";
-      for (const auto &flag : cc_cmd.CommandLine) {
-        llvm::errs() << flag.c_str() << " ";
-      }
-      llvm::errs() << '\n';
-      return -1;
-    }
-
-    // Using sizeof - 1 avoids counting the null terminator in PKEY_DEFINE
-    Pkey pkey = std::stoi(pkey_define->substr(sizeof(PKEY_DEFINE) - 1));
-
-    file_pkeys[cc_cmd.Filename] = pkey;
-    pkeys_used.insert(pkey);
+    file_pkeys[s] = *pkey;
+    pkeys_used.insert(*pkey);
   }
 
   // Check the number of pkeys used to avoid generating more output than

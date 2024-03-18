@@ -3,7 +3,12 @@
  * subject to change and should not be used directly. */
 #pragma once
 
-/* for struct dl_phdr_info */
+/* struct dl_phdr_info is only defined if _GNU_SOURCE but at rewriter runtime
+ * _GNU_SOURCE may not be defined in the user's code prior to the inclusion of
+ * <features.h>. As such, forward-declare it here as we only use it opaquely. */
+struct dl_phdr_info;
+
+/* for pkey_mprotect */
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif

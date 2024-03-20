@@ -419,46 +419,6 @@ static void emit_copy_args(AsmWriter &aw, size_t stack_return_size, size_t stack
   }
 }
 
-static void emit_zero_regs(AsmWriter &aw, uint32_t caller_pkey, int reg_arg_count, const std::vector<ParamLocation> &param_locs, WrapperKind kind, Arch arch) {
-  if (arch == Arch::X86) {
-    // Before calling the target function, we only need to zero out registers not
-    // used for arguments if the caller is a protected compartment (i.e. pkey is
-    // not zero).
-    if (caller_pkey != 0) {
-      // Zero out all unused registers. First we save all registers containing args.
-      // These pushes have matching pops before calling the wrapped function so this
-      // stack space is not shown in the diagram above.
-      if (reg_arg_count > 0) {
-        add_comment_line(aw, "Save registers containing arguments");
-        for (const auto &loc : param_locs) {
-          if (!loc.is_stack()) {
-            emit_reg_push(aw, loc);
-          }
-        }
-      }
-
-      // Zero all registers except rsp
-      add_comment_line(aw, "Zero all registers except rsp");
-      // FIXME: If this will use the System V ABI make sure that the %rsp is aligned
-      // before this call
-      add_asm_line(aw, "call __libia2_scrub_registers");
-
-      // Restore used arg regs after zeroing registers
-      if (reg_arg_count > 0) {
-        add_comment_line(aw, "Restore registers containing arguments");
-        for (auto loc = param_locs.rbegin(); loc != param_locs.rend(); loc++) {
-          if (!loc->is_stack()) {
-            emit_reg_pop(aw, *loc);
-          }
-        }
-      }
-    }
-  } else if (arch == Arch::Aarch64) {
-    // TODO ARM reg zero
-    llvm::errs() << "TODO register zeroing not implemented on ARM\n";
-  }
-}
-
 static void emit_fn_ptr(AsmWriter &aw, Arch arch) {
   if (arch == Arch::X86) {
       add_asm_line(aw, "movq ia2_fn_ptr@GOTPCREL(%rip), %r12");
@@ -536,38 +496,40 @@ static void emit_copy_stack_returns(AsmWriter &aw, size_t stack_return_size, siz
   }
 }
 
-static void emit_push_return_regs_to_caller_stack(AsmWriter &aw, uint32_t target_pkey, const std::vector<ParamLocation> &return_locs, Arch arch) {
+static void emit_scrub_regs(AsmWriter &aw, uint32_t pkey, const std::vector<ParamLocation> &locs, Arch arch) {
+  // Handles register scrubbing for calls into/out of protected compartments.
+  // After call: Preserves return values by pushing them to the stack before scrubbing.
+  // Before call: Saves argument registers in a similar manner.
   if (arch == Arch::X86) {
-    // After calling the target function, we only need to zero out registers not
-    // used for return values if the target is a protected compartment
-    if (target_pkey != 0) {
-      add_comment_line(
-          aw, "Push return regs to caller's stack before scrubbing registers");
-      // Push return regs to the caller's stack. These pushes have matching pops
-      // before the return so it has no net effect on the caller's stack pointer.
-      for (auto loc : return_locs) {
+    if (pkey != 0) {
+      // Zero out all unused registers. First we save all registers containing args.
+      // These pushes have matching pops before calling the wrapped function so this
+      // stack space is not shown in the diagram above.
+      add_comment_line(aw, "Preserve essential regs on stack");
+
+      for (auto loc : locs) {
         if (!loc.is_stack()) {
           emit_reg_push(aw, loc);
         }
       }
 
-      // Zero all registers except rsp
-      add_comment_line(aw, "Scrub registers after call");
+      // Scrub all registers except rsp.
       // FIXME: If this will use the System V ABI make sure that the %rsp is aligned
       // before this call
+      add_comment_line(aw, "Scrub non-essential regs");
       add_asm_line(aw, "call __libia2_scrub_registers");
 
-      // pop return regs
-      add_comment_line(aw, "Pop return regs");
-      for (auto loc = return_locs.rbegin(); loc != return_locs.rend(); loc++) {
+      // Restore saved regs
+      add_comment_line(aw, "Restore preserved regs");
+      for (auto loc = locs.rbegin(); loc != locs.rend(); loc++) {
         if (!loc->is_stack()) {
           emit_reg_pop(aw, *loc);
         }
       }
     }
   } else if (arch == Arch::Aarch64) {
-    // TODO ARM push return regs to caller's stack
-    llvm::errs() << "TODO push return regs to caller's stack not implemented on ARM\n";
+    // TODO ARM reg zero
+    llvm::errs() << "TODO ARM reg scrubbing not implemented\n";
   }
 }
 
@@ -726,7 +688,9 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
 
   emit_copy_args(aw, stack_return_size, stack_return_padding, stack_alignment, stack_arg_count, stack_arg_size, caller_pkey, arch);
 
-  emit_zero_regs(aw, caller_pkey, reg_arg_count, param_locs, kind, arch);
+  if (reg_arg_count > 0) {
+    emit_scrub_regs(aw, target_pkey, return_locs, arch);
+  }
 
   if (kind == WrapperKind::IndirectCallsite) {
     emit_fn_ptr(aw, arch);
@@ -744,7 +708,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
 
   emit_switch_stacks(aw, target_pkey, caller_pkey, arch);
 
-  emit_push_return_regs_to_caller_stack(aw, target_pkey, return_locs, arch);
+  emit_scrub_regs(aw, target_pkey, return_locs, arch);
 
   emit_set_return_pkru(aw, caller_pkey, arch);
 

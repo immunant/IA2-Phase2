@@ -548,7 +548,7 @@ static void emit_set_return_pkru(AsmWriter &aw, uint32_t caller_pkey, Arch arch)
   }
 }
 
-static void emit_eiplogue(AsmWriter &aw, uint32_t caller_pkey, Arch arch) {
+static void emit_epilogue(AsmWriter &aw, uint32_t caller_pkey, Arch arch) {
   if (arch == Arch::X86) {
     // Load registers that are preserved across function calls after switching
     // back to the caller's compartment's stack. This is on the caller's stack so
@@ -712,7 +712,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
 
   emit_set_return_pkru(aw, caller_pkey, arch);
 
-  emit_eiplogue(aw, caller_pkey, arch);
+  emit_epilogue(aw, caller_pkey, arch);
 
   emit_return(aw, arch);
 

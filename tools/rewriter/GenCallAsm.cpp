@@ -300,7 +300,7 @@ static void emit_fn_call(
     if (arch == Arch::X86) {
       add_asm_line(aw, "call *%r12");
     } else if (arch == Arch::Aarch64) {
-      add_asm_line(aw, "br x12"); // TODO, which register?
+      llvm::errs() << "TODO indirect calls not implemented on ARM\n";
     }
   } else {
     // direct call
@@ -321,7 +321,7 @@ static AsmWriter get_asmwriter(bool as_macro) {
   return {.ss = {}, .terminator = terminator};
 }
 
-static void emit_save_regs(AsmWriter &aw, uint32_t caller_pkey, uint32_t target_pkey, Arch arch) {
+static void emit_prologue(AsmWriter &aw, uint32_t caller_pkey, uint32_t target_pkey, Arch arch) {
   if (arch == Arch::X86) {
     // Save the old frame pointer and set the frame pointer for the call gate
     add_asm_line(aw, "pushq %rbp");
@@ -338,26 +338,22 @@ static void emit_save_regs(AsmWriter &aw, uint32_t caller_pkey, uint32_t target_
   }
 }
 
-static void emit_intermediate_pkru(AsmWriter &aw, uint32_t caller_pkey, uint32_t target_pkey, bool returning, Arch arch) {
+static void emit_intermediate_pkru(AsmWriter &aw, uint32_t caller_pkey, uint32_t target_pkey, const char *reg1, const char *reg2, Arch arch) {
   if (arch == Arch::X86) {
     // Change pkru to the intermediate value before copying args
     add_comment_line(aw, "Set PKRU to the intermediate value to move arguments");
     // wrpkru requires zeroing rcx and rdx, but they may have arguments so use r10
     // and r11 as scratch registers.
     // When we're returning from the callee, rax may have a return value so we save that instead of rcx.
-    if (!returning) {
-      add_asm_line(aw, "movq %rcx, %r10");
-    } else {
-      add_asm_line(aw, "movq %rax, %r10");
-    }
-    add_asm_line(aw, "movq %rdx, %r11");
+    auto saveline1 = "movq %"s + reg1 + ", %r10";
+    auto saveline2 = "movq %"s + reg2 + ", %r11";
+    add_asm_line(aw, saveline1);
+    add_asm_line(aw, saveline2);
     emit_mixed_wrpkru(aw, caller_pkey, target_pkey);
-    if (!returning) {
-      add_asm_line(aw, "movq %r10, %rcx");
-    } else {
-      add_asm_line(aw, "movq %r10, %rax");
-    }
-    add_asm_line(aw, "movq %r11, %rdx");
+    auto restoreline1 = "movq %r10, %"s + reg1;
+    auto restoreline2 = "movq %r11, %"s + reg2;
+    add_asm_line(aw, restoreline1);
+    add_asm_line(aw, restoreline2);
   } else if (arch == Arch::Aarch64) {
     // TODO ARM stack switching
     llvm::errs() << "TODO intermediate PKRU not implemented on ARM\n";
@@ -457,13 +453,19 @@ static void emit_zero_regs(AsmWriter &aw, uint32_t caller_pkey, int reg_arg_coun
         }
       }
     }
-    if (kind == WrapperKind::IndirectCallsite) {
-      add_asm_line(aw, "movq ia2_fn_ptr@GOTPCREL(%rip), %r12");
-      add_asm_line(aw, "movq (%r12), %r12");
-    }
   } else if (arch == Arch::Aarch64) {
     // TODO ARM reg zero
     llvm::errs() << "TODO register zeroing not implemented on ARM\n";
+  }
+}
+
+static void emit_fn_ptr(AsmWriter &aw, Arch arch) {
+  if (arch == Arch::X86) {
+      add_asm_line(aw, "movq ia2_fn_ptr@GOTPCREL(%rip), %r12");
+      add_asm_line(aw, "movq (%r12), %r12");
+  } else if (arch == Arch::Aarch64) {
+    // TODO ARM function pointer save
+    llvm::errs() << "TODO indirect calls not implemented on ARM\n";
   }
 }
 
@@ -482,9 +484,6 @@ static void emit_set_pkru(AsmWriter &aw, uint32_t target_pkey, Arch arch) {
     // set X18 to the pointer key (compartment number left-shifted 56 bits)
     add_asm_line(aw, "mov x18, #" + std::to_string(target_pkey & 0xF));
     add_asm_line(aw, "lsl x18, x18, #56");
-  } else if (arch == Arch::Aarch64) {
-    // TODO ARM set PKRU
-    llvm::errs() << "TODO set PKRU not implemented on ARM\n";
   }
 }
 
@@ -587,7 +586,7 @@ static void emit_set_return_pkru(AsmWriter &aw, uint32_t caller_pkey, Arch arch)
   }
 }
 
-static void emit_restore_regs(AsmWriter &aw, uint32_t caller_pkey, Arch arch) {
+static void emit_eiplogue(AsmWriter &aw, uint32_t caller_pkey, Arch arch) {
   if (arch == Arch::X86) {
     // Load registers that are preserved across function calls after switching
     // back to the caller's compartment's stack. This is on the caller's stack so
@@ -717,11 +716,11 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
   add_asm_line(aw, ".type "s + wrapper_name + ", @function");
   add_asm_line(aw, wrapper_name + ":");
 
-  emit_save_regs(aw, caller_pkey, target_pkey, arch);
+  emit_prologue(aw, caller_pkey, target_pkey, arch);
 
   add_raw_line(aw, llvm::formatv("ASSERT_PKRU({0:x8}) \"\\n\"", ~((0b11 << (2 * caller_pkey)) | 0b11)));
 
-  emit_intermediate_pkru(aw, caller_pkey, target_pkey, false, arch);
+  emit_intermediate_pkru(aw, caller_pkey, target_pkey, "rcx", "rdx", arch);
 
   emit_switch_stacks(aw, caller_pkey, target_pkey, arch);
 
@@ -729,11 +728,15 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
 
   emit_zero_regs(aw, caller_pkey, reg_arg_count, param_locs, kind, arch);
 
+  if (kind == WrapperKind::IndirectCallsite) {
+    emit_fn_ptr(aw, arch);
+  }
+
   emit_set_pkru(aw, target_pkey, arch);
 
   emit_fn_call(target_name, kind, aw, arch);
 
-  emit_intermediate_pkru(aw, caller_pkey, target_pkey, true, arch);
+  emit_intermediate_pkru(aw, caller_pkey, target_pkey, "rax", "rdx", arch);
 
   emit_free_stack_space(aw, stack_arg_size, stack_alignment, arch);
 
@@ -745,7 +748,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
 
   emit_set_return_pkru(aw, caller_pkey, arch);
 
-  emit_restore_regs(aw, caller_pkey, arch);
+  emit_eiplogue(aw, caller_pkey, arch);
 
   emit_return(aw, arch);
 

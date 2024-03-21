@@ -135,7 +135,8 @@ static int forbid_deep_or_shallow(const char *fpath, const struct stat *sb,
 
   /* allow whole dir or file */
   int ret = allow_path(fpath, ctx.ruleset_fd, false);
-  if (ret < 0) {
+  bool in_proc = !strncmp(fpath, "/proc/", sizeof("/proc/") - 1);
+  if (ret < 0 && !in_proc) {
     ctx.error = ret;
     return FTW_STOP;
   }

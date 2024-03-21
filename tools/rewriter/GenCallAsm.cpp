@@ -421,8 +421,8 @@ static void emit_copy_args(AsmWriter &aw, size_t stack_return_size, size_t stack
 
 static void emit_load_fn_ptr(AsmWriter &aw, Arch arch) {
   if (arch == Arch::X86) {
-      add_asm_line(aw, "movq ia2_fn_ptr@GOTPCREL(%rip), %r12");
-      add_asm_line(aw, "movq (%r12), %r12");
+    add_asm_line(aw, "movq ia2_fn_ptr@GOTPCREL(%rip), %r12");
+    add_asm_line(aw, "movq (%r12), %r12");
   } else if (arch == Arch::Aarch64) {
     // TODO ARM function pointer save
     llvm::errs() << "TODO indirect calls not implemented on ARM\n";
@@ -496,7 +496,7 @@ static void emit_copy_stack_returns(AsmWriter &aw, size_t stack_return_size, siz
   }
 }
 
-static void emit_scrub_regs(AsmWriter &aw, uint32_t pkey, const std::vector<ParamLocation> &locs, Arch arch) {
+static void emit_scrub_regs(AsmWriter &aw, uint32_t pkey, const std::vector<ParamLocation> &locs, bool preserve_regs, Arch arch) {
   // Handles register scrubbing for calls into/out of protected compartments.
   // After call: Preserves return values by pushing them to the stack before scrubbing.
   // Before call: Saves argument registers in a similar manner.
@@ -505,11 +505,13 @@ static void emit_scrub_regs(AsmWriter &aw, uint32_t pkey, const std::vector<Para
       // Zero out all unused registers. First we save all registers containing args.
       // These pushes have matching pops before calling the wrapped function so this
       // stack space is not shown in the diagram above.
-      add_comment_line(aw, "Preserve essential regs on stack");
+      if (preserve_regs) {
+        add_comment_line(aw, "Preserve essential regs on stack");
 
-      for (auto loc : locs) {
-        if (!loc.is_stack()) {
-          emit_reg_push(aw, loc);
+        for (auto loc : locs) {
+          if (!loc.is_stack()) {
+            emit_reg_push(aw, loc);
+          }
         }
       }
 
@@ -519,11 +521,13 @@ static void emit_scrub_regs(AsmWriter &aw, uint32_t pkey, const std::vector<Para
       add_comment_line(aw, "Scrub non-essential regs");
       add_asm_line(aw, "call __libia2_scrub_registers");
 
-      // Restore saved regs
-      add_comment_line(aw, "Restore preserved regs");
-      for (auto loc = locs.rbegin(); loc != locs.rend(); loc++) {
-        if (!loc->is_stack()) {
-          emit_reg_pop(aw, *loc);
+      if (preserve_regs) {
+        // Restore saved regs
+        add_comment_line(aw, "Restore preserved regs");
+        for (auto loc = locs.rbegin(); loc != locs.rend(); loc++) {
+          if (!loc->is_stack()) {
+            emit_reg_pop(aw, *loc);
+          }
         }
       }
     }
@@ -688,9 +692,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
 
   emit_copy_args(aw, stack_return_size, stack_return_padding, stack_alignment, stack_arg_count, stack_arg_size, caller_pkey, arch);
 
-  if (reg_arg_count > 0) {
-    emit_scrub_regs(aw, caller_pkey, param_locs, arch);
-  }
+  emit_scrub_regs(aw, caller_pkey, param_locs, reg_arg_count > 0, arch);
 
   if (kind == WrapperKind::IndirectCallsite) {
     emit_load_fn_ptr(aw, arch);
@@ -708,7 +710,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
 
   emit_switch_stacks(aw, target_pkey, caller_pkey, arch);
 
-  emit_scrub_regs(aw, target_pkey, return_locs, arch);
+  emit_scrub_regs(aw, target_pkey, return_locs, true, arch);
 
   emit_set_return_pkru(aw, caller_pkey, arch);
 

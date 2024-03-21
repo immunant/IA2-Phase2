@@ -419,7 +419,7 @@ static void emit_copy_args(AsmWriter &aw, size_t stack_return_size, size_t stack
   }
 }
 
-static void emit_fn_ptr(AsmWriter &aw, Arch arch) {
+static void emit_load_fn_ptr(AsmWriter &aw, Arch arch) {
   if (arch == Arch::X86) {
       add_asm_line(aw, "movq ia2_fn_ptr@GOTPCREL(%rip), %r12");
       add_asm_line(aw, "movq (%r12), %r12");
@@ -689,11 +689,11 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
   emit_copy_args(aw, stack_return_size, stack_return_padding, stack_alignment, stack_arg_count, stack_arg_size, caller_pkey, arch);
 
   if (reg_arg_count > 0) {
-    emit_scrub_regs(aw, target_pkey, return_locs, arch);
+    emit_scrub_regs(aw, caller_pkey, param_locs, arch);
   }
 
   if (kind == WrapperKind::IndirectCallsite) {
-    emit_fn_ptr(aw, arch);
+    emit_load_fn_ptr(aw, arch);
   }
 
   emit_set_pkru(aw, target_pkey, arch);

@@ -18,6 +18,7 @@ jobs:
         c_compiler: [clang, gcc]
         linker: [lld, bfd]
         ia2-debug: [ON, OFF]
+        ia2-tracer: [ON, OFF]
     steps:
       - name: Check out code
         uses: actions/checkout@v3
@@ -36,6 +37,7 @@ jobs:
             -DLLVM_DIR=$LLVM_DIR                                         \
             -DLLVM_EXTERNAL_LIT=$HOME/.local/bin/lit                     \
             -DLIBIA2_DEBUG=${{ matrix.ia2-debug }}                       \
+            -DIA2_TRACER=${{ matrix.ia2-tracer }}                      \
             -G Ninja
           ninja
           popd

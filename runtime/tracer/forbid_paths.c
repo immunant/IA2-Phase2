@@ -27,6 +27,8 @@ static int allow_path(const char *path, const int ruleset_fd, bool shallow) {
     return -1;
   }
   if (fstat(path_beneath.parent_fd, &statbuf)) {
+    /* if we cannot stat the entry to distinguish file vs. dir, we must bail */
+    fprintf(stderr, "Failed fstat \"%s\": %s\n", path, strerror(errno));
     close(path_beneath.parent_fd);
     return -1;
   }

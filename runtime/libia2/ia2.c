@@ -133,7 +133,9 @@ int ia2_mprotect_with_tag(void *addr, size_t len, int prot, int tag) {
     /* Assuming we're using st2g. stgm is undefined at EL0 so it's not an option */
     const int granule_sz = 32;
     const int granules_per_page = PAGE_SIZE / 32;
-    size_t tag = ia2_get_tag();
+    /* small sanity check */
+    size_t current_tag = ia2_get_tag();
+    assert(current_tag == tag);
     for (int i = 0; i < granules_per_page; i++) {
         // TODO: It may be possible to simplify this to be more efficient using the addg imm offset
         uint64_t tagged_ptr = insert_tag((uint64_t)addr + (i * granule_sz), tag);

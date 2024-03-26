@@ -39,10 +39,36 @@ __attribute__((naked)) int __wrap_main(int argc, char **argv) {
       "mov %%r10,%%rax\n"
       "popq %%rbp\n"
       "ret\n"
-      /* clang-format on */
 #elif LIBIA2_AARCH64
-#warning "libia2 does not properly wrap `main` yet"
-      "b __real_main\n"
+      // prologue
+      "stp x29, x30, [sp, #-16]!\n"
+      "mov x29, sp\n"
+
+      // Save old stack pointer in main_sp
+      "adrp x9, main_sp\n"
+      "add x9, x9, #:lo12:main_sp\n"
+      "str x29, [x9]\n"
+
+      // Load the new stack pointer
+      // Since this accesses a TLS in the same DSO it's simpler than the TLS reference in ia2_internal.h
+      "mrs x9, tpidr_el0\n"
+      "add x9, x9, #:tprel_hi12:ia2_stackptr_1\n"
+      "add x9, x9, #:tprel_lo12_nc:ia2_stackptr_1\n"
+      "ldr x9, [x9]\n"
+      "mov sp, x9\n"
+
+      // Call the real main function
+      "bl __real_main\n"
+
+      // Restore the old stack pointer
+      "adrp x9, main_sp\n"
+      "add x9, x9, #:lo12:main_sp\n"
+      "ldr x9, [x9]\n"
+      "mov sp, x9\n"
+
+      "ldp x29, x30, [sp], #16\n"
+      "ret"
 #endif
+      /* clang-format on */
       ::);
 }

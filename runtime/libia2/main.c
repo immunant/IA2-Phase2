@@ -39,10 +39,37 @@ __attribute__((naked)) int __wrap_main(int argc, char **argv) {
       "mov %%r10,%%rax\n"
       "popq %%rbp\n"
       "ret\n"
-      /* clang-format on */
 #elif LIBIA2_AARCH64
-#warning "libia2 does not properly wrap `main` yet"
-      "b __real_main\n"
+      // prologue
+      "stp x29, x30, [sp, #-16]!\n"
+      "mov x29, sp\n"
+
+      // Save old stack pointer in main_sp
+      "adrp x2, main_sp\n"
+      "add x2, x2, #:lo12:main_sp\n"
+      "str x29, [x2]\n"
+
+      // Load the new stack pointer
+      "adrp x2, :tlsdesc:ia2_stackptr_1\n"
+      "add x2, x2, #:tlsdesc_lo12:ia2_stackptr_1\n"
+      "ldr x29, [x2]\n"
+      "mov sp, x29\n"
+
+      // Set x18 to compartment 1 << 56
+      "movz x18, #0x0100, LSL 48\n"
+
+      // Call the real main function
+      "bl __real_main\n"
+
+      // Restore the old stack pointer
+      "adrp x2, main_sp\n"
+      "add x2, x2, #:lo12:main_sp\n"
+      "ldr x29, [x2]\n"
+      "mov sp, x29\n"
+
+      "ldp x29, x30, [sp], #16\n"
+      "ret"
 #endif
+      /* clang-format on */
       ::);
 }

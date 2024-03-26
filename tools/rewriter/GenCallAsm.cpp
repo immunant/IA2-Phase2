@@ -58,8 +58,14 @@ const std::array<const char *, 3> cabi_arg_kind_names = {"int", "float", "mem"};
 
 // rsp and rbp are also preserved registers, but we handle them separately from
 // these since they're the stack and frame pointers
-const std::array<const char *, 5> preserved_registers = {"rbx", "r12", "r13",
-                                                         "r14", "r15"};
+const std::vector<const char *> preserved_registers(Arch arch) {
+    if (arch == Arch::X86) {
+      return {"rbx", "r12", "r13", "r14", "r15"};
+    } else {
+      // This assumes x16 and x17 are always used by PLT veneers
+      return {"x16", "x17", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28"};
+    }
+}
 
 /// Compute abi locations for parameters of a C-abi function, given its sequence
 /// of argument kinds.
@@ -363,12 +369,16 @@ static void emit_prologue(AsmWriter &aw, uint32_t caller_pkey, uint32_t target_p
     // Save registers that are preserved across function calls before switching to
     // the other compartment's stack. This is on the caller's stack so it's not in
     // the diagram above.
-    for (auto &r : preserved_registers) {
+    for (auto &r : preserved_registers(arch)) {
       add_asm_line(aw, "pushq %"s + r);
     }
   } else if (arch == Arch::Aarch64) {
       add_asm_line(aw, "stp x29, x30, [sp, #-16]!");
       add_asm_line(aw, "mov x29, sp");
+    for (auto &r : preserved_registers(arch)) {
+      // TODO: preallocate the stack space to make this more efficient. There may also be ARM64 instructions for storing a block of registers.
+      add_asm_line(aw, "str "s + r + ", [sp, #-8]!");
+    }
   }
 }
 
@@ -437,7 +447,7 @@ static void emit_copy_args(AsmWriter &aw, size_t stack_return_size, size_t stack
       // into account (including rbp) when determining the location of the stack
       // args
       size_t offset =
-          stack_arg_size + stack_arg_padding + ((preserved_registers.size() + 1) * 8);
+          stack_arg_size + stack_arg_padding + ((preserved_registers(arch).size() + 1) * 8);
       for (int i = 0; i < stack_arg_size; i += 8) {
         // The index into the caller's stack is backwards since pushq will copy to
         // the compartment's stack from the highest addresses to the lowest.
@@ -555,8 +565,7 @@ static void emit_scrub_regs(AsmWriter &aw, uint32_t pkey, const std::vector<Para
       }
     }
   } else if (arch == Arch::Aarch64) {
-    // TODO ARM reg zero
-    llvm::errs() << "TODO ARM reg scrubbing not implemented\n";
+    // TODO: save args/return values
     add_asm_line(aw, "bl __libia2_scrub_registers");
   }
 }
@@ -577,17 +586,20 @@ static void emit_set_return_pkru(AsmWriter &aw, uint32_t caller_pkey, Arch arch)
 }
 
 static void emit_epilogue(AsmWriter &aw, uint32_t caller_pkey, Arch arch) {
+  auto callee_saved = preserved_registers(arch);
   if (arch == Arch::X86) {
     // Load registers that are preserved across function calls after switching
     // back to the caller's compartment's stack. This is on the caller's stack so
     // it's not in the diagram above.
-    for (auto r = preserved_registers.rbegin(); r != preserved_registers.rend();
-         r++) {
+    for (auto r = callee_saved.rbegin(); r != callee_saved.rend(); r++) {
       add_asm_line(aw, "popq %"s + *r);
     }
     // Restore the caller's frame pointer
     add_asm_line(aw, "popq %rbp");
   } else if (arch == Arch::Aarch64) {
+    for (auto r = callee_saved.rbegin(); r != callee_saved.rend(); r++) {
+      add_asm_line(aw, "ldr "s + *r + ", [sp], #8");
+    }
     add_asm_line(aw, "ldp x29, x30, [sp], #16");
   }
 }

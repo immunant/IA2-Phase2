@@ -127,6 +127,7 @@ int ia2_mprotect_with_tag(void *addr, size_t len, int prot, int tag) {
     int res = mprotect(addr, len, prot | PROT_MTE);
     if (res != 0) {
         /* Skip memory tagging if mprotect returned an error */
+        printf("mprotect failed with %d\n", res);
         return res;
     }
     assert((len % PAGE_SIZE) == 0);
@@ -231,9 +232,13 @@ static bool in_extra_libraries(struct dl_phdr_info *info, const char *extra_libr
 
 /// Map ELF segment flags to mprotect access flags
 static int segment_flags_to_access_flags(Elf64_Word flags) {
-  return ((flags & PF_X) != 0 ? PROT_EXEC : 0) |
-         ((flags & PF_W) != 0 ? PROT_WRITE : 0) |
-         ((flags & PF_R) != 0 ? PROT_READ : 0);
+  return
+#if defined(__aarch64__)
+      PROT_MTE |
+#endif
+      ((flags & PF_X) != 0 ? PROT_EXEC : 0) |
+      ((flags & PF_W) != 0 ? PROT_WRITE : 0) |
+      ((flags & PF_R) != 0 ? PROT_READ : 0);
 }
 
 int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {

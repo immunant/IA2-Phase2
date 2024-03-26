@@ -456,12 +456,9 @@ public:
 
     // Check if the function pointer type already has an ID
     auto expr_ty = fn_ptr_expr->getType()->getCanonicalTypeInternal();
+    auto expr_mangled_ty = mangle_type(ctxt, expr_ty);
     auto expr_ty_str = expr_ty.getAsString();
-    if (!fn_ptr_ids.contains(expr_ty_str)) {
-      fn_ptr_ids[expr_ty_str] = id_counter;
-      id_counter += 1;
-    }
-    auto fn_ptr_id = std::to_string(fn_ptr_ids.at(expr_ty_str));
+    fn_ptr_types[expr_ty_str] = expr_mangled_ty;
 
     auto *fpt = expr_ty->castAs<clang::PointerType>()
                     ->getPointeeType()
@@ -479,7 +476,7 @@ public:
       if (spelling_line != expansion_line) {
         llvm::errs() << filename << ":" << spelling_line << " ";
       }
-      llvm::errs() << "must be rewritten manually (ID = " << fn_ptr_id << ")\n";
+      llvm::errs() << "must be rewritten manually (" << expr_mangled_ty << ")\n";
       return;
     }
 
@@ -491,7 +488,7 @@ public:
         clang::Lexer::getSourceText(char_range, sm, ctxt.getLangOpts());
 
     std::string new_expr =
-        "IA2_CALL("s + old_expr.str() + ", " + fn_ptr_id + ")";
+        "IA2_CALL("s + old_expr.str() + ", " + expr_mangled_ty + ")";
 
     if (in_macro_expansion(loc, sm)) {
       filename = get_expansion_filename(loc, sm);
@@ -507,7 +504,7 @@ public:
     return;
   }
 
-  std::map<OpaqueStruct, int> fn_ptr_ids;
+  std::map<OpaqueStruct, std::string> fn_ptr_types;
   std::map<OpaqueStruct, CAbiSignature> fn_ptr_abi_sig;
 
 private:
@@ -1076,9 +1073,9 @@ int main(int argc, const char **argv) {
    */
   std::cout << "Generating indirect callsite wrappers\n";
   std::string wrapper_decls;
-  std::set<int> type_id_macros_generated = {};
+  std::set<OpaqueStruct> type_id_macros_generated = {};
   for (int caller_pkey = 1; caller_pkey < num_pkeys; caller_pkey++) {
-    for (const auto &[ty, id] : ptr_call_pass.fn_ptr_ids) {
+    for (const auto &[ty, mangled_ty] : ptr_call_pass.fn_ptr_types) {
       CAbiSignature c_abi_sig;
       try {
         c_abi_sig = ptr_call_pass.fn_ptr_abi_sig.at(ty);
@@ -1088,7 +1085,7 @@ int main(int argc, const char **argv) {
         abort();
       }
       std::string wrapper_name = "__ia2_indirect_callgate_"s +
-                                 std::to_string(id) + "_pkey_" +
+                                 mangled_ty + "_pkey_" +
                                  std::to_string(caller_pkey);
       std::string asm_wrapper =
           emit_asm_wrapper(c_abi_sig, wrapper_name, std::nullopt,
@@ -1097,9 +1094,9 @@ int main(int argc, const char **argv) {
       wrapper_out << asm_wrapper;
       wrapper_out << ");\n";
 
-      if (!type_id_macros_generated.contains(id)) {
-        header_out << "#define IA2_TYPE_"s << id << " " << ty << "\n";
-        type_id_macros_generated.insert(id);
+      if (!type_id_macros_generated.contains(mangled_ty)) {
+        header_out << "#define IA2_TYPE_"s << mangled_ty << " " << ty << "\n";
+        type_id_macros_generated.insert(mangled_ty);
       }
       wrapper_decls += "extern char " + wrapper_name + ";\n";
     }

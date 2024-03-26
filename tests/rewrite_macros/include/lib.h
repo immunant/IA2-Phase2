@@ -32,7 +32,7 @@ extern struct event_actions actions;
 #if PRE_REWRITER
 #define call_add_event(evt) (actions.add)(evt)
 #else
-#define call_add_event(evt) IA2_CALL(actions.add, 0)(evt)
+#define call_add_event(evt) IA2_CALL(actions.add, _ZTSPFbP5eventE)(evt)
 #endif
 
 struct event *get_event();

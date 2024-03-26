@@ -172,6 +172,15 @@ execute_process(COMMAND ${CLANG_EXE} -print-file-name=include-fixed
   OUTPUT_STRIP_TRAILING_WHITESPACE)
 message(STATUS "Found Clang fixed headers: ${CLANG_HEADERS_INCLUDE_FIXED}")
 
+file(GLOB REWRITER_SRCS ${CMAKE_SOURCE_DIR}/tools/rewriter/*.cpp)
+# This cannot be in the tools directory CMakeLists.txt because the target is for
+# the top-level CMake project
+add_custom_target(rewriter
+    COMMAND ${CMAKE_COMMAND} --build . -t ia2-rewriter
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/tools
+    # tools dependency is for the CMake config step
+    DEPENDS tools ${REWRITER_SRCS})
+
 # Create call gates for a target
 #
 # Creates call gates for executable target <name> and all of its
@@ -274,7 +283,11 @@ function(add_ia2_call_gates NAME)
         ${ARG_EXTRA_REWRITER_ARGS}
         ${SOURCES}
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    DEPENDS tools ${SOURCES}
+    # dependencies on custom targets (i.e. the rewriter) do not re-run this
+    # command so we need to add a dependency on the rewriter's sources. We still
+    # need the dependency on the custom rewriter target to make sure it gets
+    # built the first time.
+    DEPENDS ${SOURCES} ${REWRITER_SRCS} rewriter
     VERBATIM
   )
 

@@ -246,7 +246,7 @@ int ia2_mprotect_with_tag(void *addr, size_t len, int prot, int tag);
 #endif
 char *allocate_stack(int i);
 void verify_tls_padding(void);
-void ensure_pkeys_allocated(int *n_to_alloc);
+void ia2_set_up_tags(int *n_to_alloc);
 _Noreturn void ia2_reinit_stack_err(int i);
 
 #define _IA2_INIT_RUNTIME(n)                                                   \
@@ -272,7 +272,7 @@ _Noreturn void ia2_reinit_stack_err(int i);
                                                                                \
   __attribute__((constructor)) static void ia2_init(void) {                    \
     /* Set up global resources. */                                             \
-    ensure_pkeys_allocated(&ia2_n_pkeys_to_alloc);                             \
+    ia2_set_up_tags(&ia2_n_pkeys_to_alloc);                                    \
     /* Initialize stacks for the main thread/ */                               \
     init_stacks_and_setup_tls();                                               \
     REPEATB##n(setup_destructors_for_compartment, nop_macro);                  \

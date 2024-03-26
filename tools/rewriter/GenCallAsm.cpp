@@ -307,7 +307,7 @@ static void emit_fn_call(
     if (arch == Arch::X86) {
       add_asm_line(aw, "call "s + target_name.value());
     } else if (arch == Arch::Aarch64) {
-      add_asm_line(aw, "b "s + target_name.value());
+      add_asm_line(aw, "bl "s + target_name.value());
     }
   }
 }
@@ -333,8 +333,8 @@ static void emit_prologue(AsmWriter &aw, uint32_t caller_pkey, uint32_t target_p
       add_asm_line(aw, "pushq %"s + r);
     }
   } else if (arch == Arch::Aarch64) {
-    // TODO ARM stack switching
-    llvm::errs() << "TODO register saving not implemented on ARM\n";
+      add_asm_line(aw, "stp x29, x30, [sp, #-16]!");
+      add_asm_line(aw, "mov x29, sp");
   }
 }
 
@@ -533,6 +533,7 @@ static void emit_scrub_regs(AsmWriter &aw, uint32_t pkey, const std::vector<Para
   } else if (arch == Arch::Aarch64) {
     // TODO ARM reg zero
     llvm::errs() << "TODO ARM reg scrubbing not implemented\n";
+    add_asm_line(aw, "bl __libia2_scrub_registers");
   }
 }
 
@@ -563,8 +564,7 @@ static void emit_epilogue(AsmWriter &aw, uint32_t caller_pkey, Arch arch) {
     // Restore the caller's frame pointer
     add_asm_line(aw, "popq %rbp");
   } else if (arch == Arch::Aarch64) {
-    // TODO ARM return regs
-    llvm::errs() << "TODO restore regs not implemented on ARM\n";
+    add_asm_line(aw, "ldp x29, x30, [sp], #16");
   }
 }
 
@@ -575,6 +575,7 @@ static void emit_return(AsmWriter &aw, Arch arch) {
     add_asm_line(aw, "ret");
   } else if (arch == Arch::Aarch64) {
     // TODO ARM return to called
+    add_asm_line(aw, "ret");
     llvm::errs() << "TODO return not implemented on ARM\n";
   }
 }

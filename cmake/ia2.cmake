@@ -102,7 +102,7 @@ function(pad_tls_library INPUT OUTPUT)
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/lib${OUTPUT}.so
     COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${INPUT}> ${CMAKE_CURRENT_BINARY_DIR}/lib${OUTPUT}.so
     COMMAND ${CMAKE_BINARY_DIR}/tools/pad-tls/pad-tls --allow-no-tls ${CMAKE_CURRENT_BINARY_DIR}/lib${OUTPUT}.so
-    DEPENDS tools $<TARGET_FILE:${INPUT}>
+    DEPENDS ${PAD_TLS_SRCS} tools pad-tls $<TARGET_FILE:${INPUT}>
     COMMENT "Padding TLS segment of wrapped library"
   )
   add_custom_target(${OUTPUT}-padding DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/lib${OUTPUT}.so")
@@ -173,6 +173,7 @@ execute_process(COMMAND ${CLANG_EXE} -print-file-name=include-fixed
 message(STATUS "Found Clang fixed headers: ${CLANG_HEADERS_INCLUDE_FIXED}")
 
 file(GLOB REWRITER_SRCS ${CMAKE_SOURCE_DIR}/tools/rewriter/*.cpp)
+file(GLOB PAD_TLS_SRCS ${CMAKE_SOURCE_DIR}/tools/pad-tls/*.c)
 # This cannot be in the tools directory CMakeLists.txt because the target is for
 # the top-level CMake project
 add_custom_target(rewriter
@@ -180,6 +181,11 @@ add_custom_target(rewriter
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/tools
     # tools dependency is for the CMake config step
     DEPENDS tools ${REWRITER_SRCS})
+
+add_custom_target(pad-tls
+    COMMAND ${CMAKE_COMMAND} --build . -t pad-tls
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/tools
+    DEPENDS tools ${PAD_TLS_SRCS})
 
 # Create call gates for a target
 #

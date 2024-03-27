@@ -33,7 +33,7 @@ enum patch_result patch_tls(void *elf, int64_t delta, uint64_t *size_out) {
     return BAD_MAGIC;
   }
 
-  if (ehdr->e_machine != EM_X86_64) {
+  if ((ehdr->e_machine != EM_X86_64) && (ehdr->e_machine != EM_AARCH64)) {
     return WRONG_ARCH;
   }
 

@@ -46,12 +46,19 @@ set_property(TARGET libia2 PROPERTY INTERFACE_LINK_DEPENDS ${CMAKE_CURRENT_BINAR
 # Find libc. We cannot simply do `find_library(LIBC c REQUIRED)` because
 # `libc.so` itself is a linker script with glibc, while we need the path of
 # the actual ELF shared object itself so we can patch its program headers.
+if (LIBIA2_AARCH64)
+set(LIBC_PATHS /usr/aarch64-linux-gnu/lib /usr/aarch64-linux-gnu/lib64)
+else()
 set(LIBC_PATHS /lib /lib64 /lib/x86_64-linux-gnu)
+endif()
+
 foreach(CANDIDATE in ${LIBC_PATHS})
     if (EXISTS ${CANDIDATE}/libc.so.6)
         set(LIBC_PATH ${CANDIDATE}/libc.so.6)
     endif()
 endforeach()
+
+
 if(NOT DEFINED LIBC_PATH)
     message(FATAL_ERROR "Could not find libc.so.6 in: ${LIBC_PATHS}\n")
 endif()
@@ -61,7 +68,7 @@ add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/libc.so.6
     COMMAND ${CMAKE_COMMAND} -E copy ${LIBC_PATH} ${CMAKE_CURRENT_BINARY_DIR}/libc.so.6
     COMMAND ${CMAKE_BINARY_DIR}/tools/pad-tls/pad-tls --allow-no-tls ${CMAKE_CURRENT_BINARY_DIR}/libc.so.6
-    DEPENDS tools
+    DEPENDS ${PAD_TLS_SRCS} tools pad-tls
     COMMENT "Padding TLS segment of libc"
 )
 

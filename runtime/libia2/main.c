@@ -50,8 +50,10 @@ __attribute__((naked)) int __wrap_main(int argc, char **argv) {
       "str x29, [x2]\n"
 
       // Load the new stack pointer
-      "adrp x2, :tlsdesc:ia2_stackptr_1\n"
-      "add x2, x2, #:tlsdesc_lo12:ia2_stackptr_1\n"
+      //"adrp x2, :tlsdesc:ia2_stackptr_1\n"
+      //"add x2, x2, #:tlsdesc_lo12:ia2_stackptr_1\n"
+      "adrp x2, ia2_stackptr_1\n"
+      "add x2, x2, #:lo12:ia2_stackptr_1\n"
       "ldr x29, [x2]\n"
       "mov sp, x29\n"
 

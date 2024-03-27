@@ -135,7 +135,10 @@ int ia2_mprotect_with_tag(void *addr, size_t len, int prot, int tag) {
     const int granules_per_page = PAGE_SIZE / 32;
     /* small sanity check */
     size_t current_tag = ia2_get_tag();
-    assert(current_tag == tag);
+#if LIBIA2_AARCH64
+#warning "libia2 missing x18 sanity check in ia2_mprotect_with_tag"
+#endif
+    //assert(current_tag == tag);
     for (int i = 0; i < granules_per_page; i++) {
         // TODO: It may be possible to simplify this to be more efficient using the addg imm offset
         uint64_t tagged_ptr = insert_tag((uint64_t)addr + (i * granule_sz), tag);

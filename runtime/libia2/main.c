@@ -56,7 +56,7 @@ __attribute__((naked)) int __wrap_main(int argc, char **argv) {
       "mov sp, x29\n"
 
       // Set x18 to compartment 1 << 56
-      "movz x18, #0x0100, LSL 48\n"
+      //"movz x18, #0x0100, LSL 48\n"
 
       // Call the real main function
       "bl __real_main\n"

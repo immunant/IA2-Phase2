@@ -210,8 +210,29 @@ asm(".macro mov_pkru_eax pkey\n"
   }
 /* clang-format on */
 #elif LIBIA2_AARCH64
-#warning "libia2 does not implement ALLOCATE_COMPARTMENT_STACK_AND_SETUP_TLS yet"
-#define ALLOCATE_COMPARTMENT_STACK_AND_SETUP_TLS(i)
+#warning "ALLOCATE_COMPARTMENT_STACK_AND_SETUP_TLS does not include x18 switch or stackptr reinit error checking"
+#define ALLOCATE_COMPARTMENT_STACK_AND_SETUP_TLS(i)                            \
+  {                                                                            \
+    __IA2_UNUSED extern __thread void *ia2_stackptr_##i;                       \
+                                                                               \
+    register void *stack asm("x0") = allocate_stack(i);                        \
+    __asm__ volatile(                                                          \
+        "mov x9, sp\n"                                                         \
+        "mov sp, %0\n"                                                         \
+        "str x9, [sp], #-8\n"                                                  \
+        "bl init_tls_" #i "\n"                                                 \
+        "ldr x9, [sp, #8]!\n"                                                  \
+        "mov x10, sp\n"                                                        \
+        "mov sp, x9\n"                                                         \
+        "mrs x11, tpidr_el0\n"                                                 \
+        "add x11, x11, #:tprel_hi12:ia2_stackptr_" #i "\n"                     \
+        "add x11, x11, #:tprel_lo12_nc:ia2_stackptr_" #i "\n"                  \
+        "str x10, [x11]\n"                                                     \
+        :                                                                      \
+        : "r"(stack)                                                           \
+        : "x9", "x10", "x11"                                                   \
+    );                                                                         \
+  }
 #endif
 
 #if LIBIA2_X86_64

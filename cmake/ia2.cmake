@@ -154,6 +154,10 @@ function(create_compile_commands NAME TYPE)
   # Copy target properties from the real target. We might need to add more properties.
   target_link_libraries(${COMPILE_COMMAND_TARGET} PRIVATE $<TARGET_PROPERTY:${NAME},LINK_LIBRARIES>)
   target_include_directories(${COMPILE_COMMAND_TARGET} PRIVATE ${INCLUDE_DIRECTORIES})
+  if (LIBIA2_AARCH64)
+    target_include_directories(${COMPILE_COMMAND_TARGET} PRIVATE
+        ${CMAKE_SOURCE_DIR}/misc/spoofed_criterion/include)
+  endif()
   set(CMAKE_EXPORT_COMPILE_COMMANDS OFF)
 endfunction()
 

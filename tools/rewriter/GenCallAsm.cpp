@@ -442,8 +442,7 @@ static void emit_set_pkru(AsmWriter &aw, uint32_t target_pkey, Arch arch) {
     add_asm_line(aw, "movq %r11, %rdx");
   } else if (arch == Arch::Aarch64) {
     // set X18 to the pointer key (compartment number left-shifted 56 bits)
-    add_asm_line(aw, "mov x18, #" + std::to_string(target_pkey & 0xF));
-    add_asm_line(aw, "lsl x18, x18, #56");
+    llvm::errs() << "TODO x18 switching is not implemented\n";
   }
 }
 

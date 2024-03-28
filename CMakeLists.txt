@@ -14,6 +14,7 @@ add_subdirectory(runtime)
 if (NOT LIBIA2_AARCH64)
     add_subdirectory(examples)
 endif()
+add_subdirectory(misc)
 
 add_subdirectory(tests)
 ExternalProject_Add(tools

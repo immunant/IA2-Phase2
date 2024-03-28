@@ -30,6 +30,10 @@ module to demo compartmentalizing Nginx plugins.
 Nginx media streaming RTMP module from github.com/arut/nginx-rtmp-module
 
 
+## misc/spoofed_criterion
+A basic library that spoofs the criterion interace used in our test suite. This is a workaround to
+avoid having to build criterion and its dependencies with -ffixed-x18.
+
 ## runtime 
 The compartmentalization runtime, including code for both the target process
 itself and for tracing the process.

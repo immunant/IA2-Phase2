@@ -45,6 +45,13 @@ function(add_ia2_compartment NAME TYPE)
     add_library(${NAME} SHARED)
   endif()
 
+  # The x86 version is missing a dependency here and libs rely on include path overlap to pick up
+  # criterion header. I want to keep spoofed criterion static for simplicity so we add the -I
+  # directly here.
+  if (LIBIA2_AARCH64)
+    target_include_directories(${NAME} PRIVATE
+        ${CMAKE_SOURCE_DIR}/misc/spoofed_criterion/include)
+  endif()
   target_compile_definitions(${NAME} PRIVATE
     IA2_ENABLE=1
     PKEY=${ARG_PKEY}

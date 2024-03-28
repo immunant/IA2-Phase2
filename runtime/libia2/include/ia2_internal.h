@@ -205,8 +205,13 @@ asm(".macro mov_pkru_eax pkey\n"
   }
 /* clang-format on */
 #elif LIBIA2_AARCH64
-#warning "libia2 does not implement ALLOCATE_COMPARTMENT_STACK_AND_SETUP_TLS yet"
-#define ALLOCATE_COMPARTMENT_STACK_AND_SETUP_TLS(i)
+#warning "libia2 does not implement thread-local compartment stacks yet"
+#define ALLOCATE_COMPARTMENT_STACK_AND_SETUP_TLS(i)                            \
+  {                                                                            \
+    __IA2_UNUSED extern void *ia2_stackptr_##i;                       \
+                                                                               \
+    ia2_stackptr_##i = allocate_stack(i);                                      \
+  }
 #endif
 
 #if LIBIA2_X86_64

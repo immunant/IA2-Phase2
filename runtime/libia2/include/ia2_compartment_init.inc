@@ -37,7 +37,11 @@ __attribute__((used)) void COMPARTMENT_IDENT(ia2_compartment_destructor)(void) {
 
 #else
 
+#if LIBIA2_X86_64
 __thread void *COMPARTMENT_IDENT(ia2_stackptr) __attribute__((used));
+#elif LIBIA2_AARCH64
+void *COMPARTMENT_IDENT(ia2_stackptr) __attribute__((used));
+#endif
 
 /*
 ** Initializes a compartment with protection key `n`. Called automatically as a

@@ -33,6 +33,7 @@ char *allocate_stack(int i) {
 /* Confirm that stack pointers for compartments 0 and 1 are on separate */
 /* pages. */
 void verify_tls_padding(void) {
+#if LIBIA2_X86_64
   /* It's safe to depend on ia2_stackptr_1 existing because all users of */
   /* IA2 will have at least one compartment other than the untrusted one. */
   extern __thread void *ia2_stackptr_1;
@@ -41,6 +42,9 @@ void verify_tls_padding(void) {
     printf("ia2_stackptr_1 is too close to ia2_stackptr_0\n");
     exit(1);
   }
+#elif LIBIA2_AARCH64
+#warning "libia2 does not implement verify_tls_padding yet"
+#endif
 }
 
 /* Ensure that all required pkeys are allocated or no-op on aarch64. */

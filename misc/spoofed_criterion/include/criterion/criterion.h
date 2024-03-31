@@ -1,4 +1,5 @@
 #include <criterion/logging.h>
+#include <criterion/new/assert.h>
 
 #define Test(suite, name) \
     void suite##_##name(void); \

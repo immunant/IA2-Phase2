@@ -42,6 +42,10 @@ static std::vector<CAbiArgKind> classifyDirectType(const clang::Type &type,
           "unsupported scalar type (obj-C object, Clang block, or C++ member) found during ABI computation");
     }
   } else {
+    // Handle the case where we pass a struct directly in a register.
+    // The strategy here is to iterate through each field of the struct
+    // and record the ABI type each time we exit an eightbyte chunk.
+
     const clang::RecordType *rec = type.getAsStructureType();
     const clang::RecordDecl *decl = rec->getDecl();
 
@@ -66,13 +70,20 @@ static std::vector<CAbiArgKind> classifyDirectType(const clang::Type &type,
           pending_kind.reset();
         }
 
-        // Update pending_kind based on ABI rules
+        // Update pending_kind based on ABI rules.
+        // We expect the field to fit in a single register (any larger and we
+        // should pass the entire struct on the stack). The field may be another
+        // struct, so we have to call this recursively.
         auto recur = classifyDirectType(*field->getType(), astContext);
         if (recur.size() != 1) {
           llvm::report_fatal_error(
               "unexpectedly classified register-passable field as multiple eightbytes");
         }
         auto new_kind = recur[0];
+        // This block sets pending_kind = new_kind regardless.
+        // However we format it this way to match §3.2.3.4 of the x86_64 ABI.
+        // In the future, if we add support for X87 types etc, this logic will
+        // be more complex.
         if (pending_kind) {
           if (*pending_kind != new_kind) {
             if (new_kind == CAbiArgKind::Memory) {
@@ -120,6 +131,7 @@ static CAbiArgKind classifyLlvmType(const llvm::Type &type) {
   llvm::report_fatal_error("could not classify LLVM type!");
 }
 
+// Given a single argument, determine its ABI slots
 static std::vector<CAbiArgKind>
 abiSlotsForArg(const clang::QualType &qt,
                const clang::CodeGen::ABIArgInfo &argInfo,
@@ -156,7 +168,10 @@ abiSlotsForArg(const clang::QualType &qt,
     llvm::StructType *STy =
         dyn_cast<llvm::StructType>(argInfo.getCoerceToType());
     if (STy) {
+      // Struct case
       if (argInfo.getCanBeFlattened()) {
+        // A struct is "flattenable" if its individual elements can be passed as arguments.
+        // In this case we classify each element of the struct and add each to the list.
         auto elems = STy->elements();
         std::vector<CAbiArgKind> out = {};
         for (const auto &elem : elems) {
@@ -164,11 +179,12 @@ abiSlotsForArg(const clang::QualType &qt,
         }
         return out;
       } else {
-        return {CAbiArgKind::Integral}; // one pointer in register, see `clang's
-                                        // ClangToLLVMArgMapping::construct`
+        // A non-flattenable direct (passed in register) type is a pointer.
+        // see clang's ClangToLLVMArgMapping::construct
+        return {CAbiArgKind::Integral};
       }
     }
-    // if not flattenable, classify the single-register value
+    // We have a scalar type, so classify it.
     return classifyDirectType(*qt.getCanonicalType(), astContext);
   }
   case Kind::Ignore:   // no ABI presence
@@ -209,23 +225,42 @@ CAbiSignature determineAbi(const clang::CodeGen::CGFunctionInfo &info,
   // get ABI for return type and each parameter
   CAbiSignature sig;
   sig.variadic = info.isVariadic();
+
+  // We want to find the layout of the parameter and return value "slots."
+  // We can store a certain number of slots in registers, while the rest
+  // will go on the stack.
+  // These are "slots" and not parameters because some parameters larger
+  // than 64 bits can occupy multiple slots.
+  // Each slot is of one of the types described in CAbiArgKind.
+
+  // Get the slots for the return value.
   auto &returnInfo = info.getReturnInfo();
   sig.ret = abiSlotsForArg(info.getReturnType(), returnInfo, astContext);
 
   auto is_integral = [](auto &x) { return x == CAbiArgKind::Integral; };
+
+  // num_regs is the number of registers in which the return value is stored.
+  // This may be one for a value up to 64 bits or two for a 128-bit value.
   size_t num_regs = std::count_if(sig.ret.begin(), sig.ret.end(), is_integral);
-  if (num_regs > 2) {
+  // It's possible that clang gives us back a value of three or more integers,
+  // for example a struct full of ints. However, in reality the whole value
+  // goes on the stack in this case according to the x64 ABI.
+  // We handle that case here.
+  if (num_regs > 2) { // TODO do we need to do the same on ARM?
+    // Replace the integer slots with an equal number of memory (stack) slots
     std::erase_if(sig.ret, is_integral);
     for (int i = 0; i < num_regs; i++) {
         sig.ret.push_back(CAbiArgKind::Memory);
     }
   }
 
+  // Now determine the slots for the arguments
   for (auto &argInfo : info.arguments()) {
     clang::QualType paramType = argInfo.type;
     auto slots = abiSlotsForArg(paramType, argInfo.info, astContext);
     sig.args.insert(sig.args.end(), slots.begin(), slots.end());
   }
+
   return sig;
 }
 

@@ -1,4 +1,5 @@
 #include "CAbi.h"
+#include "GenCallAsm.h"
 #include "clang/AST/AST.h"
 #include "clang/AST/RecordLayout.h"
 #include "clang/Basic/CodeGenOptions.h"
@@ -135,7 +136,8 @@ static CAbiArgKind classifyLlvmType(const llvm::Type &type) {
 static std::vector<CAbiArgKind>
 abiSlotsForArg(const clang::QualType &qt,
                const clang::CodeGen::ABIArgInfo &argInfo,
-               const clang::ASTContext &astContext) {
+               const clang::ASTContext &astContext,
+               Arch arch) {
   // this function is most similar to Clang's `ClangToLLVMArgMapping::construct`
   typedef enum clang::CodeGen::ABIArgInfo::Kind Kind;
   switch (argInfo.getKind()) {
@@ -221,7 +223,7 @@ cgFunctionInfo(clang::CodeGen::CodeGenModule &cgm,
 }
 
 CAbiSignature determineAbi(const clang::CodeGen::CGFunctionInfo &info,
-                           const clang::ASTContext &astContext) {
+                           const clang::ASTContext &astContext, Arch arch) {
   // get ABI for return type and each parameter
   CAbiSignature sig;
   sig.variadic = info.isVariadic();
@@ -235,7 +237,7 @@ CAbiSignature determineAbi(const clang::CodeGen::CGFunctionInfo &info,
 
   // Get the slots for the return value.
   auto &returnInfo = info.getReturnInfo();
-  sig.ret = abiSlotsForArg(info.getReturnType(), returnInfo, astContext);
+  sig.ret = abiSlotsForArg(info.getReturnType(), returnInfo, astContext, arch);
 
   auto is_integral = [](auto &x) { return x == CAbiArgKind::Integral; };
 
@@ -257,14 +259,14 @@ CAbiSignature determineAbi(const clang::CodeGen::CGFunctionInfo &info,
   // Now determine the slots for the arguments
   for (auto &argInfo : info.arguments()) {
     clang::QualType paramType = argInfo.type;
-    auto slots = abiSlotsForArg(paramType, argInfo.info, astContext);
+    auto slots = abiSlotsForArg(paramType, argInfo.info, astContext, arch);
     sig.args.insert(sig.args.end(), slots.begin(), slots.end());
   }
 
   return sig;
 }
 
-CAbiSignature determineAbiForDecl(const clang::FunctionDecl &fnDecl) {
+CAbiSignature determineAbiForDecl(const clang::FunctionDecl &fnDecl, Arch arch) {
   clang::ASTContext &astContext = fnDecl.getASTContext();
 
   // set up context for codegen so we can ask about function ABI
@@ -306,11 +308,11 @@ CAbiSignature determineAbiForDecl(const clang::FunctionDecl &fnDecl) {
            info.getASTCallingConvention());
     abort();
   }
-  return determineAbi(info, astContext);
+  return determineAbi(info, astContext, arch);
 }
 
 CAbiSignature determineAbiForProtoType(const clang::FunctionProtoType &fpt,
-                                       clang::ASTContext &astContext) {
+                                       clang::ASTContext &astContext, Arch arch) {
   // FIXME: This is copied verbatim from determineAbiForDecl and could be
   // factored out. This depends on what we do with PR #78 so I'm leaving it as
   // is for now.
@@ -339,5 +341,5 @@ CAbiSignature determineAbiForProtoType(const clang::FunctionProtoType &fpt,
       cgm,
       fpt.getCanonicalTypeUnqualified().castAs<clang::FunctionProtoType>());
 
-  return determineAbi(info, astContext);
+  return determineAbi(info, astContext, arch);
 }

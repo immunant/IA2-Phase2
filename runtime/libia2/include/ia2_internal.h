@@ -224,13 +224,14 @@ asm(".macro mov_pkru_eax pkey\n"
         "ldr x9, [sp, #8]!\n"                                                  \
         "mov x10, sp\n"                                                        \
         "mov sp, x9\n"                                                         \
-        "mrs x11, tpidr_el0\n"                                                 \
-        "add x11, x11, #:tprel_hi12:ia2_stackptr_" #i "\n"                     \
-        "add x11, x11, #:tprel_lo12_nc:ia2_stackptr_" #i "\n"                  \
+        "mrs x12, tpidr_el0\n"                                                 \
+        "adrp x11, :gottprel:ia2_stackptr_" #i "\n"                            \
+        "ldr x11, [x11, #:gottprel_lo12:ia2_stackptr_" #i "]\n"                \
+        "add x11, x11, x12\n"                                                  \
         "str x10, [x11]\n"                                                     \
         :                                                                      \
         : "r"(stack)                                                           \
-        : "x9", "x10", "x11"                                                   \
+        : "x9", "x10", "x11", "x12"                                            \
     );                                                                         \
   }
 #endif

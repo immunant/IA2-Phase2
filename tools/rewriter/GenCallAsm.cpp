@@ -605,16 +605,9 @@ static void emit_epilogue(AsmWriter &aw, uint32_t caller_pkey, Arch arch) {
   }
 }
 
-static void emit_return(AsmWriter &aw, Arch arch) {
-  if (arch == Arch::X86) {
-    // Return to the caller
-    add_comment_line(aw, "Return to the caller");
-    add_asm_line(aw, "ret");
-  } else if (arch == Arch::Aarch64) {
-    // TODO ARM return to called
-    add_asm_line(aw, "ret");
-    llvm::errs() << "TODO return not implemented on ARM\n";
-  }
+static void emit_return(AsmWriter &aw) {
+  add_comment_line(aw, "Return to the caller");
+  add_asm_line(aw, "ret");
 }
 
 std::string emit_asm_wrapper(const CAbiSignature &sig,
@@ -763,7 +756,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
 
   emit_epilogue(aw, caller_pkey, arch);
 
-  emit_return(aw, arch);
+  emit_return(aw);
 
   // Set the symbol size
   add_asm_line(aw, ".size "s + wrapper_name + ", .-" + wrapper_name);

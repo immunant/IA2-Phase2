@@ -11,6 +11,16 @@ static void call_libc_exit(int status) {
   exit_ptr(status);
 }
 
+__attribute__((naked)) void _exit(int status) {
+  __asm__(
+#if LIBIA2_X86_64
+  "jmp exit\n"
+#elif LIBIA2_AARCH64
+  "b exit\n"
+#endif
+  );
+}
+
 __attribute__((naked)) void exit(int status) {
   __asm__(
 #if LIBIA2_X86_64

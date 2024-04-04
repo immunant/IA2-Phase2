@@ -1,14 +1,20 @@
 #include <stdio.h>
+#include <stdbool.h>
+#include <unistd.h>
 
-extern void (*__start_fake_criterion_tests)(void);
-extern void (*__stop_fake_criterion_tests)(void);
+extern int (*__start_fake_criterion_tests)(void);
+extern int (*__stop_fake_criterion_tests)(void);
 
 int main() {
-    void (**test)(void) = &__start_fake_criterion_tests;
+    int (**test)(void) = &__start_fake_criterion_tests;
     for (; test < &__stop_fake_criterion_tests; test++) {
         if (!test) {
             break;
         }
-        (*test)();
+        pid_t pid = fork();
+        bool in_child = pid == 0;
+        if (in_child) {
+            return (*test)();
+        }
     }
 }

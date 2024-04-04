@@ -340,7 +340,7 @@ static void emit_fn_call(
     if (arch == Arch::X86) {
       add_asm_line(aw, "call *%r12");
     } else if (arch == Arch::Aarch64) {
-      llvm::errs() << "TODO indirect calls not implemented on ARM\n";
+      add_asm_line(aw, "blr x9");
     }
   } else {
     // direct call
@@ -466,8 +466,9 @@ static void emit_load_fn_ptr(AsmWriter &aw, Arch arch) {
     add_asm_line(aw, "movq ia2_fn_ptr@GOTPCREL(%rip), %r12");
     add_asm_line(aw, "movq (%r12), %r12");
   } else if (arch == Arch::Aarch64) {
-    // TODO ARM function pointer save
-    llvm::errs() << "TODO indirect calls not implemented on ARM\n";
+    add_asm_line(aw, "adrp x9, ia2_fn_ptr");
+    add_asm_line(aw, "add x9, x9, #:lo12:ia2_fn_ptr");
+    add_asm_line(aw, "ldr x9, [x9]");
   }
 }
 

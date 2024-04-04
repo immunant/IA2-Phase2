@@ -291,8 +291,22 @@ static void emit_switch_stacks(AsmWriter &aw, int old_pkey, int new_pkey, Arch a
     add_comment_line(aw, "Read the new stack pointer from memory");
     add_asm_line(aw, llvm::formatv("movq %{0}, %rsp", expr));
   } else if (arch == Arch::Aarch64) {
-    // TODO ARM stack switching
-    llvm::errs() << "TODO stack switching not implemented on ARM\n";
+    add_comment_line(aw, "Compute location to save old stack pointer in x10");
+    add_asm_line(aw, "mrs x9, tpidr_el0");
+    add_asm_line(aw, "adrp x10, :gottprel:ia2_stackptr_"s + std::to_string(old_pkey));
+    add_asm_line(aw, "ldr x10, [x10, #:gottprel_lo12:ia2_stackptr_"s + std::to_string(old_pkey) + "]");
+    add_asm_line(aw, "add x10, x10, x9");
+    add_comment_line(aw, "Write old stack pointer to memory");
+    add_asm_line(aw, "mov x11, sp");
+    add_asm_line(aw, "str x11, [x10]");
+
+    add_comment_line(aw, "Compute location to load new stack pointer in x10");
+    add_asm_line(aw, "adrp x10, :gottprel:ia2_stackptr_"s + std::to_string(new_pkey));
+    add_asm_line(aw, "ldr x10, [x10, #:gottprel_lo12:ia2_stackptr_"s + std::to_string(new_pkey) + "]");
+    add_asm_line(aw, "add x10, x10, x9");
+    add_comment_line(aw, "Read new stack pointer from memory");
+    add_asm_line(aw, "ldr x11, [x10]");
+    add_asm_line(aw, "mov sp, x11");
   }
 }
 

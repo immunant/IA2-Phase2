@@ -41,8 +41,17 @@ __attribute__((naked)) void exit(int status) {
       "call call_libc_exit\n"
       /* clang-format on */
 #elif LIBIA2_AARCH64
-#warning "libia2 does not properly wrap `exit` yet"
-      "udf #0\n"
+#warning "exit wrapper is missing x18 switching"
+      "stp x29, x30, [sp, #-16]!\n"
+      // Load the stack pointer for the shared compartment's stack.
+      "mrs x9, tpidr_el0\n"
+      "adrp x10, :gottprel:ia2_stackptr_0\n"
+      "ldr x10, [x10, #:gottprel_lo12:ia2_stackptr_0]\n"
+      "add x10, x10, x9\n"
+      "ldr x10, [x10]\n"
+      "mov sp, x10\n"
+
+      "bl call_libc_exit\n"
 #endif
       ::);
 }

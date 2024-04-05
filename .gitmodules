@@ -1,0 +1,3 @@
+[submodule "external/glibc"]
+	path = external/glibc
+	url = https://www.sourceware.org/git/glibc.git

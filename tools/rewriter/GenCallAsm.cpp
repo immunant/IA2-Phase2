@@ -499,7 +499,8 @@ static void emit_set_pkru(AsmWriter &aw, uint32_t target_pkey, Arch arch) {
     add_asm_line(aw, "movq %r11, %rdx");
   } else if (arch == Arch::Aarch64) {
     // set X18 to the pointer key (compartment number left-shifted 56 bits)
-    llvm::errs() << "TODO x18 switching is not implemented\n";
+    assert(target_pkey < 16);
+    add_asm_line(aw, llvm::formatv("movz x18, #{0:x4}, LSL #48", target_pkey << 8));
   }
 }
 
@@ -595,8 +596,9 @@ static void emit_set_return_pkru(AsmWriter &aw, uint32_t caller_pkey, Arch arch)
     add_asm_line(aw, "movq %r10, %rax");
     add_asm_line(aw, "movq %r11, %rdx");
   } else if (arch == Arch::Aarch64) {
-    // TODO ARM set PKRU on return
-    llvm::errs() << "TODO set return PKRU not implemented on ARM\n";
+    // set X18 to the pointer key (compartment number left-shifted 56 bits)
+    assert(caller_pkey < 16);
+    add_asm_line(aw, llvm::formatv("movz x18, #{0:x4}, LSL #48", caller_pkey << 8));
   }
 }
 

@@ -136,10 +136,21 @@ struct PhdrSearchArgs {
   const struct IA2SharedSection *shared_sections;
 };
 
+// The two following assembler macros are used because it's difficult to go from
+// PKEYs/tags to PKRU/shifted tags in the preprocessor so we instead have the
+// assembler do the calculation
+
 // This emits the 5 bytes correponding to the movl $PKRU, %eax instruction
 asm(".macro mov_pkru_eax pkey\n"
     ".byte 0xb8\n"
     ".long ~((3 << (2 * \\pkey)) | 3)\n"
+    ".endm");
+
+// This emits the 4 bytes corresponding to movz x18, $shifted_tag, lsl #48
+asm(".macro movz_shifted_tag_x18 tag\n"
+    ".byte 0x12\n"
+    ".hword 0xe000 | (\\tag << 5)\n"
+    ".byte 0xd2\n"
     ".endm");
 
 // Obtain a string corresponding to errno in a threadsafe fashion.
@@ -210,13 +221,16 @@ asm(".macro mov_pkru_eax pkey\n"
   }
 /* clang-format on */
 #elif LIBIA2_AARCH64
-#warning "ALLOCATE_COMPARTMENT_STACK_AND_SETUP_TLS does not include x18 switch or stackptr reinit error checking"
+#warning "ALLOCATE_COMPARTMENT_STACK_AND_SETUP_TLS does not do stackptr reinit error checking"
 #define ALLOCATE_COMPARTMENT_STACK_AND_SETUP_TLS(i)                            \
   {                                                                            \
     __IA2_UNUSED extern __thread void *ia2_stackptr_##i;                       \
                                                                                \
     register void *stack asm("x0") = allocate_stack(i);                        \
     __asm__ volatile(                                                          \
+        /* using x19 since we can't use x18 as a register constraint */        \
+        "mov x19, x18\n"                                                       \
+        "movz_shifted_tag_x18 " #i "\n"                                        \
         /* save old stack pointer */                                           \
         "mov x9, sp\n"                                                         \
         /* switch to newly allocated stack */                                  \
@@ -238,9 +252,10 @@ asm(".macro mov_pkru_eax pkey\n"
         "add x11, x11, x12\n"                                                  \
         /* write newly allocated stack to ia2_stackptr_i */                    \
         "str x10, [x11]\n"                                                     \
+        "mov x18, x19\n"                                                       \
         :                                                                      \
         : "r"(stack)                                                           \
-        : "x9", "x10", "x11", "x12"                                            \
+        : "x9", "x10", "x11", "x12", "x19"                                     \
     );                                                                         \
   }
 #endif

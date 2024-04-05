@@ -59,8 +59,14 @@ __asm__(
     "ldr x9, [x9]\n"
     "mov sp, x9\n"
 
+    // Set x18 tag to 1
+    "movz x18, #0x0100, LSL #48\n"
+
     // Call the real main function
     "bl __real_main\n"
+
+    // Set x18 tag to 0
+    "movz x18, #0x0000, LSL #48\n"
 
     // Restore the old stack pointer
     "adrp x9, main_sp\n"

@@ -86,7 +86,7 @@ size_t ia2_get_tag(void) __attribute__((alias("ia2_get_pkey")));
 size_t ia2_get_x18(void) {
     size_t x18;
     asm("mov %0, x18" : "=r"(x18));
-    return x18;
+    return x18 >> 56;
 }
 size_t ia2_get_tag(void) __attribute__((alias("ia2_get_x18")));
 
@@ -133,12 +133,6 @@ int ia2_mprotect_with_tag(void *addr, size_t len, int prot, int tag) {
     /* Assuming we're using st2g. stgm is undefined at EL0 so it's not an option */
     const int granule_sz = 32;
     const int granules_per_page = PAGE_SIZE / 32;
-    /* small sanity check */
-    size_t current_tag = ia2_get_tag();
-#if LIBIA2_AARCH64
-#warning "libia2 missing x18 sanity check in ia2_mprotect_with_tag"
-#endif
-    //assert(current_tag == tag);
     for (int i = 0; i < granules_per_page; i++) {
         // TODO: It may be possible to simplify this to be more efficient using the addg imm offset
         uint64_t tagged_ptr = insert_tag((uint64_t)addr + (i * granule_sz), tag);
@@ -341,15 +335,11 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
   struct PhdrSearchArgs *search_args = (struct PhdrSearchArgs *)data;
 
   size_t cur_pkey = ia2_get_tag();
-#if LIBIA2_X86_64
   if (cur_pkey != search_args->pkey) {
     fprintf(stderr, "Invalid pkey, expected %" PRId32 ", found %zu\n",
             search_args->pkey, cur_pkey);
     abort();
   }
-#elif LIBIA2_AARCH64
-#warning "libia2 missing tag validation in protect_pages"
-#endif
   Elf64_Addr address = (Elf64_Addr)search_args->address;
   bool extra = in_extra_libraries(info, search_args->extra_libraries);
   if (!in_loaded_segment(info, address) && !extra) {

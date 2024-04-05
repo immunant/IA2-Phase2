@@ -217,17 +217,26 @@ asm(".macro mov_pkru_eax pkey\n"
                                                                                \
     register void *stack asm("x0") = allocate_stack(i);                        \
     __asm__ volatile(                                                          \
+        /* save old stack pointer */                                           \
         "mov x9, sp\n"                                                         \
+        /* switch to newly allocated stack */                                  \
         "mov sp, %0\n"                                                         \
+        /* push old stack pointer to new stack */                              \
         "str x9, [sp], #-8\n"                                                  \
+        /* initialize TLS */                                                   \
         "bl init_tls_" #i "\n"                                                 \
+        /* pop old stack pointer from new stack */                             \
         "ldr x9, [sp, #8]!\n"                                                  \
+        /* save pointer to new stack */                                        \
         "mov x10, sp\n"                                                        \
+        /* switch to old stack */                                              \
         "mov sp, x9\n"                                                         \
+        /* calculate location to save pointer to newly allocated stack */      \
         "mrs x12, tpidr_el0\n"                                                 \
         "adrp x11, :gottprel:ia2_stackptr_" #i "\n"                            \
         "ldr x11, [x11, #:gottprel_lo12:ia2_stackptr_" #i "]\n"                \
         "add x11, x11, x12\n"                                                  \
+        /* write newly allocated stack to ia2_stackptr_i */                    \
         "str x10, [x11]\n"                                                     \
         :                                                                      \
         : "r"(stack)                                                           \

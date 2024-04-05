@@ -43,20 +43,56 @@ target_link_options(libia2 INTERFACE
 )
 set_property(TARGET libia2 PROPERTY INTERFACE_LINK_DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/padding.ld ${CMAKE_CURRENT_BINARY_DIR}/dynsym.syms)
 
-# Find libc. We cannot simply do `find_library(LIBC c REQUIRED)` because
-# `libc.so` itself is a linker script with glibc, while we need the path of
-# the actual ELF shared object itself so we can patch its program headers.
 if (LIBIA2_AARCH64)
-set(LIBC_PATHS /usr/aarch64-linux-gnu/lib /usr/aarch64-linux-gnu/lib64)
-else()
-set(LIBC_PATHS /lib /lib64 /lib/x86_64-linux-gnu)
-endif()
-
-foreach(CANDIDATE in ${LIBC_PATHS})
-    if (EXISTS ${CANDIDATE}/libc.so.6)
-        set(LIBC_PATH ${CANDIDATE}/libc.so.6)
+    if (LIBIA2_REBUILD_GLIBC)
+        ExternalProject_Add(glibc
+            SOURCE_DIR ${CMAKE_SOURCE_DIR}/external/glibc
+            BINARY_DIR ${CMAKE_BINARY_DIR}/external/glibc
+            CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env
+                # ffixed-x18 has to be set here instead of CFLAGS for it to apply to all files
+                "CC=aarch64-linux-gnu-gcc -ffixed-x18"
+                # this is needed for some test files built by the build system
+                "CXX=aarch64-linux-gnu-g++ -ffixed-x18"
+                ${CMAKE_SOURCE_DIR}/external/glibc/configure
+                "--build=aarch64-linux-gnu"
+                "--target=aarch64-linux-gnu"
+                "--prefix=${CMAKE_BINARY_DIR}/external/glibc/sysroot"
+                # build with aarch64 binutils installed on the system
+                "--with-headers=/usr/aarch64-linux-gnu/include"
+                "--with-binutils=/usr/aarch64-linux-gnu/bin"
+                # This is only for the heap tunable
+                "--enable-memory-tagging"
+            BUILD_COMMAND make -j8
+            INSTALL_COMMAND make install
+            USES_TERMINAL_CONFIGURE TRUE
+            USES_TERMINAL_BUILD TRUE
+            USES_TERMINAL_INSTALL TRUE
+        )
+    else()
+        set(SYSROOT_SRC_DIR ${CMAKE_SOURCE_DIR}/external/glibc_sysroot)
+        set(SYSROOT_BIN_DIR ${CMAKE_SOURCE_DIR}/external/glibc/sysroot)
+        add_custom_target(glibc
+            BYPRODUCTS
+                ${SYSROOT_BIN_DIR}/lib/libc.so.6
+                ${SYSROOT_BIN_DIR}/lib/ld-linux-aarch64.so.1
+            COMMAND ${CMAKE_COMMAND} -E copy ${SYSROOT_SRC_DIR}/lib/libc.so.6 ${SYSROOT_BIN_DIR}/lib/
+            COMMAND ${CMAKE_COMMAND} -E copy ${SYSROOT_SRC_DIR}/lib/ld-linux-aarch64.so.1 ${SYSROOT_BIN_DIR}/lib/
+            COMMENT "Copying glibc prebuilts to sysroot")
     endif()
-endforeach()
+    set(LIBC_PATH ${SYSROOT_BIN_DIR}/lib/libc.so.6)
+else()
+    # Find libc. We cannot simply do `find_library(LIBC c REQUIRED)` because
+    # `libc.so` itself is a linker script with glibc, while we need the path of
+    # the actual ELF shared object itself so we can patch its program headers.
+    set(LIBC_PATHS /lib /lib64 /lib/x86_64-linux-gnu)
+
+    foreach(CANDIDATE in ${LIBC_PATHS})
+        if (EXISTS ${CANDIDATE}/libc.so.6)
+            set(LIBC_PATH ${CANDIDATE}/libc.so.6)
+        endif()
+    endforeach()
+
+endif()
 
 
 if(NOT DEFINED LIBC_PATH)
@@ -73,6 +109,10 @@ add_custom_command(
 )
 
 add_custom_target(libc-ia2 DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/libc.so.6")
+
+if (LIBIA2_AARCH64)
+    add_dependencies(libc-ia2 glibc)
+endif()
 
 add_dependencies(libia2 libc-ia2)
 target_link_libraries(libia2 PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/libc.so.6")

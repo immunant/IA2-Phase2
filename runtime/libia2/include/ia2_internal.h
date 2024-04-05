@@ -164,43 +164,43 @@ asm(".macro mov_pkru_eax pkey\n"
     /* stack pointer is part of the compartment whose stack it points to. */   \
     __asm__ volatile(                                                          \
         "mov %0, %%r10\n"                                                      \
-        "# zero ecx as precondition of rdpkru\n"                               \
+        /* zero ecx as precondition of rdpkru */                               \
         "xor %%ecx,%%ecx\n"                                                    \
-        "# eax = old pkru; also zeroes edx, which is required for wrpkru\n"    \
+        /* eax = old pkru; also zeroes edx, which is required for wrpkru */    \
         "rdpkru\n"                                                             \
-        "# save pkru in r12d. XXX: if a callee here spills r12, it could\n"    \
-        "# be corrupted by another thread subsequently corrupt the pkru\n"     \
-        "# when we restore it from r12d\n"                                     \
+        /* save pkru in r12d. XXX: if a callee here spills r12, it could */    \
+        /* be corrupted by another thread subsequently corrupt the pkru */     \
+        /* when we restore it from r12d */                                     \
         "mov %%eax,%%r12d\n"                                                   \
-        "# write new pkru\n"                                                   \
+        /* write new pkru */                                                   \
         "mov_pkru_eax " #i "\n"                                                \
         "wrpkru\n"                                                             \
-        "# save current rsp onto compartment stack\n"                          \
+        /* save current rsp onto compartment stack */                          \
         "mov %%rsp,(%%r10)\n"                                                  \
-        "# switch onto compartment stack\n"                                    \
+        /* switch onto compartment stack */                                    \
         "mov %%r10,%%rsp\n"                                                    \
-        "# align stack\n"                                                      \
+        /* align stack */                                                      \
         "sub $0x8,%%rsp\n"                                                     \
-        "# run init_tls_i on the compartment's stack\n"                        \
+        /* run init_tls_i on the compartment's stack */                        \
         "call init_tls_" #i "\n"                                               \
-        "# undo stack align\n"                                                 \
+        /* undo stack align */                                                 \
         "add $0x8,%%rsp\n"                                                     \
-        "# switch to old stack and restore recently-alloc'd stack to r10\n"    \
+        /* switch to old stack and restore recently-alloc'd stack to r10 */    \
         "mov %%rsp,%%r10\n"                                                    \
         "mov (%%r10),%%rsp\n"                                                  \
         "mov ia2_stackptr_" #i "@GOTTPOFF(%%rip),%%r11\n"                      \
-        "# check that stack pointer holds NULL\n"                              \
+        /* check that stack pointer holds NULL */                              \
         "cmpq $0x0,%%fs:(%%r11)\n"                                             \
         "je .Lfresh_init" #i "\n"                                              \
         "mov $" #i ",%%rdi\n"                                                  \
         "call ia2_reinit_stack_err\n"                                          \
         "ud2\n"                                                                \
         ".Lfresh_init" #i ":\n"                                                \
-        "# store the stack addr in the stack pointer\n"                        \
+        /* store the stack addr in the stack pointer */                        \
         "mov %%r10,%%fs:(%%r11)\n"                                             \
-        "# restore old pkru\n"                                                 \
+        /* restore old pkru */                                                 \
         "mov %%r12d,%%eax\n"                                                   \
-        "# zero ecx+edx as precondition of wrpkru\n"                           \
+        /* zero ecx+edx as precondition of wrpkru */                           \
         "xor %%ecx,%%ecx\n"                                                    \
         "xor %%edx,%%edx\n"                                                    \
         "wrpkru\n"                                                             \

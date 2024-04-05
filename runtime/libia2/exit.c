@@ -45,7 +45,6 @@ __asm__(
     // Call the real exit function.
     "call call_libc_exit\n"
 #elif LIBIA2_AARCH64
-#warning "exit wrapper is missing x18 switching"
     "stp x29, x30, [sp, #-16]!\n"
     // Load the stack pointer for the shared compartment's stack.
     "mrs x9, tpidr_el0\n"
@@ -54,6 +53,9 @@ __asm__(
     "add x10, x10, x9\n"
     "ldr x10, [x10]\n"
     "mov sp, x10\n"
+
+    // Set x18 tag to 0
+    "movz x18, #0x0000, LSL #48\n"
 
     "bl call_libc_exit\n"
 #endif

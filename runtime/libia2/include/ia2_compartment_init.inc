@@ -77,7 +77,7 @@ __attribute__((constructor)) static void COMPARTMENT_IDENT(init_pkey)() {
       :
       : "rax", "rcx", "rdx");
 #elif LIBIA2_AARCH64
-#warning "libia2 may use incorrect memory permissions in init_pkey"
+  __asm__ volatile("movz_shifted_tag_x18 " XSTR(IA2_COMPARTMENT) "\n");
 #endif
 
   dl_iterate_phdr(protect_pages, &args);
@@ -93,7 +93,7 @@ __attribute__((constructor)) static void COMPARTMENT_IDENT(init_pkey)() {
       :
       : "rax", "rcx", "rdx");
 #elif LIBIA2_AARCH64
-#warning "libia2 may use incorrect memory permissions in init_pkey"
+  __asm__ volatile("movz_shifted_tag_x18 0\n");
 #endif
 
   /* Check that we found all extra libraries */

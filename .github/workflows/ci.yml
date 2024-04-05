@@ -94,7 +94,7 @@ jobs:
             -DLLVM_DIR=$LLVM_DIR                                    \
             -G Ninja
           ninja -v minimal
-          qemu-aarch64-static -L /usr/aarch64-linux-gnu/ \
+          qemu-aarch64-static -L $PWD/external/glibc/sysroot/usr \
             tests/minimal/minimal
           popd
 

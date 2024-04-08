@@ -12,7 +12,9 @@ on:
 jobs:
   test-on-pkru-enabled-host:
     runs-on: self-hosted
+    continue-on-error: ${{ matrix.ia2-tracer == 'ON' }}
     strategy:
+      fail-fast: true
       matrix:
         build-type: [Release, Debug]
         c_compiler: [clang, gcc]

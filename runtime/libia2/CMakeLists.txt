@@ -70,13 +70,20 @@ if (LIBIA2_AARCH64)
         )
     else()
         set(SYSROOT_SRC_DIR ${CMAKE_SOURCE_DIR}/external/glibc_sysroot)
-        set(SYSROOT_BIN_DIR ${CMAKE_SOURCE_DIR}/external/glibc/sysroot)
+        set(SYSROOT_BIN_DIR ${CMAKE_BINARY_DIR}/external/glibc/sysroot/usr)
+        file(GLOB SYSROOT_HEADERS_SRC
+            ${SYSROOT_SRC_DIR}/include/*.h
+            ${SYSROOT_SRC_DIR}/include/*/*.h
+            ${SYSROOT_SRC_DIR}/include/*/*/*.h)
+        string(REGEX REPLACE ${SYSROOT_SRC_DIR} ${SYSROOT_BIN_DIR} ${SYSROOT_HEADERS_SRC} SYSROOT_HEADERS)
         add_custom_target(glibc
             BYPRODUCTS
                 ${SYSROOT_BIN_DIR}/lib/libc.so.6
                 ${SYSROOT_BIN_DIR}/lib/ld-linux-aarch64.so.1
+                ${SYSROOT_HEADERS}
             COMMAND ${CMAKE_COMMAND} -E copy ${SYSROOT_SRC_DIR}/lib/libc.so.6 ${SYSROOT_BIN_DIR}/lib/
             COMMAND ${CMAKE_COMMAND} -E copy ${SYSROOT_SRC_DIR}/lib/ld-linux-aarch64.so.1 ${SYSROOT_BIN_DIR}/lib/
+            COMMAND ${CMAKE_COMMAND} -E copy_directory ${SYSROOT_SRC_DIR}/include ${SYSROOT_BIN_DIR}/include
             COMMENT "Copying glibc prebuilts to sysroot")
     endif()
     set(LIBC_PATH ${SYSROOT_BIN_DIR}/lib/libc.so.6)
@@ -116,3 +123,15 @@ endif()
 
 add_dependencies(libia2 libc-ia2)
 target_link_libraries(libia2 PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/libc.so.6")
+if (LIBIA2_AARCH64)
+    execute_process(COMMAND ${CMAKE_C_COMPILER} -print-file-name=include
+        OUTPUT_VARIABLE COMPILER_HEADERS_INCLUDE
+        OUTPUT_STRIP_TRAILING_WHITESPACE)
+    execute_process(COMMAND ${CMAKE_C_COMPILER} -print-file-name=include-fixed
+        OUTPUT_VARIABLE COMPILER_HEADERS_INCLUDE_FIXED
+        OUTPUT_STRIP_TRAILING_WHITESPACE)
+    target_compile_options(libia2 PUBLIC
+        -isystem${CMAKE_BINARY_DIR}/external/glibc/sysroot
+        -isystem${COMPILER_HEADERS_INCLUDE}
+        -isystem${COMPILER_HEADERS_INCLUDE_FIXED})
+endif()

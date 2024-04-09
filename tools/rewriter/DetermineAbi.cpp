@@ -14,6 +14,7 @@
 #include "clang/Lex/PreprocessorOptions.h"
 #include "llvm/IR/LLVMContext.h"
 #include <optional>
+#include <iostream>
 
 // Merge the classifications of an aggregate type.
 // If any classifiction is memory, the whole type must go to memory.
@@ -140,7 +141,9 @@ static std::vector<CAbiArgKind> classifyDirectType(const clang::Type &type,
     }
   } else {
     if (arch == Arch::Aarch64) {
-      return classifyARMAggregate(type, astContext);
+      auto result = classifyARMAggregate(type, astContext);
+      for (auto i: result)
+        std::cout << (int)i << ' ';
     } else {
       // TODO maybe break this out into a function classifyX86Aggregate
       // Slightly annoying because we call classifyDirectType recursively

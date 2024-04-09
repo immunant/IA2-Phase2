@@ -475,7 +475,7 @@ public:
     auto *fpt = expr_ty->castAs<clang::PointerType>()
                     ->getPointeeType()
                     ->getAsAdjusted<clang::FunctionProtoType>();
-    fn_ptr_abi_sig[expr_ty_str] = determineAbiForProtoType(*fpt, ctxt);
+    fn_ptr_abi_sig[expr_ty_str] = determineAbiForProtoType(*fpt, ctxt, Target);
 
     // This check must come after modifying the maps in this pass but before the
     // Replacement is added
@@ -849,7 +849,7 @@ public:
       return;
     }
 
-    CAbiSignature fn_sig = determineAbiForDecl(*fn_node);
+    CAbiSignature fn_sig = determineAbiForDecl(*fn_node, Target);
     abi_signatures[fn_name] = fn_sig;
 
     // Get the translation unit's filename to figure out the pkey

@@ -325,8 +325,10 @@ function(add_ia2_call_gates NAME)
 
   add_library(${CALL_GATE_TARGET} SHARED ${CALL_GATE_SRC})
   add_dependencies(${CALL_GATE_TARGET} ${NAME}-rewrite)
+  # This is needed to enable LIBIA2_DEBUG=1
+  target_compile_definitions(${CALL_GATE_TARGET} PRIVATE IA2_ENABLE=1)
   if(LIBIA2_DEBUG)
-    target_compile_definitions(${CALL_GATE_TARGET} PRIVATE LIBIA2_DEBUG=1)
+    target_compile_definitions(${CALL_GATE_TARGET} PRIVATE LIBIA2_DEBUG=1 IA2_ENABLE=1)
   endif()
   target_compile_definitions(${CALL_GATE_TARGET} PRIVATE _GNU_SOURCE)
   target_link_libraries(${CALL_GATE_TARGET} PUBLIC libia2)

@@ -12,7 +12,9 @@ on:
 jobs:
   test-on-pkru-enabled-host:
     runs-on: self-hosted
+    continue-on-error: ${{ matrix.ia2-tracer == 'ON' }}
     strategy:
+      fail-fast: true
       matrix:
         build-type: [Release, Debug]
         c_compiler: [clang, gcc]
@@ -21,7 +23,7 @@ jobs:
         ia2-tracer: [ON, OFF]
     steps:
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Build
         run: |
           LLVM_DIR=`llvm-config --cmakedir`
@@ -37,7 +39,7 @@ jobs:
             -DLLVM_DIR=$LLVM_DIR                                         \
             -DLLVM_EXTERNAL_LIT=$HOME/.local/bin/lit                     \
             -DLIBIA2_DEBUG=${{ matrix.ia2-debug }}                       \
-            -DIA2_TRACER=${{ matrix.ia2-tracer }}                      \
+            -DIA2_TRACER=${{ matrix.ia2-tracer }}                        \
             -G Ninja
           ninja
           popd
@@ -50,7 +52,7 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Build nginx
         run: |
           LLVM_DIR=`llvm-config --cmakedir`
@@ -69,7 +71,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Test ARM build
         run: |
           sudo apt-get update

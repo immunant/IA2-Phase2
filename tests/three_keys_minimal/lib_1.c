@@ -1,7 +1,7 @@
 #include <criterion/criterion.h>
 #include <ia2.h>
 
-#define IA2_COMPARTMENT 1
+#define IA2_COMPARTMENT 3
 #include <ia2_compartment_init.inc>
 
 #include "lib.h"

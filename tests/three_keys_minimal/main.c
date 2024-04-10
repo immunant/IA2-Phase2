@@ -4,7 +4,7 @@
 #include "lib_2/lib_2.h"
 
 INIT_RUNTIME(3);
-#define IA2_COMPARTMENT 3
+#define IA2_COMPARTMENT 1
 #include <ia2_compartment_init.inc>
 #include <threads.h>
 #include <ia2_allocator.h>

@@ -1,7 +1,7 @@
 define_shared_lib(
     LIBNAME lib_1
     SRCS lib_1.c
-    PKEY 1
+    PKEY 3
 )
 
 define_shared_lib(
@@ -16,6 +16,6 @@ define_test(
     # since define_shared_lib invocations here don't use
     # default LIBNAME
     LIBS lib_1 lib_2
-    PKEY 3
+    PKEY 1
     CRITERION_TEST
 )

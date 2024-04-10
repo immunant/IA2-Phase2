@@ -141,8 +141,11 @@ static Pkey get_file_pkey(const clang::SourceManager &sm) {
 }
 
 static bool ignore_file(const Filename &filename) {
-  return !filename.starts_with(OutputDirectory) &&
-         !filename.starts_with(RootDirectory);
+  bool is_empty = filename.empty();
+  if (is_empty) {
+    return false;
+  }
+  return !filename.starts_with(RootDirectory);
 }
 
 static bool ignore_function(const clang::Decl &decl,

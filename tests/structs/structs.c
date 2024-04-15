@@ -66,6 +66,26 @@ unsigned int cksum_s14(struct s14 s) {
 	return s.u1 + s.u32 + s.field2 + s.field3 + s.field7;
 }
 
+// LINKARGS: --wrap=cksum_s15
+unsigned int cksum_s15(struct s15 s) {
+	return cksum_s1(s.s1) + cksum_s7(s.s7) + cksum_s6(s.s6);
+}
+
+// LINKARGS: --wrap=cksum_s16
+unsigned int cksum_s16(struct s16 s) {
+	return cksum_s1(s.s1);
+}
+
+// LINKARGS: --wrap=cksum_s17
+unsigned int cksum_s17(struct s17 s) {
+	return s.i1 + s.i2;
+}
+
+// LINKARGS: --wrap=cksum_s18
+unsigned int cksum_s18(struct s18 s) {
+	return cksum_s17(s.s17);
+}
+
 // LINKARGS: --wrap=cksum_s3
 int cksum_s3(struct s3 s) {
 	return s.i1 + s.c1 + s.u1;
@@ -199,6 +219,41 @@ struct s14 get_s14(void) {
 		.field6 = 60000,
 		.field7 = 70000,
 		.field8 = 80000,
+	};
+	return s;
+}
+
+// LINKARGS: --wrap=get_s15
+struct s15 get_s15(void) {
+	struct s15 s = {
+		get_s1(),
+		get_s7(),
+		get_s6(),
+	};
+	return s;
+}
+
+// LINKARGS: --wrap=get_s16
+struct s16 get_s16(void) {
+	struct s16 s = {
+		get_s1(),
+	};
+	return s;
+}
+
+// LINKARGS: --wrap=get_s17
+struct s17 get_s17(void) {
+	struct s17 s = {
+		56401,
+		-1115642,
+	};
+	return s;
+}
+
+// LINKARGS: --wrap=get_s18
+struct s18 get_s18(void) {
+	struct s18 s = {
+		get_s17(),
 	};
 	return s;
 }

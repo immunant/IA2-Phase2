@@ -121,6 +121,25 @@ struct s14 {
 	unsigned int field8;
 };
 
+struct s15 {
+	struct s1 s1;
+	struct s7 s7;
+	struct s6 s6;
+};
+
+struct s16 {
+	struct s1 s1;
+};
+
+struct s17 {
+	int64_t i1;
+	int64_t i2;
+};
+
+struct s18 {
+	struct s17 s17;
+};
+
 // LINKARGS: --wrap=get_s1
 struct s1 get_s1(void);
 
@@ -222,3 +241,27 @@ struct s14 get_s14(void);
 
 // LINKARGS: --wrap=cksum_s14
 unsigned int cksum_s14(struct s14);
+
+// LINKARGS: --wrap=get_s15
+struct s15 get_s15(void);
+
+// LINKARGS: --wrap=cksum_s15
+unsigned int cksum_s15(struct s15);
+
+// LINKARGS: --wrap=get_s16
+struct s16 get_s16(void);
+
+// LINKARGS: --wrap=cksum_s16
+unsigned int cksum_s16(struct s16);
+
+// LINKARGS: --wrap=get_s17
+struct s17 get_s17(void);
+
+// LINKARGS: --wrap=cksum_s17
+unsigned int cksum_s17(struct s17);
+
+// LINKARGS: --wrap=get_s18
+struct s18 get_s18(void);
+
+// LINKARGS: --wrap=cksum_s18
+unsigned int cksum_s18(struct s18);

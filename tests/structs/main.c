@@ -308,4 +308,71 @@ Test(structs, main) {
 		check_field_int(field7, 70000);
 		check_field_int(field8, 80000);
 	}
+
+	{
+		struct s1 s1 = {
+			.i1 = 34,
+			.i2 = 99,
+		};
+
+		struct s7 s7 = {
+			.b1 = false,
+			.c1 = 8,
+			.u1 = 2044011,
+		};
+
+		struct s6 s6 = {
+			.i1 = 120,
+			.c1 = 12,
+			.i2 = 236,
+			.c2 = 17,
+			.z1 = 990099,
+		};
+		
+		struct s15 s = {
+			.s1 = s1,
+			.s7 = s7,
+			.s6 = s6,
+		};
+		
+		cr_assert(cksum_s15(s) == cksum_s1(s.s1) + cksum_s7(s.s7) + cksum_s6(s.s6));
+		
+		s = get_s15();
+		check_field_int(s1.i1, 3);
+		check_field_int(s1.i2, 96);
+	}
+
+	{
+		struct s1 s1 = {
+			.i1 = 34,
+			.i2 = 99,
+		};
+		
+		struct s16 s = {
+			.s1 = s1,
+		};
+		
+		cr_assert(cksum_s16(s) == cksum_s1(s.s1));
+		
+		s = get_s16();
+		check_field_int(s1.i1, 3);
+		check_field_int(s1.i2, 96);
+	}
+
+	{
+		struct s17 s17 = {
+			.i1 = 34,
+			.i2 = 99,
+		};
+		
+		struct s18 s = {
+			.s17 = s17,
+		};
+		
+		cr_assert(cksum_s18(s) == cksum_s17(s.s17));
+		
+		s = get_s18();
+		check_field_int(s17.i1, 56401);
+		check_field_int(s17.i2, -1115642);
+	}
 }

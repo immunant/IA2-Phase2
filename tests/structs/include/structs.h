@@ -1,143 +1,143 @@
 #pragma once
-#include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 struct s1 {
-	int i1;
-	int i2;
+  int i1;
+  int i2;
 };
 
 struct s2 {
-	float f1;
+  float f1;
 };
 
 struct s3 {
-    int i1;
-    char c1;
-    unsigned int u1;
+  int i1;
+  char c1;
+  unsigned int u1;
 };
 
 struct s4 {
-	float f1;
-	float f2;
+  float f1;
+  float f2;
 };
 
 struct s5 {
-	int i1;
-	void* p1;
-	char ac1[3];
-	void* p2;
-	float f1;
+  int i1;
+  void *p1;
+  char ac1[3];
+  void *p2;
+  float f1;
 };
 
 struct __attribute__((packed)) s6 {
-	int i1;
-	char c1;
-	int i2;
-	char c2;
-	size_t z1;
+  int i1;
+  char c1;
+  int i2;
+  char c2;
+  size_t z1;
 };
 
 struct s7 {
-	bool b1 : 1;
-	char c1 : 7;
-	unsigned int u1;
+  bool b1 : 1;
+  char c1 : 7;
+  unsigned int u1;
 };
 
 struct s8 {
-	bool b1 : 1;
-	char c1 : 5;
-	size_t z1 : 54;
-	char c2 : 7;
-	size_t z2 : 61;
-	size_t z3;
+  bool b1 : 1;
+  char c1 : 5;
+  size_t z1 : 54;
+  char c2 : 7;
+  size_t z2 : 61;
+  size_t z3;
 };
 
 struct s9 {
-	__int128 i1 : 54;
-	__int128 i2 : 13;
-	__int128 i3 : 61;
+  __int128 i1 : 54;
+  __int128 i2 : 13;
+  __int128 i3 : 61;
 };
 
 struct s10 {
-	__int128 i1 : 54;
-	__int128 i2 : 13;
-	__int128 i3 : 61;
-	size_t z1;
+  __int128 i1 : 54;
+  __int128 i2 : 13;
+  __int128 i3 : 61;
+  size_t z1;
 };
 
 struct s11 {
-	size_t az1[9];
+  size_t az1[9];
 };
 
 struct s12 {
-	char ac1[9];
+  char ac1[9];
 };
 
 struct s13 {
-    __int128 x;
+  __int128 x;
 };
 
 struct s14 {
-	unsigned int u1 : 1;
-	unsigned int u2 : 1;
-	unsigned int u3 : 1;
-	unsigned int u4 : 1;
-	unsigned int u5 : 1;
-	unsigned int u6 : 1;
-	unsigned int u7 : 1;
-	unsigned int u8 : 1;
-	unsigned int u9 : 1;
-	unsigned int u10 : 1;
-	unsigned int u11 : 1;
-	unsigned int u12 : 1;
-	unsigned int u13 : 1;
-	unsigned int u14 : 1;
-	unsigned int u15 : 1;
-	unsigned int u16 : 1;
-	unsigned int u17 : 1;
-	unsigned int u18 : 1;
-	unsigned int u19 : 1;
-	unsigned int u20 : 1;
-	unsigned int u21 : 1;
-	unsigned int u22 : 1;
-	unsigned int u23 : 1;
-	unsigned int u24 : 1;
-	unsigned int u25 : 1;
-	unsigned int u26 : 1;
-	unsigned int u27 : 1;
-	unsigned int u28 : 1;
-	unsigned int u29 : 1;
-	unsigned int u30 : 1;
-	unsigned int u31 : 1;
-	unsigned int u32 : 1;
-	unsigned int field2;
-	unsigned int field3;
-	unsigned int field4;
-	unsigned int field5;
-	unsigned int field6;
-	unsigned int field7;
-	unsigned int field8;
+  unsigned int u1 : 1;
+  unsigned int u2 : 1;
+  unsigned int u3 : 1;
+  unsigned int u4 : 1;
+  unsigned int u5 : 1;
+  unsigned int u6 : 1;
+  unsigned int u7 : 1;
+  unsigned int u8 : 1;
+  unsigned int u9 : 1;
+  unsigned int u10 : 1;
+  unsigned int u11 : 1;
+  unsigned int u12 : 1;
+  unsigned int u13 : 1;
+  unsigned int u14 : 1;
+  unsigned int u15 : 1;
+  unsigned int u16 : 1;
+  unsigned int u17 : 1;
+  unsigned int u18 : 1;
+  unsigned int u19 : 1;
+  unsigned int u20 : 1;
+  unsigned int u21 : 1;
+  unsigned int u22 : 1;
+  unsigned int u23 : 1;
+  unsigned int u24 : 1;
+  unsigned int u25 : 1;
+  unsigned int u26 : 1;
+  unsigned int u27 : 1;
+  unsigned int u28 : 1;
+  unsigned int u29 : 1;
+  unsigned int u30 : 1;
+  unsigned int u31 : 1;
+  unsigned int u32 : 1;
+  unsigned int field2;
+  unsigned int field3;
+  unsigned int field4;
+  unsigned int field5;
+  unsigned int field6;
+  unsigned int field7;
+  unsigned int field8;
 };
 
 struct s15 {
-	struct s1 s1;
-	struct s7 s7;
-	struct s6 s6;
+  struct s1 s1;
+  struct s7 s7;
+  struct s6 s6;
 };
 
 struct s16 {
-	struct s1 s1;
+  struct s1 s1;
 };
 
 struct s17 {
-	int64_t i1;
-	int64_t i2;
+  int64_t i1;
+  int64_t i2;
 };
 
 struct s18 {
-	struct s17 s17;
+  struct s17 s17;
 };
 
 // LINKARGS: --wrap=get_s1
@@ -174,7 +174,7 @@ struct s5 get_s5(void);
 struct s5 get_s5_int(int);
 
 // LINKARGS: --wrap=check_s5
-void check_s5(struct s5 );
+void check_s5(struct s5);
 
 // LINKARGS: --wrap=cksum_s5_f
 float cksum_s5_f(struct s5);

@@ -14,7 +14,8 @@
 #include "clang/Lex/PreprocessorOptions.h"
 #include "llvm/IR/LLVMContext.h"
 #include <optional>
-#include <iostream>
+
+static std::vector<CAbiArgKind> classifyDirectType(const clang::Type &type, const clang::ASTContext &astContext, Arch arch);
 
 // Merge the classifications of an aggregate type.
 // If any classifiction is memory, the whole type must go to memory.
@@ -46,7 +47,7 @@ static bool isHFA(const clang::RecordDecl *decl, const clang::ASTContext &astCon
   return num_fields <= 4;
 }
 
-// Implements the rules described in sections 5.9 and 6.8 of the ARM ABI
+// Implements the rules described in sections 5.9 and 6.8.2 of the ARM ABI
 std::vector<CAbiArgKind> classifyARMAggregate(const clang::Type &type, const clang::ASTContext &astContext) {
   const clang::RecordType *rec = type.getAsStructureType();
   const clang::RecordDecl *decl = rec->getDecl();
@@ -55,6 +56,7 @@ std::vector<CAbiArgKind> classifyARMAggregate(const clang::Type &type, const cla
   if (isHFA(decl, astContext)) {
     // HFAs (homogenous floating point aggregates) are structs of all floats.
     // We can pass these in registers.
+    llvm::errs() << "HFA";
     return std::vector<CAbiArgKind>(std::distance(decl->field_begin(), decl->field_end()), CAbiArgKind::Float);
   }
 
@@ -70,7 +72,8 @@ std::vector<CAbiArgKind> classifyARMAggregate(const clang::Type &type, const cla
     uint64_t offset = 0;
 
     // Iterate over the fields of the aggregate
-    for (auto field : decl->fields()) {
+    auto fields = decl->fields();
+    for (auto field : fields) {
       uint64_t field_offset = astContext.getFieldOffset(field);
       const clang::Type *field_type = field->getType().getTypePtr();
       uint64_t field_size = astContext.getTypeSize(field_type);
@@ -83,19 +86,8 @@ std::vector<CAbiArgKind> classifyARMAggregate(const clang::Type &type, const cla
       }
 
       // Classify the field type
-      if (field_type->isFundamentalType()) {
-        CAbiArgKind kind;
-        if (type.isIntegralOrEnumerationType() || type.isPointerType() || type.isReferenceType()) {
-          kind = CAbiArgKind::Integral;
-        } else if (type.isRealFloatingType()) {
-          kind = CAbiArgKind::Float;
-        } else {
-          kind = CAbiArgKind::Memory;
-        }
-        kinds.push_back(kind);
-      } else {
-        kinds.push_back(CAbiArgKind::Memory);
-      }
+      auto result = classifyDirectType(*field_type, astContext, Arch::Aarch64);
+      kinds.insert(kinds.end(), result.begin(), result.end());
 
       // Update the offset to the end of the current field
       offset += field_size;
@@ -108,6 +100,7 @@ std::vector<CAbiArgKind> classifyARMAggregate(const clang::Type &type, const cla
     return mergeKinds(kinds);
   } else {
     // If the aggregate size exceeds 16 bytes, return a vector of Memory kinds
+    llvm::errs() << "Bigger than 16 bytes";
     return std::vector<CAbiArgKind>((size + 63) / 64, CAbiArgKind::Memory);
   }
 }
@@ -141,9 +134,17 @@ static std::vector<CAbiArgKind> classifyDirectType(const clang::Type &type,
     }
   } else {
     if (arch == Arch::Aarch64) {
+      // TODO we have a bug here where `type` is not an aggregate
+      // (ie, type.getAsStructureType() returns nullptr). This shouldn't happen
+      // because if we're in this branch, we've already determined that we're
+      // not a scalar type (I think?). End result is a segfault in
+      // classifyArmAggregate, need to figure out what type is triggering this.
       auto result = classifyARMAggregate(type, astContext);
+      llvm::errs() << "\nresult: ";
       for (auto i: result)
-        std::cout << (int)i << ' ';
+        llvm::errs() << (int)i << ' ';
+      llvm::errs() << '\n';
+      return result;
     } else {
       // TODO maybe break this out into a function classifyX86Aggregate
       // Slightly annoying because we call classifyDirectType recursively

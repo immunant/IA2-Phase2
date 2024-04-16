@@ -29,7 +29,7 @@ target_include_directories(ia2-rewriter PRIVATE
     ${CLANG_INCLUDE_DIRS}
     ${LLVM_INCLUDE_DIRS})
 
-target_compile_options(ia2-rewriter PRIVATE "-Wunused")
+target_compile_options(ia2-rewriter PRIVATE "-Wunused" "-g")
 target_link_libraries(ia2-rewriter PRIVATE
     clang-cpp
     LLVM

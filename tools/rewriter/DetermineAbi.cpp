@@ -134,17 +134,7 @@ static std::vector<CAbiArgKind> classifyDirectType(const clang::Type &type,
     }
   } else {
     if (arch == Arch::Aarch64) {
-      // TODO we have a bug here where `type` is not an aggregate
-      // (ie, type.getAsStructureType() returns nullptr). This shouldn't happen
-      // because if we're in this branch, we've already determined that we're
-      // not a scalar type (I think?). End result is a segfault in
-      // classifyArmAggregate, need to figure out what type is triggering this.
-      auto result = classifyARMAggregate(type, astContext);
-      llvm::errs() << "\nresult: ";
-      for (auto i: result)
-        llvm::errs() << (int)i << ' ';
-      llvm::errs() << '\n';
-      return result;
+      return classifyARMAggregate(type, astContext);
     } else {
       // TODO maybe break this out into a function classifyX86Aggregate
       // Slightly annoying because we call classifyDirectType recursively
@@ -277,6 +267,7 @@ abiSlotsForArg(const clang::QualType &qt,
     llvm::StructType *STy =
         dyn_cast<llvm::StructType>(argInfo.getCoerceToType());
     if (STy) {
+      llvm::errs() << "struct\n";
       // Struct case
       if (argInfo.getCanBeFlattened()) {
         // A struct is "flattenable" if its individual elements can be passed as arguments.
@@ -292,6 +283,14 @@ abiSlotsForArg(const clang::QualType &qt,
         // see clang's ClangToLLVMArgMapping::construct
         return {CAbiArgKind::Integral};
       }
+    }
+    llvm::ArrayType *ATy =
+        dyn_cast<llvm::ArrayType>(argInfo.getCoerceToType());
+    if (ATy) {
+      // Array case
+      // TODO it's a pointer?
+      llvm::errs() << "array\n";
+      return {CAbiArgKind::Memory};
     }
     // We have a scalar type, so classify it.
     return classifyDirectType(*qt.getCanonicalType(), astContext, arch);
@@ -345,6 +344,10 @@ CAbiSignature determineAbi(const clang::CodeGen::CGFunctionInfo &info,
   // Get the slots for the return value.
   auto &returnInfo = info.getReturnInfo();
   sig.ret = abiSlotsForArg(info.getReturnType(), returnInfo, astContext, arch);
+  llvm::errs() << "\nresult: ";
+  for (auto i: sig.ret)
+    llvm::errs() << (int)i << ' ';
+  llvm::errs() << '\n';
 
   auto is_integral = [](auto &x) { return x == CAbiArgKind::Integral; };
 

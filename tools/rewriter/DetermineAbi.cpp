@@ -288,8 +288,7 @@ abiSlotsForArg(const clang::QualType &qt,
         dyn_cast<llvm::ArrayType>(argInfo.getCoerceToType());
     if (ATy) {
       // Array case
-      // TODO it's a pointer?
-      llvm::errs() << "array\n";
+      // Goes on the stack
       return {CAbiArgKind::Memory};
     }
     // We have a scalar type, so classify it.
@@ -406,6 +405,7 @@ CAbiSignature determineAbiForDecl(const clang::FunctionDecl &fnDecl, Arch arch) 
   clang::CodeGen::CodeGenModule &cgm = codeGenerator->CGM();
 
   auto name = fnDecl.getNameInfo().getAsString();
+  llvm::errs() << name;
   const auto &info = cgFunctionInfo(cgm, fnDecl);
 
   const auto &convention = info.getEffectiveCallingConvention();

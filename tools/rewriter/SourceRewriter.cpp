@@ -103,6 +103,10 @@ static Filename get_filename(const clang::SourceLocation loc,
       abort();
     }
   }
+  // if we could not get a filename for the spelling loc, use the expansion filename
+  if (s == "") {
+    s = sm.getFilename(sm.getExpansionLoc(loc));
+  }
   llvm::sys::path::replace_path_prefix(s, RootDirectory, OutputDirectory);
   return s.str().str();
 }

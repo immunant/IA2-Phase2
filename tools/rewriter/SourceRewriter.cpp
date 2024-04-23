@@ -1264,10 +1264,22 @@ int main(int argc, const char **argv) {
       // original entries in these maps for the renamed symbols. While we could
       // avoid this duplication if necessary, this simplifies the call gate
       // generation.
-      auto c_abi = fn_decl_pass.abi_signatures.at(fn_name);
+      CAbiSignature c_abi;
+      try {
+        c_abi = fn_decl_pass.abi_signatures.at(fn_name);
+      } catch (std::out_of_range const &exc) {
+        llvm::errs() << "ABI signature not known for function " << fn_name << "\n";
+        abort();
+      }
       fn_decl_pass.abi_signatures.insert({new_fn_name, c_abi});
 
-      Pkey pkey = fn_decl_pass.fn_pkeys.at(fn_name);
+      Pkey pkey;
+      try {
+        pkey = fn_decl_pass.fn_pkeys.at(fn_name);
+      } catch (std::out_of_range const &exc) {
+        llvm::errs() << "pkey not known for function " << fn_name << "\n";
+        abort();
+      }
       fn_decl_pass.fn_pkeys.insert({new_fn_name, pkey});
 
       // The target functions for multicaller function call gates don't have

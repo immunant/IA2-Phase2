@@ -631,12 +631,16 @@ public:
       // check for an existing used attribute.
       if (new_fn) {
         auto decl_start = fn_decl->getBeginLoc();
-        Replacement old_used_attr(sm, decl_start, 0,
-                                  llvm::StringRef("__attribute__((used)) "));
-        Replacement used_attr = replace_new_file(filename, old_used_attr);
-        auto err = file_replacements[filename].add(used_attr);
-        if (err) {
-          llvm::errs() << "Error adding replacements: " << err << '\n';
+        if (!decl_start.isFileID()) {
+          llvm::errs() << "Error: non-file loc for function " << fn_name << '\n';
+        } else {
+          Replacement old_used_attr(sm, decl_start, 0,
+                                    llvm::StringRef("__attribute__((used)) "));
+          Replacement used_attr = replace_new_file(filename, old_used_attr);
+          auto err = file_replacements[filename].add(used_attr);
+          if (err) {
+            llvm::errs() << "Error adding replacements: " << err << '\n';
+          }
         }
       }
 

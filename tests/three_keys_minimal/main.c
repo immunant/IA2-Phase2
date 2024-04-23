@@ -95,38 +95,38 @@ Test(three_keys_minimal, direct_calls) {
  * to keep the memory access tests separate from indirect control-flow tests so
  * this is the best I could do
  */
-#define TEST_VAR_ACCESS(var)                                  \
+#define TEST_VAR_ACCESS(var, cond)                            \
   tmp = *main_get_##var();                                    \
-  if (check-- == 0)                                           \
+  if (cond)                                                   \
     CHECK_VIOLATION(lib_1_read(main_get_##var()));            \
-  if (check-- == 0)                                           \
+  if (cond)                                                   \
     CHECK_VIOLATION_VOID(lib_1_write(main_get_##var(), 33));  \
-  if (check-- == 0)                                           \
+  if (cond)                                                   \
     CHECK_VIOLATION(lib_2_read(main_get_##var()));            \
-  if (check-- == 0)                                           \
+  if (cond)                                                   \
     CHECK_VIOLATION_VOID(lib_2_write(main_get_##var(), 33));  \
   *main_get_##var() = tmp + 1;                                \
                                                               \
-  if (check-- == 0)                                           \
+  if (cond)                                                   \
     tmp = CHECK_VIOLATION(*lib_1_get_##var());                \
   tmp = lib_1_read(lib_1_get_##var());                        \
   lib_1_write(lib_1_get_##var(), tmp + 1);                    \
-  if (check-- == 0)                                           \
+  if (cond)                                                   \
     CHECK_VIOLATION(lib_2_read(lib_1_get_##var()));           \
-  if (check-- == 0)                                           \
+  if (cond)                                                   \
     CHECK_VIOLATION_VOID(lib_2_write(lib_1_get_##var(), 33)); \
-  if (check-- == 0)                                           \
+  if (cond)                                                   \
     CHECK_VIOLATION(*lib_1_get_##var() = 33);                 \
                                                               \
-  if (check-- == 0)                                           \
+  if (cond)                                                   \
     tmp = CHECK_VIOLATION(*lib_2_get_##var());                \
-  if (check-- == 0)                                           \
+  if (cond)                                                   \
     CHECK_VIOLATION(lib_1_read(lib_2_get_##var()));           \
-  if (check-- == 0)                                           \
+  if (cond)                                                   \
     CHECK_VIOLATION_VOID(lib_1_write(lib_2_get_##var(), 33)); \
   tmp = lib_2_read(lib_2_get_##var());                        \
   lib_2_write(lib_2_get_##var(), tmp + 1);                    \
-  if (check-- == 0)                                           \
+  if (cond)                                                   \
     CHECK_VIOLATION(*lib_2_get_##var() = 33);
 
 // Test that static, heap and TLS variables are only accessible from their corresponding compartments
@@ -134,19 +134,19 @@ Test(three_keys_minimal, direct_calls) {
   Test(three_keys_minimal, var_access_static_##n) { \
     int tmp;                                        \
     int check = n;                                  \
-    TEST_VAR_ACCESS(static);                        \
+    TEST_VAR_ACCESS(static, check-- == 0)           \
   }
 #define DECLARE_HEAP_TEST(n)                      \
   Test(three_keys_minimal, var_access_heap_##n) { \
     int tmp;                                      \
     int check = n;                                \
-    TEST_VAR_ACCESS(heap);                        \
+    TEST_VAR_ACCESS(heap, check-- == 0)           \
   }
 #define DECLARE_TLS_TEST(n)                      \
   Test(three_keys_minimal, var_access_tls_##n) { \
     int tmp;                                     \
     int check = n;                               \
-    TEST_VAR_ACCESS(tls);                        \
+    TEST_VAR_ACCESS(tls, check-- == 0)           \
   }
 
 REPEATB(11, DECLARE_STATIC_TEST, DECLARE_STATIC_TEST)
@@ -183,6 +183,6 @@ Test(three_keys_minimal, shared_vars_accessible) {
 #define CHECK_VIOLATION(x) x
 #undef CHECK_VIOLATION_VOID
 #define CHECK_VIOLATION_VOID(x) x
-  TEST_VAR_ACCESS(shared_static);
-  TEST_VAR_ACCESS(shared_heap);
+  TEST_VAR_ACCESS(shared_static, true);
+  TEST_VAR_ACCESS(shared_heap, true);
 }

@@ -9,6 +9,9 @@ INIT_RUNTIME(3);
 #include <threads.h>
 #include <ia2_allocator.h>
 
+#define IA2_DEFINE_TEST_HANDLER
+#include "test_fault_handler.h"
+
 void main_noop(void) {
 }
 
@@ -57,7 +60,7 @@ int *main_get_tls(void) {
 
 // TODO: Test control flow with variables passed on the stack
 // Test control flow through call gates using direct calls
-Test(three_keys_minimal, 0) {
+Test(three_keys_minimal, direct_calls) {
     // Go to lib 1
     lib_1_noop();
     // Go to lib 1 then lib 2
@@ -76,57 +79,86 @@ Test(three_keys_minimal, 0) {
     lib_2_call_loop();
 }
 
+// variant of CHECK_VIOLATION macro that works with void-valued expressions
+#define CHECK_VIOLATION_VOID(expr) {expect_fault = true; expr; expect_fault = false; }
+
 /*
  * I would've preferred to implement this with function pointers but didn't want
  * to keep the memory access tests separate from indirect control-flow tests so
  * this is the best I could do
  */
-#define TEST_VAR_ACCESS(var)                     \
-    tmp = *main_get_##var();                     \
-    lib_1_read(main_get_##var());                \
-    lib_1_write(main_get_##var(), 33);           \
-    lib_2_read(main_get_##var());                \
-    lib_2_write(main_get_##var(), 33);           \
-    *main_get_##var() = tmp + 1;                 \
-                                                 \
-    tmp = *lib_1_get_##var();                    \
-    tmp = lib_1_read(lib_1_get_##var());         \
-    lib_1_write(lib_1_get_##var(), tmp + 1);     \
-    lib_2_read(lib_1_get_##var());               \
-    lib_2_write(lib_1_get_##var(), 33);          \
-    *lib_1_get_##var() = 33;                     \
-                                                 \
-    tmp = *lib_2_get_##var();                    \
-    lib_1_read(lib_2_get_##var());               \
-    lib_1_write(lib_2_get_##var(), 33);          \
-    tmp = lib_2_read(lib_2_get_##var());         \
-    lib_2_write(lib_2_get_##var(), tmp + 1);     \
-    *lib_2_get_##var() = 33;
+#define TEST_VAR_ACCESS(var)                                  \
+  tmp = *main_get_##var();                                    \
+  if (check-- == 0)                                           \
+    CHECK_VIOLATION(lib_1_read(main_get_##var()));            \
+  if (check-- == 0)                                           \
+    CHECK_VIOLATION_VOID(lib_1_write(main_get_##var(), 33));  \
+  if (check-- == 0)                                           \
+    CHECK_VIOLATION(lib_2_read(main_get_##var()));            \
+  if (check-- == 0)                                           \
+    CHECK_VIOLATION_VOID(lib_2_write(main_get_##var(), 33));  \
+  *main_get_##var() = tmp + 1;                                \
+                                                              \
+  if (check-- == 0)                                           \
+    tmp = CHECK_VIOLATION(*lib_1_get_##var());                \
+  tmp = lib_1_read(lib_1_get_##var());                        \
+  lib_1_write(lib_1_get_##var(), tmp + 1);                    \
+  if (check-- == 0)                                           \
+    CHECK_VIOLATION(lib_2_read(lib_1_get_##var()));           \
+  if (check-- == 0)                                           \
+    CHECK_VIOLATION_VOID(lib_2_write(lib_1_get_##var(), 33)); \
+  if (check-- == 0)                                           \
+    CHECK_VIOLATION(*lib_1_get_##var() = 33);                 \
+                                                              \
+  if (check-- == 0)                                           \
+    tmp = CHECK_VIOLATION(*lib_2_get_##var());                \
+  if (check-- == 0)                                           \
+    CHECK_VIOLATION(lib_1_read(lib_2_get_##var()));           \
+  if (check-- == 0)                                           \
+    CHECK_VIOLATION_VOID(lib_1_write(lib_2_get_##var(), 33)); \
+  tmp = lib_2_read(lib_2_get_##var());                        \
+  lib_2_write(lib_2_get_##var(), tmp + 1);                    \
+  if (check-- == 0)                                           \
+    CHECK_VIOLATION(*lib_2_get_##var() = 33);
 
 // Test that static, heap and TLS variables are only accessible from their corresponding compartments
-Test(three_keys_minimal, 1) {
-    int tmp;
-    // TODO: These need asserts once I relearn how criterion works
-    TEST_VAR_ACCESS(static);
-    TEST_VAR_ACCESS(heap);
-    TEST_VAR_ACCESS(tls);
-}
+#define DECLARE_STATIC_TEST(n) Test(three_keys_minimal, var_access_static_##n) { int tmp; int check = n; TEST_VAR_ACCESS(static); }
+#define DECLARE_HEAP_TEST(n) Test(three_keys_minimal, var_access_heap_##n) { int tmp; int check = n; TEST_VAR_ACCESS(heap); }
+#define DECLARE_TLS_TEST(n) Test(three_keys_minimal, var_access_tls_##n) { int tmp; int check = n; TEST_VAR_ACCESS(tls); }
+
+REPEATB(11, DECLARE_STATIC_TEST, DECLARE_STATIC_TEST)
+REPEATB(11, DECLARE_HEAP_TEST, DECLARE_HEAP_TEST)
+REPEATB(11, DECLARE_TLS_TEST, DECLARE_TLS_TEST)
 
 // Test that stack variables are only accessible from their corresponding compartments
-Test(three_keys_minimal, 2) {
+void test_stack_vars(int check) {
     int tmp = 23;
-    lib_1_read(&tmp);
-    lib_1_write(&tmp, tmp + 1);
-    lib_2_read(&tmp);
-    lib_2_write(&tmp, tmp + 1);
-
-    lib_1_test_local();
-    lib_2_test_local();
+    if(check-- == 0)
+        CHECK_VIOLATION(lib_1_read(&tmp));
+    if(check-- == 0)
+        CHECK_VIOLATION_VOID(lib_1_write(&tmp, tmp + 1));
+    if(check-- == 0)
+        CHECK_VIOLATION(lib_2_read(&tmp));
+    if(check-- == 0)
+        CHECK_VIOLATION_VOID(lib_2_write(&tmp, tmp + 1));
+    if(check-- == 0)
+        CHECK_VIOLATION_VOID(lib_1_test_local());
+    if(check-- == 0)
+        CHECK_VIOLATION_VOID(lib_2_test_local());
 }
 
+#define DECLARE_STACK_TEST(n) Test(three_keys_minimal, stack_vars_protected_##n) { test_stack_vars(n); }
+
+REPEATB(5, DECLARE_STACK_TEST, DECLARE_STACK_TEST)
+
 // Test that shared variables are accessible from all compartments
-Test(three_keys_minimal, 3) {
+Test(three_keys_minimal, shared_vars_accessible) {
     int tmp;
+    int check = -1;
+    #undef CHECK_VIOLATION
+    #define CHECK_VIOLATION(x) x
+    #undef CHECK_VIOLATION_VOID
+    #define CHECK_VIOLATION_VOID(x) x
     TEST_VAR_ACCESS(shared_static);
     TEST_VAR_ACCESS(shared_heap);
 }

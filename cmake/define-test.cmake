@@ -182,6 +182,8 @@ function(define_test)
         ${SHARED_LIB_UNWRAPPED_LIBRARY_DIRS})
     target_link_libraries(${TEST_NAME} PUBLIC
         ${SHARED_LIB_UNWRAPPED_LIBS})
+
+    target_compile_options(${TEST_NAME} PRIVATE "-g")
 endfunction()
 
 function(define_ia2_main)

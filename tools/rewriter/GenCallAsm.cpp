@@ -70,9 +70,10 @@ const std::array<const char *, 3> cabi_arg_kind_names = {"int", "float", "mem"};
 const std::array<const char *, 5> x86_preserved_registers = {"rbx", "r12", "r13",
                                                              "r14", "r15"};
 
-const std::array<const char *, 12> aarch64_preserved_registers = {"x19", "x20", "x21", "x22",
-                                                                  "x23", "x24", "x25", "x26",
-                                                                  "x27", "x28", "x29", "x30"};
+const std::array<const char *, 10> aarch64_preserved_registers = {"x19", "x20", "x21",
+                                                                  "x22", "x23", "x24",
+                                                                  "x25", "x26", "x27",
+                                                                  "x28"};
 
 /// Compute abi locations for parameters of a C-abi function, given its sequence
 /// of argument kinds.
@@ -397,11 +398,24 @@ static void emit_prologue(AsmWriter &aw, uint32_t caller_pkey, uint32_t target_p
       add_asm_line(aw, "pushq %"s + r);
     }
   } else if (arch == Arch::Aarch64) {
-      add_asm_line(aw, "stp x29, x30, [sp, #-16]!");
-      add_asm_line(aw, "mov x29, sp");
-    for (auto &r : aarch64_preserved_registers) {
-      // TODO: preallocate the stack space to make this more efficient. There may also be ARM64 instructions for storing a block of registers.
-      add_asm_line(aw, "str "s + r + ", [sp, #-8]!");
+    // Frame pointer and link register need to be saved first, to make backtraces work
+    add_asm_line(aw, "stp x29, x30, [sp, #-16]!");
+    // Set the new frame pointer
+    add_asm_line(aw, "mov x29, sp");
+
+    // Calculate total space needed for the callee-saved registers
+    int total_space_needed = aarch64_preserved_registers.size() * 8; // Each register requires 8 bytes
+
+    // The stack must be 16-byte aligned. It will be as long as we're saving an
+    // even number of registers.
+    assert(total_space_needed % 16 == 0);
+
+    // Allocate space on the stack at once
+    add_asm_line(aw, "sub sp, sp, #" + std::to_string(total_space_needed));
+
+    // Save callee-saved registers
+    for (size_t i = 0; i < aarch64_preserved_registers.size(); i++) {
+      add_asm_line(aw, "str "s + aarch64_preserved_registers[i] + ", [sp, #" + std::to_string(i * 8) + "]");
     }
   }
 }
@@ -614,20 +628,28 @@ static void emit_set_return_pkru(AsmWriter &aw, uint32_t caller_pkey, Arch arch)
 
 static void emit_epilogue(AsmWriter &aw, uint32_t caller_pkey, Arch arch) {
   if (arch == Arch::X86) {
-    auto callee_saved = x86_preserved_registers;
     // Load registers that are preserved across function calls after switching
     // back to the caller's compartment's stack. This is on the caller's stack so
     // it's not in the diagram above.
-    for (auto r = callee_saved.rbegin(); r != callee_saved.rend(); r++) {
+    for (auto r = x86_preserved_registers.rbegin(); r != x86_preserved_registers.rend();
+         r++) {
       add_asm_line(aw, "popq %"s + *r);
     }
     // Restore the caller's frame pointer
     add_asm_line(aw, "popq %rbp");
   } else if (arch == Arch::Aarch64) {
-    auto callee_saved = aarch64_preserved_registers;
-    for (auto r = callee_saved.rbegin(); r != callee_saved.rend(); r++) {
-      add_asm_line(aw, "ldr "s + *r + ", [sp], #8");
+    // Restore callee-saved registers
+    for (int i = 0; i < aarch64_preserved_registers.size(); ++i) {
+      add_asm_line(aw,
+                   "ldr "s +
+                       aarch64_preserved_registers[i] +
+                       ", [sp, #" +
+                       std::to_string(i * 8) +
+                       "]");
     }
+    // Adjust the stack pointer
+    add_asm_line(aw, "add sp, sp, #" + std::to_string(aarch64_preserved_registers.size() * 8));
+    // Restore frame pointer and link register
     add_asm_line(aw, "ldp x29, x30, [sp], #16");
   }
 }

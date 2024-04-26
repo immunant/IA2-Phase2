@@ -281,6 +281,13 @@ abiSlotsForArg(const clang::QualType &qt,
         return {CAbiArgKind::Integral};
       }
     }
+    llvm::ArrayType *ATy =
+        dyn_cast<llvm::ArrayType>(argInfo.getCoerceToType());
+    if (ATy) {
+      // Array case
+      // Goes on the stack
+      return {CAbiArgKind::Memory};
+    }
     // We have a scalar type, so classify it.
     return classifyDirectType(*qt.getCanonicalType(), astContext, arch);
   }

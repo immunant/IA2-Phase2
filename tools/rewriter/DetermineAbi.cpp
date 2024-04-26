@@ -18,10 +18,104 @@
 #include <optional>
 #include <vector>
 
+static std::vector<CAbiArgLocation> classifyDirectType(const clang::Type &type, const clang::ASTContext &astContext, Arch arch);
+
+// Detect a homogenous floating-point aggregate.
+// ABI: "A Homogeneous Floating-point Aggregate (HFA) is a Homogeneous Aggregate
+// with a Fundamental Data Type that is a Floating-Point type and at most four
+// uniquely addressable members."
+static bool isHFA(const clang::RecordDecl *decl, const clang::ASTContext &astContext) {
+  if (decl->field_empty() || decl->isUnion())
+    return false;
+
+  unsigned int num_fields = 0;
+  for (auto field : decl->fields()) {
+    const clang::Type *field_type = field->getType().getTypePtr();
+    if (!field_type->isRealFloatingType())
+      return false;
+    num_fields++;
+  }
+
+  return num_fields <= 4;
+}
+
+// Implements the rules described in sections 5.9 and 6.8.2 of the ARM ABI
+std::vector<CAbiArgLocation> classifyARMAggregate(const clang::Type &type, const clang::ASTContext &astContext) {
+  const clang::RecordType *rec = type.getAsStructureType();
+  const clang::RecordDecl *decl = rec->getDecl();
+
+  // HFAs (5.9.5.1)
+  if (isHFA(decl, astContext)) {
+    // HFAs (homogenous floating point aggregates) are structs of all floats.
+    // We can pass these in registers.
+    return std::vector<CAbiArgLocation>(std::distance(decl->field_begin(), decl->field_end()), CAbiArgLocation{CAbiArgKind::Float});
+  }
+
+  // TODO detect homogenous vector aggregates (5.9.5.2) which are unsupported
+
+  // size is in bits
+  const clang::ASTRecordLayout &layout =
+      astContext.getASTRecordLayout(decl);
+  uint64_t alignment = layout.getAlignment().getQuantity() * 8;
+
+  // If the aggregate size is less than or equal to 16 bytes we might fit in registers
+  if (layout.getSize().getQuantity() <= 16) {
+    std::vector<CAbiArgKind> kinds;
+    uint64_t offset = 0;
+
+    // Iterate over the fields of the aggregate
+    auto fields = decl->fields();
+    for (auto field : fields) {
+      uint64_t field_offset = astContext.getFieldOffset(field);
+      const clang::Type *field_type = field->getType().getTypePtr();
+      uint64_t field_size = astContext.getTypeSize(field_type);
+
+      // If there is padding between the previous field and the current field,
+      // add a Memory classification for the padding bytes
+      if (offset < field_offset) {
+        kinds.push_back(CAbiArgKind::Memory);
+        offset = field_offset;
+      }
+
+      // Classify the field type
+      auto result = classifyDirectType(*field_type, astContext, Arch::Aarch64);
+      for (auto location : result) {
+        kinds.push_back(location.kind);
+      }
+
+      // Update the offset to the end of the current field
+      offset += field_size;
+
+      // Align the offset to the minimum of the aggregate alignment and 8 bytes
+      offset = llvm::alignTo(offset, std::min(alignment, uint64_t(64)));
+    }
+
+    // If one type is Memory, all must go to memory
+    std::vector<CAbiArgLocation> locations;
+    for (auto kind : kinds) {
+      if (kind == CAbiArgKind::Memory) {
+        break;
+      }
+      locations.emplace_back(kind);
+    }
+    if (locations.size() == kinds.size()) {
+      return locations;
+    }
+  }
+
+  // If the aggregate size exceeds 16 bytes, or has any Memory fields, return a
+  // Memory location.
+  return {CAbiArgLocation{
+      .kind = CAbiArgKind::Memory,
+      .size = static_cast<unsigned>(layout.getSize().getQuantity()),
+      .align = static_cast<unsigned>(layout.getAlignment().getQuantity()),
+  }};
+}
+
 // Compute sequence of eightbyte classifications for a type that Clang has
 // chosen to pass directly in registers
 static std::vector<CAbiArgLocation> classifyDirectType(const clang::Type &type,
-                                               const clang::ASTContext &astContext) {
+                                                       const clang::ASTContext &astContext, Arch arch) {
   if (type.isVoidType()) {
     return {};
   } else if (type.isScalarType()) {
@@ -45,26 +139,32 @@ static std::vector<CAbiArgLocation> classifyDirectType(const clang::Type &type,
       llvm::report_fatal_error(
           "unsupported scalar type (obj-C object, Clang block, or C++ member) found during ABI computation");
     }
-  } else if (type.getAsStructureType()) {
-    // Handle the case where we pass a struct directly in a register.
-    // The strategy here is to iterate through each field of the struct
-    // and record the ABI type each time we exit an eightbyte chunk.
+  } else {
+    if (arch == Arch::Aarch64) {
+      return classifyARMAggregate(type, astContext);
+    } else {
+      // TODO maybe break this out into a function classifyX86Aggregate
+      // Slightly annoying because we call classifyDirectType recursively
 
-    const clang::RecordType *rec = type.getAsStructureType();
-    const clang::RecordDecl *decl = rec->getDecl();
+      // Handle the case where we pass a struct directly in a register.
+      // The strategy here is to iterate through each field of the struct
+      // and record the ABI type each time we exit an eightbyte chunk.
 
-    if (decl->canPassInRegisters()) {
-      std::vector<CAbiArgLocation> out; // Classifications for the entire record
-      std::optional<CAbiArgLocation> pending_location;
-      int64_t prev_end_offset = 0; // Initially, first eightbyte
+      const clang::RecordType *rec = type.getAsStructureType();
+      const clang::RecordDecl *decl = rec->getDecl();
 
-      const clang::ASTRecordLayout &layout =
-          astContext.getASTRecordLayout(decl);
+      if (decl->canPassInRegisters()) {
+        std::vector<CAbiArgLocation> out; // Classifications for the entire record
+        std::optional<CAbiArgLocation> pending_location;
+        int64_t prev_end_offset = 0; // Initially, first eightbyte
 
-      // Consider the classification of each field, but only push the current
-      // classification each time we leave an eightbyte
-      for (auto field : decl->fields()) {
-        int64_t offset = layout.getFieldOffset(field->getFieldIndex());
+        const clang::ASTRecordLayout &layout =
+            astContext.getASTRecordLayout(decl);
+
+        // Consider the classification of each field, but only push the current
+        // classification each time we leave an eightbyte
+        for (auto field : decl->fields()) {
+          int64_t offset = layout.getFieldOffset(field->getFieldIndex());
 
         // Save the classification of the last eightbyte if we've left it
         bool same_eightbyte = offset / 64 == prev_end_offset / 64;
@@ -74,53 +174,53 @@ static std::vector<CAbiArgLocation> classifyDirectType(const clang::Type &type,
           pending_location.reset();
         }
 
-        // Update pending_kind based on ABI rules.
-        // We expect the field to fit in a single register (any larger and we
-        // should pass the entire struct on the stack). The field may be another
-        // struct, so we have to call this recursively.
-        auto recur = classifyDirectType(*field->getType(), astContext);
-        if (recur.size() != 1) {
-          llvm::report_fatal_error(
-              "unexpectedly classified register-passable field as multiple eightbytes");
-        }
-        auto new_location = recur[0];
-        // This block sets pending_kind = new_kind regardless.
-        // However we format it this way to match §3.2.3.4 of the x86_64 ABI.
-        // In the future, if we add support for X87 types etc, this logic will
-        // be more complex.
-        if (pending_location) {
-          if (pending_location->kind != new_location.kind) {
-            if (new_location.kind == CAbiArgKind::Memory) {
-              pending_location = new_location;
-            } else if (new_location.kind == CAbiArgKind::Integral) {
-              pending_location = new_location;
-              // TODO: handle X87/X87UP/COMPLEX_X87
-            } else {
-              pending_location = new_location;
-            }
+          // Update pending_kind based on ABI rules.
+          // We expect the field to fit in a single register (any larger and we
+          // should pass the entire struct on the stack). The field may be another
+          // struct, so we have to call this recursively.
+          auto recur = classifyDirectType(*field->getType(), astContext, arch);
+          if (recur.size() != 1) {
+            llvm::report_fatal_error(
+                "unexpectedly classified register-passable field as multiple eightbytes");
           }
-        } else {
-          pending_location = new_location;
-        }
+          auto new_location = recur[0];
+          // This block sets pending_kind = new_kind regardless.
+          // However we format it this way to match §3.2.3.4 of the x86_64 ABI.
+          // In the future, if we add support for X87 types etc, this logic will
+          // be more complex.
+          if (pending_location) {
+            if (pending_location->kind != new_location.kind) {
+              if (new_location.kind == CAbiArgKind::Memory) {
+                pending_location = new_location;
+              } else if (new_location.kind == CAbiArgKind::Integral) {
+                pending_location = new_location;
+                  // TODO: handle X87/X87UP/COMPLEX_X87
+              } else {
+                pending_location = new_location;
+              }
+            }
+          } else {
+            pending_location = new_location;
+          }
 
-        // Update prev_end_offset for next iteration
-        if (field->isBitField()) {
-          prev_end_offset = offset + field->getBitWidthValue(astContext);
-        } else {
-          prev_end_offset = offset + astContext.getTypeSize(field->getType());
+          // Update prev_end_offset for next iteration
+          if (field->isBitField()) {
+            prev_end_offset = offset + field->getBitWidthValue(astContext);
+          } else {
+            prev_end_offset = offset + astContext.getTypeSize(field->getType());
+          }
         }
+        // Store any pending kind if the last field did not an eightbyte
+        if (pending_location) {
+          out.push_back(*pending_location);
+          pending_location.reset();
+        }
+        return out;
       }
-      // Store any pending kind if the last field did not an eightbyte
-      if (pending_location) {
-        out.push_back(*pending_location);
-        pending_location.reset();
-      }
-      return out;
+      llvm::report_fatal_error(
+          "classifyDirectType called on non-scalar, non-canPassInRegisters type");
     }
   }
-  type.dump();
-  llvm::report_fatal_error(
-      "classifyDirectType called on non-scalar, non-canPassInRegisters type");
 }
 
 static CAbiArgLocation classifyLlvmType(const llvm::Type &type) {
@@ -189,7 +289,7 @@ abiSlotsForArg(const clang::QualType &qt,
       }
     }
     // We have a scalar type, so classify it.
-    return classifyDirectType(*qt.getCanonicalType(), astContext);
+    return classifyDirectType(*qt.getCanonicalType(), astContext, arch);
   }
   case Kind::Ignore:   // no ABI presence
                        // fall through

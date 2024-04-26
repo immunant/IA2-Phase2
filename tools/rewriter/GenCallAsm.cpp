@@ -363,12 +363,25 @@ static void emit_prologue(AsmWriter &aw, uint32_t caller_pkey, uint32_t target_p
       add_asm_line(aw, "pushq %"s + r);
     }
   } else if (arch == Arch::Aarch64) {
-      add_asm_line(aw, "stp x29, x30, [sp, #-16]!");
-      add_asm_line(aw, "mov x29, sp");
-    for (auto &r : preserved_registers(arch)) {
-      // TODO: preallocate the stack space to make this more efficient. There may also be ARM64 instructions for storing a block of registers.
-      add_asm_line(aw, "str "s + r + ", [sp, #-8]!");
+    // Calculate total space needed for the frame pointer, link register, and callee-saved registers
+    int total_space_needed = aarch64_preserved_registers.size() * 8; // Each register requires 8 bytes
+
+    // The stack must be 16-byte aligned. It will be as long as we're saving an
+    // even number of registers.
+    assert(total_space_needed % 16 == 0);
+
+    // Allocate space on the stack at once
+    add_asm_line(aw, "sub sp, sp, #" + std::to_string(total_space_needed));
+
+    // Save callee-saved registers
+    for (size_t i = 0; i < aarch64_preserved_registers.size(); i++) {
+      add_asm_line(aw, "str "s + aarch64_preserved_registers[i] + ", [sp, #" + std::to_string(i * 8) + "]");
     }
+
+    // Set the new frame pointer
+    // TODO is this in the right spot? Or do we need to do this before pushing
+    // args?
+    add_asm_line(aw, "mov x29, sp");
   }
 }
 
@@ -589,21 +602,28 @@ static void emit_set_return_pkru(AsmWriter &aw, uint32_t caller_pkey, Arch arch)
 }
 
 static void emit_epilogue(AsmWriter &aw, uint32_t caller_pkey, Arch arch) {
-  auto callee_saved = preserved_registers(arch);
   if (arch == Arch::X86) {
     // Load registers that are preserved across function calls after switching
     // back to the caller's compartment's stack. This is on the caller's stack so
     // it's not in the diagram above.
-    for (auto r = callee_saved.rbegin(); r != callee_saved.rend(); r++) {
+    for (auto r = x86_preserved_registers.rbegin(); r != x86_preserved_registers.rend();
+         r++) {
       add_asm_line(aw, "popq %"s + *r);
     }
     // Restore the caller's frame pointer
     add_asm_line(aw, "popq %rbp");
   } else if (arch == Arch::Aarch64) {
-    for (auto r = callee_saved.rbegin(); r != callee_saved.rend(); r++) {
-      add_asm_line(aw, "ldr "s + *r + ", [sp], #8");
+    // Restore callee-saved registers
+    for (int i = 0; i < aarch64_preserved_registers.size(); ++i) {
+      add_asm_line(aw,
+                   "ldr "s +
+                       aarch64_preserved_registers[i] +
+                       ", [sp, #" +
+                       std::to_string(i * 8) +
+                       "]");
     }
-    add_asm_line(aw, "ldp x29, x30, [sp], #16");
+    // Adjust the stack pointer
+    add_asm_line(aw, "add sp, sp, #" + std::to_string(aarch64_preserved_registers.size() * 8));
   }
 }
 

@@ -293,7 +293,11 @@ abiSlotsForArg(const clang::QualType &qt,
     if (ATy) {
       // Array case
       // Goes on the stack
-      return {CAbiArgKind::Memory};
+      return {CAbiArgLocation{
+        .kind = CAbiArgKind::Memory,
+        .size = static_cast<unsigned>(astContext.getTypeSize(qt)/8),
+        .align = static_cast<unsigned>(astContext.getTypeAlign(qt)/8),
+      }};
     }
     // We have a scalar type, so classify it.
     return classifyDirectType(*qt.getCanonicalType(), astContext, arch);

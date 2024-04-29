@@ -11,47 +11,51 @@ static void call_libc_exit(int status) {
   exit_ptr(status);
 }
 
-__attribute__((naked)) void _exit(int status) {
-  __asm__(
-#if LIBIA2_X86_64
-  "jmp exit\n"
-#elif LIBIA2_AARCH64
-  "b exit\n"
-#endif
-  );
-}
+/* clang-format off */
+void _exit(int status);
 
-__attribute__((naked)) void exit(int status) {
-  __asm__(
+__asm__(
+    ".global _exit\n"
+    "_exit:\n"
 #if LIBIA2_X86_64
-      /* clang-format off */
-      "pushq %%rbp\n"
-      "movq %%rsp, %%rbp\n"
-      // Load the stack pointer for the shared compartment's stack.
-      "mov ia2_stackptr_0@GOTTPOFF(%%rip), %%r11\n"
-      "mov %%fs:(%%r11), %%rsp\n"
-      // Switch pkey to the appropriate compartment.
-      "xor %%ecx,%%ecx\n"
-      "mov %%ecx,%%edx\n"
-      "mov_pkru_eax 0\n"
-      "wrpkru\n"
-      // Align the stack before continuing
-      "subq $8, %%rsp\n"
-      // Call the real exit function.
-      "call call_libc_exit\n"
-      /* clang-format on */
+    "jmp exit\n"
+#elif LIBIA2_AARCH64
+    "b exit\n"
+#endif
+);
+
+void exit(int status);
+
+__asm__(
+    ".global exit\n"
+    "exit:\n"
+#if LIBIA2_X86_64
+    "pushq %%rbp\n"
+    "movq %%rsp, %%rbp\n"
+    // Load the stack pointer for the shared compartment's stack.
+    "mov ia2_stackptr_0@GOTTPOFF(%%rip), %%r11\n"
+    "mov %%fs:(%%r11), %%rsp\n"
+    // Switch pkey to the appropriate compartment.
+    "xor %%ecx,%%ecx\n"
+    "mov %%ecx,%%edx\n"
+    "mov_pkru_eax 0\n"
+    "wrpkru\n"
+    // Align the stack before continuing
+    "subq $8, %%rsp\n"
+    // Call the real exit function.
+    "call call_libc_exit\n"
 #elif LIBIA2_AARCH64
 #warning "exit wrapper is missing x18 switching"
-      "stp x29, x30, [sp, #-16]!\n"
-      // Load the stack pointer for the shared compartment's stack.
-      "mrs x9, tpidr_el0\n"
-      "adrp x10, :gottprel:ia2_stackptr_0\n"
-      "ldr x10, [x10, #:gottprel_lo12:ia2_stackptr_0]\n"
-      "add x10, x10, x9\n"
-      "ldr x10, [x10]\n"
-      "mov sp, x10\n"
+    "stp x29, x30, [sp, #-16]!\n"
+    // Load the stack pointer for the shared compartment's stack.
+    "mrs x9, tpidr_el0\n"
+    "adrp x10, :gottprel:ia2_stackptr_0\n"
+    "ldr x10, [x10, #:gottprel_lo12:ia2_stackptr_0]\n"
+    "add x10, x10, x9\n"
+    "ldr x10, [x10]\n"
+    "mov sp, x10\n"
 
-      "bl call_libc_exit\n"
+    "bl call_libc_exit\n"
 #endif
-      ::);
-}
+);
+/* clang-format on */

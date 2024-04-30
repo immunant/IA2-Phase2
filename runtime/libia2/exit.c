@@ -30,18 +30,18 @@ __asm__(
     ".global exit\n"
     "exit:\n"
 #if LIBIA2_X86_64
-    "pushq %%rbp\n"
-    "movq %%rsp, %%rbp\n"
+    "pushq %rbp\n"
+    "movq %rsp, %rbp\n"
     // Load the stack pointer for the shared compartment's stack.
-    "mov ia2_stackptr_0@GOTTPOFF(%%rip), %%r11\n"
-    "mov %%fs:(%%r11), %%rsp\n"
+    "mov ia2_stackptr_0@GOTTPOFF(%rip), %r11\n"
+    "mov %fs:(%r11), %rsp\n"
     // Switch pkey to the appropriate compartment.
-    "xor %%ecx,%%ecx\n"
-    "mov %%ecx,%%edx\n"
+    "xor %ecx,%ecx\n"
+    "mov %ecx,%edx\n"
     "mov_pkru_eax 0\n"
     "wrpkru\n"
     // Align the stack before continuing
-    "subq $8, %%rsp\n"
+    "subq $8, %rsp\n"
     // Call the real exit function.
     "call call_libc_exit\n"
 #elif LIBIA2_AARCH64

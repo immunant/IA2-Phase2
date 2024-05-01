@@ -459,10 +459,40 @@ static void emit_copy_args(AsmWriter &aw, size_t stack_return_size, size_t stack
         add_asm_line(aw,
                      "pushq " + std::to_string(caller_stack_size - i) + "(%rax)");
       }
+    } else if (arch == Arch::Aarch64) {
+      // Allocate space for return value if it's supposed to be passed via memory
+      if (stack_return_size > 0) {
+        add_comment_line(
+            aw, "Allocate space on the compartment's stack for the return value");
+        size_t padded_return_size = stack_return_size + stack_return_padding;
+        add_asm_line(aw, "sub sp, sp, #" + std::to_string(padded_return_size));
+        add_comment_line(aw, "Save address of the caller's return value");
+        add_asm_line(aw, "str x8, [sp, #" + std::to_string(padded_return_size - 8) + "]");
+        add_comment_line(aw, "Set x8 to the compartment's return value memory");
+        add_asm_line(aw, "add x8, sp, #8");
+      }
+
+      // Insert 8 bytes to align the stack to 16 bytes if necessary.
+      if (stack_alignment != 0) {
+        assert(stack_alignment == 8);
+        add_asm_line(aw, "sub sp, sp, #8");
+      }
+
+      // Copy stack arguments to the target stack
+      if (stack_arg_count > 0) {
+        add_comment_line(
+            aw, "Copy stack arguments from the caller's stack to the compartment");
+        // Use X9 to store caller's stack location
+        std::string expr = emit_load_sp_offset(aw, caller_pkey, "x9");
+        add_asm_line(aw, "mov x9, %" + expr);
+        // Copy each argument preserving the stack order
+        for (int i = 0; i < stack_arg_size; i += 8) {
+          size_t caller_stack_size = stack_arg_size + ((aarch64_preserved_registers.size() + 1) * 8);
+          add_asm_line(aw, "ldr x10, [x9, #" + std::to_string(caller_stack_size - 8 - i) + "]");
+          add_asm_line(aw, "str x10, [sp, #-" + std::to_string(i + 8) + "]!");
+        }
+      }
     }
-  } else if (arch == Arch::Aarch64) {
-    // TODO ARM arguments
-    llvm::errs() << "TODO arguments not implemented on ARM\n";
   }
 }
 
@@ -510,8 +540,15 @@ static void emit_free_stack_space(AsmWriter &aw, size_t stack_arg_size, int stac
       add_asm_line(aw, "addq $8, %rsp");
     }
   } else if (arch == Arch::Aarch64) {
-    // TODO ARM free stack space
-    llvm::errs() << "TODO stack space freeing not implemented on ARM\n";
+    if (stack_arg_size > 0) {
+      add_comment_line(aw, "Free stack space used for stack args");
+      add_asm_line(aw, "add sp, sp, #" + std::to_string(stack_arg_size));
+    }
+
+    if (stack_alignment != 0) {
+      assert(stack_alignment == 8);
+      add_asm_line(aw, "add sp, sp, #8");
+    }
   }
 }
 
@@ -539,8 +576,24 @@ static void emit_copy_stack_returns(AsmWriter &aw, size_t stack_return_size, siz
       }
     }
   } else if (arch == Arch::Aarch64) {
-    // TODO ARM stack switch back
-    llvm::errs() << "TODO stack switch-back not implemented on ARM\n";
+    if (stack_return_size > 0) {
+      // Pop the old return address into x9
+      add_asm_line(aw, "ldr x9, [sp], #8");
+
+      add_comment_line(aw,
+                       "Copy "s + std::to_string(stack_return_size) +
+                           " bytes for the return value to the caller's stack");
+      // Copy return value to the caller's stack
+      for (size_t i = 0; i < stack_return_size; i += 8) {
+        // x9 is the base of the former stack
+        add_asm_line(aw, "ldr x10, [sp], #8");
+        add_asm_line(aw, "str x10, [x9, #" + std::to_string(i) + "]");
+      }
+
+      if (stack_return_padding > 0) {
+        add_asm_line(aw, "add sp, sp, #8");
+      }
+    }
   }
 }
 

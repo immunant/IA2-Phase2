@@ -149,7 +149,7 @@ static bool ignore_file(const Filename &filename) {
   if (is_empty) {
     return false;
   }
-  return !filename.starts_with(RootDirectory);
+  return !filename.starts_with(OutputDirectory);
 }
 
 static bool ignore_function(const clang::Decl &decl,

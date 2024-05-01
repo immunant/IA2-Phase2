@@ -144,7 +144,9 @@ static Pkey get_file_pkey(const clang::SourceManager &sm) {
   }
 }
 
-static bool ignore_file(const Filename &filename) {
+// Return whether a file should not be modified, due to being an immutable
+// system header or otherwise outside the output directory.
+static bool should_not_modify_file(const Filename &filename) {
   bool is_empty = filename.empty();
   if (is_empty) {
     return false;
@@ -168,7 +170,7 @@ static bool ignore_function(const clang::Decl &decl,
   }
 
   if (loc) {
-    return ignore_file(get_filename(*loc, sm));
+    return should_not_modify_file(get_filename(*loc, sm));
   }
 
   return false;
@@ -462,7 +464,7 @@ public:
 
     clang::SourceLocation loc = fn_ptr_expr->getExprLoc();
     Filename filename = get_filename(loc, sm);
-    if (ignore_file(filename)) {
+    if (should_not_modify_file(filename)) {
       return;
     }
 
@@ -749,7 +751,7 @@ public:
 
     clang::SourceLocation loc = expr->getExprLoc();
     Filename filename = get_filename(loc, sm);
-    if (ignore_file(filename)) {
+    if (should_not_modify_file(filename)) {
       return;
     }
 

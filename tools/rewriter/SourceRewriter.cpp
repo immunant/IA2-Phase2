@@ -151,6 +151,16 @@ static bool should_not_modify_file(const Filename &filename) {
   if (is_empty) {
     return false;
   }
+
+  // We shouldn't query if we should modify files in the root directory. But if
+  // the output directory itself is inside the root directory, this will
+  // (benignly) happen, and isn't actually a case of trying to modify files not
+  // inside the output directory.
+  if (filename.starts_with(RootDirectory) && !filename.starts_with(OutputDirectory)) {
+    llvm::errs() << "internal error: querying if we should modify file under root directory (this should not happen): " << filename << "\n";
+    exit(1);
+  }
+
   return !filename.starts_with(OutputDirectory);
 }
 

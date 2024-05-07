@@ -48,29 +48,35 @@ typedef std::string OpaqueStruct;
 static llvm::cl::OptionCategory
     SourceRewriterCategory("Source rewriter options");
 
-static llvm::cl::opt<Arch> Target("arch",
-                                  llvm::cl::init(Arch::X86),
-                                  llvm::cl::Optional,
-                                  llvm::cl::cat(SourceRewriterCategory),
-                                  llvm::cl::desc("<aarch64 or x86>"),
-                                  llvm::cl::values(
-                                      clEnumValN(Arch::X86, "x86", "Generate code for compartmentalization on x86 using MPK"),
-                                      clEnumValN(Arch::Aarch64, "aarch64", "Generate code for compartmentalization on Aarch64 using MTE")));
-
-static llvm::cl::opt<std::string>
-    RootDirectory("root-directory", llvm::cl::Required,
-                  llvm::cl::cat(SourceRewriterCategory),
-                  llvm::cl::desc("<root directory for input files>"));
-
-static llvm::cl::opt<std::string>
-    OutputDirectory("output-directory", llvm::cl::Required,
-                    llvm::cl::cat(SourceRewriterCategory),
-                    llvm::cl::desc("<root directory for output files>"));
-
-static llvm::cl::opt<std::string>
-    OutputPrefix("output-prefix", llvm::cl::Required,
+static llvm::cl::opt<Arch>
+    TargetOption("arch",
+                 llvm::cl::init(Arch::X86),
+                 llvm::cl::Optional,
                  llvm::cl::cat(SourceRewriterCategory),
-                 llvm::cl::desc("<prefix for output files>"));
+                 llvm::cl::desc("<aarch64 or x86>"),
+                 llvm::cl::values(
+                     clEnumValN(Arch::X86, "x86", "Generate code for compartmentalization on x86 using MPK"),
+                     clEnumValN(Arch::Aarch64, "aarch64", "Generate code for compartmentalization on Aarch64 using MTE")));
+
+static llvm::cl::opt<std::string>
+    RootDirectoryOption("root-directory", llvm::cl::Required,
+                        llvm::cl::cat(SourceRewriterCategory),
+                        llvm::cl::desc("<root directory for input files>"));
+
+static llvm::cl::opt<std::string>
+    OutputDirectoryOption("output-directory", llvm::cl::Required,
+                          llvm::cl::cat(SourceRewriterCategory),
+                          llvm::cl::desc("<root directory for output files>"));
+
+static llvm::cl::opt<std::string>
+    OutputPrefixOption("output-prefix", llvm::cl::Required,
+                       llvm::cl::cat(SourceRewriterCategory),
+                       llvm::cl::desc("<prefix for output files>"));
+
+static Arch Target;
+static std::string RootDirectory;
+static std::string OutputDirectory;
+static std::string OutputPrefix;
 
 // Map each translation unit's filename to its pkey.
 static std::map<Filename, Pkey> file_pkeys;
@@ -1026,6 +1032,14 @@ int main(int argc, const char **argv) {
 #else
   CommonOptionsParser options_parser(argc, argv, SourceRewriterCategory);
 #endif
+  // Copy tool options into values. This is not necessary to access their values
+  // directly, but copying them like this means our pervasive global accesses
+  // don't have to go through LLVM's types, which are effectively impossible to
+  // print in gdb.
+  Target = TargetOption;
+  RootDirectory = RootDirectoryOption;
+  OutputDirectory = OutputDirectoryOption;
+  OutputPrefix = OutputPrefixOption;
 
   RefactoringTool tool(options_parser.getCompilations(),
                        options_parser.getSourcePathList());

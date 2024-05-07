@@ -295,6 +295,10 @@ function(add_ia2_call_gates NAME)
 
   if (LIBIA2_AARCH64)
       set(ARCH_FLAG "--arch=aarch64")
+  else()
+      set(SYSROOT_FLAG
+        --extra-arg=-isystem "--extra-arg=${CLANG_HEADERS_INCLUDE}"
+        --extra-arg=-isystem "--extra-arg=${CLANG_HEADERS_INCLUDE_FIXED}")
   endif()
   add_custom_command(
     OUTPUT ${CALL_GATE_SRC} ${CALL_GATE_HDR}
@@ -306,8 +310,7 @@ function(add_ia2_call_gates NAME)
         ${ARCH_FLAG}
         # Set the build path so the rewriter can find the compile_commands JSON
         -p=${CMAKE_BINARY_DIR}
-        --extra-arg=-isystem "--extra-arg=${CLANG_HEADERS_INCLUDE}"
-        --extra-arg=-isystem "--extra-arg=${CLANG_HEADERS_INCLUDE_FIXED}"
+        ${SYSROOT_FLAG}
         ${ARG_EXTRA_REWRITER_ARGS}
         ${SOURCES}
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}

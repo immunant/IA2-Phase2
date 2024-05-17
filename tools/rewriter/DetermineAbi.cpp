@@ -17,17 +17,6 @@
 
 static std::vector<CAbiArgKind> classifyDirectType(const clang::Type &type, const clang::ASTContext &astContext, Arch arch);
 
-// Merge the classifications of an aggregate type.
-// If any classifiction is memory, the whole type must go to memory.
-// Otherwise, preserve the classifications (registers) as they are.
-static std::vector<CAbiArgKind> mergeKinds(const std::vector<CAbiArgKind> &kinds) {
-  if (std::find(kinds.begin(), kinds.end(), CAbiArgKind::Memory) != kinds.end()) {
-    return std::vector<CAbiArgKind>(kinds.size(), CAbiArgKind::Memory);
-  } else {
-    return kinds;
-  }
-}
-
 // Detect a homogenous floating-point aggregate.
 // ABI: "A Homogeneous Floating-point Aggregate (HFA) is a Homogeneous Aggregate
 // with a Fundamental Data Type that is a Floating-Point type and at most four
@@ -95,8 +84,13 @@ std::vector<CAbiArgKind> classifyARMAggregate(const clang::Type &type, const cla
       offset = llvm::alignTo(offset, std::min(alignment, uint64_t(64)));
     }
 
-    // If one type is Memory, all must go to memory
-    return mergeKinds(kinds);
+    if (std::find(kinds.begin(), kinds.end(), CAbiArgKind::Memory) != kinds.end()) {
+      // If one type is Memory, all must go to memory
+      return std::vector<CAbiArgKind>(kinds.size(), CAbiArgKind::Memory);
+    } else {
+      // Otherwise we can "pack" the fields in registers densely (6.8.2 C.12)
+      return std::vector<CAbiArgKind>((size + 63) / 64, CAbiArgKind::Integral);
+    }
   } else {
     // If the aggregate size exceeds 16 bytes, return a vector of Memory kinds
     return std::vector<CAbiArgKind>((size + 63) / 64, CAbiArgKind::Memory);

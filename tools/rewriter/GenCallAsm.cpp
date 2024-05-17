@@ -180,25 +180,34 @@ static void add_comment_line(AsmWriter &aw, const std::string &s) {
   aw.ss << std::endl;
 }
 
-static void emit_reg_push(AsmWriter &aw, const ParamLocation &loc) {
+static void emit_reg_push(AsmWriter &aw, const ParamLocation &loc, Arch arch) {
   assert(!loc.is_stack());
-  if (loc.is_xmm()) {
-    add_asm_line(aw, "subq $16, %rsp");
-    add_asm_line(aw, "movdqu %"s + loc.as_str() + ", (%rsp)");
-  } else {
-    add_asm_line(aw, "pushq %"s + loc.as_str());
+  if (arch == Arch::X86) {
+    if (loc.is_xmm()) {
+      add_asm_line(aw, "subq $16, %rsp");
+      add_asm_line(aw, "movdqu %"s + loc.as_str() + ", (%rsp)");
+    } else {
+      add_asm_line(aw, "pushq %"s + loc.as_str());
+    }
+  } else if (arch == Arch::Aarch64) {
+    add_asm_line(aw, "str "s + loc.as_str() + ", [sp, #-16]!");
   }
 }
 
-static void emit_reg_pop(AsmWriter &aw, const ParamLocation &loc) {
+static void emit_reg_pop(AsmWriter &aw, const ParamLocation &loc, Arch arch) {
   assert(!loc.is_stack());
-  if (loc.is_xmm()) {
-    add_asm_line(aw, "movdqu (%rsp), %"s + loc.as_str());
-    add_asm_line(aw, "addq $16, %rsp");
-  } else {
-    add_asm_line(aw, "popq %"s + loc.as_str());
+  if (arch == Arch::X86) {
+    if (loc.is_xmm()) {
+      add_asm_line(aw, "movdqu (%rsp), %"s + loc.as_str());
+      add_asm_line(aw, "addq $16, %rsp");
+    } else {
+      add_asm_line(aw, "popq %"s + loc.as_str());
+    }
+  } else if (arch == Arch::Aarch64) {
+    add_asm_line(aw, "ldr "s + loc.as_str() + ", [sp], #16");
   }
 }
+
 
 // Emit code to set the PKRU. Clobbers eax, ecx and edx.
 // \p pkey is a std::string of an assembly literal without a $ prefix.
@@ -601,7 +610,6 @@ static void emit_scrub_regs(AsmWriter &aw, uint32_t pkey, const std::vector<Para
   // Handles register scrubbing for calls into/out of protected compartments.
   // After call: Preserves return values by pushing them to the stack before scrubbing.
   // Before call: Saves argument registers in a similar manner.
-  if (arch == Arch::X86) {
     if (pkey != 0) {
       // Zero out all unused registers. First we save all registers containing args.
       // These pushes have matching pops before calling the wrapped function so this
@@ -611,7 +619,7 @@ static void emit_scrub_regs(AsmWriter &aw, uint32_t pkey, const std::vector<Para
 
         for (auto loc : locs) {
           if (!loc.is_stack()) {
-            emit_reg_push(aw, loc);
+            emit_reg_push(aw, loc, arch);
           }
         }
       }
@@ -620,22 +628,22 @@ static void emit_scrub_regs(AsmWriter &aw, uint32_t pkey, const std::vector<Para
       // FIXME: If this will use the System V ABI make sure that the %rsp is aligned
       // before this call
       add_comment_line(aw, "Scrub non-essential regs");
-      add_asm_line(aw, "call __libia2_scrub_registers");
+      if (arch == Arch::Aarch64) {
+        add_asm_line(aw, "bl __libia2_scrub_registers");
+      } else {
+        add_asm_line(aw, "call __libia2_scrub_registers");
+      }
 
       if (preserve_regs) {
         // Restore saved regs
         add_comment_line(aw, "Restore preserved regs");
         for (auto loc = locs.rbegin(); loc != locs.rend(); loc++) {
           if (!loc->is_stack()) {
-            emit_reg_pop(aw, *loc);
+            emit_reg_pop(aw, *loc, arch);
           }
         }
       }
     }
-  } else if (arch == Arch::Aarch64) {
-    // TODO: save args/return values
-    add_asm_line(aw, "bl __libia2_scrub_registers");
-  }
 }
 
 static void emit_set_return_pkru(AsmWriter &aw, uint32_t caller_pkey, Arch arch) {

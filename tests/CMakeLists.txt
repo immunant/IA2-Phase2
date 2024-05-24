@@ -79,7 +79,7 @@ if (NOT LIBIA2_AARCH64)
     # ARM does not support threads yet
     add_subdirectory(threads)
     add_subdirectory(protected_threads)
-    # TLS support is iffy
+    # test calls PKRU-specific functions for logging
     add_subdirectory(tls_protected)
     # no permissive mode on ARM
     add_subdirectory(permissive_mode)

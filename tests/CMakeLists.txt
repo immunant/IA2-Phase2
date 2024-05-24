@@ -60,6 +60,7 @@ add_subdirectory(recursion)
 add_subdirectory(ro_sharing)
 # We don't actually compile the `omit_wrappers` test, but it is picked up by LIT.
 add_subdirectory(shared_data)
+add_subdirectory(should_segfault)
 add_subdirectory(trusted_direct)
 add_subdirectory(untrusted_indirect)
 add_subdirectory(two_keys_minimal)
@@ -83,8 +84,6 @@ if (NOT LIBIA2_AARCH64)
     add_subdirectory(sighandler)
     # rewriter issue on ARM, likely caused by include dirs and spoofed criterion headers
     add_subdirectory(structs)
-    # uses criterion API which we don't spoof yet
-    add_subdirectory(should_segfault)
     # not sure why this is failing
     add_subdirectory(mmap_loop)
     # we don't support call gates for indirect transitions yet

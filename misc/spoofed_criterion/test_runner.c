@@ -1,21 +1,22 @@
+#include "include/criterion/criterion.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
-extern int (*__start_fake_criterion_tests)(void);
-extern int (*__stop_fake_criterion_tests)(void);
+extern struct fake_criterion_test __start_fake_criterion_tests;
+extern struct fake_criterion_test __stop_fake_criterion_tests;
 
 int main() {
-  int (**test)(void) = &__start_fake_criterion_tests;
-  for (; test < &__stop_fake_criterion_tests; test++) {
-    if (!test) {
+  struct fake_criterion_test *test_info = &__start_fake_criterion_tests;
+  for (; test_info < &__stop_fake_criterion_tests; test_info++) {
+    if (!test_info->test) {
       break;
     }
     pid_t pid = fork();
     bool in_child = pid == 0;
     if (in_child) {
-      (*test)(); // TODO: test return values are ignored, so tests should return void
+      (*test_info->test)(); // TODO: test return values are ignored, so tests should return void
       return 0;
     }
     // otherwise, in parent
@@ -26,11 +27,11 @@ int main() {
       return 2;
     }
     int exit_status = WEXITSTATUS(stat);
-    if (exit_status == 0) {
+    if (exit_status == test_info->exit_code) {
       return 0;
     } else {
-      fprintf(stderr, "forked test child exited with status %d\n", exit_status);
-      return exit_status;
+      fprintf(stderr, "forked test child exited with status %d, but %d was expected\n", exit_status, test_info->exit_code);
+      return 1;
     }
   }
 }

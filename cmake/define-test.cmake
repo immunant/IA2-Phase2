@@ -139,7 +139,13 @@ function(define_test)
     if (DEFINE_TEST_CRITERION_TEST)
         list(APPEND DEFINE_TEST_UNWRAPPED_LIBS criterion)
         if (NOT DEFINE_TEST_NOT_IN_CHECK_IA2)
-            if (DEFINE_TEST_WITHOUT_SANDBOX OR NOT ${IA2_TRACER})
+            if (LIBIA2_AARCH64)
+                add_test(NAME ${TEST_NAME}
+                    COMMAND ${CMAKE_CROSSCOMPILING_EMULATOR}
+                        "-L" "${CMAKE_BINARY_DIR}/external/glibc/sysroot/usr/"
+                        ${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME}
+                    WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+            elseif (DEFINE_TEST_WITHOUT_SANDBOX OR NOT ${IA2_TRACER})
                 add_test(${TEST_NAME} ${TEST_NAME})
             else()
                 add_test(NAME ${TEST_NAME} COMMAND ${CMAKE_BINARY_DIR}/runtime/tracer/ia2-sandbox ${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME} WORKING_DIRECTORY ${CMAKE_BINARY_DIR})

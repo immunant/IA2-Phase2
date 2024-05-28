@@ -11,15 +11,16 @@
 
 #if defined(__x86_64__)
 
-__attribute__((__used__)) uint32_t ia2_get_pkru() {
+__attribute__((__used__)) static uint32_t ia2_get_pkru() {
   uint32_t pkru = 0;
   __asm__ volatile("rdpkru" : "=a"(pkru) : "a"(0), "d"(0), "c"(0));
   return pkru;
 }
 
-size_t ia2_get_pkey() {
-  uint32_t pkru;
-  __asm__("rdpkru" : "=a"(pkru) : "a"(0), "d"(0), "c"(0));
+size_t ia2_get_tag(void) __attribute__((alias("ia2_get_pkru")));
+
+size_t ia2_get_compartment() {
+  uint32_t pkru = ia2_get_pkru();
   switch (pkru) {
   case 0xFFFFFFFC: {
     return 0;
@@ -80,16 +81,20 @@ size_t ia2_get_pkey() {
   }
   }
 }
-size_t ia2_get_tag(void) __attribute__((alias("ia2_get_pkey")));
 
 #elif defined(__aarch64__)
 
-size_t ia2_get_x18(void) {
+static size_t ia2_get_x18(void) {
     size_t x18;
     asm("mov %0, x18" : "=r"(x18));
-    return x18 >> 56;
+    return (x18 >> 56) & 0xF;
 }
+
 size_t ia2_get_tag(void) __attribute__((alias("ia2_get_x18")));
+
+size_t ia2_get_compartment(void) {
+    return ia2_get_tag();
+}
 
 // TODO: insert_tag could probably be cleaned up a bit, but I'm not sure if the
 // generated code could be simplified since addg encodes the tag as an imm field

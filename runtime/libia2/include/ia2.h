@@ -170,11 +170,14 @@
 extern "C" {
 #endif
 
-/// Returns the raw PKRU register value
-uint32_t ia2_get_pkru();
+/// Returns the arch-specific compartment tag value.
+///
+/// On x86-64 this is the PKRU while on aarch64 it's the 4-bit tag in the upper
+/// byte of x18.
+size_t ia2_get_tag();
 
-/// Returns the current compartment pkey
-size_t ia2_get_pkey();
+/// Returns the current compartment number
+size_t ia2_get_compartment();
 
 #ifdef __cplusplus
 }

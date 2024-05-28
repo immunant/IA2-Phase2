@@ -39,15 +39,10 @@ set_target_properties(check-ia2 PROPERTIES FOLDER "tests")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Set up 'check' target and check-exec on arm
-if (LIBIA2_AARCH64)
-    add_custom_target(check)
-    add_dependencies(check check-exec)
-    add_custom_target(check-exec COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure)
-else()
-    add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure)
+add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure)
+if (NOT LIBIA2_AARCH64)
+    add_dependencies(check check-ia2)
 endif()
-
-add_dependencies(check check-ia2)
 set_target_properties(check PROPERTIES FOLDER "tests")
 
 add_subdirectory(destructors)

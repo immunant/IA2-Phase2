@@ -93,8 +93,6 @@ jobs:
             -DCLANG_EXE=`which clang-15`                            \
             -DLLVM_DIR=$LLVM_DIR                                    \
             -G Ninja
-          ninja -v minimal
-          qemu-aarch64-static -L $PWD/external/glibc/sysroot/usr \
-            tests/minimal/minimal
+          ninja -v check
           popd
 

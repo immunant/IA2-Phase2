@@ -31,9 +31,9 @@ void *ia2_thread_begin(void *arg) {
 
   /* Determine the current compartment so know which stack to use. */
   size_t tag = ia2_get_tag();
-#if LIBIA2_X86_64
   void **new_sp_addr = ia2_stackptr_for_tag(tag);
 
+#if LIBIA2_X86_64
   /* Switch to the stack for this compartment, then call `fn(data)`. */
   void *result;
   __asm__ volatile(

@@ -88,6 +88,7 @@ jobs:
           mkdir build
           pushd build
           cmake .. \
+            -DCMAKE_CROSSCOMPILING_EMULATOR=`which qemu-aarch64-static` \
             -DCMAKE_TOOLCHAIN_FILE=../cmake/aarch64-toolchain.cmake \
             -DClang_DIR=$Clang_DIR                                  \
             -DCLANG_EXE=`which clang-15`                            \

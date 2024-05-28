@@ -93,7 +93,7 @@ void *ia2_thread_begin(void *arg) {
         "mov sp, x10\n"
       : [result] "=r"(result)
       : [fn] "r"(fn), [data] "r"(&data), [new_sp_addr] "r"(new_sp_addr)
-      : "x10");
+      : "x0", "x10");
 #endif
   /* clang-format on */
 

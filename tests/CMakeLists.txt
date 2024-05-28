@@ -65,7 +65,8 @@ add_subdirectory(sighandler)
 add_subdirectory(simple1)
 add_subdirectory(static_addr_taken)
 add_subdirectory(structs)
-
+add_subdirectory(threads)
+add_subdirectory(protected_threads)
 # The following tests are not supported on ARM64 yet
 if (NOT LIBIA2_AARCH64)
     # Expected to have compartment violations, but we aren't enforcing yet:
@@ -83,12 +84,10 @@ if (NOT LIBIA2_AARCH64)
 
     # test calls PKRU-specific functions
     add_subdirectory(mmap_loop)
+
+    # test calls PKRU-specific functions for logging
     add_subdirectory(tls_protected)
 
-    # ARM does not support threads yet
-    add_subdirectory(threads)
-    add_subdirectory(protected_threads)
-    
     # no permissive mode on ARM
     add_subdirectory(permissive_mode)
 endif()

@@ -67,6 +67,7 @@ add_subdirectory(two_keys_minimal)
 add_subdirectory(two_shared_ranges)
 add_subdirectory(global_fn_ptr)
 add_subdirectory(rewrite_macros)
+add_subdirectory(sighandler)
 # The following tests are not supported on ARM64 yet
 if (NOT LIBIA2_AARCH64)
     # not supported on ARM because they allocate
@@ -80,8 +81,6 @@ if (NOT LIBIA2_AARCH64)
     add_subdirectory(tls_protected)
     # no permissive mode on ARM
     add_subdirectory(permissive_mode)
-    # still need to port code for defining sighandlers
-    add_subdirectory(sighandler)
     # rewriter issue on ARM, likely caused by include dirs and spoofed criterion headers
     add_subdirectory(structs)
     # not sure why this is failing

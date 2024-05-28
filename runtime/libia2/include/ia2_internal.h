@@ -73,6 +73,7 @@ instead of `fn`. */
 
 /* clang-format can't handle inline asm in macros */
 /* clang-format off */
+#if LIBIA2_X86_64
 #define _IA2_DEFINE_SIGNAL_HANDLER(function, pkey)    \
     __asm__(".global ia2_sighandler_" #function "\n"  \
             "ia2_sighandler_" #function ":\n"         \
@@ -87,6 +88,13 @@ instead of `fn`. */
             "movq %r11, %rdx\n"                       \
             "movq %r10, %rcx\n"                       \
             "jmp " #function "\n")
+#elif LIBIA2_AARCH64
+#define _IA2_DEFINE_SIGNAL_HANDLER(function, tag)    \
+    __asm__(".global ia2_sighandler_" #function "\n" \
+            "ia2_sighandler_" #function ":\n"        \
+            "movz_shifted_tag_x18 " #tag "\n"        \
+            "b " #function "\n")
+#endif
 /* clang-format on */
 
 /// Protect pages in the given shared object

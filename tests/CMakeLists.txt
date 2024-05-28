@@ -56,7 +56,8 @@ add_subdirectory(shared_data)
 add_subdirectory(global_fn_ptr)
 add_subdirectory(rewrite_macros)
 add_subdirectory(sighandler)
-
+add_subdirectory(threads)
+add_subdirectory(protected_threads)
 # The following tests are not supported on ARM64 yet
 if (NOT LIBIA2_AARCH64)
     # Expected to have compartment violations, but we aren't enforcing yet:
@@ -70,12 +71,8 @@ if (NOT LIBIA2_AARCH64)
     # TODO(#413): Fix these tests
     add_subdirectory(heap_two_keys)
     add_subdirectory(three_keys_minimal)
-
     # strange bug with indirect calls
     add_subdirectory(read_config)
-    # ARM does not support threads yet
-    add_subdirectory(threads)
-    add_subdirectory(protected_threads)
     # test calls PKRU-specific functions for logging
     add_subdirectory(tls_protected)
     # no permissive mode on ARM

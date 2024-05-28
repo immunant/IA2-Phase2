@@ -36,7 +36,7 @@ void library_memset(void *ptr, uint8_t byte, size_t n) {
 
 // LINKARGS: --wrap=library_showpkru
 void library_showpkru() {
-  uint32_t actual_pkru = ia2_get_pkru();
+  uint32_t actual_pkru = ia2_get_tag();
   cr_log_info("library pkru %08x", actual_pkru);
   cr_assert_eq(0xfffffffc, actual_pkru);
 }

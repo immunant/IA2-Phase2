@@ -142,6 +142,7 @@ function(define_test)
             if (LIBIA2_AARCH64)
                 add_test(NAME ${TEST_NAME}
                     COMMAND ${CMAKE_CROSSCOMPILING_EMULATOR}
+                        "-one-insn-per-tb"
                         "-L" "${CMAKE_BINARY_DIR}/external/glibc/sysroot/usr/"
                         ${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME}
                     WORKING_DIRECTORY ${CMAKE_BINARY_DIR})

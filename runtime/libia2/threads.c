@@ -34,9 +34,9 @@ void *ia2_thread_begin(void *arg) {
   size_t tag = ia2_get_tag();
   void **new_sp_addr = ia2_stackptr_for_tag(tag);
 
-#if defined(__x86_64__)
   /* Switch to the stack for this compartment, then call `fn(data)`. */
   void *result;
+#if defined(__x86_64__)
   __asm__ volatile(
       /* clang-format off */
       // Copy stack pointer to rdi.
@@ -62,12 +62,33 @@ void *ia2_thread_begin(void *arg) {
       : "=a"(result)
       : [fn] "r"(fn), [data] "r"(data), [new_sp_addr] "r"(new_sp_addr)
       : "rdi");
-  /* clang-format on */
-  return result;
 #elif defined(__aarch64__)
-#warning "libia2 does not implement ia2_thread_begin yet"
-  __builtin_trap();
+#warning "ia2_thread_begin does not align the stack correctly"
+  __asm__ volatile(
+        // Copy stack pointer to x10
+        "mov x10, sp\n"
+        // Load the stack pointer for this compartment's stack
+        "ldr x0, [%[new_sp_addr]]\n"
+        "mov sp, x0\n"
+        // Push the old stack pointer
+        "str x10, [sp, #-8]!\n"
+        // Load argument
+        "ldr x0, [%[data]]\n"
+        // Call fn(data)
+        "blr %[fn]\n"
+        // x0 now contains ret value
+        "mov %[result], x0\n"
+        // Pop the old stack pointer
+        "ldr x10, [sp], #8\n"
+        // Switch stacks back
+        "mov sp, x10\n"
+      : [result] "=r"(result)
+      : [fn] "r"(fn), [data] "r"(&data), [new_sp_addr] "r"(new_sp_addr)
+      : "x10");
 #endif
+  /* clang-format on */
+
+  return result;
 }
 
 typeof(pthread_create) __real_pthread_create;

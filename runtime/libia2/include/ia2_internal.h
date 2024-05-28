@@ -298,8 +298,8 @@ asm(".macro movz_shifted_tag_x18 tag\n"
 
 #if defined(__x86_64__)
 #define return_stackptr_if_compartment(compartment)                            \
-  if (pkru == PKRU(compartment)) {                                             \
-    register void **out asm("rax");                                             \
+  if (tag == PKRU(compartment)) {                                              \
+    register void **out asm("rax");                                            \
     __asm__ volatile(                                                          \
         "mov %%fs:(0), %%rax\n"                                                \
         "addq ia2_stackptr_" #compartment "@GOTTPOFF(%%rip), %%rax\n"          \
@@ -422,7 +422,7 @@ __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
   REPEATB(n, declare_init_tls_fn, nop_macro);                                  \
                                                                                \
   /* Returns `&ia2_stackptr_N` given a pkru value for the Nth compartment. */  \
-  __attribute__((visibility("default"))) void **ia2_stackptr_for_pkru(uint32_t pkru) {                                \
+  __attribute__((visibility("default"))) void **ia2_stackptr_for_tag(size_t tag) {                                \
     REPEATB(n, return_stackptr_if_compartment,                                 \
             return_stackptr_if_compartment);                                   \
     abort();                                                                   \

@@ -16,7 +16,7 @@ int main() {
     pid_t pid = fork();
     bool in_child = pid == 0;
     if (in_child) {
-      (*test_info->test)(); // TODO: test return values are ignored, so tests should return void
+      (*test_info->test)();
       return 0;
     }
     // otherwise, in parent

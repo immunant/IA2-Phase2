@@ -25,7 +25,11 @@
 // Use like:
 //   NOINLINE void DoStuff() { ... }
 #if defined(__clang__) && PA_HAS_ATTRIBUTE(noinline)
+#if __clang_major__ > 14
 #define PA_NOINLINE [[clang::noinline]]
+#else
+#define PA_NOINLINE
+#endif
 #elif defined(COMPILER_GCC) && PA_HAS_ATTRIBUTE(noinline)
 #define PA_NOINLINE __attribute__((noinline))
 #elif defined(COMPILER_MSVC)

@@ -88,7 +88,15 @@ jobs:
         with:
           repository: immunant/qemu
           path: ${{ github.workspace }}/qemu
+      - name: Cache built QEMU
+        id: cache-qemu
+        uses: actions/cache@v4
+        with:
+          path: |
+            qemu/build
+          key: ${{ runner.os }}-qemu
       - name: Build QEMU
+        if: steps.cache-qemu.outputs.cache-hit != 'true'
         working-directory: ${{ github.workspace }}/qemu
         run: ./build.sh
       - name: Test ARM build

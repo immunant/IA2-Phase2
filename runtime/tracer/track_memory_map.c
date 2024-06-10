@@ -6,7 +6,12 @@
 #include <sys/user.h>
 #include <sys/wait.h>
 
+#include <elf.h>
+#include <sys/uio.h>
+
+#ifdef __x86_64__
 #include "get_inferior_pkru.h"
+#endif
 #include "memory_map.h"
 #include "mmap_event.h"
 #include "track_memory_map.h"
@@ -294,8 +299,29 @@ static void print_event(enum mmap_event event, const union event_info *event_inf
 static bool interpret_syscall(struct user_regs_struct *regs, unsigned char pkey,
                               enum mmap_event *event, union event_info *event_info,
                               enum trace_mode mode) {
+#ifdef __x86_64__
+#define reg_pc regs->rip
+#define reg_syscall regs->orig_rax
+#define reg_retval regs->rax
+#define reg_arg0 regs->rdi
+#define reg_arg1 regs->rsi
+#define reg_arg2 regs->rdx
+#define reg_arg3 regs->r10
+#define reg_arg4 regs->r8
+#elif defined(__aarch64__)
+#define reg_pc regs->pc
+#define reg_syscall regs->regs[8]
+#define reg_retval regs->regs[0]
+#define reg_arg0 regs->regs[0]
+#define reg_arg1 regs->regs[1]
+#define reg_arg2 regs->regs[2]
+#define reg_arg3 regs->regs[3]
+#define reg_arg4 regs->regs[4]
+#else
+#error unsupported CPU architecture
+#endif
   /* determine event from syscall # */
-  unsigned long long syscall = regs->orig_rax;
+  unsigned long long syscall = reg_syscall;
   *event = event_from_syscall(syscall);
 
   /* dispatch on event and read args from registers.
@@ -304,31 +330,31 @@ static bool interpret_syscall(struct user_regs_struct *regs, unsigned char pkey,
   case EVENT_MMAP: {
     struct mmap_info *info = &event_info->mmap;
     info->range.start =
-        regs->rdi; /* this will be replaced with the actual addr on return */
-    info->range.len = regs->rsi;
-    info->prot = regs->rdx;
-    info->flags = regs->r10;
-    info->fildes = regs->r8;
+        reg_arg0; /* this will be replaced with the actual addr on return */
+    info->range.len = reg_arg1;
+    info->prot = reg_arg2;
+    info->flags = reg_arg3;
+    info->fildes = reg_arg4;
     info->pkey = pkey;
     break;
   }
   case EVENT_MUNMAP: {
     struct munmap_info *info = &event_info->munmap;
-    info->range.start = regs->rdi;
-    info->range.len = regs->rsi;
+    info->range.start = reg_arg0;
+    info->range.len = reg_arg1;
     info->pkey = pkey;
     break;
   }
   case EVENT_MREMAP: {
     struct mremap_info *info = &event_info->mremap;
-    info->old_range.start = regs->rdi;
-    info->old_range.len = regs->rsi;
-    info->new_range.len = regs->rdx;
-    info->flags = regs->r10;
+    info->old_range.start = reg_arg0;
+    info->old_range.len = reg_arg1;
+    info->new_range.len = reg_arg2;
+    info->flags = reg_arg3;
 
     if (info->flags & MREMAP_FIXED)
       info->new_range.start =
-          regs->r8; // accepts a 5th arg if this flag is present
+          reg_arg4; // accepts a 5th arg if this flag is present
     else
       info->new_range.start = info->old_range.start;
 
@@ -337,26 +363,26 @@ static bool interpret_syscall(struct user_regs_struct *regs, unsigned char pkey,
   }
   case EVENT_MADVISE: {
     struct madvise_info *info = &event_info->madvise;
-    info->range.start = regs->rdi;
-    info->range.len = regs->rsi;
+    info->range.start = reg_arg0;
+    info->range.len = reg_arg1;
     info->pkey = pkey;
-    info->advice = regs->rdx;
+    info->advice = reg_arg2;
     break;
   }
   case EVENT_MPROTECT: {
     struct mprotect_info *info = &event_info->mprotect;
-    info->range.start = regs->rdi;
-    info->range.len = regs->rsi;
-    info->prot = regs->rdx;
+    info->range.start = reg_arg0;
+    info->range.len = reg_arg1;
+    info->prot = reg_arg2;
     info->pkey = pkey;
     break;
   }
   case EVENT_PKEY_MPROTECT: {
     struct pkey_mprotect_info *info = &event_info->pkey_mprotect;
-    info->range.start = regs->rdi;
-    info->range.len = regs->rsi;
-    info->prot = regs->rdx;
-    info->new_owner_pkey = regs->r10;
+    info->range.start = reg_arg0;
+    info->range.len = reg_arg1;
+    info->prot = reg_arg2;
+    info->new_owner_pkey = reg_arg3;
     info->pkey = pkey;
     break;
   }
@@ -388,7 +414,7 @@ static bool interpret_syscall(struct user_regs_struct *regs, unsigned char pkey,
 static bool update_event_with_result(struct user_regs_struct *regs,
                                      enum mmap_event event,
                                      union event_info *event_info) {
-  if ((int64_t)regs->rax < 0) {
+  if ((int64_t)reg_retval < 0) {
     return false;
   }
   /* if mremap(MREMAP_MAYMOVE) or regular mmap() sans MAP_FIXED, we need to
@@ -398,15 +424,15 @@ static bool update_event_with_result(struct user_regs_struct *regs,
   case EVENT_MMAP: {
     /* read result from registers */
     struct mmap_info *info = &event_info->mmap;
-    debug_event_update("new start = %08llx\n", regs->rax);
-    info->range.start = regs->rax;
+    debug_event_update("new start = %08llx\n", reg_retval);
+    info->range.start = reg_retval;
     break;
   }
   case EVENT_MREMAP: {
     /* read result from registers */
     struct mremap_info *info = &event_info->mremap;
-    debug_event_update("new start = %08llx\n", regs->rax);
-    info->new_range.start = regs->rax;
+    debug_event_update("new start = %08llx\n", reg_retval);
+    info->new_range.start = reg_retval;
     break;
   }
   default: {
@@ -538,16 +564,43 @@ static enum wait_trap_result wait_for_next_trap(pid_t pid, pid_t *pid_out, int *
   return WAIT_ERROR;
 }
 
+long get_regs(pid_t pid, struct user_regs_struct *regs) {
+#ifdef __x86_64__
+  return ptrace(PTRACE_GETREGS, pid, 0, regs);
+#elif defined(__aarch64__)
+  struct iovec iov;
+  iov.iov_base = (void *)&regs;
+  iov.iov_len = sizeof(regs);
+  return ptrace(PTRACE_GETREGSET, pid, NT_PRSTATUS, &iov);
+#else
+#error unsupported CPU architecture
+#endif
+}
+
+long set_regs(pid_t pid, struct user_regs_struct *regs) {
+#ifdef __x86_64__
+  return ptrace(PTRACE_SETREGS, pid, 0, regs);
+#elif defined(__aarch64__)
+  struct iovec iov;
+  iov.iov_base = (void *)&regs;
+  iov.iov_len = sizeof(regs);
+  return ptrace(PTRACE_SETREGSET, pid, NT_PRSTATUS, &iov);
+#else
+#error unsupported CPU architecture
+#endif
+}
+
 static void return_syscall_eperm(pid_t pid) {
-  struct user_regs_struct regs = {0};
-  if (ptrace(PTRACE_GETREGS, pid, 0, &regs) < 0) {
+  struct user_regs_struct regs_storage = {0};
+  struct user_regs_struct *regs = &regs_storage;
+  if (get_regs(pid, regs) < 0) {
     perror("could not PTRACE_GETREGS");
     return;
   }
 
   /* set to invalid syscall */
-  regs.orig_rax = -1;
-  ptrace(PTRACE_SETREGS, pid, 0, &regs);
+  reg_syscall = -1;
+  set_regs(pid, regs);
   debug_forbid("set syscall # to -1\n");
 
   /* run syscall until exit */
@@ -555,13 +608,13 @@ static void return_syscall_eperm(pid_t pid) {
   waitpid(pid, NULL, __WALL);
   debug_forbid("continued\n");
 
-  if (ptrace(PTRACE_GETREGS, pid, 0, &regs) < 0) {
+  if (get_regs(pid, regs) < 0) {
     perror("could not PTRACE_GETREGS");
     return;
   }
   /* return -EPERM */
-  regs.rax = -EPERM;
-  ptrace(PTRACE_SETREGS, pid, 0, &regs);
+  reg_retval = -EPERM;
+  set_regs(pid, regs);
   debug_forbid("wrote -eperm to rax\n");
 }
 
@@ -702,12 +755,13 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
     case WAIT_SYSCALL:
       break;
     case WAIT_ERROR: {
-      struct user_regs_struct regs = {0};
-      if (ptrace(PTRACE_GETREGS, waited_pid, 0, &regs) < 0) {
+      struct user_regs_struct regs_storage = {0};
+      struct user_regs_struct *regs = &regs_storage;
+      if (get_regs(waited_pid, regs) < 0) {
         perror("could not PTRACE_GETREGS");
         return false;
       }
-      fprintf(stderr, "error at rip=%p\n", (void *)regs.rip);
+      fprintf(stderr, "error at rip=%p\n", (void *)reg_pc);
       for (int i = 0; i < maps.n_maps; i++) {
         for (int j = 0; j < maps.maps_for_processes[i].n_pids; j++) {
           pid_t pid = maps.maps_for_processes[i].pids[j];
@@ -783,17 +837,19 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
     struct memory_map *map = map_for_procs->map;
 
     /* read which syscall is being called and its args */
-    struct user_regs_struct regs = {0};
-    if (ptrace(PTRACE_GETREGS, waited_pid, 0, &regs) < 0) {
+    struct user_regs_struct regs_storage = {0};
+    struct user_regs_struct *regs = &regs_storage;
+    if (get_regs(waited_pid, regs) < 0) {
       perror("could not PTRACE_GETREGS");
       return false;
     }
 
     /* if syscall number is -1, finish and kill process */
-    if (regs.orig_rax == -1) {
+    if (reg_syscall == -1) {
       return false;
     }
 
+#ifdef __x86_64__
     /* read pkru */
     uint32_t pkru = -1;
     bool res = get_inferior_pkru(waited_pid, &pkru);
@@ -807,10 +863,16 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
               pkru);
       return false;
     }
+#elif defined(__aarch64__)
+    /* read compartment tag from x18 */
+    unsigned char pkey = regs->regs[18];
+#else
+#error unsupported CPU architecture
+#endif
 
     union event_info event_info = {0};
     enum mmap_event event = EVENT_NONE;
-    if (!interpret_syscall(&regs, pkey, &event, &event_info, mode)) {
+    if (!interpret_syscall(regs, pkey, &event, &event_info, mode)) {
       fprintf(stderr, "could not interpret syscall!\n");
       return false;
     }
@@ -818,7 +880,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
     /* pick up signal marking IA2 init finished to start forbidding init-only operations */
     if (event_marks_init_finished(event, &event_info)) {
       if (!memory_map_mark_init_finished(map)) {
-        fprintf(stderr, "attempting to re-finish init! (rip=%p)\n", (void *)regs.rip);
+        fprintf(stderr, "attempting to re-finish init! (rip=%p)\n", (void *)reg_pc);
         return false;
       }
       debug_op("init finished\n");
@@ -851,7 +913,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       continue;
     } else {
       debug_policy("operation allowed: %s (syscall %lld)\n", event_name(event),
-                   regs.orig_rax);
+                   reg_syscall);
     }
 
   // if we are in TRACE_MODE_PTRACE_SYSCALL, we will see EXITED/PTRACE_CLONE here
@@ -909,16 +971,16 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
     }
 
     /* read syscall result from registers */
-    if (ptrace(PTRACE_GETREGS, waited_pid, 0, &regs) < 0) {
+    if (get_regs(waited_pid, regs) < 0) {
       perror("could not PTRACE_GETREGS");
       return false;
     }
 
     /* if syscall succeeded, update event */
-    if (update_event_with_result(&regs, event, &event_info)) {
+    if (update_event_with_result(regs, event, &event_info)) {
       /* track effect of syscall on memory map */
       if (!update_memory_map(map, event, &event_info)) {
-        fprintf(stderr, "could not update memory map! (operation=%s, rip=%p)\n", event_name(event), (void *)regs.rip);
+        fprintf(stderr, "could not update memory map! (operation=%s, rip=%p)\n", event_name(event), (void *)reg_pc);
         return false;
       }
     }

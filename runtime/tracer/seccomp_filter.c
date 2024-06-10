@@ -7,6 +7,9 @@
 #include <sys/ioctl.h>
 #include <sys/syscall.h>
 #include <unistd.h>
+#ifndef __x86_64__
+#include <asm-generic/unistd.h>
+#endif
 
 #include "seccomp_filter.h"
 
@@ -38,15 +41,23 @@ struct sock_filter ia2_filter[] = {
     /* pkey syscalls */
     BPF_SYSCALL_POLICY(pkey_alloc, ALLOW),
     BPF_SYSCALL_POLICY(pkey_mprotect, TRACE),
-    /* basic process syscalls */
+/* basic process syscalls */
+#ifdef __NR_access
     BPF_SYSCALL_POLICY(access, ALLOW),
+#endif
+#ifdef __NR_open
     BPF_SYSCALL_POLICY(open, ALLOW),
+#endif
+#ifdef __NR_arch_prctl
     BPF_SYSCALL_POLICY(arch_prctl, ALLOW),
+#endif
     BPF_SYSCALL_POLICY(brk, ALLOW),
     BPF_SYSCALL_POLICY(clone3, ALLOW),
     BPF_SYSCALL_POLICY(close, ALLOW),
     BPF_SYSCALL_POLICY(dup, ALLOW),
+#ifdef __NR_dup2
     BPF_SYSCALL_POLICY(dup2, ALLOW),
+#endif
     BPF_SYSCALL_POLICY(execve, ALLOW),
     BPF_SYSCALL_POLICY(exit_group, ALLOW),
     BPF_SYSCALL_POLICY(fcntl, ALLOW),
@@ -56,7 +67,9 @@ struct sock_filter ia2_filter[] = {
     BPF_SYSCALL_POLICY(getcwd, ALLOW),
     BPF_SYSCALL_POLICY(lseek, ALLOW),
     BPF_SYSCALL_POLICY(syslog, ALLOW),
+#ifdef __NR_getdents
     BPF_SYSCALL_POLICY(getdents, ALLOW),
+#endif
     BPF_SYSCALL_POLICY(getdents64, ALLOW),
     BPF_SYSCALL_POLICY(getegid, ALLOW),
     BPF_SYSCALL_POLICY(geteuid, ALLOW),
@@ -71,7 +84,9 @@ struct sock_filter ia2_filter[] = {
     BPF_SYSCALL_POLICY(faccessat2, ALLOW),
     BPF_SYSCALL_POLICY(sched_getaffinity, ALLOW),
     BPF_SYSCALL_POLICY(sched_setaffinity, ALLOW),
+#ifdef __NR_alarm
     BPF_SYSCALL_POLICY(alarm, ALLOW),
+#endif
     BPF_SYSCALL_POLICY(statx, ALLOW),
     BPF_SYSCALL_POLICY(newfstatat, ALLOW),
     BPF_SYSCALL_POLICY(openat, ALLOW),
@@ -80,7 +95,9 @@ struct sock_filter ia2_filter[] = {
     BPF_SYSCALL_POLICY(pwrite64, ALLOW),
     BPF_SYSCALL_POLICY(read, ALLOW),
     BPF_SYSCALL_POLICY(readv, ALLOW),
+#ifdef __NR_readlink
     BPF_SYSCALL_POLICY(readlink, ALLOW),
+#endif
     BPF_SYSCALL_POLICY(readlinkat, ALLOW),
     BPF_SYSCALL_POLICY(eventfd2, ALLOW),
     BPF_SYSCALL_POLICY(epoll_create1, ALLOW),
@@ -93,7 +110,9 @@ struct sock_filter ia2_filter[] = {
     BPF_SYSCALL_POLICY(accept4, ALLOW),
     BPF_SYSCALL_POLICY(sendmsg, ALLOW),
     BPF_SYSCALL_POLICY(recvmsg, ALLOW),
+#ifdef __NR_unlink
     BPF_SYSCALL_POLICY(unlink, ALLOW),
+#endif
     BPF_SYSCALL_POLICY(ftruncate, ALLOW),
     BPF_SYSCALL_POLICY(mincore, ALLOW),
     BPF_SYSCALL_POLICY(clone, ALLOW),
@@ -109,10 +128,14 @@ struct sock_filter ia2_filter[] = {
     BPF_SYSCALL_POLICY(exit, ALLOW),
     BPF_SYSCALL_POLICY(clock_nanosleep, ALLOW),
     BPF_SYSCALL_POLICY(sigaltstack, ALLOW),
+#ifdef __NR_epoll_wait
     BPF_SYSCALL_POLICY(epoll_wait, ALLOW),
+#endif
     BPF_SYSCALL_POLICY(setsid, ALLOW),
     BPF_SYSCALL_POLICY(pipe2, ALLOW),
+#ifdef __NR_poll
     BPF_SYSCALL_POLICY(poll, ALLOW),
+#endif
     BPF_SYSCALL_POLICY(waitid, ALLOW),
     BPF_SYSCALL_POLICY(restart_syscall, ALLOW),
     /* tracee syscalls */
@@ -139,8 +162,8 @@ struct sock_filter example_filter[] = {
     /* equivalent: */
     /*BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_seccomp, 0, 1),
     BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW),*/
-    /* compare syscall number to open() and jump to kill insn if different */
-    BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_open, 0, 3),
+    /* compare syscall number to openat() and jump to kill insn if different */
+    BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_openat, 0, 3),
     /* load argument 1 */
     BPF_STMT(BPF_LD | BPF_W | BPF_ABS,
              (offsetof(struct seccomp_data, args[1]))),

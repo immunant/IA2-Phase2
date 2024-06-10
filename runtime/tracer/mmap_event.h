@@ -102,4 +102,4 @@ static inline const struct range *event_target_range(enum mmap_event event, cons
   }
 }
 
-enum mmap_event event_from_syscall(uint64_t rax);
+enum mmap_event event_from_syscall(uint64_t syscall_nr);

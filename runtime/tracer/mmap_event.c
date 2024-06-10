@@ -1,9 +1,13 @@
+#ifdef __x86_64__
 #include <asm/unistd_64.h>
+#else
+#include <asm-generic/unistd.h>
+#endif
 
 #include "mmap_event.h"
 
-enum mmap_event event_from_syscall(uint64_t rax) {
-  switch (rax) {
+enum mmap_event event_from_syscall(uint64_t syscall_nr) {
+  switch (syscall_nr) {
   case __NR_mmap:
     return EVENT_MMAP;
   case __NR_munmap:
@@ -18,7 +22,9 @@ enum mmap_event event_from_syscall(uint64_t rax) {
     return EVENT_PKEY_MPROTECT;
   case __NR_wait4:
   case __NR_clone:
+#ifdef __NR_clone3
   case __NR_clone3:
+#endif
     return EVENT_CLONE;
   case __NR_execve:
   case __NR_execveat:

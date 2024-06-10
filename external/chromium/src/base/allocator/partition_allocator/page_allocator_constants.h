@@ -107,6 +107,14 @@ PageAllocationGranularityShift() {
 #endif
 }
 
+PA_ALWAYS_INLINE constexpr size_t SystemPageSizeMax() {
+#if BUILDFLAG(IS_LINUX) && defined(ARCH_CPU_ARM64)
+  return 4*1024;
+#else
+  return 1 << PageAllocationGranularityShift();
+#endif
+}
+
 PA_ALWAYS_INLINE PAGE_ALLOCATOR_CONSTANTS_DECLARE_CONSTEXPR size_t
 PageAllocationGranularity() {
 #if BUILDFLAG(IS_APPLE) && defined(ARCH_CPU_64_BITS)

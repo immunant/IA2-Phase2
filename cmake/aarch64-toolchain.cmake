@@ -2,8 +2,9 @@ set(LIBIA2_AARCH64 TRUE)
 
 set(CMAKE_SYSTEM_NAME Linux)
 
-set(CMAKE_C_COMPILER aarch64-linux-gnu-gcc)
-set(CMAKE_CXX_COMPILER aarch64-linux-gnu-g++)
+# we cannot use relative paths here, but we should use our forked clang to build all aarch64 binaries to ensure instrumentation of loads/stores
+#set(CMAKE_C_COMPILER ../../llvm-project/build/bin/clang-19)
+#set(CMAKE_CXX_COMPILER ../../llvm-project/build/bin/clang-19)
 
 set(CMAKE_C_HOST_COMPILER gcc)
 set(CMAKE_CXX_HOST_COMPILER g++)

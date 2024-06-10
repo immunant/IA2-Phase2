@@ -1,3 +1,4 @@
+#ifdef __x86_64__
 #include <cpuid.h>
 #include <linux/elf.h>
 #include <stdio.h>
@@ -64,3 +65,4 @@ bool get_inferior_pkru(pid_t pid, uint32_t *pkru_out) {
   memcpy(pkru_out, &xstateregs[xstate_pkru_offset], sizeof(*pkru_out));
   return true;
 }
+#endif

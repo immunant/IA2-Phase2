@@ -135,9 +135,14 @@ jobs:
           Clang_DIR=`realpath $LLVM_DIR/../clang`
           mkdir build
           pushd build
+          cross_flags="-fuse-ld=lld-15 -L/usr/aarch64-linux-gnu/lib -isystem /usr/lib/gcc-cross/aarch64-linux-gnu/11/include --gcc-toolchain=/usr -march=armv8+memtag"
           cmake .. \
             -DCMAKE_CROSSCOMPILING_EMULATOR=${{ github.workspace }}/qemu/build/qemu-aarch64 \
             -DCMAKE_TOOLCHAIN_FILE=../cmake/aarch64-toolchain.cmake \
+            -DCMAKE_C_COMPILER=`pwd`/../llvm-project/build/bin/clang-19 \
+            -DCMAKE_CXX_COMPILER=`pwd`/../llvm-project/build/bin/clang-19 \
+            -DCMAKE_C_FLAGS="$cross_flags" \
+            -DCMAKE_CXX_FLAGS="$cross_flags" \
             -DClang_DIR=$Clang_DIR                                  \
             -DCLANG_EXE=`which clang-15`                            \
             -DLLVM_DIR=$LLVM_DIR                                    \

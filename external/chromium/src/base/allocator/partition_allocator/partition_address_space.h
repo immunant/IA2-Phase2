@@ -390,7 +390,7 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionAddressSpace {
 #endif
   };
 #if BUILDFLAG(ENABLE_THREAD_ISOLATION)
-  static_assert(sizeof(PoolSetup) % SystemPageSize() == 0,
+  static_assert(sizeof(PoolSetup) % SystemPageSizeMax() == 0,
                 "PoolSetup has to fill a page(s)");
 #else
   static_assert(sizeof(PoolSetup) % kPartitionCachelineSize == 0,

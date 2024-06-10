@@ -19,6 +19,10 @@
 #error "This pkey code is currently only supported on Linux"
 #endif
 
+#ifdef ARCH_CPU_ARM64
+#error "This pkey code is supported only on x86_64 architecture"
+#endif
+
 namespace partition_alloc::internal {
 
 PA_COMPONENT_EXPORT(PARTITION_ALLOC)

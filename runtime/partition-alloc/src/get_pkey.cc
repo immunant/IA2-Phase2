@@ -4,6 +4,7 @@
 // the allocator against libia2 itself. We want users with libia2 disabled to
 // still be able to call `shared_malloc` etc.
 
+#ifdef __x86_64__
 __attribute__((__visibility__("hidden")))
 uint32_t ia2_get_pkru() {
   uint32_t pkru = 0;
@@ -75,3 +76,4 @@ size_t ia2_get_pkey() {
   }
   }
 }
+#endif

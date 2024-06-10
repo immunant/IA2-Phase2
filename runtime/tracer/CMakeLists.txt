@@ -12,10 +12,12 @@ set_property(TARGET memory-map PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_BINARY
 add_custom_target(memory-map-tgt DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/release/libmemory_map.so)
 add_dependencies(memory-map memory-map-tgt)
 
+if(LIBIA2_X86_64)
 add_executable(read-pkru
   read_pkru_demo.c
   get_inferior_pkru.c
 )
+endif()
 
 add_executable(track-memory-map
   track_memory_map_demo.c

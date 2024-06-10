@@ -76,6 +76,7 @@ jobs:
           packages: |
             gcc-aarch64-linux-gnu
             g++-aarch64-linux-gnu
+            libc6-arm64-cross
             clang-15
             pkg-config
             cmake

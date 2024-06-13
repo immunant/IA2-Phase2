@@ -6,6 +6,8 @@ set(CMAKE_SYSTEM_NAME Linux)
 #set(CMAKE_C_COMPILER ../../llvm-project/build/bin/clang-19)
 #set(CMAKE_CXX_COMPILER ../../llvm-project/build/bin/clang-19)
 
+set(CMAKE_OBJCOPY llvm-objcopy)
+
 set(CMAKE_C_HOST_COMPILER gcc)
 set(CMAKE_CXX_HOST_COMPILER g++)
 

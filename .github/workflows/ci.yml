@@ -142,6 +142,7 @@ jobs:
             -DCMAKE_TOOLCHAIN_FILE=../cmake/aarch64-toolchain.cmake \
             -DCMAKE_C_COMPILER=`pwd`/../llvm-project/build/bin/clang-19 \
             -DCMAKE_CXX_COMPILER=`pwd`/../llvm-project/build/bin/clang-19 \
+            -DCMAKE_OBJCOPY=/usr/bin/llvm-objcopy-15 \
             -DCMAKE_C_FLAGS="$cross_flags" \
             -DCMAKE_CXX_FLAGS="$cross_flags" \
             -DClang_DIR=$Clang_DIR                                  \

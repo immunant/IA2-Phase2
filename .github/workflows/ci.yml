@@ -143,4 +143,3 @@ jobs:
             -G Ninja
           ninja -v check
           popd
-

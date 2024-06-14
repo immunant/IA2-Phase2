@@ -27,13 +27,19 @@ bool CPUHasPkeySupport() {
 }
 
 PA_COMPONENT_EXPORT(PARTITION_ALLOC)
-int PkeyMprotect(void* addr, size_t len, int prot, int pkey) {
+int PkeyMprotect(void *addr, size_t len, int prot, int pkey) {
+#ifdef ARCH_CPU_ARM64
+  return;
+#endif
   return syscall(SYS_pkey_mprotect, addr, len, prot, pkey);
 }
 
-void TagMemoryWithPkey(int pkey, void* address, size_t size) {
+void TagMemoryWithPkey(int pkey, void *address, size_t size) {
   PA_DCHECK((reinterpret_cast<uintptr_t>(address) &
              PA_THREAD_ISOLATED_ALIGN_OFFSET_MASK) == 0);
+#ifdef ARCH_CPU_ARM64
+  return;
+#endif
   PA_PCHECK(PkeyMprotect(address,
                          (size + PA_THREAD_ISOLATED_ALIGN_OFFSET_MASK) &
                              PA_THREAD_ISOLATED_ALIGN_BASE_MASK,
@@ -42,22 +48,36 @@ void TagMemoryWithPkey(int pkey, void* address, size_t size) {
 
 PA_COMPONENT_EXPORT(PARTITION_ALLOC)
 int PkeyAlloc(int access_rights) {
+#ifdef ARCH_CPU_ARM64
+  return;
+#endif
   return syscall(SYS_pkey_alloc, 0, access_rights);
 }
 
 PA_COMPONENT_EXPORT(PARTITION_ALLOC)
 void PkeyFree(int pkey) {
+#ifdef ARCH_CPU_ARM64
+  return;
+#endif
   PA_PCHECK(syscall(SYS_pkey_free, pkey) == 0);
 }
 
 uint32_t Rdpkru() {
+#ifdef ARCH_CPU_ARM64
+  return 0;
+#else
   uint32_t pkru;
   asm volatile(".byte 0x0f,0x01,0xee\n" : "=a"(pkru) : "c"(0), "d"(0));
   return pkru;
+#endif
 }
 
 void Wrpkru(uint32_t pkru) {
+#ifdef ARCH_CPU_ARM64
+  return 0;
+#else
   asm volatile(".byte 0x0f,0x01,0xef\n" : : "a"(pkru), "c"(0), "d"(0));
+#endif
 }
 
 #if BUILDFLAG(PA_DCHECK_IS_ON)

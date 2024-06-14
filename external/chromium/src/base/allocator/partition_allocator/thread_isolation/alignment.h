@@ -11,7 +11,7 @@
 
 #include "base/allocator/partition_allocator/page_allocator_constants.h"
 
-#define PA_THREAD_ISOLATED_ALIGN_SZ partition_alloc::internal::SystemPageSize()
+#define PA_THREAD_ISOLATED_ALIGN_SZ partition_alloc::internal::SystemPageSizeMax()
 #define PA_THREAD_ISOLATED_ALIGN_OFFSET_MASK (PA_THREAD_ISOLATED_ALIGN_SZ - 1)
 #define PA_THREAD_ISOLATED_ALIGN_BASE_MASK \
   (~PA_THREAD_ISOLATED_ALIGN_OFFSET_MASK)

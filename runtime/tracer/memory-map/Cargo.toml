@@ -9,6 +9,9 @@ crate-type = ["cdylib"]
 libc_alloc = "1.0.5"
 nonoverlapping_interval_tree = { version = "0.1.5", default-features = false }
 
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(debug)', 'cfg(list_regions)'] }
+
 [profile.dev]
 panic = "abort"
 strip = "symbols"

@@ -1,6 +1,7 @@
 #include "TypeOps.h"
 #include "clang/AST/GlobalDecl.h"
 #include "clang/AST/Mangle.h"
+#include "clang/Basic/Version.h"
 
 // For types that have both a left and right side, this is what
 // we emit for the name between the two sides, e.g.,
@@ -44,7 +45,11 @@ std::string mangle_type(clang::ASTContext &ctx, const clang::QualType &ty) {
 
   std::string os;
   llvm::raw_string_ostream out{os};
+#if CLANG_VERSION_MAJOR <= 17
   mctx->mangleTypeName(ty.getCanonicalType(), out);
+#else
+  mctx->mangleCanonicalTypeName(ty.getCanonicalType(), out);
+#endif
   return os;
 }
 

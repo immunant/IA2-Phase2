@@ -6,7 +6,9 @@
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "clang/ASTMatchers/ASTMatchers.h"
 #include "clang/Basic/FileManager.h"
+#include "clang/Basic/Linkage.h"
 #include "clang/Basic/SourceManager.h"
+#include "clang/Basic/Version.h"
 #include "clang/Frontend/FrontendActions.h"
 #include "clang/Lex/Lexer.h"
 #include "clang/Tooling/CommonOptionsParser.h"
@@ -636,10 +638,9 @@ public:
     OpaqueStruct new_type = kFnPtrTypePrefix + mangled_type;
 
     auto linkage = fn_decl->getFormalLinkage();
-    if (linkage == clang::Linkage::ExternalLinkage) {
+    if (clang::isExternallyVisible(linkage)) {
       addr_taken_fns[fn_name] = new_type;
-    } else if ((linkage == clang::Linkage::InternalLinkage) ||
-               (linkage == clang::Linkage::NoLinkage)) {
+    } else {
 
       auto [it, new_fn] = internal_addr_taken_fns[filename].insert(
           std::make_pair(fn_name, new_type));
@@ -661,11 +662,6 @@ public:
           }
         }
       }
-
-    } else {
-      llvm::errs()
-          << "Found declRefExpr in FnPtrExpr pass with unsupported linkage\n";
-      return;
     }
 
     // This check must come after modifying the maps in this pass but before the
@@ -930,7 +926,12 @@ std::set<llvm::SmallString<256>> copy_files(std::vector<std::unique_ptr<clang::A
     for (auto file_it = sm.fileinfo_begin(); file_it != sm.fileinfo_end();
          file_it++) {
 
-      llvm::SmallString<256> input_file(file_it->getFirst()->getName());
+#if CLANG_VERSION_MAJOR <= 17
+      auto name = file_it->getFirst()->getName();
+#else
+      auto name = file_it->getFirst().getName();
+#endif
+      llvm::SmallString<256> input_file(name);
       llvm::SmallString<256> output_file(input_file);
       bool needs_copy = false;
       if (llvm::sys::path::is_relative(input_file)) {
@@ -943,7 +944,7 @@ std::set<llvm::SmallString<256>> copy_files(std::vector<std::unique_ptr<clang::A
 
         assert(cc_cmd.size() == 1);
 
-        auto rel_path = file_it->getFirst()->getName().str();
+        auto rel_path = name.str();
         input_file = cc_cmd[0].Directory;
         input_file.append("/" + rel_path);
         output_file = input_file;

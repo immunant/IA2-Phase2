@@ -13,7 +13,10 @@
 #include "clang/Lex/HeaderSearchOptions.h"
 #include "clang/Lex/PreprocessorOptions.h"
 #include "llvm/IR/LLVMContext.h"
+#include "llvm/Support/Casting.h"
+#include <cstddef>
 #include <optional>
+#include <vector>
 
 // Compute sequence of eightbyte classifications for a type that Clang has
 // chosen to pass directly in registers
@@ -169,7 +172,7 @@ abiSlotsForArg(const clang::QualType &qt,
   case Kind::Direct: // in register
   {
     llvm::StructType *STy =
-        dyn_cast<llvm::StructType>(argInfo.getCoerceToType());
+        llvm::dyn_cast<llvm::StructType>(argInfo.getCoerceToType());
     if (STy) {
       // Struct case
       if (argInfo.getCanBeFlattened()) {
@@ -244,7 +247,7 @@ CAbiSignature determineAbi(const clang::CodeGen::CGFunctionInfo &info,
 
   // num_regs is the number of registers in which the return value is stored.
   // This may be one for a value up to 64 bits or two for a 128-bit value.
-  size_t num_regs = std::count_if(sig.ret.begin(), sig.ret.end(), is_integral);
+  std::size_t num_regs = std::count_if(sig.ret.begin(), sig.ret.end(), is_integral);
   // It's possible that clang gives us back a value of three or more integers,
   // for example a struct full of ints. However, in reality the whole value
   // goes on the stack in this case according to the x64 ABI.

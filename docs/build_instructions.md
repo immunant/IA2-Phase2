@@ -29,10 +29,10 @@ We currently test with LLVM 16 and older versions of libclang may or may not wor
 
 ```
 mkdir build && pushd build
-cmake ..                                                 \
-            -DClang_DIR`llvm-config --cmakedir`/../clang \
-            -DLLVM_DIR=`llvm-config --cmakedir`          \
-            -DLLVM_EXTERNAL_LIT=`which lit`              \
+cmake ..                                                  \
+            -DClang_DIR=`llvm-config --cmakedir`/../clang \
+            -DLLVM_DIR=`llvm-config --cmakedir`           \
+            -DLLVM_EXTERNAL_LIT=`which lit`               \
             -G Ninja
 ```
 

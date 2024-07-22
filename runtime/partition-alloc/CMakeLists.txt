@@ -39,6 +39,7 @@ set(PA_SRCS
 	partition_page.cc
 	partition_root.cc
 	partition_stats.cc
+	thread_isolation/mte.cc
 	thread_isolation/pkey.cc
 	thread_isolation/thread_isolation.cc
 	random.cc

@@ -15,6 +15,10 @@
 #include "base/allocator/partition_allocator/thread_isolation/pkey.h"
 #endif
 
+#if BUILDFLAG(ENABLE_MTE_ISOLATION)
+#include "base/allocator/partition_allocator/thread_isolation/mte.h"
+#endif
+
 namespace partition_alloc::internal {
 
 #if BUILDFLAG(PA_DCHECK_IS_ON)
@@ -28,6 +32,10 @@ void WriteProtectThreadIsolatedMemory(ThreadIsolationOption thread_isolation,
              PA_THREAD_ISOLATED_ALIGN_OFFSET_MASK) == 0);
 #if BUILDFLAG(ENABLE_PKEYS)
   partition_alloc::internal::TagMemoryWithPkey(
+      thread_isolation.enabled ? thread_isolation.pkey : kDefaultPkey, address,
+      size);
+#elif BUILDFLAG(ENABLE_MTE_ISOLATION)
+  partition_alloc::internal::TagMemoryWithMte(
       thread_isolation.enabled ? thread_isolation.pkey : kDefaultPkey, address,
       size);
 #else

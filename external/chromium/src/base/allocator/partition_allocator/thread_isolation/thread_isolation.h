@@ -21,6 +21,10 @@
 #include "base/allocator/partition_allocator/thread_isolation/pkey.h"
 #endif
 
+#if BUILDFLAG(ENABLE_MTE_ISOLATION)
+#include "base/allocator/partition_allocator/thread_isolation/mte.h"
+#endif
+
 #if !BUILDFLAG(HAS_64_BIT_POINTERS)
 #error "thread isolation support requires 64 bit pointers"
 #endif
@@ -33,23 +37,23 @@ struct ThreadIsolationOption {
   constexpr ThreadIsolationOption() = default;
   explicit ThreadIsolationOption(bool enabled) : enabled(enabled) {}
 
-#if BUILDFLAG(ENABLE_PKEYS)
+#if BUILDFLAG(ENABLE_PKEYS) || BUILDFLAG(ENABLE_MTE_ISOLATION)
   explicit ThreadIsolationOption(int pkey, size_t compartment)
       : pkey(pkey), compartment(compartment) {
     enabled = pkey != internal::kInvalidPkey;
   }
   int pkey = -1;
   Compartment compartment = 0;
-#endif  // BUILDFLAG(ENABLE_PKEYS)
+#endif  // BUILDFLAG(ENABLE_PKEYS) || BUILDFLAG(ENABLE_MTE_ISOLATION)
 
   bool enabled = false;
 
   bool operator==(const ThreadIsolationOption& other) const {
-#if BUILDFLAG(ENABLE_PKEYS)
+#if BUILDFLAG(ENABLE_PKEYS) || BUILDFLAG(ENABLE_MTE_ISOLATION)
     if (pkey != other.pkey) {
       return false;
     }
-#endif  // BUILDFLAG(ENABLE_PKEYS)
+#endif  // BUILDFLAG(ENABLE_PKEYS) || BUILDFLAG(ENABLE_MTE_ISOLATION)
     return enabled == other.enabled;
   }
 };
@@ -69,7 +73,12 @@ struct PA_THREAD_ISOLATED_ALIGN ThreadIsolationSettings {
 
 using LiftThreadIsolationScope = DoNotLiftPkeyRestrictionsScope;
 
+#elif BUILDFLAG(ENABLE_MTE_ISOLATION)
+
+using LiftThreadIsolationScope = void*;
+
 #endif  // BUILDFLAG(ENABLE_PKEYS)
+
 #endif  // BUILDFLAG(PA_DCHECK_IS_ON)
 
 void WriteProtectThreadIsolatedGlobals(

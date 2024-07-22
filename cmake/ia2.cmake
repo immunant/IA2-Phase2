@@ -1,9 +1,7 @@
 if(LIBIA2_AARCH64)
     set(UBSAN_FLAG "")
-    set(PARTITION_ALLOC "")
 else()
     set(UBSAN_FLAG "-fsanitize=undefined")
-    set(PARTITION_ALLOC "partition-alloc")
 endif()
 # Creates a compartmentalized IA2 target
 #
@@ -71,7 +69,7 @@ function(add_ia2_compartment NAME TYPE)
     target_link_options(${NAME} PRIVATE ${UBSAN_FLAG})
   endif()
 
-  target_link_libraries(${NAME} PRIVATE dl libia2 ${PARTITION_ALLOC})
+  target_link_libraries(${NAME} PRIVATE dl libia2 partition-alloc)
   target_link_options(${NAME} PRIVATE "-Wl,--export-dynamic")
 
   target_link_libraries(${NAME} PRIVATE ${ARG_LIBRARIES})

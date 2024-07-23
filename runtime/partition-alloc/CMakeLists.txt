@@ -74,6 +74,10 @@ add_library(partition-alloc_unpadded SHARED
 
 pad_tls_library(partition-alloc_unpadded partition-alloc)
 
+target_link_libraries(partition-alloc_unpadded PRIVATE
+    stdc++
+)
+
 target_include_directories(partition-alloc BEFORE
 	INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/include

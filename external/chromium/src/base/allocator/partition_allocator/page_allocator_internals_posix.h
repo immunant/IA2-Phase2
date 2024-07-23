@@ -195,6 +195,10 @@ uintptr_t SystemAllocPagesInternal(uintptr_t hint,
   }
 #endif
 
+#if BUILDFLAG(ENABLE_MTE_ISOLATION)
+  access_flag |= PROT_MTE;
+#endif
+
   void* ret = mmap(reinterpret_cast<void*>(hint), length, access_flag,
                    map_flags, fd, 0);
   if (ret == MAP_FAILED) {

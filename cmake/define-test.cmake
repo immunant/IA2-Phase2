@@ -140,6 +140,12 @@ function(define_test)
         list(APPEND DEFINE_TEST_UNWRAPPED_LIBS criterion)
         if (NOT DEFINE_TEST_NOT_IN_CHECK_IA2)
             if (LIBIA2_AARCH64)
+                # unless natively AArch64, default to running tests with qemu-aarch64 and a custom LD_LIBRARY_PATH
+                if (NOT ${CMAKE_HOST_SYSTEM_PROCESSOR} STREQUAL aarch64)
+                    if (NOT DEFINED CMAKE_CROSSCOMPILING_EMULATOR)
+                        set(CMAKE_CROSSCOMPILING_EMULATOR qemu-aarch64 -E LD_LIBRARY_PATH=/usr/aarch64-linux-gnu/lib:/usr/aarch64-linux-gnu/lib64)
+                    endif()
+                endif()
                 add_test(NAME ${TEST_NAME}
                     COMMAND ${CMAKE_CROSSCOMPILING_EMULATOR}
                         "-one-insn-per-tb"

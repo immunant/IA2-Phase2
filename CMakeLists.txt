@@ -21,6 +21,7 @@ ExternalProject_Add(tools
     SOURCE_DIR ${CMAKE_SOURCE_DIR}/tools
     BINARY_DIR ${CMAKE_BINARY_DIR}/tools
     CMAKE_ARGS
+        -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
         -DClang_DIR=${Clang_DIR}
         -DLLVM_DIR=${LLVM_DIR}
     INSTALL_COMMAND "")

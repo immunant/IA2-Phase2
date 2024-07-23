@@ -3,6 +3,7 @@
 
 struct fake_criterion_test {
   void (*test)(void);
+  void (*init)(void);
   int exit_code;
 };
 

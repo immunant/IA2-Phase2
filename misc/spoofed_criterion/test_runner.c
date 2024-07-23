@@ -16,6 +16,9 @@ int main() {
     pid_t pid = fork();
     bool in_child = pid == 0;
     if (in_child) {
+      if (test_info->init) {
+        (*test_info->init)();
+      }
       (*test_info->test)();
       return 0;
     }

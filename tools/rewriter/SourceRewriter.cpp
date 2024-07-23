@@ -956,12 +956,15 @@ std::set<llvm::SmallString<256>> copy_files(std::vector<std::unique_ptr<clang::A
         needs_copy = llvm::sys::path::replace_path_prefix(output_file, input_root, output_dir);
       }
       if (needs_copy && !copied_files.contains(input_file)) {
+        // `while` loop is infinite if it doesn't exist.
+        assert(llvm::sys::fs::is_directory(output_dir));
+
         copied_files.insert(input_file);
 
         std::vector<std::string> subdirs = {};
         auto parent_dir = llvm::sys::path::parent_path(output_file.str());
 
-        while (!opendir(parent_dir.str().c_str())) {
+        while (!llvm::sys::fs::is_directory(parent_dir)) {
           subdirs.push_back(parent_dir.str());
           parent_dir = llvm::sys::path::parent_path(parent_dir);
         }

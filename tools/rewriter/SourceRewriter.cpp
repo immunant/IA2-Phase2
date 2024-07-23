@@ -60,12 +60,28 @@ static llvm::cl::opt<Arch>
                      clEnumValN(Arch::X86, "x86", "Generate code for compartmentalization on x86 using MPK"),
                      clEnumValN(Arch::Aarch64, "aarch64", "Generate code for compartmentalization on Aarch64 using MTE")));
 
-static llvm::cl::opt<std::string>
+struct DirectoryParser : public llvm::cl::parser<std::string> {
+  DirectoryParser(llvm::cl::Option &O) : llvm::cl::parser<std::string>(O) {}
+
+  bool parse(llvm::cl::Option &O, llvm::StringRef ArgName, const llvm::StringRef &ArgValue,
+             std::string &Value) {
+    llvm::cl::parser<std::string>::parse(O, ArgName, ArgValue, Value);
+    auto dir = Value;
+    auto exists = llvm::sys::fs::is_directory(dir);
+    if (!exists) {
+      llvm::errs() << "error: directory does not exist: " << dir << "\n";
+    }
+    // true on error
+    return !exists;
+  }
+};
+
+static llvm::cl::opt<std::string, false, DirectoryParser>
     RootDirectoryOption("root-directory", llvm::cl::Required,
                         llvm::cl::cat(SourceRewriterCategory),
                         llvm::cl::desc("<root directory for input files>"));
 
-static llvm::cl::opt<std::string>
+static llvm::cl::opt<std::string, false, DirectoryParser>
     OutputDirectoryOption("output-directory", llvm::cl::Required,
                           llvm::cl::cat(SourceRewriterCategory),
                           llvm::cl::desc("<root directory for output files>"));

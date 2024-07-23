@@ -52,7 +52,7 @@ add_subdirectory(header_includes)
 add_subdirectory(macro_attr)
 add_subdirectory(minimal)
 # FIXME: This test is only used for aarch64 since we need to build criterion
-# from source to support Aarch64
+# from source to support AArch64
 add_subdirectory(minimal_no_criterion)
 # TODO: support C++ namespaces
 #add_subdirectory(namespaces)

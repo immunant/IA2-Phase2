@@ -29,7 +29,7 @@
     asm volatile("" : : : "memory");                                           \
     volatile typeof(expr) _tmp = expr;                                         \
     printf("CHECK_VIOLATION: did not seg fault as expected\n");                \
-    _exit(0);                                                                  \
+    _exit(1);                                                                  \
     _tmp;                                                                      \
   })
 

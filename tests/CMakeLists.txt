@@ -23,15 +23,9 @@ configure_lit_site_cfg(
 
 set(IA2_TEST_DEPENDS tools)
 
-if (LIBIA2_AARCH64)
-    set(IA2_ALLOCATOR "")
-else()
-    set(IA2_ALLOCATOR partition-alloc)
-endif()
-
 add_lit_testsuite(check-ia2 "Running the IA2 tests"
   ${CMAKE_CURRENT_BINARY_DIR}
-  DEPENDS ${IA2_TEST_DEPENDS} ${IA2_ALLOCATOR}
+  DEPENDS ${IA2_TEST_DEPENDS} partition-alloc
   ARGS "--verbose"
   )
 set_target_properties(check-ia2 PROPERTIES FOLDER "tests")

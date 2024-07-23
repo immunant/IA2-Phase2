@@ -20,7 +20,7 @@ Compartmentalization protects applications against spatial memory-safety
 vulnerabilities in dependencies by placing sets of DSOs in separate
 compartments. Memory belonging to each set of DSOs can only be accessed from its
 compartment by default. This includes stack variables, static and
-dynamically-allocated data and thread-local storage. The on-disk application
+dynamically-allocated data, and thread-local storage. The on-disk application
 and libraries are assumed to be accessible to attackers, so read-only static
 data is not protected from other compartments since it can just be read from the
 binaries.
@@ -50,9 +50,9 @@ arises.
 The runtime initialization happens by interposing `main` using `ld --wrap=main`.
 The `main` wrapper switches from the stack initialized by the loader to a
 protected stack for the main binary's compartment, initializes the PKRU
-register to set memory access permissions for the initial compartment then calls
-the real `main` provided by the application. Once the real `main` returns the
-wrapper undos these operations before returning control to the C runtime. This
+register to set memory access permissions for the initial compartment, and then calls
+the real `main` provided by the application. Once the real `main` returns, the
+wrapper undoes these operations before returning control to the C runtime. This
 implies protecting against vulnerabilities in the C runtime is out of scope.
 
 The `INIT_RUNTIME` macro must also be invoked to initialize the stacks and
@@ -63,8 +63,8 @@ allocated on-demand as new threads are created.
 
 # Compartment initialization
 
-When DSOs are loaded, their statically-allocated memory is protected using
-`pkey_mprotect`. This happens by including `ia2_compartment_init.inc` in one DSO
+When DSOs are loaded, their writable statically-allocated memory is protected using
+`pkey_mprotect`. This happens by including [`ia2_compartment_init.inc`](../runtime/libia2/include/ia2_compartment_init.inc) in one DSO
 per compartment. This inserts a constructor (called automatically) that uses
 `dl_iterate_phdr` to find the writeable ELF segments for the DSO and its
 dependencies declared using `IA2_COMPARTMENT_LIBRARIES`.

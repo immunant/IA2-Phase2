@@ -229,7 +229,7 @@ asm(".macro movz_shifted_tag_x18 tag\n"
   }
 /* clang-format on */
 #elif LIBIA2_AARCH64
-#warning "ALLOCATE_COMPARTMENT_STACK_AND_SETUP_TLS does not do stackptr reinit error checking"
+#warning "ALLOCATE_COMPARTMENT_STACK_AND_SETUP_TLS does not do stackptr reinit checking"
 #define ALLOCATE_COMPARTMENT_STACK_AND_SETUP_TLS(i)                            \
   {                                                                            \
     __IA2_UNUSED extern __thread void *ia2_stackptr_##i;                       \

@@ -27,11 +27,10 @@ int main() {
       return 2;
     }
     int exit_status = WEXITSTATUS(stat);
-    if (exit_status == test_info->exit_code) {
-      return 0;
-    } else {
+    if (exit_status != test_info->exit_code) {
       fprintf(stderr, "forked test child exited with status %d, but %d was expected\n", exit_status, test_info->exit_code);
       return 1;
     }
   }
+  return 0;
 }

@@ -24,6 +24,8 @@ constexpr int kInvalidPkey = -1;
 // Check if the CPU supports pkeys.
 bool CPUHasMteSupport();
 
+int MteMprotect(void* addr, size_t len, int prot, int tag);
+
 void TagMemoryWithMte(int tag, void* address, size_t size);
 
 }  // namespace partition_alloc::internal

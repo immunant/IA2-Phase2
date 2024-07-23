@@ -57,6 +57,10 @@ int MprotectWithThreadIsolation(void* addr,
                                 ThreadIsolationOption thread_isolation) {
 #if BUILDFLAG(ENABLE_PKEYS)
   return PkeyMprotect(addr, len, prot, thread_isolation.pkey);
+#elif BUILDFLAG(ENABLE_MTE_ISOLATION)
+  return MteMprotect(addr, len, prot, thread_isolation.pkey);
+#else
+#error unexpected thread isolation mode
 #endif
 }
 

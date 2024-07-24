@@ -112,7 +112,7 @@ jobs:
           path: |
             llvm-project/build/bin
             llvm-project/build/lib/clang
-          key: ${{ runner.os }}-clang
+          key: ${{ runner.os }}-clang-release
       - name: Check out Clang
         if: steps.cache-clang.outputs.cache-hit != 'true'
         uses: actions/checkout@v4
@@ -131,6 +131,7 @@ jobs:
           '!' -path ./runner '!' -path ./runner-cache -exec rm -rf '{}' ';'
           df -h /
           cd -
+          sed -i -r -e s/Debug/RelWithDebInfo/ build.sh
           ./build.sh
           # free up space used by libs; our desired clang binary statically links them
           rm -rf build/lib/*.a

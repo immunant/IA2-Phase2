@@ -109,7 +109,9 @@ jobs:
         id: cache-clang
         uses: actions/cache@v4
         with:
-          path: llvm-project/build/bin
+          path: |
+            llvm-project/build/bin
+            llvm-project/build/lib/clang
           key: ${{ runner.os }}-clang
       - name: Check out Clang
         if: steps.cache-clang.outputs.cache-hit != 'true'

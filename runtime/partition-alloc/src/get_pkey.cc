@@ -77,3 +77,12 @@ size_t ia2_get_pkey() {
   }
 }
 #endif
+
+#ifdef __aarch64__
+__attribute__((__visibility__("hidden")))
+size_t ia2_get_pkey() {
+    size_t x18;
+    asm("mov %0, x18" : "=r"(x18));
+    return x18 >> 56;
+}
+#endif

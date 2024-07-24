@@ -994,9 +994,11 @@ std::set<llvm::SmallString<256>> copy_files(std::vector<std::unique_ptr<clang::A
           assert(mkdir_rc == 0);
         }
 
-        std::ifstream src(input_file.str().str(), std::ios::binary);
-        std::ofstream dst(output_file.str().str(), std::ios::binary);
-        dst << src.rdbuf();
+        if (llvm::sys::fs::equivalent(input_file, output_file)) {
+          llvm::errs() << "skipping copying file to itself: " << input_file << "\n";
+          continue;
+        }
+        llvm::sys::fs::copy_file(input_file, output_file);
       }
     }
   }

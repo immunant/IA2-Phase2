@@ -130,6 +130,8 @@ jobs:
           df -h /
           cd -
           ./build.sh
+          # free up space used by libs; our desired clang binary statically links them
+          rm -rf build/lib/*.a
       - name: Test ARM build
         run: |
           LLVM_DIR=`llvm-config-15 --cmakedir`

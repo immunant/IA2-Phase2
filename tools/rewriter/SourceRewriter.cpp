@@ -972,27 +972,11 @@ std::set<llvm::SmallString<256>> copy_files(std::vector<std::unique_ptr<clang::A
         needs_copy = llvm::sys::path::replace_path_prefix(output_file, input_root, output_dir);
       }
       if (needs_copy && !copied_files.contains(input_file)) {
-        // `while` loop is infinite if it doesn't exist.
-        assert(llvm::sys::fs::is_directory(output_dir));
-
         copied_files.insert(input_file);
 
-        std::vector<std::string> subdirs = {};
-        auto parent_dir = llvm::sys::path::parent_path(output_file.str());
-
-        while (!llvm::sys::fs::is_directory(parent_dir)) {
-          subdirs.push_back(parent_dir.str());
-          parent_dir = llvm::sys::path::parent_path(parent_dir);
-        }
-
-        for (auto subdir_it = subdirs.rbegin(); subdir_it != subdirs.rend();
-             subdir_it++) {
-          int mkdir_rc = mkdir(subdir_it->c_str(), 0766);
-          if (mkdir_rc != 0) {
-            llvm::errs() << "Failed to create dir " << subdir_it->c_str() << ": " << strerror(errno) << '\n';
-          }
-          assert(mkdir_rc == 0);
-        }
+        auto ignore_existing = false;
+        using llvm::sys::fs::perms;
+        llvm::sys::fs::create_directories(llvm::sys::path::parent_path(output_file), ignore_existing, perms::all_all & ~perms::group_exe & ~perms::others_exe);
 
         if (llvm::sys::fs::equivalent(input_file, output_file)) {
           llvm::errs() << "skipping copying file to itself: " << input_file << "\n";

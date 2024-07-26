@@ -974,7 +974,7 @@ std::set<llvm::SmallString<256>> copy_files(std::vector<std::unique_ptr<clang::A
       if (needs_copy && !copied_files.contains(input_file)) {
         copied_files.insert(input_file);
 
-        auto ignore_existing = false;
+        auto ignore_existing = true;
         using llvm::sys::fs::perms;
         llvm::sys::fs::create_directories(llvm::sys::path::parent_path(output_file), ignore_existing, perms::all_all & ~perms::group_exe & ~perms::others_exe);
 

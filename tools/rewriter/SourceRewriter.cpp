@@ -972,16 +972,17 @@ std::set<llvm::SmallString<256>> copy_files(std::vector<std::unique_ptr<clang::A
         needs_copy = llvm::sys::path::replace_path_prefix(output_file, input_root, output_dir);
       }
       if (needs_copy && !copied_files.contains(input_file)) {
+        if (llvm::sys::fs::equivalent(input_file, output_file)) {
+          llvm::errs() << "skipping copying file to itself: " << input_file << "\n";
+          continue;
+        }
+
         copied_files.insert(input_file);
 
         auto ignore_existing = true;
         using llvm::sys::fs::perms;
         llvm::sys::fs::create_directories(llvm::sys::path::parent_path(output_file), ignore_existing, perms::all_all & ~perms::group_exe & ~perms::others_exe);
 
-        if (llvm::sys::fs::equivalent(input_file, output_file)) {
-          llvm::errs() << "skipping copying file to itself: " << input_file << "\n";
-          continue;
-        }
         llvm::sys::fs::copy_file(input_file, output_file);
       }
     }

@@ -20,6 +20,10 @@
 #error "This MTE code is currently only supported on Linux"
 #endif
 
+#ifndef ARCH_CPU_ARM64
+#error "MTE is only available on the AArch64 architecture"
+#endif
+
 namespace partition_alloc::internal {
 
 PA_COMPONENT_EXPORT(PARTITION_ALLOC)

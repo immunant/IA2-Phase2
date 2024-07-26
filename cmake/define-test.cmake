@@ -144,7 +144,7 @@ function(define_test)
                     COMMAND ${CMAKE_CROSSCOMPILING_EMULATOR}
                         "-one-insn-per-tb"
                         "-L" "${CMAKE_BINARY_DIR}/external/glibc/sysroot/usr/"
-                        "-E" "LD_LIBRARY_PATH=/usr/aarch64-linux-gnu/lib:/usr/aarch64-linux-gnu/lib64"
+                        "-E" "LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/external/glibc/sysroot/usr/lib:/usr/aarch64-linux-gnu/lib:/usr/aarch64-linux-gnu/lib64"
                         ${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME}
                     WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
             elseif (DEFINE_TEST_WITHOUT_SANDBOX OR NOT ${IA2_TRACER})

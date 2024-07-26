@@ -1135,7 +1135,21 @@ int main(int argc, const char **argv) {
   Pkey max_pkey = *std::max_element(pkeys_used.begin(), pkeys_used.end());
   bool config_0 = (min_pkey == 0) && (max_pkey == num_pkeys - 1);
   bool config_1 = (min_pkey == 1) && (max_pkey == num_pkeys);
-  assert(config_0 || config_1);
+
+  if (!(config_0 || config_1)) {
+    llvm::errs() << "Error in pkey configuration. The following pkeys were used: [";
+    bool first = true;
+    for (const Pkey& pkey : pkeys_used) {
+      if (!first) {
+        llvm::errs() << ", ";
+      }
+      llvm::errs() << pkey;
+      first = false;
+    }
+    llvm::errs() << "]\npkeys must be in the range 0 to N - 1 or 1 to N\n";
+    abort();
+  }
+
   if (min_pkey == 1) {
     num_pkeys += 1;
   }

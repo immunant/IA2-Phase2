@@ -10,7 +10,10 @@
 #include <string.h>
 #include <sys/mman.h>
 
+#if IA2_ENABLE
 #include <ia2_internal.h>
+#endif // IA2_ENABLE
+
 #include <ia2.h>
 
 #ifndef IA2_COMPARTMENT_LIBRARIES

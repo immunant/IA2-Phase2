@@ -142,7 +142,6 @@
 /// the type of `IA2_FN(func)` are ABI-compatible since no extra type-checking is
 /// done.
 #define IA2_CAST(func, ty) (ty) { (void *)IA2_FN_ADDR(func) }
-#endif // !IA2_ENABLE
 
 /// Convert a compartment pkey to a PKRU register value
 #define PKRU(pkey) (~((3U << (2 * pkey)) | 3))
@@ -160,3 +159,5 @@ size_t ia2_get_pkey();
 #ifdef __cplusplus
 }
 #endif
+
+#endif // !IA2_ENABLE

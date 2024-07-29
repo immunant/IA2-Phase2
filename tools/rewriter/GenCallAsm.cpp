@@ -39,23 +39,39 @@ public:
   size_t size() const { return is_xmm() ? 16 : 8; }
 };
 
-const std::array<const char *, 6> int_param_reg_order = {"rdi", "rsi", "rdx",
-                                                         "rcx", "r8", "r9"};
-const std::array<const char *, 8> xmms = {"xmm0", "xmm1", "xmm2", "xmm3",
-                                          "xmm4", "xmm5", "xmm6", "xmm7"};
+const std::vector<const char *> x86_int_param_reg_order = {"rdi", "rsi", "rdx",
+                                                           "rcx", "r8", "r9"};
 
-const std::array<const char *, 2> int_ret_reg_order = {"rax", "rdx"};
+const std::vector<const char *> arm_int_param_reg_order = {"x0", "x1", "x2", "x3",
+                                                           "x4", "x5", "x6", "x7"};
+
+const std::vector<const char *> x86_float_reg_order = {"xmm0", "xmm1", "xmm2", "xmm3",
+                                                       "xmm4", "xmm5", "xmm6", "xmm7"};
+
+const std::vector<const char *> arm_float_reg_order = {"v0", "v1", "v2", "v3",
+                                                       "v4", "v5", "v6", "v7"};
+
+const std::vector<const char *> x86_int_ret_reg_order = {"rax", "rdx"};
+// return and parameter registers are the same on AArch64
+const std::vector<const char *> arm_int_ret_reg_order = arm_int_param_reg_order;
 
 const std::array<const char *, 3> cabi_arg_kind_names = {"int", "float", "mem"};
 
 // rsp and rbp are also preserved registers, but we handle them separately from
 // these since they're the stack and frame pointers
-const std::array<const char *, 5> preserved_registers = {"rbx", "r12", "r13",
-                                                         "r14", "r15"};
+const std::array<const char *, 5> x86_preserved_registers = {"rbx", "r12", "r13",
+                                                             "r14", "r15"};
+
+const std::array<const char *, 10> aarch64_preserved_registers = {"x19", "x20", "x21",
+                                                                  "x22", "x23", "x24",
+                                                                  "x25", "x26", "x27",
+                                                                  "x28"};
 
 /// Compute abi locations for parameters of a C-abi function, given its sequence
 /// of argument kinds.
-std::vector<ParamLocation> param_locations(const CAbiSignature &func) {
+std::vector<ParamLocation> param_locations(const CAbiSignature &func, Arch arch) {
+  const auto &int_param_reg_order = (arch == Arch::X86) ? x86_int_param_reg_order : arm_int_param_reg_order;
+  const auto &float_reg_order = (arch == Arch::X86) ? x86_float_reg_order : arm_float_reg_order;
   std::vector<ParamLocation> locs = {};
   size_t ints_used = 0;
   // if the return is in memory, the first integer argument is the location to
@@ -80,8 +96,8 @@ std::vector<ParamLocation> param_locations(const CAbiSignature &func) {
       break;
     }
     case CAbiArgKind::Float: {
-      if (floats_used < xmms.size()) {
-        locs.push_back(ParamLocation::Register(xmms[floats_used]));
+      if (floats_used < float_reg_order.size()) {
+        locs.push_back(ParamLocation::Register(float_reg_order[floats_used]));
         floats_used += 1;
       } else {
         locs.push_back(ParamLocation::Stack());
@@ -97,7 +113,10 @@ std::vector<ParamLocation> param_locations(const CAbiSignature &func) {
   return locs;
 }
 
-std::vector<ParamLocation> return_locations(const CAbiSignature &func) {
+std::vector<ParamLocation> return_locations(const CAbiSignature &func, Arch arch) {
+  const auto &int_ret_reg_order = (arch == Arch::X86) ? x86_int_ret_reg_order : arm_int_ret_reg_order;
+  const auto &float_reg_order = (arch == Arch::X86) ? x86_float_reg_order : arm_float_reg_order;
+
   std::vector<ParamLocation> locs = {};
 
   if (func.ret.empty()) {
@@ -109,14 +128,12 @@ std::vector<ParamLocation> return_locations(const CAbiSignature &func) {
   for (const auto &kind : func.ret) {
     switch (kind) {
     case CAbiArgKind::Integral:
-      assert(ints_used < 2);
       locs.push_back(ParamLocation::Register(int_ret_reg_order[ints_used]));
       ints_used += 1;
       break;
     case CAbiArgKind::Float:
       // TODO: handle x87 in st0 and complex x87 in st0+st1
-      assert(floats_used < 2);
-      locs.push_back(ParamLocation::Register(xmms[floats_used]));
+      locs.push_back(ParamLocation::Register(float_reg_order[floats_used]));
       floats_used += 1;
       break;
     case CAbiArgKind::Memory:
@@ -251,8 +268,22 @@ static void emit_switch_stacks(AsmWriter &aw, int old_pkey, int new_pkey, Arch a
     add_comment_line(aw, "Read the new stack pointer from memory");
     add_asm_line(aw, llvm::formatv("movq %{0}, %rsp", expr));
   } else if (arch == Arch::Aarch64) {
-    // TODO ARM stack switching
-    llvm::errs() << "TODO stack switching not implemented on ARM\n";
+    add_comment_line(aw, "Compute location to save old stack pointer in x10");
+    add_asm_line(aw, "mrs x9, tpidr_el0");
+    add_asm_line(aw, "adrp x10, :gottprel:ia2_stackptr_"s + std::to_string(old_pkey));
+    add_asm_line(aw, "ldr x10, [x10, #:gottprel_lo12:ia2_stackptr_"s + std::to_string(old_pkey) + "]");
+    add_asm_line(aw, "add x10, x10, x9");
+    add_comment_line(aw, "Write old stack pointer to memory");
+    add_asm_line(aw, "mov x11, sp");
+    add_asm_line(aw, "str x11, [x10]");
+
+    add_comment_line(aw, "Compute location to load new stack pointer in x10");
+    add_asm_line(aw, "adrp x10, :gottprel:ia2_stackptr_"s + std::to_string(new_pkey));
+    add_asm_line(aw, "ldr x10, [x10, #:gottprel_lo12:ia2_stackptr_"s + std::to_string(new_pkey) + "]");
+    add_asm_line(aw, "add x10, x10, x9");
+    add_comment_line(aw, "Read new stack pointer from memory");
+    add_asm_line(aw, "ldr x11, [x10]");
+    add_asm_line(aw, "mov sp, x11");
   }
 }
 
@@ -300,14 +331,14 @@ static void emit_fn_call(
     if (arch == Arch::X86) {
       add_asm_line(aw, "call *%r12");
     } else if (arch == Arch::Aarch64) {
-      llvm::errs() << "TODO indirect calls not implemented on ARM\n";
+      add_asm_line(aw, "blr x9");
     }
   } else {
     // direct call
     if (arch == Arch::X86) {
       add_asm_line(aw, "call "s + target_name.value());
     } else if (arch == Arch::Aarch64) {
-      add_asm_line(aw, "b "s + target_name.value());
+      add_asm_line(aw, "bl "s + target_name.value());
     }
   }
 }
@@ -329,12 +360,29 @@ static void emit_prologue(AsmWriter &aw, uint32_t caller_pkey, uint32_t target_p
     // Save registers that are preserved across function calls before switching to
     // the other compartment's stack. This is on the caller's stack so it's not in
     // the diagram above.
-    for (auto &r : preserved_registers) {
+    for (auto &r : x86_preserved_registers) {
       add_asm_line(aw, "pushq %"s + r);
     }
   } else if (arch == Arch::Aarch64) {
-    // TODO ARM stack switching
-    llvm::errs() << "TODO register saving not implemented on ARM\n";
+    // Frame pointer and link register need to be saved first, to make backtraces work
+    add_asm_line(aw, "stp x29, x30, [sp, #-16]!");
+    // Set the new frame pointer
+    add_asm_line(aw, "mov x29, sp");
+
+    // Calculate total space needed for the callee-saved registers
+    int total_space_needed = aarch64_preserved_registers.size() * 8; // Each register requires 8 bytes
+
+    // The stack must be 16-byte aligned. It will be as long as we're saving an
+    // even number of registers.
+    assert(total_space_needed % 16 == 0);
+
+    // Allocate space on the stack at once
+    add_asm_line(aw, "sub sp, sp, #" + std::to_string(total_space_needed));
+
+    // Save callee-saved registers
+    for (size_t i = 0; i < aarch64_preserved_registers.size(); i++) {
+      add_asm_line(aw, "str "s + aarch64_preserved_registers[i] + ", [sp, #" + std::to_string(i * 8) + "]");
+    }
   }
 }
 
@@ -406,7 +454,7 @@ static void emit_copy_args(AsmWriter &aw, size_t stack_return_size, size_t stack
         // into account (including rbp) when determining the location of the stack
         // args
         size_t caller_stack_size =
-            stack_arg_size + ((preserved_registers.size() + 1) * 8);
+            stack_arg_size + ((x86_preserved_registers.size() + 1) * 8);
         // The index into the caller's stack is backwards since pushq will copy to
         // the compartment's stack from the highest addresses to the lowest.
         add_asm_line(aw,
@@ -424,8 +472,9 @@ static void emit_load_fn_ptr(AsmWriter &aw, Arch arch) {
     add_asm_line(aw, "movq ia2_fn_ptr@GOTPCREL(%rip), %r12");
     add_asm_line(aw, "movq (%r12), %r12");
   } else if (arch == Arch::Aarch64) {
-    // TODO ARM function pointer save
-    llvm::errs() << "TODO indirect calls not implemented on ARM\n";
+    add_asm_line(aw, "adrp x9, ia2_fn_ptr");
+    add_asm_line(aw, "add x9, x9, #:lo12:ia2_fn_ptr");
+    add_asm_line(aw, "ldr x9, [x9]");
   }
 }
 
@@ -442,7 +491,8 @@ static void emit_set_pkru(AsmWriter &aw, uint32_t target_pkey, Arch arch) {
     add_asm_line(aw, "movq %r11, %rdx");
   } else if (arch == Arch::Aarch64) {
     // set X18 to the pointer key (compartment number left-shifted 56 bits)
-    llvm::errs() << "TODO x18 switching is not implemented\n";
+    assert(target_pkey < 16);
+    add_asm_line(aw, llvm::formatv("movz x18, #{0:x4}, LSL #48", target_pkey << 8));
   }
 }
 
@@ -531,8 +581,8 @@ static void emit_scrub_regs(AsmWriter &aw, uint32_t pkey, const std::vector<Para
       }
     }
   } else if (arch == Arch::Aarch64) {
-    // TODO ARM reg zero
-    llvm::errs() << "TODO ARM reg scrubbing not implemented\n";
+    // TODO: save args/return values
+    add_asm_line(aw, "bl __libia2_scrub_registers");
   }
 }
 
@@ -546,8 +596,9 @@ static void emit_set_return_pkru(AsmWriter &aw, uint32_t caller_pkey, Arch arch)
     add_asm_line(aw, "movq %r10, %rax");
     add_asm_line(aw, "movq %r11, %rdx");
   } else if (arch == Arch::Aarch64) {
-    // TODO ARM set PKRU on return
-    llvm::errs() << "TODO set return PKRU not implemented on ARM\n";
+    // set X18 to the pointer key (compartment number left-shifted 56 bits)
+    assert(caller_pkey < 16);
+    add_asm_line(aw, llvm::formatv("movz x18, #{0:x4}, LSL #48", caller_pkey << 8));
   }
 }
 
@@ -556,27 +607,32 @@ static void emit_epilogue(AsmWriter &aw, uint32_t caller_pkey, Arch arch) {
     // Load registers that are preserved across function calls after switching
     // back to the caller's compartment's stack. This is on the caller's stack so
     // it's not in the diagram above.
-    for (auto r = preserved_registers.rbegin(); r != preserved_registers.rend();
+    for (auto r = x86_preserved_registers.rbegin(); r != x86_preserved_registers.rend();
          r++) {
       add_asm_line(aw, "popq %"s + *r);
     }
     // Restore the caller's frame pointer
     add_asm_line(aw, "popq %rbp");
   } else if (arch == Arch::Aarch64) {
-    // TODO ARM return regs
-    llvm::errs() << "TODO restore regs not implemented on ARM\n";
+    // Restore callee-saved registers
+    for (int i = 0; i < aarch64_preserved_registers.size(); ++i) {
+      add_asm_line(aw,
+                   "ldr "s +
+                       aarch64_preserved_registers[i] +
+                       ", [sp, #" +
+                       std::to_string(i * 8) +
+                       "]");
+    }
+    // Adjust the stack pointer
+    add_asm_line(aw, "add sp, sp, #" + std::to_string(aarch64_preserved_registers.size() * 8));
+    // Restore frame pointer and link register
+    add_asm_line(aw, "ldp x29, x30, [sp], #16");
   }
 }
 
-static void emit_return(AsmWriter &aw, Arch arch) {
-  if (arch == Arch::X86) {
-    // Return to the caller
-    add_comment_line(aw, "Return to the caller");
-    add_asm_line(aw, "ret");
-  } else if (arch == Arch::Aarch64) {
-    // TODO ARM return to called
-    llvm::errs() << "TODO return not implemented on ARM\n";
-  }
+static void emit_return(AsmWriter &aw) {
+  add_comment_line(aw, "Return to the caller");
+  add_asm_line(aw, "ret");
 }
 
 std::string emit_asm_wrapper(const CAbiSignature &sig,
@@ -589,13 +645,13 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
   assert(caller_pkey != target_pkey);
 
   AsmWriter aw = get_asmwriter(as_macro);
-  auto param_locs = param_locations(sig);
+  auto param_locs = param_locations(sig, arch);
   size_t stack_arg_count = std::count_if(param_locs.begin(), param_locs.end(),
                                          [](auto &x) { return x.is_stack(); });
   size_t stack_arg_size = stack_arg_count * 8;
   size_t reg_arg_count = param_locs.size() - stack_arg_count;
 
-  auto return_locs = return_locations(sig);
+  auto return_locs = return_locations(sig, arch);
   size_t stack_return_count =
       std::count_if(return_locs.begin(), return_locs.end(),
                     [](auto &x) { return x.is_stack(); });
@@ -715,7 +771,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
 
   emit_epilogue(aw, caller_pkey, arch);
 
-  emit_return(aw, arch);
+  emit_return(aw);
 
   // Set the symbol size
   add_asm_line(aw, ".size "s + wrapper_name + ", .-" + wrapper_name);

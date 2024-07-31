@@ -10,7 +10,7 @@ our source rewriter.
 ## Build process
 
 The build process for a compartmentalized program is to first run the sources
-through our source rewriter, then compile with any standard C toolchain with a
+through our source rewriter (`ia2-rewriter`), then compile with any standard C toolchain with a
 few additional flags. Instead of rewriting sources in-place, the rewriter
 creates a set of new, intermediate source (and header) files. Since the rewriter
 only accepts a list of `.c` source files, the set of intermediate headers that
@@ -25,6 +25,54 @@ the build artifacts (call gates) it generates and a list of source files. Genera
 want to generate and use a `compile_commands.json` to ensure the rewriter
 preprocesses each source file with the same command-line arguments as when it is
 compiled.
+
+### `ia2-rewriter` Args
+
+`ia2-rewriter` is a `libclangTooling` CLI, so it is very finicky about getting the arguments and paths exactly right.
+For better reliability, always use absolute paths.
+We'll try to explain the args in more detail here:
+
+- `-p $build_dir`: `$build_dir` specifies the build directory
+  containing a file named exactly `compile_commands.json`.
+  The paths in `compile_commands.json` must be absolute paths for things to reliably work.
+
+  If the compilation database or the paths inside of it are specified incorrectly,
+  `libclangTooling` may guess its own incorrect compile command,
+  leading to very confusing errors.
+  `libclangTooling` does not make `-p` required,
+  but you should specify it instead of relying on
+  the fallback guessed compile command.
+
+  Some tools, like `meson`, build with relative paths and thus create `compile_commands.json`s with relative paths.  To make these absolute paths, [`absolute_paths_compile_commands.py`](../tools/rewriter/absolute_paths_compile_commands.py).
+
+  ```sh
+  (cd $build_dir && $ia2_dir/tools/rewriter/absolute_paths_compile_commands.py)
+  ```
+
+  This does a best effort of detecting paths in arguments, such as `-I` args.
+
+- `--root-directory $root_dir`: `$root_dir` is the root directory of the sources being rewritten.
+
+- `--output-directory $output_dir`: `$output_dir` is the directory in which the rewritten sources are created.
+  This directory must already exist, and existing files are overwritten.
+
+- `--ouput-prefix $prefix`: `$prefix` is the file path prefix
+  of the generated files (i.e. the call gate files).
+  Thus, it is usually named `${output_dir}_call_gates`.
+
+- `--extra-arg $arg`: Add an extra arg to the end of each compile command in `$build_dir/compile_commands.json`.
+  The tests pass these extra args:
+
+  ```sh
+  --extra-arg=-isystem --extra-arg=$(llvm-config --libdir)/clang/*/include --extra-arg=-isystem --extra-arg=include-fixed
+  ```
+
+  If a different `llvm-config` was used to build IA2, use that one instead.
+
+- `$sources`: The source files to rewrite.
+  These are positional arguments that come after the abovementioned flag args.
+  A single source can be rewritten at a time,
+  but to rewrite a whole project, every source file in `$build_dir/compile_commands.json` should be specified here.
 
 ## Manual source changes
 

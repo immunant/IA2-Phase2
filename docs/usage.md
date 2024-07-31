@@ -20,8 +20,8 @@ which is `#include`d in an input `.c` is copied over to the output directory
 under the same subdirectory. Any `#include`d file which is not under the root
 directory is treated as a system header and does not get rewritten.
 
-Additionally, the rewriter also takes an optional `--output-prefix` for naming
-the build artifacts it generates and a list of source files. Generally, you'll
+Additionally, the rewriter also takes an `--output-prefix` for naming
+the build artifacts (call gates) it generates and a list of source files. Generally, you'll
 want to generate and use a `compile_commands.json` to ensure the rewriter
 preprocesses each source file with the same command-line arguments as when it is
 compiled.

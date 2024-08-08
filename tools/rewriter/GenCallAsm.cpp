@@ -3,6 +3,7 @@
 #include <array>
 #include <cassert>
 #include <iostream>
+#include <numeric>
 #include <optional>
 #include <sstream>
 #include <vector>
@@ -11,18 +12,24 @@
 #include "GenCallAsm.h"
 
 using namespace std::string_literals;
+using std::size_t;
 
 struct ParamLocation {
 private:
-  ParamLocation(const char *reg) : reg(reg) {}
+  ParamLocation(const char *reg, unsigned size, unsigned align) : reg(reg), _size(size), _align(align) {}
 
 public:
   const char *reg;
 
+private:
+  const unsigned _size;
+  const unsigned _align;
+
+public:
   static ParamLocation Register(const char *regname) {
-    return ParamLocation(regname);
+    return ParamLocation(regname, 8, 0);
   }
-  static ParamLocation Stack() { return ParamLocation(nullptr); }
+  static ParamLocation Stack(unsigned size, unsigned align) { return ParamLocation(nullptr, size, align); }
 
   bool is_stack() const { return reg == nullptr; }
   bool is_xmm() const {
@@ -36,7 +43,8 @@ public:
     }
   }
   operator const char *() const { return as_str(); }
-  size_t size() const { return is_xmm() ? 16 : 8; }
+  size_t size() const { return is_xmm() ? 16 : _size; }
+  size_t align() const { return _align; }
 };
 
 const std::array<const char *, 6> int_param_reg_order = {"rdi", "rsi", "rdx",
@@ -62,20 +70,20 @@ std::vector<ParamLocation> param_locations(const CAbiSignature &func) {
   // write the return value
   size_t memory_return_slots =
       std::count_if(func.ret.begin(), func.ret.end(),
-                    [](auto &x) { return x == CAbiArgKind::Memory; });
+                    [](auto &x) { return x.kind == CAbiArgKind::Memory; });
   if (memory_return_slots > 0) {
     locs.push_back(ParamLocation::Register(int_param_reg_order[0]));
     ints_used++;
   }
   size_t floats_used = 0;
   for (const auto &arg : func.args) {
-    switch (arg) {
+    switch (arg.kind) {
     case CAbiArgKind::Integral: {
       if (ints_used < int_param_reg_order.size()) {
         locs.push_back(ParamLocation::Register(int_param_reg_order[ints_used]));
         ints_used += 1;
       } else {
-        locs.push_back(ParamLocation::Stack());
+        locs.push_back(ParamLocation::Stack(8, 8));
       }
       break;
     }
@@ -84,12 +92,12 @@ std::vector<ParamLocation> param_locations(const CAbiSignature &func) {
         locs.push_back(ParamLocation::Register(xmms[floats_used]));
         floats_used += 1;
       } else {
-        locs.push_back(ParamLocation::Stack());
+        locs.push_back(ParamLocation::Stack(8, 8));
       }
       break;
     }
     case CAbiArgKind::Memory: {
-      locs.push_back(ParamLocation::Stack());
+      locs.push_back(ParamLocation::Stack(arg.size, arg.align));
       break;
     }
     }
@@ -106,8 +114,8 @@ std::vector<ParamLocation> return_locations(const CAbiSignature &func) {
 
   size_t ints_used = 0;
   size_t floats_used = 0;
-  for (const auto &kind : func.ret) {
-    switch (kind) {
+  for (const auto &arg : func.ret) {
+    switch (arg.kind) {
     case CAbiArgKind::Integral:
       assert(ints_used < 2);
       locs.push_back(ParamLocation::Register(int_ret_reg_order[ints_used]));
@@ -124,7 +132,7 @@ std::vector<ParamLocation> return_locations(const CAbiSignature &func) {
       if (locs.empty()) {
         locs.push_back(ParamLocation::Register(int_ret_reg_order[0]));
       }
-      locs.push_back(ParamLocation::Stack());
+      locs.push_back(ParamLocation::Stack(arg.size, arg.align));
       break;
     }
   }
@@ -181,6 +189,32 @@ static void emit_reg_pop(AsmWriter &aw, const ParamLocation &loc) {
     add_asm_line(aw, "addq $16, %rsp");
   } else {
     add_asm_line(aw, "popq %"s + loc.as_str());
+  }
+}
+
+// Emit code to copy `byte_count` bytes from `src` to `dst` using `scratch` as a
+// temporary register.
+static void emit_memcpy(AsmWriter &aw, unsigned byte_count, const std::string &dst,
+                        const std::string &src, const std::string &scratch) {
+  add_comment_line(aw, "Copy " + std::to_string(byte_count) + " bytes from " + src + " to " + dst);
+  int i = 0;
+  for (; i + 8 <= byte_count; i += 8) {
+    add_asm_line(aw, "movq "s + std::to_string(i) + "(%" + src + "), %" + scratch);
+    add_asm_line(aw, "movq %" + scratch + ", "s + std::to_string(i) + "(%" + dst + ")");
+  }
+  if (i + 4 <= byte_count) {
+    add_asm_line(aw, "movl "s + std::to_string(i) + "(%" + src + "), %" + scratch + "d");
+    add_asm_line(aw, "movl %" + scratch + "d, "s + std::to_string(i) + "(%" + dst + ")");
+    i += 4;
+  }
+  if (i + 2 <= byte_count) {
+    add_asm_line(aw, "movw "s + std::to_string(i) + "(%" + src + "), %" + scratch + "w");
+    add_asm_line(aw, "movw %" + scratch + "w, "s + std::to_string(i) + "(%" + dst + ")");
+    i += 2;
+  }
+  if (i < byte_count) {
+    add_asm_line(aw, "movb "s + std::to_string(i) + "(%" + src + "), %" + scratch + "b");
+    add_asm_line(aw, "movb %" + scratch + "b, "s + std::to_string(i) + "(%" + dst + ")");
   }
 }
 
@@ -257,13 +291,13 @@ static void emit_switch_stacks(AsmWriter &aw, int old_pkey, int new_pkey, Arch a
 }
 
 static void append_arg_kinds(std::stringstream &ss,
-                             std::vector<CAbiArgKind> args) {
+                             std::vector<CAbiArgLocation> args) {
   bool first = true;
   for (auto arg : args) {
     if (!first) {
       ss << ", ";
     }
-    ss << cabi_arg_kind_names[(int)arg];
+    ss << cabi_arg_kind_names[(int)arg.kind];
     first = false;
   }
 }
@@ -360,7 +394,7 @@ static void emit_intermediate_pkru(AsmWriter &aw, uint32_t caller_pkey, uint32_t
   }
 }
 
-static void emit_copy_args(AsmWriter &aw, size_t stack_return_size, size_t stack_return_padding, int stack_alignment, int stack_arg_count, size_t stack_arg_size, uint32_t caller_pkey, Arch arch) {
+static void emit_copy_args(AsmWriter &aw, size_t stack_return_size, size_t stack_return_padding, int stack_alignment, size_t stack_arg_size, size_t stack_arg_padding, uint32_t caller_pkey, Arch arch) {
   if (arch == Arch::X86) {
     // When returning via memory, the address of the return value is passed in
     // rdi. Since this memory belongs to the caller, we first allocate space for
@@ -391,7 +425,7 @@ static void emit_copy_args(AsmWriter &aw, size_t stack_return_size, size_t stack
     }
 
     // Copy stack args to target stack
-    if (stack_arg_count > 0) {
+    if (stack_arg_size > 0) {
       // Set rax to the caller's stack so we can copy the stack args to the
       // compartment's stack.
       add_comment_line(
@@ -399,18 +433,16 @@ static void emit_copy_args(AsmWriter &aw, size_t stack_return_size, size_t stack
       // Load addr of top of caller compartment's stack into rax, clobbering r12
       std::string expr = emit_load_sp_offset(aw, caller_pkey, "r12"s);
       add_asm_line(aw, "movq %" + expr + ", %rax");
-      // This is effectively a memcpy of size `stack_arg_size` from the caller's
-      // stack to the compartment's
+      // We must take the preserved registers we pushed on the caller's stack
+      // into account (including rbp) when determining the location of the stack
+      // args
+      size_t offset =
+          stack_arg_size + stack_arg_padding + ((preserved_registers.size() + 1) * 8);
       for (int i = 0; i < stack_arg_size; i += 8) {
-        // We must take the preserved registers we pushed on the caller's stack
-        // into account (including rbp) when determining the location of the stack
-        // args
-        size_t caller_stack_size =
-            stack_arg_size + ((preserved_registers.size() + 1) * 8);
         // The index into the caller's stack is backwards since pushq will copy to
         // the compartment's stack from the highest addresses to the lowest.
         add_asm_line(aw,
-                     "pushq " + std::to_string(caller_stack_size - i) + "(%rax)");
+                     "pushq " + std::to_string(offset - i) + "(%rax)");
       }
     }
   } else if (arch == Arch::Aarch64) {
@@ -446,12 +478,12 @@ static void emit_set_pkru(AsmWriter &aw, uint32_t target_pkey, Arch arch) {
   }
 }
 
-static void emit_free_stack_space(AsmWriter &aw, size_t stack_arg_size, int stack_alignment, Arch arch) {
+static void emit_free_stack_space(AsmWriter &aw, size_t stack_arg_size, size_t stack_arg_padding, int stack_alignment, Arch arch) {
   if (arch == Arch::X86) {
     // Free stack space used for stack args on the target stack
     if (stack_arg_size > 0) {
       add_comment_line(aw, "Free stack space used for stack args");
-      add_asm_line(aw, "addq $"s + std::to_string(stack_arg_size) + ", %rsp");
+      add_asm_line(aw, "addq $"s + std::to_string(stack_arg_size + stack_arg_padding) + ", %rsp");
     }
 
     // If we inserted 8 bytes to align the stack before calling the wrapped
@@ -481,13 +513,10 @@ static void emit_copy_stack_returns(AsmWriter &aw, size_t stack_return_size, siz
       add_comment_line(aw,
                        "Copy "s + std::to_string(stack_return_size) +
                            " bytes for the return value to the caller's stack");
-      for (int i = 0; i < stack_return_size; i += 8) {
-        add_asm_line(aw, "popq "s + std::to_string(i) + "(%rax)");
-      }
 
-      if (stack_return_padding > 0) {
-        add_asm_line(aw, "addq $8, %rsp");
-      }
+      emit_memcpy(aw, stack_return_size, "rax", "rsp", "r10");
+
+      add_asm_line(aw, "addq $"s + std::to_string(stack_return_size + stack_return_padding) + ", %rsp");
     }
   } else if (arch == Arch::Aarch64) {
     // TODO ARM stack switch back
@@ -592,14 +621,28 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
   auto param_locs = param_locations(sig);
   size_t stack_arg_count = std::count_if(param_locs.begin(), param_locs.end(),
                                          [](auto &x) { return x.is_stack(); });
-  size_t stack_arg_size = stack_arg_count * 8;
+  size_t stack_arg_size = 0;
+  for (auto &x : param_locs) {
+    if (x.is_stack()) {
+      // All stack arguments must be 8-byte aligned
+      size_t align = std::max(x.align(), (size_t)8);
+      if (stack_arg_size % align != 0) {
+        stack_arg_size += align - (stack_arg_size % align);
+      }
+      stack_arg_size += x.size();
+    }
+  }
+  size_t unaligned = stack_arg_size % 8;
+  size_t stack_arg_padding = unaligned != 0 ? 8 - unaligned : 0;
   size_t reg_arg_count = param_locs.size() - stack_arg_count;
 
   auto return_locs = return_locations(sig);
-  size_t stack_return_count =
-      std::count_if(return_locs.begin(), return_locs.end(),
-                    [](auto &x) { return x.is_stack(); });
-  size_t stack_return_size = stack_return_count * 8;
+  size_t stack_return_size = 0;
+  for (auto &x : return_locs) {
+    if (x.is_stack()) {
+      stack_return_size += x.size();
+    }
+  }
 
   /*
     Just before calling the wrapped function, its compartment's stack may
@@ -652,14 +695,14 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
     // precedes the stack return itself.
     start_of_ret_space += 8;
 
-    // See what unpadded alignment would be for the start of the stack return.
-    size_t unaligned = start_of_ret_space % stack_return_align;
+    // Align the size of the return space to `stack_return_align`.
+    size_t unaligned = (start_of_ret_space + stack_return_size) % stack_return_align;
     stack_return_padding = unaligned != 0 ? stack_return_align - unaligned : 0;
   }
 
   // Count room for for the ret align padding, return value, and our ret ptr.
   size_t compartment_stack_space = start_of_ret_space + stack_return_size +
-                                   stack_return_padding + stack_arg_size;
+                                   stack_return_padding + stack_arg_size + stack_arg_padding;
   // Compute what the stack alignment would be before calling the wrapped
   // function to check if we need to insert 8 bytes for alignment. We add 8
   // bytes to the compartment_stack_space since the frame is initially off by 8
@@ -685,7 +728,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
 
   emit_switch_stacks(aw, caller_pkey, target_pkey, arch);
 
-  emit_copy_args(aw, stack_return_size, stack_return_padding, stack_alignment, stack_arg_count, stack_arg_size, caller_pkey, arch);
+  emit_copy_args(aw, stack_return_size, stack_return_padding, stack_alignment, stack_arg_size, stack_arg_padding, caller_pkey, arch);
 
   emit_scrub_regs(aw, caller_pkey, param_locs, reg_arg_count > 0, arch);
 
@@ -699,7 +742,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
 
   emit_intermediate_pkru(aw, caller_pkey, target_pkey, "rax", "rdx", arch);
 
-  emit_free_stack_space(aw, stack_arg_size, stack_alignment, arch);
+  emit_free_stack_space(aw, stack_arg_size, stack_arg_padding, stack_alignment, arch);
 
   emit_copy_stack_returns(aw, stack_return_size, stack_return_padding, caller_pkey, target_pkey, arch);
 

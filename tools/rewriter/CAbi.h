@@ -8,8 +8,16 @@ enum class CAbiArgKind {
   Memory,
 };
 
+struct CAbiArgLocation {
+  CAbiArgKind kind;
+
+  // For Memory kind
+  unsigned size = 8;
+  unsigned align = 8;
+};
+
 struct CAbiSignature {
-  std::vector<CAbiArgKind> args;
-  std::vector<CAbiArgKind> ret;
+  std::vector<CAbiArgLocation> args;
+  std::vector<CAbiArgLocation> ret;
   bool variadic;
 };

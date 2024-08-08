@@ -20,8 +20,8 @@
 
 // Compute sequence of eightbyte classifications for a type that Clang has
 // chosen to pass directly in registers
-static std::vector<CAbiArgKind> classifyDirectType(const clang::Type &type,
-    const clang::ASTContext &astContext) {
+static std::vector<CAbiArgLocation> classifyDirectType(const clang::Type &type,
+                                               const clang::ASTContext &astContext) {
   if (type.isVoidType()) {
     return {};
   } else if (type.isScalarType()) {
@@ -30,9 +30,9 @@ static std::vector<CAbiArgKind> classifyDirectType(const clang::Type &type,
     case clang::Type::ScalarTypeKind::STK_Bool:
     case clang::Type::ScalarTypeKind::STK_Integral:
     case clang::Type::ScalarTypeKind::STK_FixedPoint:
-      return {CAbiArgKind::Integral};
+      return {CAbiArgLocation{CAbiArgKind::Integral}};
     case clang::Type::ScalarTypeKind::STK_Floating:
-      return {CAbiArgKind::Float};
+      return {CAbiArgLocation{CAbiArgKind::Float}};
     case clang::Type::ScalarTypeKind::STK_IntegralComplex:
     case clang::Type::ScalarTypeKind::STK_FloatingComplex:
       llvm::report_fatal_error(
@@ -54,8 +54,8 @@ static std::vector<CAbiArgKind> classifyDirectType(const clang::Type &type,
     const clang::RecordDecl *decl = rec->getDecl();
 
     if (decl->canPassInRegisters()) {
-      std::vector<CAbiArgKind> out; // Classifications for the entire record
-      std::optional<CAbiArgKind> pending_kind;
+      std::vector<CAbiArgLocation> out; // Classifications for the entire record
+      std::optional<CAbiArgLocation> pending_location;
       int64_t prev_end_offset = 0; // Initially, first eightbyte
 
       const clang::ASTRecordLayout &layout =
@@ -69,9 +69,9 @@ static std::vector<CAbiArgKind> classifyDirectType(const clang::Type &type,
         // Save the classification of the last eightbyte if we've left it
         bool same_eightbyte = offset / 64 == prev_end_offset / 64;
         if (!same_eightbyte) {
-          assert (pending_kind.has_value());
-          out.push_back(*pending_kind);
-          pending_kind.reset();
+          assert(pending_location.has_value());
+          out.push_back(*pending_location);
+          pending_location.reset();
         }
 
         // Update pending_kind based on ABI rules.
@@ -83,24 +83,24 @@ static std::vector<CAbiArgKind> classifyDirectType(const clang::Type &type,
           llvm::report_fatal_error(
               "unexpectedly classified register-passable field as multiple eightbytes");
         }
-        auto new_kind = recur[0];
+        auto new_location = recur[0];
         // This block sets pending_kind = new_kind regardless.
         // However we format it this way to match §3.2.3.4 of the x86_64 ABI.
         // In the future, if we add support for X87 types etc, this logic will
         // be more complex.
-        if (pending_kind) {
-          if (*pending_kind != new_kind) {
-            if (new_kind == CAbiArgKind::Memory) {
-              pending_kind = CAbiArgKind::Memory;
-            } else if (new_kind == CAbiArgKind::Integral) {
-              pending_kind = CAbiArgKind::Integral;
-            // TODO: handle X87/X87UP/COMPLEX_X87
+        if (pending_location) {
+          if (pending_location->kind != new_location.kind) {
+            if (new_location.kind == CAbiArgKind::Memory) {
+              pending_location = new_location;
+            } else if (new_location.kind == CAbiArgKind::Integral) {
+              pending_location = new_location;
+              // TODO: handle X87/X87UP/COMPLEX_X87
             } else {
-              pending_kind = new_kind;
+              pending_location = new_location;
             }
           }
         } else {
-          pending_kind = new_kind;
+          pending_location = new_location;
         }
 
         // Update prev_end_offset for next iteration
@@ -111,9 +111,9 @@ static std::vector<CAbiArgKind> classifyDirectType(const clang::Type &type,
         }
       }
       // Store any pending kind if the last field did not an eightbyte
-      if (pending_kind) {
-        out.push_back(*pending_kind);
-        pending_kind.reset();
+      if (pending_location) {
+        out.push_back(*pending_location);
+        pending_location.reset();
       }
       return out;
     }
@@ -123,11 +123,11 @@ static std::vector<CAbiArgKind> classifyDirectType(const clang::Type &type,
       "classifyDirectType called on non-scalar, non-canPassInRegisters type");
 }
 
-static CAbiArgKind classifyLlvmType(const llvm::Type &type) {
+static CAbiArgLocation classifyLlvmType(const llvm::Type &type) {
   if (type.isFloatingPointTy()) {
-    return CAbiArgKind::Float;
+    return CAbiArgLocation{CAbiArgKind::Float};
   } else if (type.isSingleValueType()) {
-    return CAbiArgKind::Integral;
+    return CAbiArgLocation{CAbiArgKind::Integral};
   } else if (type.isAggregateType()) {
     llvm::report_fatal_error("nested aggregates not currently handled");
   } else {
@@ -137,7 +137,7 @@ static CAbiArgKind classifyLlvmType(const llvm::Type &type) {
 }
 
 // Given a single argument, determine its ABI slots
-static std::vector<CAbiArgKind>
+static std::vector<CAbiArgLocation>
 abiSlotsForArg(const clang::QualType &qt,
                const clang::CodeGen::ABIArgInfo &argInfo,
                const clang::ASTContext &astContext,
@@ -157,13 +157,11 @@ abiSlotsForArg(const clang::QualType &qt,
       const clang::RecordDecl *decl = rec->getDecl();
       const clang::ASTRecordLayout &layout =
           astContext.getASTRecordLayout(decl);
-      int64_t size = layout.getSize().getQuantity();
-      std::vector<CAbiArgKind> out;
-      // argument itself is in memory, so create enough memory-classified eightbytes to hold it
-      for (int64_t i = 0; i < size; i += 8) {
-        out.push_back(CAbiArgKind::Memory);
-      }
-      return out;
+      return {CAbiArgLocation{
+          .kind = CAbiArgKind::Memory,
+          .size = static_cast<unsigned>(layout.getSize().getQuantity()),
+          .align = static_cast<unsigned>(layout.getAlignment().getQuantity()),
+      }};
     }
   }
   // in register with zext/sext
@@ -179,7 +177,7 @@ abiSlotsForArg(const clang::QualType &qt,
         // A struct is "flattenable" if its individual elements can be passed as arguments.
         // In this case we classify each element of the struct and add each to the list.
         auto elems = STy->elements();
-        std::vector<CAbiArgKind> out = {};
+        std::vector<CAbiArgLocation> out = {};
         for (const auto &elem : elems) {
           out.push_back(classifyLlvmType(*elem));
         }
@@ -187,7 +185,7 @@ abiSlotsForArg(const clang::QualType &qt,
       } else {
         // A non-flattenable direct (passed in register) type is a pointer.
         // see clang's ClangToLLVMArgMapping::construct
-        return {CAbiArgKind::Integral};
+        return {CAbiArgLocation{CAbiArgKind::Integral}};
       }
     }
     // We have a scalar type, so classify it.
@@ -243,7 +241,7 @@ CAbiSignature determineAbi(const clang::CodeGen::CGFunctionInfo &info,
   auto &returnInfo = info.getReturnInfo();
   sig.ret = abiSlotsForArg(info.getReturnType(), returnInfo, astContext, arch);
 
-  auto is_integral = [](auto &x) { return x == CAbiArgKind::Integral; };
+  auto is_integral = [](auto &x) { return x.kind == CAbiArgKind::Integral; };
 
   // num_regs is the number of registers in which the return value is stored.
   // This may be one for a value up to 64 bits or two for a 128-bit value.
@@ -255,9 +253,11 @@ CAbiSignature determineAbi(const clang::CodeGen::CGFunctionInfo &info,
   if (num_regs > 2) { // TODO do we need to do the same on ARM?
     // Replace the integer slots with an equal number of memory (stack) slots
     std::erase_if(sig.ret, is_integral);
-    for (int i = 0; i < num_regs; i++) {
-        sig.ret.push_back(CAbiArgKind::Memory);
-    }
+    sig.ret.push_back(CAbiArgLocation{
+        .kind = CAbiArgKind::Memory,
+        .size = static_cast<unsigned>(num_regs) * 8,
+        .align = 8,
+    });
   }
 
   // Now determine the slots for the arguments

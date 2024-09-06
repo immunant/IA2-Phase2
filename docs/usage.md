@@ -26,6 +26,22 @@ want to generate and use a `compile_commands.json` to ensure the rewriter
 preprocesses each source file with the same command-line arguments as when it is
 compiled.
 
+### Compile Command Paths
+
+Note that `libclangTooling`, which `ia2-rewriter` uses, is very finicky
+about relative paths, so we suggest making all relative paths absolute.
+Furthermore, `ia2-rewriter` itself sometimes uses paths as keys,
+so we suggest making all paths canonical.  We have a script,
+[`canonicalize_compile_command_paths.py`](../tools/rewriter/canonicalize_compile_command_paths.py),
+that does this automatically (doing its best to detect paths embedded in args).
+`libclangTooling` also requires compilation databases to be named exactly
+`compile_commands.json`, so this script assumes that as well,
+and must be run in the directory of the `compile_commands.json`, like this:
+
+```sh
+(cd $build_directory && $ia2_dir/tools/rewriter/canonicalize_compile_command_paths.py)
+```
+
 ## Manual source changes
 
 ### Defining compartments

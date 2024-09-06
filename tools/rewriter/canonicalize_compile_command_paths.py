@@ -11,6 +11,16 @@ import json
 from pathlib import Path
 
 def main():
+    """
+    Assuming we're in a build directory containing a `compile_commands.json`,
+    canonicalize (including making absolute) all paths in every compile command,
+    including as part of arguments (detect as a best effort).
+
+    libclangTooling is finicky with relative paths,
+    and it and other tools don't always handle non-canonical paths well,
+    so making all paths in a `compile_commands.json` canonical is helpful.
+    """
+
     cc_db = Path("compile_commands.json")
     cc_text = cc_db.read_text()
     cmds = json.loads(cc_text)

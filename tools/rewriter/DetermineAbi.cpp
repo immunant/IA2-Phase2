@@ -19,9 +19,9 @@
 // chosen to pass directly in registers
 static std::vector<CAbiArgKind> classifyDirectType(const clang::Type &type,
     const clang::ASTContext &astContext) {
-  if (type.isVoidType())
+  if (type.isVoidType()) {
     return {};
-  if (type.isScalarType()) {
+  } else if (type.isScalarType()) {
     switch (type.getScalarTypeKind()) {
     case clang::Type::ScalarTypeKind::STK_CPointer:
     case clang::Type::ScalarTypeKind::STK_Bool:
@@ -42,7 +42,7 @@ static std::vector<CAbiArgKind> classifyDirectType(const clang::Type &type,
       llvm::report_fatal_error(
           "unsupported scalar type (obj-C object, Clang block, or C++ member) found during ABI computation");
     }
-  } else {
+  } else if (type.getAsStructureType()) {
     // Handle the case where we pass a struct directly in a register.
     // The strategy here is to iterate through each field of the struct
     // and record the ABI type each time we exit an eightbyte chunk.
@@ -115,6 +115,7 @@ static std::vector<CAbiArgKind> classifyDirectType(const clang::Type &type,
       return out;
     }
   }
+  type.dump();
   llvm::report_fatal_error(
       "classifyDirectType called on non-scalar, non-canPassInRegisters type");
 }

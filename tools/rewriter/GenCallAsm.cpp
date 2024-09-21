@@ -420,26 +420,21 @@ static void emit_prologue(AsmWriter &aw, uint32_t caller_pkey, uint32_t target_p
   }
 }
 
-static void emit_intermediate_pkru(AsmWriter &aw, uint32_t caller_pkey, uint32_t target_pkey, const char *reg1, const char *reg2, Arch arch) {
-  if (arch == Arch::X86) {
-    // Change pkru to the intermediate value before copying args
-    add_comment_line(aw, "Set PKRU to the intermediate value to move arguments");
-    // wrpkru requires zeroing rcx and rdx, but they may have arguments so use r10
-    // and r11 as scratch registers.
-    // When we're returning from the callee, rax may have a return value so we save that instead of rcx.
-    auto saveline1 = "movq %"s + reg1 + ", %r10";
-    auto saveline2 = "movq %"s + reg2 + ", %r11";
-    add_asm_line(aw, saveline1);
-    add_asm_line(aw, saveline2);
-    emit_mixed_wrpkru(aw, caller_pkey, target_pkey);
-    auto restoreline1 = "movq %r10, %"s + reg1;
-    auto restoreline2 = "movq %r11, %"s + reg2;
-    add_asm_line(aw, restoreline1);
-    add_asm_line(aw, restoreline2);
-  } else if (arch == Arch::Aarch64) {
-    // TODO ARM stack switching
-    llvm::errs() << "TODO intermediate PKRU not implemented on ARM\n";
-  }
+static void x86_emit_intermediate_pkru(AsmWriter &aw, uint32_t caller_pkey, uint32_t target_pkey, const char *reg1, const char *reg2) {
+  // Change pkru to the intermediate value before copying args
+  add_comment_line(aw, "Set PKRU to the intermediate value to move arguments");
+  // wrpkru requires zeroing rcx and rdx, but they may have arguments so use r10
+  // and r11 as scratch registers.
+  // When we're returning from the callee, rax may have a return value so we save that instead of rcx.
+  auto saveline1 = "movq %"s + reg1 + ", %r10";
+  auto saveline2 = "movq %"s + reg2 + ", %r11";
+  add_asm_line(aw, saveline1);
+  add_asm_line(aw, saveline2);
+  emit_mixed_wrpkru(aw, caller_pkey, target_pkey);
+  auto restoreline1 = "movq %r10, %"s + reg1;
+  auto restoreline2 = "movq %r11, %"s + reg2;
+  add_asm_line(aw, restoreline1);
+  add_asm_line(aw, restoreline2);
 }
 
 static void emit_copy_args(AsmWriter &aw, size_t stack_return_size, size_t stack_return_padding, int stack_alignment, size_t stack_arg_size, size_t stack_arg_padding, uint32_t caller_pkey, Arch arch) {
@@ -775,7 +770,9 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
 
   add_raw_line(aw, llvm::formatv("ASSERT_PKRU({0:x8}) \"\\n\"", ~((0b11 << (2 * caller_pkey)) | 0b11)));
 
-  emit_intermediate_pkru(aw, caller_pkey, target_pkey, "rcx", "rdx", arch);
+  if (arch == Arch::X86) {
+    x86_emit_intermediate_pkru(aw, caller_pkey, target_pkey, "rcx", "rdx");
+  }
 
   emit_switch_stacks(aw, caller_pkey, target_pkey, arch);
 
@@ -791,7 +788,9 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
 
   emit_fn_call(target_name, kind, aw, arch);
 
-  emit_intermediate_pkru(aw, caller_pkey, target_pkey, "rax", "rdx", arch);
+  if (arch == Arch::X86) {
+    x86_emit_intermediate_pkru(aw, caller_pkey, target_pkey, "rax", "rdx");
+  }
 
   emit_free_stack_space(aw, stack_arg_size + stack_arg_padding + stack_alignment, arch);
 

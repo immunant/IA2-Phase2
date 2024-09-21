@@ -29,6 +29,10 @@ int main() {
       perror("waitpid");
       return 2;
     }
+    if WIFSIGNALED(stat) {
+      fprintf(stderr, "forked test child was terminated by signal %d\n", WTERMSIG(stat));
+      return 1;
+    }
     int exit_status = WEXITSTATUS(stat);
     if (exit_status != test_info->exit_code) {
       fprintf(stderr, "forked test child exited with status %d, but %d was expected\n", exit_status, test_info->exit_code);

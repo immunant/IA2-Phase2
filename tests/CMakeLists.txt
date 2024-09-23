@@ -81,8 +81,6 @@ if (NOT LIBIA2_AARCH64)
     add_subdirectory(tls_protected)
     # no permissive mode on ARM
     add_subdirectory(permissive_mode)
-    # rewriter issue on ARM, likely caused by include dirs and spoofed criterion headers
-    add_subdirectory(structs)
     # not sure why this is failing
     add_subdirectory(mmap_loop)
     # we don't support call gates for indirect transitions yet

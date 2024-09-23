@@ -32,8 +32,8 @@ public:
   static ParamLocation Stack(unsigned size, unsigned align) { return ParamLocation(nullptr, size, align); }
 
   bool is_stack() const { return reg == nullptr; }
-  bool is_xmm() const {
-    return reg != nullptr && reg[0] == 'x' && reg[1] == 'm' && reg[2] == 'm';
+  bool is_128bit_float() const {
+    return reg != nullptr && ((reg[0] == 'x' && reg[1] == 'm' && reg[2] == 'm') || reg[0] == 'q');
   }
   const char *as_str() const {
     if (reg) {
@@ -43,7 +43,7 @@ public:
     }
   }
   operator const char *() const { return as_str(); }
-  size_t size() const { return is_xmm() ? 16 : _size; }
+  size_t size() const { return is_128bit_float() ? 16 : _size; }
   size_t align() const { return _align; }
 };
 
@@ -56,8 +56,8 @@ const std::vector<const char *> arm_int_param_reg_order = {"x0", "x1", "x2", "x3
 const std::vector<const char *> x86_float_reg_order = {"xmm0", "xmm1", "xmm2", "xmm3",
                                                        "xmm4", "xmm5", "xmm6", "xmm7"};
 
-const std::vector<const char *> arm_float_reg_order = {"v0", "v1", "v2", "v3",
-                                                       "v4", "v5", "v6", "v7"};
+const std::vector<const char *> arm_float_reg_order = {"q0", "q1", "q2", "q3",
+                                                       "q4", "q5", "q6", "q7"};
 
 const std::vector<const char *> x86_int_ret_reg_order = {"rax", "rdx"};
 // return and parameter registers are the same on AArch64
@@ -191,7 +191,7 @@ static void add_comment_line(AsmWriter &aw, const std::string &s) {
 
 static void emit_reg_push(AsmWriter &aw, const ParamLocation &loc) {
   assert(!loc.is_stack());
-  if (loc.is_xmm()) {
+  if (loc.is_128bit_float()) {
     add_asm_line(aw, "subq $16, %rsp");
     add_asm_line(aw, "movdqu %"s + loc.as_str() + ", (%rsp)");
   } else {
@@ -201,7 +201,7 @@ static void emit_reg_push(AsmWriter &aw, const ParamLocation &loc) {
 
 static void emit_reg_pop(AsmWriter &aw, const ParamLocation &loc) {
   assert(!loc.is_stack());
-  if (loc.is_xmm()) {
+  if (loc.is_128bit_float()) {
     add_asm_line(aw, "movdqu (%rsp), %"s + loc.as_str());
     add_asm_line(aw, "addq $16, %rsp");
   } else {
@@ -418,6 +418,7 @@ static void emit_prologue(AsmWriter &aw, uint32_t caller_pkey, uint32_t target_p
 
     // Save callee-saved registers
     for (size_t i = 0; i < aarch64_preserved_registers.size(); i++) {
+      // TODO(performance): We could store by pairs (STP)
       add_asm_line(aw, "str "s + aarch64_preserved_registers[i] + ", [sp, #" + std::to_string(i * 8) + "]");
     }
   }
@@ -631,8 +632,63 @@ static void emit_scrub_regs(AsmWriter &aw, uint32_t pkey, const std::vector<Para
       }
     }
   } else if (arch == Arch::Aarch64) {
-    // TODO: save args/return values
+    auto regs_64bit = std::vector<std::string>();
+    auto regs_128bit = std::vector<std::string>();
+    for (auto loc : locs) {
+      if (!loc.is_stack()) {
+        if (loc.is_128bit_float()) {
+          regs_128bit.push_back(loc.as_str());
+        } else {
+          regs_64bit.push_back(loc.as_str());
+        }
+      }
+    }
+
+    if (preserve_regs && (!regs_128bit.empty() || !regs_64bit.empty())) {
+      // Save all registers containing args.
+      add_comment_line(aw, "Preserve essential regs on stack");
+      auto reg = regs_64bit.begin();
+      for (; reg != regs_64bit.end(); reg++) {
+        auto reg1 = *reg;
+        if (reg+1 == regs_64bit.end()) {
+          break;
+        }
+        reg++;
+        auto reg2 = *reg;
+        add_asm_line(aw, "stp "s + reg1 + ", " + reg2 + ", [sp, #-16]!");
+      }
+      if (reg != regs_64bit.end()) {
+        add_asm_line(aw, "str "s + *reg + ", [sp, #-16]!");
+      }
+
+      for (auto reg : regs_128bit) {
+        add_asm_line(aw, "str "s + reg + ", [sp, #-16]!");
+      }
+    }
+
+    add_comment_line(aw, "Scrub non-essential regs");
     add_asm_line(aw, "bl __libia2_scrub_registers");
+
+    if (preserve_regs && (!regs_128bit.empty() || !regs_64bit.empty())) {
+      add_comment_line(aw, "Restore preserved regs");
+      for (auto reg = regs_128bit.rbegin(); reg != regs_128bit.rend(); reg++) {
+        add_asm_line(aw, "ldr "s + *reg + ", [sp], #16");
+      }
+
+      auto reg = regs_64bit.rbegin();
+      if (regs_64bit.size() % 2 == 1) {
+        add_asm_line(aw, "ldr "s + *reg + ", [sp]");
+        add_asm_line(aw, "add sp, sp, #16");
+        reg++;
+      }
+      for (; reg != regs_64bit.rend(); reg++) {
+        auto reg1 = *reg;
+        reg++;
+        assert(reg != regs_64bit.rend());
+        auto reg2 = *reg;
+        add_asm_line(aw, "ldp "s + reg2 + ", " + reg1 + ", [sp], #16");
+      }
+    }
   }
 }
 

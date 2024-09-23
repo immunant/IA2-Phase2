@@ -57,6 +57,7 @@ add_subdirectory(global_fn_ptr)
 add_subdirectory(rewrite_macros)
 add_subdirectory(sighandler)
 
+add_subdirectory(structs)
 # The following tests are not supported on ARM64 yet
 if (NOT LIBIA2_AARCH64)
     # Expected to have compartment violations, but we aren't enforcing yet:

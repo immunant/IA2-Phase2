@@ -82,14 +82,19 @@ std::vector<ParamLocation> param_locations(const CAbiSignature &func, Arch arch)
   const auto &float_reg_order = (arch == Arch::X86) ? x86_float_reg_order : arm_float_reg_order;
   std::vector<ParamLocation> locs = {};
   size_t ints_used = 0;
-  // if the return is in memory, the first integer argument is the location to
-  // write the return value
   size_t memory_return_slots =
       std::count_if(func.ret.begin(), func.ret.end(),
                     [](auto &x) { return x.kind == CAbiArgKind::Memory; });
   if (memory_return_slots > 0) {
-    locs.push_back(ParamLocation::Register(int_param_reg_order[0]));
-    ints_used++;
+    if (arch == Arch::X86) {
+      // if the return is in memory, the first integer argument is the location to
+      // write the return value
+      locs.push_back(ParamLocation::Register(int_param_reg_order[0]));
+      ints_used++;
+    } else if (arch == Arch::Aarch64) {
+      // memory return goes in x8
+      locs.push_back(ParamLocation::Register("x8"));
+    }
   }
   size_t floats_used = 0;
   for (const auto &arg : func.args) {
@@ -113,6 +118,10 @@ std::vector<ParamLocation> param_locations(const CAbiSignature &func, Arch arch)
       break;
     }
     case CAbiArgKind::Memory: {
+      if (arch == Arch::Aarch64) {
+        locs.push_back(ParamLocation::Register(int_param_reg_order[ints_used]));
+        ints_used += 1;
+      }
       locs.push_back(ParamLocation::Stack(arg.size, arg.align));
       break;
     }
@@ -145,8 +154,8 @@ std::vector<ParamLocation> return_locations(const CAbiSignature &func, Arch arch
       floats_used += 1;
       break;
     case CAbiArgKind::Memory:
-      // memory return also returns address in first return register
-      if (locs.empty()) {
+      // memory return also returns address in first return register on x86
+      if (arch == Arch::X86 && locs.empty()) {
         locs.push_back(ParamLocation::Register(int_ret_reg_order[0]));
       }
       locs.push_back(ParamLocation::Stack(arg.size, arg.align));
@@ -521,6 +530,7 @@ static void emit_copy_args(AsmWriter &aw, size_t stack_return_size, size_t stack
         add_asm_line(aw, "ldp x9, x10, [x12, #" + std::to_string(caller_stack_size - i) + "]");
         add_asm_line(aw, "stp x9, x10, [sp, #-16]!");
       }
+      // TODO(sjc): We need to handle memory composite args better here.
       add_asm_line(aw, "mov x0, sp");
     }
   }

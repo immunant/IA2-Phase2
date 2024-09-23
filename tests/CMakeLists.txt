@@ -39,6 +39,7 @@ if (NOT LIBIA2_AARCH64)
 endif()
 set_target_properties(check PROPERTIES FOLDER "tests")
 
+add_subdirectory(abi)
 add_subdirectory(destructors)
 # add_subdirectory(ffmpeg)
 add_subdirectory(header_includes)

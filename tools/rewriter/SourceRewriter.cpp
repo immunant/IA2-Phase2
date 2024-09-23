@@ -1417,8 +1417,6 @@ int main(int argc, const char **argv) {
     std::string wrapper_name = "__ia2_"s + fn_name;
     header_out << "extern " << opaque << " " << wrapper_name << ";\n";
 
-    // TODO: These wrapper go from pkey 0 to the target pkey so if the target
-    // also has pkey 0 then it just needs call the original function
     Pkey target_pkey = fn_decl_pass.fn_pkeys[fn_name];
     if (target_pkey != 0) {
       CAbiSignature c_abi_sig = fn_decl_pass.abi_signatures[fn_name];
@@ -1428,6 +1426,10 @@ int main(int argc, const char **argv) {
       wrapper_out << "asm(\n";
       wrapper_out << asm_wrapper;
       wrapper_out << ");\n";
+    } else {
+      header_out << "asm(\n";
+      header_out << "  \".set " << wrapper_name << ", __real_" << fn_name << "\\n\"\n";
+      header_out << ");\n";
     }
   }
 

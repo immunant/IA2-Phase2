@@ -281,6 +281,8 @@ static std::string emit_load_sp_offset(AsmWriter &aw, int pkey,
 // for the old and new stack pointer.
 // \p compartment_offset_reg is a register name (sans % prefix) that will be
 // clobbered.
+//
+// On AArch64, this function leaves the old stack pointer in x12.
 static void emit_switch_stacks(AsmWriter &aw, int old_pkey, int new_pkey, Arch arch) {
   if (arch == Arch::X86) {
     const std::string compartment_offset_reg = "r11"s;
@@ -308,8 +310,9 @@ static void emit_switch_stacks(AsmWriter &aw, int old_pkey, int new_pkey, Arch a
     add_asm_line(aw, "ldr x10, [x10, #:gottprel_lo12:ia2_stackptr_"s + std::to_string(old_pkey) + "]");
     add_asm_line(aw, "add x10, x10, x9");
     add_comment_line(aw, "Write old stack pointer to memory");
-    add_asm_line(aw, "mov x11, sp");
-    add_asm_line(aw, "str x11, [x10]");
+    // Keep the old stack pointer in x12
+    add_asm_line(aw, "mov x12, sp");
+    add_asm_line(aw, "str x12, [x10]");
 
     add_comment_line(aw, "Compute location to load new stack pointer in x10");
     add_asm_line(aw, "adrp x10, :gottprel:ia2_stackptr_"s + std::to_string(new_pkey));
@@ -489,8 +492,36 @@ static void emit_copy_args(AsmWriter &aw, size_t stack_return_size, size_t stack
       }
     }
   } else if (arch == Arch::Aarch64) {
-    // TODO ARM arguments
-    llvm::errs() << "TODO arguments not implemented on ARM\n";
+    // Same as for X86 above, we allocate space for the return value and push x8
+    // onto the stack so we can point it at the new stack return slot.
+    if (stack_return_size > 0) {
+      add_comment_line(
+          aw, "Allocate space on the compartment's stack for the return value (including the slot for the return value pointer)");
+      size_t padded_return_size = stack_return_size + stack_return_padding + 8;
+      add_asm_line(aw, "sub sp, sp, #" + std::to_string(padded_return_size));
+      add_comment_line(aw, "Save address of the caller's return value");
+      add_asm_line(aw, "str x8, [sp, #0]");
+      add_comment_line(aw, "Set x8 to the compartment's return value memory");
+      // The new return value is 8 bytes above the bottom of the stack so we need
+      // to add 8 to x8
+      add_asm_line(aw, "add x8, sp, #8");
+    }
+
+    // Copy stack args to target stack
+    if (stack_arg_size > 0) {
+      add_comment_line(
+          aw, "Copy stack arguments from the caller's stack to the compartment");
+      // Load addr of top of caller compartment's stack into x10, clobbering x9
+      size_t caller_stack_size =
+          stack_arg_size + ((aarch64_preserved_registers.size() + 1) * 8);
+      // TODO(security): We copy an extra word here if we are passing an odd
+      // number of words, leaking that stack value.
+      for (int i = 0; i < stack_arg_size; i += 16) {
+        add_asm_line(aw, "ldp x9, x10, [x12, #" + std::to_string(caller_stack_size - i) + "]");
+        add_asm_line(aw, "stp x9, x10, [sp, #-16]!");
+      }
+      add_asm_line(aw, "mov x0, sp");
+    }
   }
 }
 

@@ -1029,7 +1029,14 @@ std::optional<Pkey> pkey_from_commands(std::function<std::optional<std::vector<C
     return {};
   }
 
+  if (comp_cmds.size() != 1) {
+    llvm::errs() << "warning: multiple compile commands for a single source file" << '\n'
+                 << "         truncating to first compile command" << '\n'
+                 << "         may not work properly" << '\n';
+    comp_cmds.resize(1);
+  }
   assert(comp_cmds.size() == 1);
+  
   auto cc_cmd = *comp_cmd_with_pkey;
 
   auto pkey_define = std::find_if(cc_cmd.CommandLine.begin(),

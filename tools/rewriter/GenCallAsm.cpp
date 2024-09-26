@@ -751,6 +751,7 @@ std::string emit_asm_wrapper(AbiSignature &sig,
     Just before calling the wrapped function, its compartment's stack may
     contain any of the following.
 
+    For X86-64:
     +-----+
     | top |Top of the stack (stack grows down on x86-64). This address - 8 is
     |     |aligned to 16 bytes assuming the wrapper's caller follows the SysV
@@ -783,6 +784,42 @@ std::string emit_asm_wrapper(AbiSignature &sig,
     |addr |stack by the call to the wrapped function.
     +-----+
 
+    For AArch64:
+    +-----+
+    | top |Top of the stack (stack grows down on AArch64). This address is
+    |     |aligned to 16 bytes.
+    +-----+
+    |ret  |Padding for alignment prior to the compartment's return value (if it
+    |align|has class MEMORY) as such memory must be 16B aligned.
+    +-----+
+    |     |Space for the compartment's return value if it has class MEMORY. This
+    |ret  |space is only allocated if the pointer to the caller's return value
+    |space|memory is also placed on the compartment's stack.
+    +-----+
+    |ind  |Padding for alignment prior to the indirect args
+    |args |as such memory must be 16B aligned.
+    |align|
+    +-----+
+    |ind  |Space for arguments passed indirectly (i.e. in memory). These arguments 
+    |args |will point to this region.
+    +-----+
+    |     |8 bytes for alignment. If the size of the other items on the stack
+    |     |(including the return address) aren't a multiple 16, these 8 bytes
+    |align|are inserted to ensure the stack is aligned for the call. Otherwise
+    |     |this doesn't get placed on the stack. The System V ABI specifies this
+    |     |must be placed at the end of the argument area so this cannot be
+    |     |placed any lower on the stack. (TODO: verify this)
+    +-----+
+    |stack|Space required for stack arguments. This is initialized from the
+    |args |analogous part of the caller's stack. If all arguments are passed in
+    |     |registers this space isn't allocated.
+    +-----+
+    |frame|Previous link register contents. TODO: update this when we transition stacks?
+    |ptr  |
+    +-----+
+    |ret  |Return address for wrapped function. This is implicitly placed on the
+    |addr |stack by the call to the wrapped function.
+    +-----+
 
   */
 

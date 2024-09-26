@@ -14,39 +14,6 @@
 using namespace std::string_literals;
 using std::size_t;
 
-struct ParamLocation {
-private:
-  ParamLocation(const char *reg, unsigned size, unsigned align) : reg(reg), _size(size), _align(align) {}
-
-public:
-  const char *reg;
-
-private:
-  const unsigned _size;
-  const unsigned _align;
-
-public:
-  static ParamLocation Register(const char *regname) {
-    return ParamLocation(regname, 8, 0);
-  }
-  static ParamLocation Stack(unsigned size, unsigned align) { return ParamLocation(nullptr, size, align); }
-
-  bool is_stack() const { return reg == nullptr; }
-  bool is_128bit_float() const {
-    return reg != nullptr && ((reg[0] == 'x' && reg[1] == 'm' && reg[2] == 'm') || reg[0] == 'q');
-  }
-  const char *as_str() const {
-    if (reg) {
-      return reg;
-    } else {
-      return "<stack>";
-    }
-  }
-  operator const char *() const { return as_str(); }
-  size_t size() const { return is_128bit_float() ? 16 : _size; }
-  size_t align() const { return _align; }
-};
-
 const std::vector<const char *> x86_int_param_reg_order = {"rdi", "rsi", "rdx",
                                                            "rcx", "r8", "r9"};
 
@@ -77,93 +44,86 @@ const std::array<const char *, 10> aarch64_preserved_registers = {"x19", "x20", 
 
 /// Compute abi locations for parameters of a C-abi function, given its sequence
 /// of argument kinds.
-std::vector<ParamLocation> param_locations(const CAbiSignature &func, Arch arch) {
+void allocate_param_locations(AbiSignature &func, Arch arch) {
   const auto &int_param_reg_order = (arch == Arch::X86) ? x86_int_param_reg_order : arm_int_param_reg_order;
   const auto &float_reg_order = (arch == Arch::X86) ? x86_float_reg_order : arm_float_reg_order;
-  std::vector<ParamLocation> locs = {};
   size_t ints_used = 0;
   size_t memory_return_slots =
       std::count_if(func.ret.begin(), func.ret.end(),
-                    [](auto &x) { return x.kind == CAbiArgKind::Memory; });
+                    [](auto &x) { return x.is_stack(); });
   if (memory_return_slots > 0) {
     if (arch == Arch::X86) {
       // if the return is in memory, the first integer argument is the location to
       // write the return value
-      locs.push_back(ParamLocation::Register(int_param_reg_order[0]));
-      ints_used++;
+      func.args.insert(func.args.begin(), ArgLocation::Register(ArgLocation::Kind::Integral));
     } else if (arch == Arch::Aarch64) {
       // memory return goes in x8
-      locs.push_back(ParamLocation::Register("x8"));
+      auto ptr_arg = ArgLocation::Register(ArgLocation::Kind::Integral);
+      ptr_arg.allocate_reg("x8");
+      func.args.insert(func.args.begin(), ptr_arg);
     }
   }
   size_t floats_used = 0;
-  for (const auto &arg : func.args) {
-    switch (arg.kind) {
-    case CAbiArgKind::Integral: {
+  for (auto &arg : func.args) {
+    if (arg.is_allocated()) {
+      // x8 allocated explicitly above
+      assert(arg.as_str() == "x8");
+      continue;
+    }
+    switch (arg.kind()) {
+    case ArgLocation::Kind::Integral: {
       if (ints_used < int_param_reg_order.size()) {
-        locs.push_back(ParamLocation::Register(int_param_reg_order[ints_used]));
+        arg.allocate_reg(int_param_reg_order[ints_used]);
         ints_used += 1;
       } else {
-        locs.push_back(ParamLocation::Stack(8, 8));
+        arg.allocate_stack();
       }
       break;
     }
-    case CAbiArgKind::Float: {
+    case ArgLocation::Kind::Float: {
       if (floats_used < float_reg_order.size()) {
-        locs.push_back(ParamLocation::Register(float_reg_order[floats_used]));
+        arg.allocate_reg(float_reg_order[floats_used]);
         floats_used += 1;
       } else {
-        locs.push_back(ParamLocation::Stack(8, 8));
+        arg.allocate_stack();
       }
       break;
     }
-    case CAbiArgKind::Memory: {
-      if (arch == Arch::Aarch64) {
-        locs.push_back(ParamLocation::Register(int_param_reg_order[ints_used]));
-        ints_used += 1;
-      }
-      locs.push_back(ParamLocation::Stack(arg.size, arg.align));
+    case ArgLocation::Kind::Memory: {
+      assert(arg.is_stack());
       break;
     }
     }
   }
-  return locs;
 }
 
-std::vector<ParamLocation> return_locations(const CAbiSignature &func, Arch arch) {
+void allocate_return_locations(AbiSignature &func, Arch arch) {
   const auto &int_ret_reg_order = (arch == Arch::X86) ? x86_int_ret_reg_order : arm_int_ret_reg_order;
   const auto &float_reg_order = (arch == Arch::X86) ? x86_float_reg_order : arm_float_reg_order;
 
-  std::vector<ParamLocation> locs = {};
-
-  if (func.ret.empty()) {
-    return locs;
-  }
-
   size_t ints_used = 0;
   size_t floats_used = 0;
-  for (const auto &arg : func.ret) {
-    switch (arg.kind) {
-    case CAbiArgKind::Integral:
-      locs.push_back(ParamLocation::Register(int_ret_reg_order[ints_used]));
+  for (auto &arg : func.ret) {
+    switch (arg.kind()) {
+    case ArgLocation::Kind::Integral:
+      arg.allocate_reg(int_ret_reg_order[ints_used]);
       ints_used += 1;
       break;
-    case CAbiArgKind::Float:
+    case ArgLocation::Kind::Float:
       // TODO: handle x87 in st0 and complex x87 in st0+st1
-      locs.push_back(ParamLocation::Register(float_reg_order[floats_used]));
+      arg.allocate_reg(float_reg_order[floats_used]);
       floats_used += 1;
       break;
-    case CAbiArgKind::Memory:
+    case ArgLocation::Kind::Memory:
       // memory return also returns address in first return register on x86
-      if (arch == Arch::X86 && locs.empty()) {
-        locs.push_back(ParamLocation::Register(int_ret_reg_order[0]));
+      if (arch == Arch::X86) {
+        assert(ints_used == 0);
+        arg.allocate_reg(int_ret_reg_order[ints_used]);
+        arg.set_indirect_on_stack();
       }
-      locs.push_back(ParamLocation::Stack(arg.size, arg.align));
       break;
     }
   }
-
-  return locs;
 }
 
 #define INDENT "    "
@@ -198,7 +158,7 @@ static void add_comment_line(AsmWriter &aw, const std::string &s) {
   aw.ss << std::endl;
 }
 
-static void emit_reg_push(AsmWriter &aw, const ParamLocation &loc) {
+static void emit_reg_push(AsmWriter &aw, const ArgLocation &loc) {
   assert(!loc.is_stack());
   if (loc.is_128bit_float()) {
     add_asm_line(aw, "subq $16, %rsp");
@@ -208,7 +168,7 @@ static void emit_reg_push(AsmWriter &aw, const ParamLocation &loc) {
   }
 }
 
-static void emit_reg_pop(AsmWriter &aw, const ParamLocation &loc) {
+static void emit_reg_pop(AsmWriter &aw, const ArgLocation &loc) {
   assert(!loc.is_stack());
   if (loc.is_128bit_float()) {
     add_asm_line(aw, "movdqu (%rsp), %"s + loc.as_str());
@@ -334,18 +294,18 @@ static void emit_switch_stacks(AsmWriter &aw, int old_pkey, int new_pkey, Arch a
 }
 
 static void append_arg_kinds(std::stringstream &ss,
-                             std::vector<CAbiArgLocation> args) {
+                             std::vector<ArgLocation> args) {
   bool first = true;
   for (auto arg : args) {
     if (!first) {
       ss << ", ";
     }
-    ss << cabi_arg_kind_names[(int)arg.kind];
+    ss << cabi_arg_kind_names[(int)arg.kind()];
     first = false;
   }
 }
 
-static std::string sig_string(const CAbiSignature &sig,
+static std::string sig_string(const AbiSignature &sig,
                               const std::optional<std::string> name) {
   std::stringstream ss = {};
   if (!name) {
@@ -606,7 +566,7 @@ static void emit_copy_stack_returns(AsmWriter &aw, size_t stack_return_size, siz
   }
 }
 
-static void emit_scrub_regs(AsmWriter &aw, uint32_t pkey, const std::vector<ParamLocation> &locs, bool preserve_regs, Arch arch) {
+static void emit_scrub_regs(AsmWriter &aw, uint32_t pkey, const std::vector<ArgLocation> &locs, bool preserve_regs, Arch arch) {
   // Handles register scrubbing for calls into/out of protected compartments.
   // After call: Preserves return values by pushing them to the stack before scrubbing.
   // Before call: Saves argument registers in a similar manner.
@@ -751,7 +711,7 @@ static void emit_return(AsmWriter &aw) {
   add_asm_line(aw, "ret");
 }
 
-std::string emit_asm_wrapper(const CAbiSignature &sig,
+std::string emit_asm_wrapper(AbiSignature &sig,
                              const std::string &wrapper_name,
                              const std::optional<std::string> target_name,
                              WrapperKind kind, int caller_pkey, int target_pkey,
@@ -761,11 +721,11 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
   assert(caller_pkey != target_pkey);
 
   AsmWriter aw = get_asmwriter(as_macro);
-  auto param_locs = param_locations(sig, arch);
-  size_t stack_arg_count = std::count_if(param_locs.begin(), param_locs.end(),
+  allocate_param_locations(sig, arch);
+  size_t stack_arg_count = std::count_if(sig.args.begin(), sig.args.end(),
                                          [](auto &x) { return x.is_stack(); });
   size_t stack_arg_size = 0;
-  for (auto &x : param_locs) {
+  for (const auto &x : sig.args) {
     if (x.is_stack()) {
       // All stack arguments must be 8-byte aligned
       size_t align = std::max(x.align(), (size_t)8);
@@ -777,11 +737,11 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
   }
   size_t unaligned = stack_arg_size % 8;
   size_t stack_arg_padding = unaligned != 0 ? 8 - unaligned : 0;
-  size_t reg_arg_count = param_locs.size() - stack_arg_count;
+  size_t reg_arg_count = sig.args.size() - stack_arg_count;
 
-  auto return_locs = return_locations(sig, arch);
+  allocate_return_locations(sig, arch);
   size_t stack_return_size = 0;
-  for (auto &x : return_locs) {
+  for (const auto &x : sig.ret) {
     if (x.is_stack()) {
       stack_return_size += x.size();
     }
@@ -875,7 +835,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
 
   emit_copy_args(aw, stack_return_size, stack_return_padding, stack_alignment, stack_arg_size, stack_arg_padding, caller_pkey, arch);
 
-  emit_scrub_regs(aw, caller_pkey, param_locs, reg_arg_count > 0, arch);
+  emit_scrub_regs(aw, caller_pkey, sig.args, reg_arg_count > 0, arch);
 
   if (kind == WrapperKind::IndirectCallsite) {
     emit_load_fn_ptr(aw, arch);
@@ -895,7 +855,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
 
   emit_switch_stacks(aw, target_pkey, caller_pkey, arch);
 
-  emit_scrub_regs(aw, target_pkey, return_locs, true, arch);
+  emit_scrub_regs(aw, target_pkey, sig.ret, true, arch);
 
   emit_set_return_pkru(aw, caller_pkey, arch);
 

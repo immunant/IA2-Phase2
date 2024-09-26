@@ -27,11 +27,11 @@
 #define DEBUG(X) do { } while (0)
 #endif
 
-static CAbiArgLocation classifyScalarType(const llvm::Type &type) {
+static ArgLocation::Kind classifyScalarType(const llvm::Type &type) {
   if (type.isFloatingPointTy()) {
-    return CAbiArgLocation{CAbiArgKind::Float};
+    return ArgLocation::Kind::Float;
   } else if (type.isIntOrPtrTy()) {
-    return CAbiArgLocation{CAbiArgKind::Integral};
+    return ArgLocation::Kind::Integral;
   } else if (type.isAggregateType()) {
     llvm::report_fatal_error("nested aggregates not currently handled");
   } else {
@@ -41,7 +41,7 @@ static CAbiArgLocation classifyScalarType(const llvm::Type &type) {
 }
 
 // Given a single argument, determine its ABI slots
-static std::vector<CAbiArgLocation>
+static std::vector<ArgLocation>
 abiSlotsForArg(const clang::QualType &qt,
                const clang::CodeGen::ABIArgInfo &argInfo,
                const clang::ASTContext &astContext,
@@ -61,11 +61,15 @@ abiSlotsForArg(const clang::QualType &qt,
       const clang::RecordDecl *decl = rec->getDecl();
       const clang::ASTRecordLayout &layout =
           astContext.getASTRecordLayout(decl);
-      return {CAbiArgLocation{
-          .kind = CAbiArgKind::Memory,
-          .size = static_cast<unsigned>(layout.getSize().getQuantity()),
-          .align = static_cast<unsigned>(layout.getAlignment().getQuantity()),
-      }};
+      if (argInfo.getInReg()) {
+        return {ArgLocation::IndirectInRegister(
+            layout.getSize().getQuantity(),
+            layout.getAlignment().getQuantity())};
+      } else {
+        return {ArgLocation::Stack(
+            layout.getSize().getQuantity(),
+            layout.getAlignment().getQuantity())};
+      }
     }
   }
   // in register with zext/sext
@@ -81,9 +85,9 @@ abiSlotsForArg(const clang::QualType &qt,
         // A struct is "flattenable" if its individual elements can be passed as arguments.
         // In this case we classify each element of the struct and add each to the list.
         auto elems = STy->elements();
-        std::vector<CAbiArgLocation> out = {};
+        std::vector<ArgLocation> out = {};
         for (const auto &elem : elems) {
-          out.push_back(classifyScalarType(*elem));
+          out.push_back(ArgLocation::Register(classifyScalarType(*elem)));
         }
         return out;
       } else {
@@ -93,15 +97,15 @@ abiSlotsForArg(const clang::QualType &qt,
     llvm::ArrayType *ATy = llvm::dyn_cast<llvm::ArrayType>(Ty);
     if (ATy) {
       // Array case
-      return std::vector(ATy->getNumElements(), classifyScalarType(*ATy->getElementType()));
+      return std::vector(ATy->getNumElements(), ArgLocation::Register(classifyScalarType(*ATy->getElementType())));
     }
     llvm::FixedVectorType *VTy = llvm::dyn_cast<llvm::FixedVectorType>(Ty);
     if (VTy) {
       // Vector case
-      return std::vector(VTy->getNumElements(), classifyScalarType(*VTy->getElementType()));
+      return std::vector(VTy->getNumElements(), ArgLocation::Register(classifyScalarType(*VTy->getElementType())));
     }
     // We have a scalar type, so classify it.
-    return {classifyScalarType(*Ty)};
+    return {ArgLocation::Register(classifyScalarType(*Ty))};
   }
   case Kind::Ignore:   // no ABI presence
     return {};
@@ -137,10 +141,10 @@ cgFunctionInfo(clang::CodeGen::CodeGenModule &cgm,
   }
 }
 
-CAbiSignature determineAbi(const clang::CodeGen::CGFunctionInfo &info,
+AbiSignature determineAbi(const clang::CodeGen::CGFunctionInfo &info,
                            const clang::ASTContext &astContext, Arch arch) {
   // get ABI for return type and each parameter
-  CAbiSignature sig;
+  AbiSignature sig;
   sig.variadic = info.isVariadic();
 
   // We want to find the layout of the parameter and return value "slots."
@@ -158,25 +162,6 @@ CAbiSignature determineAbi(const clang::CodeGen::CGFunctionInfo &info,
   });
   sig.ret = abiSlotsForArg(info.getReturnType(), returnInfo, astContext, arch);
 
-  auto is_integral = [](auto &x) { return x.kind == CAbiArgKind::Integral; };
-
-  // num_regs is the number of registers in which the return value is stored.
-  // This may be one for a value up to 64 bits or two for a 128-bit value.
-  std::size_t num_regs = std::count_if(sig.ret.begin(), sig.ret.end(), is_integral);
-  // It's possible that clang gives us back a value of three or more integers,
-  // for example a struct full of ints. However, in reality the whole value
-  // goes on the stack in this case according to the x64 ABI.
-  // We handle that case here.
-  if (num_regs > 2) { // TODO do we need to do the same on ARM?
-    // Replace the integer slots with an equal number of memory (stack) slots
-    std::erase_if(sig.ret, is_integral);
-    sig.ret.push_back(CAbiArgLocation{
-        .kind = CAbiArgKind::Memory,
-        .size = static_cast<unsigned>(num_regs) * 8,
-        .align = 8,
-    });
-  }
-
   // Now determine the slots for the arguments
   for (auto &argInfo : info.arguments()) {
     DEBUG({
@@ -191,7 +176,7 @@ CAbiSignature determineAbi(const clang::CodeGen::CGFunctionInfo &info,
   return sig;
 }
 
-CAbiSignature determineAbiForDecl(const clang::FunctionDecl &fnDecl, Arch arch) {
+AbiSignature determineAbiForDecl(const clang::FunctionDecl &fnDecl, Arch arch) {
   clang::ASTContext &astContext = fnDecl.getASTContext();
 
   // set up context for codegen so we can ask about function ABI
@@ -237,7 +222,7 @@ CAbiSignature determineAbiForDecl(const clang::FunctionDecl &fnDecl, Arch arch) 
   return determineAbi(info, astContext, arch);
 }
 
-CAbiSignature determineAbiForProtoType(const clang::FunctionProtoType &fpt,
+AbiSignature determineAbiForProtoType(const clang::FunctionProtoType &fpt,
                                        clang::ASTContext &astContext, Arch arch) {
   // FIXME: This is copied verbatim from determineAbiForDecl and could be
   // factored out. This depends on what we do with PR #78 so I'm leaving it as

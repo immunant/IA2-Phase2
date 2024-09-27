@@ -24,6 +24,7 @@ private:
   unsigned _size;
   unsigned _align;
   const char* _reg = nullptr;
+  size_t _stack_offset = 0;
 
 public:
   static ArgLocation Register(Kind kind) {
@@ -34,7 +35,7 @@ public:
     loc._onStack = true;
     return loc;
   }
-  static ArgLocation IndirectInRegister(unsigned size, unsigned align) {
+  static ArgLocation Indirect(unsigned size, unsigned align) {
     auto loc = ArgLocation(Kind::Integral, static_cast<unsigned>(size), static_cast<unsigned>(align));
     loc._indirectOnStack = true;
     return loc;
@@ -45,10 +46,11 @@ public:
     _allocated = true;
     _reg = r;
   }
-  void allocate_stack() {
-    assert(!_allocated && !_onStack);
+  void allocate_stack(size_t offset) {
+    assert(!_allocated);
     _allocated = true;
     _onStack = true;
+    _stack_offset = offset;
   }
   void set_indirect_on_stack() {
     assert(!_indirectOnStack);
@@ -72,6 +74,7 @@ public:
   Kind kind() const { return _kind; }
   size_t size() const { return is_128bit_float() ? 16 : _size; }
   size_t align() const { return _align; }
+  size_t stack_offset() const { return _stack_offset; }
 };
 
 struct AbiSignature {

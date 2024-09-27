@@ -50,7 +50,7 @@ void allocate_param_locations(AbiSignature &func, Arch arch) {
   size_t ints_used = 0;
   size_t memory_return_slots =
       std::count_if(func.ret.begin(), func.ret.end(),
-                    [](auto &x) { return x.is_stack(); });
+                    [](auto &x) { return x.is_stack() || x.is_indirect(); });
   if (memory_return_slots > 0) {
     if (arch == Arch::X86) {
       // if the return is in memory, the first integer argument is the location to
@@ -63,6 +63,7 @@ void allocate_param_locations(AbiSignature &func, Arch arch) {
       func.args.insert(func.args.begin(), ptr_arg);
     }
   }
+  size_t stack_offset = 0;
   size_t floats_used = 0;
   for (auto &arg : func.args) {
     if (arg.is_allocated()) {
@@ -76,7 +77,8 @@ void allocate_param_locations(AbiSignature &func, Arch arch) {
         arg.allocate_reg(int_param_reg_order[ints_used]);
         ints_used += 1;
       } else {
-        arg.allocate_stack();
+        arg.allocate_stack(stack_offset);
+        stack_offset += 8;
       }
       break;
     }
@@ -85,12 +87,21 @@ void allocate_param_locations(AbiSignature &func, Arch arch) {
         arg.allocate_reg(float_reg_order[floats_used]);
         floats_used += 1;
       } else {
-        arg.allocate_stack();
+        arg.allocate_stack(stack_offset);
+        stack_offset += 8;
       }
       break;
     }
     case ArgLocation::Kind::Memory: {
       assert(arg.is_stack());
+      if (stack_offset % arg.align() != 0) {
+        stack_offset += arg.align() - stack_offset % arg.align();
+      }
+      arg.allocate_stack(stack_offset);
+      stack_offset += arg.size();
+      if (stack_offset % 8 != 0) {
+        stack_offset += 8 - stack_offset % 8;
+      }
       break;
     }
     }
@@ -181,26 +192,49 @@ static void emit_reg_pop(AsmWriter &aw, const ArgLocation &loc) {
 // Emit code to copy `byte_count` bytes from `src` to `dst` using `scratch` as a
 // temporary register.
 static void emit_memcpy(AsmWriter &aw, unsigned byte_count, const std::string &dst,
-                        const std::string &src, const std::string &scratch) {
+                        const std::string &src, const std::string &scratch, size_t offset, Arch arch) {
   add_comment_line(aw, "Copy " + std::to_string(byte_count) + " bytes from " + src + " to " + dst);
-  int i = 0;
-  for (; i + 8 <= byte_count; i += 8) {
-    add_asm_line(aw, "movq "s + std::to_string(i) + "(%" + src + "), %" + scratch);
-    add_asm_line(aw, "movq %" + scratch + ", "s + std::to_string(i) + "(%" + dst + ")");
-  }
-  if (i + 4 <= byte_count) {
-    add_asm_line(aw, "movl "s + std::to_string(i) + "(%" + src + "), %" + scratch + "d");
-    add_asm_line(aw, "movl %" + scratch + "d, "s + std::to_string(i) + "(%" + dst + ")");
-    i += 4;
-  }
-  if (i + 2 <= byte_count) {
-    add_asm_line(aw, "movw "s + std::to_string(i) + "(%" + src + "), %" + scratch + "w");
-    add_asm_line(aw, "movw %" + scratch + "w, "s + std::to_string(i) + "(%" + dst + ")");
-    i += 2;
-  }
-  if (i < byte_count) {
-    add_asm_line(aw, "movb "s + std::to_string(i) + "(%" + src + "), %" + scratch + "b");
-    add_asm_line(aw, "movb %" + scratch + "b, "s + std::to_string(i) + "(%" + dst + ")");
+  if (arch == Arch::X86) {
+    int i = 0;
+    for (; i + 8 <= byte_count; i += 8) {
+      add_asm_line(aw, "movq "s + std::to_string(i + offset) + "(%" + src + "), %" + scratch);
+      add_asm_line(aw, "movq %" + scratch + ", "s + std::to_string(i) + "(%" + dst + ")");
+    }
+    if (i + 4 <= byte_count) {
+      add_asm_line(aw, "movl "s + std::to_string(i + offset) + "(%" + src + "), %" + scratch + "d");
+      add_asm_line(aw, "movl %" + scratch + "d, "s + std::to_string(i) + "(%" + dst + ")");
+      i += 4;
+    }
+    if (i + 2 <= byte_count) {
+      add_asm_line(aw, "movw "s + std::to_string(i + offset) + "(%" + src + "), %" + scratch + "w");
+      add_asm_line(aw, "movw %" + scratch + "w, "s + std::to_string(i) + "(%" + dst + ")");
+      i += 2;
+    }
+    if (i < byte_count) {
+      add_asm_line(aw, "movb "s + std::to_string(i + offset) + "(%" + src + "), %" + scratch + "b");
+      add_asm_line(aw, "movb %" + scratch + "b, "s + std::to_string(i) + "(%" + dst + ")");
+    }
+  } else if (arch == Arch::Aarch64) {
+    auto halfreg = "W"s + scratch.substr(1);
+    int i = 0;
+    for (; i + 8 <= byte_count; i += 8) {
+      add_asm_line(aw, "ldr "s + scratch + ", [" + src + ", #" + std::to_string(i + offset) + "]");
+      add_asm_line(aw, "str "s + scratch + ", [" + dst + ", #" + std::to_string(i) + "]");
+    }
+    if (i + 4 <= byte_count) {
+      add_asm_line(aw, "ldr "s + halfreg + ", [" + src + ", #" + std::to_string(i + offset) + "]");
+      add_asm_line(aw, "str "s + halfreg + ", [" + dst + ", #" + std::to_string(i) + "]");
+      i += 4;
+    }
+    if (i + 2 <= byte_count) {
+      add_asm_line(aw, "ldrh "s + halfreg + ", [" + src + ", #" + std::to_string(i + offset) + "]");
+      add_asm_line(aw, "strh "s + halfreg + ", [" + dst + ", #" + std::to_string(i) + "]");
+      i += 2;
+    }
+    if (i < byte_count) {
+      add_asm_line(aw, "ldrb "s + halfreg + ", [" + src + ", #" + std::to_string(i + offset) + "]");
+      add_asm_line(aw, "strb "s + halfreg + ", [" + dst + ", #" + std::to_string(i) + "]");
+    }
   }
 }
 
@@ -410,7 +444,7 @@ static void x86_emit_intermediate_pkru(AsmWriter &aw, uint32_t caller_pkey, uint
   add_asm_line(aw, restoreline2);
 }
 
-static void emit_copy_args(AsmWriter &aw, size_t stack_return_size, size_t stack_return_padding, int stack_alignment, size_t stack_arg_size, size_t stack_arg_padding, uint32_t caller_pkey, Arch arch) {
+static void emit_copy_args(AsmWriter &aw, const std::vector<ArgLocation> &args, size_t stack_return_size, size_t stack_return_padding, int stack_alignment, size_t stack_arg_size, size_t stack_arg_padding, uint32_t caller_pkey, Arch arch) {
   if (arch == Arch::X86) {
     // When returning via memory, the address of the return value is passed in
     // rdi. Since this memory belongs to the caller, we first allocate space for
@@ -462,36 +496,67 @@ static void emit_copy_args(AsmWriter &aw, size_t stack_return_size, size_t stack
       }
     }
   } else if (arch == Arch::Aarch64) {
+    size_t indirect_arg_size = 0;
+    for (auto &arg : args) {
+      if (arg.is_indirect()) {
+        size_t align = std::max(arg.align(), (size_t)8);
+        if (stack_arg_size % align != 0) {
+          indirect_arg_size += align - (stack_arg_size % align);
+        }
+        indirect_arg_size += arg.size();
+      }
+    }
+    size_t total_stack_size = stack_return_size + stack_return_padding + indirect_arg_size + stack_arg_size + stack_arg_padding;
+    if (total_stack_size > 0) {
+      add_comment_line(
+          aw, "Allocate space on the compartment's stack for stack return and/or args");
+      add_asm_line(aw, "sub sp, sp, #" + std::to_string(total_stack_size));
+    }
+    size_t stack_args_start = 0;
+    size_t indirect_args_start = stack_arg_size + stack_arg_padding;
+    size_t stack_return_saved_ptr_offset = indirect_args_start + indirect_arg_size;
+    size_t stack_return_start = indirect_args_start + indirect_arg_size + 8;
+
     // Same as for X86 above, we allocate space for the return value and push x8
     // onto the stack so we can point it at the new stack return slot.
     if (stack_return_size > 0) {
-      add_comment_line(
-          aw, "Allocate space on the compartment's stack for the return value (including the slot for the return value pointer)");
-      size_t padded_return_size = stack_return_size + stack_return_padding + 8;
-      add_asm_line(aw, "sub sp, sp, #" + std::to_string(padded_return_size));
+      // stack_return_size already includes space to save the old address
       add_comment_line(aw, "Save address of the caller's return value");
-      add_asm_line(aw, "str x8, [sp, #0]");
+      add_asm_line(aw, "str x8, [sp, #" + std::to_string(stack_return_saved_ptr_offset) + "]");
       add_comment_line(aw, "Set x8 to the compartment's return value memory");
       // The new return value is 8 bytes above the bottom of the stack so we need
       // to add 8 to x8
-      add_asm_line(aw, "add x8, sp, #8");
+      add_asm_line(aw, "add x8, sp, #" + std::to_string(stack_return_start));
     }
 
     // Copy stack args to target stack
     if (stack_arg_size > 0) {
       add_comment_line(
           aw, "Copy stack arguments from the caller's stack to the compartment");
-      // Load addr of top of caller compartment's stack into x10, clobbering x9
-      size_t caller_stack_size =
-          stack_arg_size + ((aarch64_preserved_registers.size() + 1) * 8);
-      // TODO(security): We copy an extra word here if we are passing an odd
-      // number of words, leaking that stack value.
-      for (int i = 0; i < stack_arg_size; i += 16) {
-        add_asm_line(aw, "ldp x9, x10, [x12, #" + std::to_string(caller_stack_size - i) + "]");
-        add_asm_line(aw, "stp x9, x10, [sp, #-16]!");
+      size_t src_offset = ((aarch64_preserved_registers.size() + 2) * 8);
+      emit_memcpy(aw, stack_arg_size, "sp", "x12", "x9", src_offset, arch);
+    }
+
+    size_t indirect_arg_current_offset = 0;
+    for (auto &arg : args) {
+      if (arg.is_indirect()) {
+        // We can't guarantee more than 16-byte alignment for the stack.
+        assert(arg.align() <= 16);
+        if (indirect_arg_current_offset % arg.align() != 0) {
+          indirect_arg_current_offset += arg.align() - (indirect_arg_current_offset % arg.align());
+        }
+        if (arg.is_stack()) {
+          add_asm_line(aw, "ldr x10, [sp, #" + std::to_string(arg.stack_offset()) + "]");
+          add_asm_line(aw, "add x9, sp, #" + std::to_string(indirect_arg_current_offset));
+          emit_memcpy(aw, arg.size(), "x9", "x10", "x11", 0, arch);
+          add_asm_line(aw, "str x9, [sp, #" + std::to_string(arg.stack_offset()) + "]");
+        } else {
+          add_asm_line(aw, "mov x10, "s + arg.as_str());
+          add_asm_line(aw, "add "s + arg.as_str() + ", sp, #" + std::to_string(indirect_arg_current_offset));
+          emit_memcpy(aw, arg.size(), arg.as_str(), "x10", "x11", 0, arch);
+        }
+        indirect_arg_current_offset += arg.size();
       }
-      // TODO(sjc): We need to handle memory composite args better here.
-      add_asm_line(aw, "mov x0, sp");
     }
   }
 }
@@ -535,8 +600,7 @@ static void emit_free_stack_space(AsmWriter &aw, size_t stack_size, Arch arch) {
     // Free stack space used for stack args on the target stack
     add_asm_line(aw, "addq $"s + std::to_string(stack_size) + ", %rsp");
   } else if (arch == Arch::Aarch64) {
-    // TODO ARM free stack space
-    llvm::errs() << "TODO stack space freeing not implemented on ARM\n";
+    add_asm_line(aw, "add sp, sp, #" + std::to_string(stack_size));
   }
 }
 
@@ -556,7 +620,7 @@ static void emit_copy_stack_returns(AsmWriter &aw, size_t stack_return_size, siz
                        "Copy "s + std::to_string(stack_return_size) +
                            " bytes for the return value to the caller's stack");
 
-      emit_memcpy(aw, stack_return_size, "rax", "rsp", "r10");
+      emit_memcpy(aw, stack_return_size, "rax", "rsp", "r10", 0, arch);
 
       add_asm_line(aw, "addq $"s + std::to_string(stack_return_size + stack_return_padding) + ", %rsp");
     }
@@ -620,7 +684,7 @@ static void emit_scrub_regs(AsmWriter &aw, uint32_t pkey, const std::vector<ArgL
       auto reg = regs_64bit.begin();
       for (; reg != regs_64bit.end(); reg++) {
         auto reg1 = *reg;
-        if (reg+1 == regs_64bit.end()) {
+        if (reg + 1 == regs_64bit.end()) {
           break;
         }
         reg++;
@@ -726,7 +790,7 @@ std::string emit_asm_wrapper(AbiSignature &sig,
                                          [](auto &x) { return x.is_stack(); });
   size_t stack_arg_size = 0;
   for (const auto &x : sig.args) {
-    if (x.is_stack()) {
+    if (x.is_stack() || x.is_indirect()) {
       // All stack arguments must be 8-byte aligned
       size_t align = std::max(x.align(), (size_t)8);
       if (stack_arg_size % align != 0) {
@@ -742,7 +806,7 @@ std::string emit_asm_wrapper(AbiSignature &sig,
   allocate_return_locations(sig, arch);
   size_t stack_return_size = 0;
   for (const auto &x : sig.ret) {
-    if (x.is_stack()) {
+    if (x.is_stack() || x.is_indirect()) {
       stack_return_size += x.size();
     }
   }
@@ -796,11 +860,14 @@ std::string emit_asm_wrapper(AbiSignature &sig,
     |ret  |space is only allocated if the pointer to the caller's return value
     |space|memory is also placed on the compartment's stack.
     +-----+
+    |ret  |A pointer saving the caller's address for return value. Only added if
+    |ptr  |using ret space. Saves the previous value of x8.
+    +-----+
     |ind  |Padding for alignment prior to the indirect args
-    |args |as such memory must be 16B aligned.
+    |args |as such memory must be 16B aligned. (TODO: verify this)
     |align|
     +-----+
-    |ind  |Space for arguments passed indirectly (i.e. in memory). These arguments 
+    |ind  |Space for arguments passed indirectly (i.e. in memory). These arguments
     |args |will point to this region.
     +-----+
     |     |8 bytes for alignment. If the size of the other items on the stack
@@ -870,7 +937,7 @@ std::string emit_asm_wrapper(AbiSignature &sig,
 
   emit_switch_stacks(aw, caller_pkey, target_pkey, arch);
 
-  emit_copy_args(aw, stack_return_size, stack_return_padding, stack_alignment, stack_arg_size, stack_arg_padding, caller_pkey, arch);
+  emit_copy_args(aw, sig.args, stack_return_size, stack_return_padding, stack_alignment, stack_arg_size, stack_arg_padding, caller_pkey, arch);
 
   emit_scrub_regs(aw, caller_pkey, sig.args, reg_arg_count > 0, arch);
 

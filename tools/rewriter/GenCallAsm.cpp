@@ -646,10 +646,6 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
   size_t stack_return_align = 16;
   size_t stack_return_padding = 0;
   size_t start_of_ret_space = 0;
-  if (kind == WrapperKind::IndirectCallsite) {
-    // Count the space for the function pointer if the call is indirect.
-    start_of_ret_space += 8;
-  }
 
   if (stack_return_size > 0) {
     // If we have a stack return, we also have to save the old ret ptr, which

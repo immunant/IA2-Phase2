@@ -61,15 +61,9 @@ abiSlotsForArg(const clang::QualType &qt,
       const clang::RecordDecl *decl = rec->getDecl();
       const clang::ASTRecordLayout &layout =
           astContext.getASTRecordLayout(decl);
-      if (argInfo.getInReg()) {
-        return {ArgLocation::IndirectInRegister(
-            layout.getSize().getQuantity(),
-            layout.getAlignment().getQuantity())};
-      } else {
-        return {ArgLocation::Stack(
-            layout.getSize().getQuantity(),
-            layout.getAlignment().getQuantity())};
-      }
+      return {ArgLocation::Indirect(
+          layout.getSize().getQuantity(),
+          layout.getAlignment().getQuantity())};
     }
   }
   // in register with zext/sext

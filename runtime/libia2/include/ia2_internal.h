@@ -73,7 +73,7 @@ instead of `fn`. */
 
 /* clang-format can't handle inline asm in macros */
 /* clang-format off */
-#if __x86_64__
+#if defined(__x86_64__)
 #define _IA2_DEFINE_SIGNAL_HANDLER(function, pkey)    \
     __asm__(".global ia2_sighandler_" #function "\n"  \
             "ia2_sighandler_" #function ":\n"         \
@@ -88,7 +88,7 @@ instead of `fn`. */
             "movq %r11, %rdx\n"                       \
             "movq %r10, %rcx\n"                       \
             "jmp " #function "\n")
-#elif __aarch64__
+#elif defined(__aarch64__)
 #define _IA2_DEFINE_SIGNAL_HANDLER(function, tag)    \
     __asm__(".global ia2_sighandler_" #function "\n" \
             "ia2_sighandler_" #function ":\n"        \
@@ -169,7 +169,7 @@ asm(".macro movz_shifted_tag_x18 tag\n"
 
 #define IA2_ROUND_DOWN(x, y) ((x) & ~((y)-1))
 
-#if __x86_64__
+#if defined(__x86_64__)
 /* clang-format can't handle inline asm in macros */
 /* clang-format off */
 /* Allocate and protect the stack for this thread's i'th compartment. */
@@ -228,7 +228,7 @@ asm(".macro movz_shifted_tag_x18 tag\n"
         : "rdi", "rcx", "rdx", "r10", "r11", "r12");                           \
   }
 /* clang-format on */
-#elif __aarch64__
+#elif defined(__aarch64__)
 #warning "ALLOCATE_COMPARTMENT_STACK_AND_SETUP_TLS does not do stackptr reinit checking"
 #define ALLOCATE_COMPARTMENT_STACK_AND_SETUP_TLS(i)                            \
   {                                                                            \
@@ -268,7 +268,7 @@ asm(".macro movz_shifted_tag_x18 tag\n"
   }
 #endif
 
-#if __x86_64__
+#if defined(__x86_64__)
 #define return_stackptr_if_compartment(compartment)                            \
   if (pkru == PKRU(compartment)) {                                             \
     register void *out asm("rax");                                             \
@@ -280,7 +280,7 @@ asm(".macro movz_shifted_tag_x18 tag\n"
         :);                                                                    \
     return out;                                                                \
   }
-#elif __aarch64__
+#elif defined(__aarch64__)
 #warning "libia2 does not implement return_stackptr_if_compartment yet"
 #define return_stackptr_if_compartment(compartment)
 #endif
@@ -297,9 +297,9 @@ works as a reasonable signpost no-op. */
   void ia2_setup_destructors_##n(void);                                        \
   ia2_setup_destructors_##n();
 
-#if __aarch64__
+#if defined(__aarch64__)
 int ia2_mprotect_with_tag(void *addr, size_t len, int prot, int tag);
-#elif __x86_64__
+#elif defined(__x86_64__)
 /* We can't use an alias attribute since this points to a function outside the translation unit */
 #define ia2_mprotect_with_tag pkey_mprotect
 #endif

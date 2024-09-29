@@ -11,7 +11,7 @@ int __wrap_main(int argc, char **argv);
 __asm__(
     ".global __wrap_main\n"
     "__wrap_main:\n"
-#if __x86_64__
+#if defined(__x86_64__)
     "pushq %rbp\n"
     "movq %rsp, %rbp\n"
     // Save the old stack pointer in main_sp.
@@ -41,7 +41,7 @@ __asm__(
     "mov %r10,%rax\n"
     "popq %rbp\n"
     "ret\n"
-#elif __aarch64__
+#elif defined(__aarch64__)
     // prologue
     "stp x29, x30, [sp, #-16]!\n"
     "mov x29, sp\n"

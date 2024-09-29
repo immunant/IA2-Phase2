@@ -45,7 +45,7 @@ void verify_tls_padding(void) {
 
 /* Ensure that all required pkeys are allocated or no-op on aarch64. */
 void ensure_pkeys_allocated(int *n_to_alloc) {
-#if __x86_64__
+#if defined(__x86_64__)
   if (*n_to_alloc != 0) {
     for (int pkey = 1; pkey <= *n_to_alloc; pkey++) {
       int allocated = pkey_alloc(0, 0);

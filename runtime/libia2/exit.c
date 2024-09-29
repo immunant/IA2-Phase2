@@ -17,9 +17,9 @@ void _exit(int status);
 __asm__(
     ".global _exit\n"
     "_exit:\n"
-#if __x86_64__
+#if defined(__x86_64__)
     "jmp exit\n"
-#elif __aarch64__
+#elif defined(__aarch64__)
     "b exit\n"
 #endif
 );
@@ -29,7 +29,7 @@ void exit(int status);
 __asm__(
     ".global exit\n"
     "exit:\n"
-#if __x86_64__
+#if defined(__x86_64__)
     "pushq %rbp\n"
     "movq %rsp, %rbp\n"
     // Load the stack pointer for the shared compartment's stack.
@@ -44,7 +44,7 @@ __asm__(
     "subq $8, %rsp\n"
     // Call the real exit function.
     "call call_libc_exit\n"
-#elif __aarch64__
+#elif defined(__aarch64__)
     "stp x29, x30, [sp, #-16]!\n"
     // Load the stack pointer for the shared compartment's stack.
     "mrs x9, tpidr_el0\n"

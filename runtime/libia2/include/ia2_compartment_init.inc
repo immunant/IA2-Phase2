@@ -66,7 +66,7 @@ __attribute__((constructor)) static void COMPARTMENT_IDENT(init_pkey)() {
       .shared_sections = shared_sections,
   };
 
-#if __x86_64__
+#if defined(__x86_64__)
   __asm__ volatile(
       /* Set PKRU to the compartment's value */
       "xorl %%ecx, %%ecx\n"
@@ -76,13 +76,13 @@ __attribute__((constructor)) static void COMPARTMENT_IDENT(init_pkey)() {
       :
       :
       : "rax", "rcx", "rdx");
-#elif __aarch64__
+#elif defined(__aarch64__)
   __asm__ volatile("movz_shifted_tag_x18 " XSTR(IA2_COMPARTMENT) "\n");
 #endif
 
   dl_iterate_phdr(protect_pages, &args);
 
-#if __x86_64__
+#if defined(__x86_64__)
   __asm__ volatile(
       /* Set PKRU to fully untrusted (no access) */
       "xorl %%ecx, %%ecx\n"
@@ -92,7 +92,7 @@ __attribute__((constructor)) static void COMPARTMENT_IDENT(init_pkey)() {
       :
       :
       : "rax", "rcx", "rdx");
-#elif __aarch64__
+#elif defined(__aarch64__)
   __asm__ volatile("movz_shifted_tag_x18 0\n");
 #endif
 

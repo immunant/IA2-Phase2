@@ -29,7 +29,7 @@ void *ia2_thread_begin(void *arg) {
    * data. */
   /*  sigaltstack(&alt_stack, NULL); */
 
-#if LIBIA2_X86_64
+#if defined(__x86_64__)
   /* Determine the current compartment so know which stack to use. */
   uint32_t pkru = 0;
   __asm__ volatile(
@@ -69,7 +69,7 @@ void *ia2_thread_begin(void *arg) {
       : "rdi");
   /* clang-format on */
   return result;
-#elif LIBIA2_AARCH64
+#elif defined(__aarch64__)
 #warning "libia2 does not implement ia2_thread_begin yet"
   __builtin_trap();
 #endif

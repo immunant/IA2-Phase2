@@ -51,7 +51,7 @@ char *sighandler_sp __attribute__((section("ia2_shared_data"))) =
 // This function must be declared naked because it's not necessarily safe for it
 // to write to the stack in its prelude (the stack isn't written to when the
 // function itself is called because it's only invoked as a signal handler).
-#if LIBIA2_X86_64
+#if defined(__x86_64__)
 __attribute__((naked)) void handle_segfault(int sig) {
   // This asm must preserve %rdi which contains the argument since
   // print_mpk_message reads it
@@ -69,7 +69,7 @@ __attribute__((naked)) void handle_segfault(int sig) {
       "movq (%rsp), %rsp\n"
       "callq print_mpk_message");
 }
-#elif LIBIA2_AARCH64
+#elif defined(__aarch64__)
 #warning "Review test_fault_handler implementation after enabling x18 switching"
 void print_mpk_message(int sig);
 void handle_segfault(int sig) {

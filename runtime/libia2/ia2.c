@@ -8,7 +8,7 @@
 #include "ia2_internal.h"
 #include "ia2.h"
 
-#if LIBIA2_X86_64
+#if __x86_64__
 
 __attribute__((__used__)) uint32_t ia2_get_pkru() {
   uint32_t pkru = 0;
@@ -81,7 +81,7 @@ size_t ia2_get_pkey() {
 }
 size_t ia2_get_tag(void) __attribute__((alias("ia2_get_pkey")));
 
-#elif LIBIA2_AARCH64
+#elif __aarch64__
 
 size_t ia2_get_x18(void) {
     size_t x18;

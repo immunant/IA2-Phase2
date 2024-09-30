@@ -90,7 +90,7 @@ target_include_directories(partition-alloc_unpadded BEFORE
     ${EXTERNAL_DIR}/chromium/src)
 
 # Propagage ARM64 define
-if(LIBIA2_AARCH64)
+if (LIBIA2_AARCH64)
     target_compile_options(partition-alloc_unpadded
     PRIVATE
         "-DARCH_CPU_ARM64"

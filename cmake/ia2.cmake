@@ -1,4 +1,4 @@
-if(LIBIA2_AARCH64)
+if (LIBIA2_AARCH64)
     set(UBSAN_FLAG "")
 else()
     set(UBSAN_FLAG "-fsanitize=undefined")

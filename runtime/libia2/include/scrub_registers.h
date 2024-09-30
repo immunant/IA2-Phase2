@@ -1,4 +1,4 @@
-#if LIBIA2_X86_64
+#if __x86_64__
 // This file defines the feature specific scrub routines.
 //
 // This is implemented via the fairly standard fallthrough approach, and
@@ -71,6 +71,6 @@ asm(".text\n"
     "jmp __libia2_scrub_registers_sse\n"
     "int3\n"
     ".previous\n");
-#elif LIBIA2_AARCH64
+#elif __aarch64__
 #warning "__libia2_scrub_registers is not implemented for aarch64 yet"
 #endif

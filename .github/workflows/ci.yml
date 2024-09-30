@@ -6,8 +6,6 @@ on:
       - main
       - github-actions*
   pull_request:
-    branches:
-      - main
 
 jobs:
   test-on-pkru-enabled-host:

@@ -146,7 +146,7 @@ COMPARTMENT_IDENT(ia2_compartment_destructor)(void) {
 
   void (**fini_array)(void) = (void (**)(void))(((uint8_t *)&__ehdr_start) +
                                                 finalizers.fini_array_offset);
-  for (int i = 0; i < (finalizers.fini_array_size / sizeof(void *)); i++) {
+  for (size_t i = 0; i < (finalizers.fini_array_size / sizeof(void *)); i++) {
     fini_array[i]();
   }
   if (finalizers.fini_offset) {
@@ -199,7 +199,7 @@ void COMPARTMENT_IDENT(ia2_setup_destructors)(void) {
     fprintf(stderr, "Failed to set relro section writable: %d\n", res);
     exit(1);
   }
-  for (int i = 0; i < dynamic_phdr->p_memsz / sizeof(Elf64_Dyn); i++) {
+  for (size_t i = 0; i < dynamic_phdr->p_memsz / sizeof(Elf64_Dyn); i++) {
     if (dynamic[i].d_tag == DT_FINI || dynamic[i].d_tag == DT_FINI_ARRAY ||
         dynamic[i].d_tag == DT_FINI_ARRAYSZ) {
       uintptr_t dynamic_entry_addr = (uintptr_t)&dynamic[i].d_un.d_val;

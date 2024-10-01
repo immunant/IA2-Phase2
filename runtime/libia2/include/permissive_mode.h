@@ -318,7 +318,7 @@ int elfaddr(const void *addr, Dl_info *info) {
   }
 
   best = NULL;
-  for (i = 0; i < fp->f_symcnt; i++) {
+  for (size_t i = 0; i < fp->f_symcnt; i++) {
     Elf64_Sym *sym = &fp->f_symtab[i];
     if (fp->f_strtab[sym->st_name] == '\0')
       continue;

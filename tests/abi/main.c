@@ -23,7 +23,8 @@ Test(abi, main) {
     struct in_memory im = {0};
     im.arr[0] = 1;
     arg_in_memory(im);
-    im = ret_in_memory(1);
+    im = ret_in_memory(2);
+    cr_assert(2 == im.arr[0]);
     cr_assert(1 == return_val());
 
     fn_ptr_ret_in_mem fn = ret_in_memory;

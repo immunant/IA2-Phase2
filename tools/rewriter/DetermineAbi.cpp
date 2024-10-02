@@ -27,11 +27,12 @@
 #define DEBUG(X) do { } while (0)
 #endif
 
-static ArgLocation::Kind classifyScalarType(const llvm::Type &type) {
+static ArgLocation classifyScalarType(const llvm::Type &type) {
+  auto Size = type.getScalarSizeInBits() / 8;
   if (type.isFloatingPointTy()) {
-    return ArgLocation::Kind::Float;
+    return ArgLocation::Register(ArgLocation::Kind::Float, Size);
   } else if (type.isIntOrPtrTy()) {
-    return ArgLocation::Kind::Integral;
+    return ArgLocation::Register(ArgLocation::Kind::Integral, Size);
   } else if (type.isAggregateType()) {
     llvm::report_fatal_error("nested aggregates not currently handled");
   } else {
@@ -64,6 +65,8 @@ abiSlotsForArg(const clang::QualType &qt,
       return {ArgLocation::Indirect(
           layout.getSize().getQuantity(),
           layout.getAlignment().getQuantity())};
+    } else {
+      llvm::report_fatal_error("indirect argument not a struct");
     }
   }
   // in register with zext/sext
@@ -81,7 +84,7 @@ abiSlotsForArg(const clang::QualType &qt,
         auto elems = STy->elements();
         std::vector<ArgLocation> out = {};
         for (const auto &elem : elems) {
-          out.push_back(ArgLocation::Register(classifyScalarType(*elem)));
+          out.push_back(classifyScalarType(*elem));
         }
         return out;
       } else {
@@ -91,15 +94,15 @@ abiSlotsForArg(const clang::QualType &qt,
     llvm::ArrayType *ATy = llvm::dyn_cast<llvm::ArrayType>(Ty);
     if (ATy) {
       // Array case
-      return std::vector(ATy->getNumElements(), ArgLocation::Register(classifyScalarType(*ATy->getElementType())));
+      return std::vector(ATy->getNumElements(), classifyScalarType(*ATy->getElementType()));
     }
     llvm::FixedVectorType *VTy = llvm::dyn_cast<llvm::FixedVectorType>(Ty);
     if (VTy) {
       // Vector case
-      return std::vector(VTy->getNumElements(), ArgLocation::Register(classifyScalarType(*VTy->getElementType())));
+      return std::vector(VTy->getNumElements(), classifyScalarType(*VTy->getElementType()));
     }
     // We have a scalar type, so classify it.
-    return {ArgLocation::Register(classifyScalarType(*Ty))};
+    return {classifyScalarType(*Ty)};
   }
   case Kind::Ignore:   // no ABI presence
     return {};

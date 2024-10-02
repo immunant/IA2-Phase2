@@ -44,9 +44,10 @@ const std::array<const char *, 10> aarch64_preserved_registers = {"x19", "x20", 
 
 /// Compute abi locations for parameters of a C-abi function, given its sequence
 /// of argument kinds.
-void allocate_param_locations(AbiSignature &func, Arch arch) {
+std::vector<ArgLocation> allocate_param_locations(const AbiSignature &func, Arch arch) {
   const auto &int_param_reg_order = (arch == Arch::X86) ? x86_int_param_reg_order : arm_int_param_reg_order;
   const auto &float_reg_order = (arch == Arch::X86) ? x86_float_reg_order : arm_float_reg_order;
+  std::vector<ArgLocation> args;
   size_t ints_used = 0;
   size_t memory_return_slots =
       std::count_if(func.ret.begin(), func.ret.end(),
@@ -55,40 +56,51 @@ void allocate_param_locations(AbiSignature &func, Arch arch) {
     if (arch == Arch::X86) {
       // if the return is in memory, the first integer argument is the location to
       // write the return value
-      func.args.insert(func.args.begin(), ArgLocation::Register(ArgLocation::Kind::Integral));
+      auto ptr_arg = ArgLocation::Register(ArgLocation::Kind::Integral, 8);
+      ptr_arg.allocate_reg(int_param_reg_order[ints_used]);
+      args.push_back(ptr_arg);
+      ints_used += 1;
     } else if (arch == Arch::Aarch64) {
       // memory return goes in x8
-      auto ptr_arg = ArgLocation::Register(ArgLocation::Kind::Integral);
+      auto ptr_arg = ArgLocation::Register(ArgLocation::Kind::Integral, 8);
       ptr_arg.allocate_reg("x8");
-      func.args.insert(func.args.begin(), ptr_arg);
+      args.push_back(ptr_arg);
     }
   }
   size_t stack_offset = 0;
   size_t floats_used = 0;
-  for (auto &arg : func.args) {
-    if (arg.is_allocated()) {
-      // x8 allocated explicitly above
-      assert(arg.as_str() == "x8");
-      continue;
-    }
+  for (auto arg : func.args) {
     switch (arg.kind()) {
     case ArgLocation::Kind::Integral: {
-      if (ints_used < int_param_reg_order.size()) {
+      if ((arg.size() <= 8 || arg.is_indirect()) && ints_used < int_param_reg_order.size()) {
         arg.allocate_reg(int_param_reg_order[ints_used]);
+        args.push_back(arg);
         ints_used += 1;
+      } else if (ints_used + 1 < int_param_reg_order.size()) {
+        assert(arg.size() == 16);
+        assert(!arg.is_indirect());
+        for (int i = 0; i < 2; i++) {
+          auto half_arg = ArgLocation::Register(ArgLocation::Kind::Integral, 8);
+          half_arg.allocate_reg(int_param_reg_order[ints_used]);
+          args.push_back(half_arg);
+          ints_used += 1;
+        }
       } else {
         arg.allocate_stack(stack_offset);
-        stack_offset += 8;
+        args.push_back(arg);
+        stack_offset += arg.is_indirect() ? 8 : arg.size();
       }
       break;
     }
     case ArgLocation::Kind::Float: {
       if (floats_used < float_reg_order.size()) {
         arg.allocate_reg(float_reg_order[floats_used]);
+        args.push_back(arg);
         floats_used += 1;
       } else {
         arg.allocate_stack(stack_offset);
-        stack_offset += 8;
+        args.push_back(arg);
+        stack_offset += arg.size();
       }
       break;
     }
@@ -98,6 +110,7 @@ void allocate_param_locations(AbiSignature &func, Arch arch) {
         stack_offset += arg.align() - stack_offset % arg.align();
       }
       arg.allocate_stack(stack_offset);
+      args.push_back(arg);
       stack_offset += arg.size();
       if (stack_offset % 8 != 0) {
         stack_offset += 8 - stack_offset % 8;
@@ -106,23 +119,40 @@ void allocate_param_locations(AbiSignature &func, Arch arch) {
     }
     }
   }
+  return args;
 }
 
-void allocate_return_locations(AbiSignature &func, Arch arch) {
+std::vector<ArgLocation> allocate_return_locations(const AbiSignature &func, Arch arch) {
   const auto &int_ret_reg_order = (arch == Arch::X86) ? x86_int_ret_reg_order : arm_int_ret_reg_order;
   const auto &float_reg_order = (arch == Arch::X86) ? x86_float_reg_order : arm_float_reg_order;
 
+  std::vector<ArgLocation> args;
   size_t ints_used = 0;
   size_t floats_used = 0;
-  for (auto &arg : func.ret) {
+  for (auto arg : func.ret) {
     switch (arg.kind()) {
     case ArgLocation::Kind::Integral:
-      arg.allocate_reg(int_ret_reg_order[ints_used]);
-      ints_used += 1;
-      break;
+      if (arg.size() <= 8 || arg.is_indirect()) {
+        assert(ints_used < int_ret_reg_order.size());
+        arg.allocate_reg(int_ret_reg_order[ints_used]);
+        args.push_back(arg);
+        ints_used += 1;
+        break;
+      } else {
+        assert(arg.size() == 16);
+        assert(!arg.is_indirect());
+        assert(ints_used + 1 < int_ret_reg_order.size());
+        for (int i = 0; i < 2; i++) {
+          auto half_arg = ArgLocation::Register(ArgLocation::Kind::Integral, 8);
+          half_arg.allocate_reg(int_ret_reg_order[ints_used]);
+          args.push_back(half_arg);
+          ints_used += 1;
+        }
+      }
     case ArgLocation::Kind::Float:
       // TODO: handle x87 in st0 and complex x87 in st0+st1
       arg.allocate_reg(float_reg_order[floats_used]);
+      args.push_back(arg);
       floats_used += 1;
       break;
     case ArgLocation::Kind::Memory:
@@ -131,10 +161,12 @@ void allocate_return_locations(AbiSignature &func, Arch arch) {
         assert(ints_used == 0);
         arg.allocate_reg(int_ret_reg_order[ints_used]);
         arg.set_indirect_on_stack();
+        args.push_back(arg);
       }
       break;
     }
   }
+  return args;
 }
 
 #define INDENT "    "
@@ -806,11 +838,11 @@ std::string emit_asm_wrapper(AbiSignature &sig,
   assert(caller_pkey != target_pkey);
 
   AsmWriter aw = get_asmwriter(as_macro);
-  allocate_param_locations(sig, arch);
-  size_t stack_arg_count = std::count_if(sig.args.begin(), sig.args.end(),
+  auto args = allocate_param_locations(sig, arch);
+  size_t stack_arg_count = std::count_if(args.begin(), args.end(),
                                          [](auto &x) { return x.is_stack(); });
   size_t stack_arg_size = 0;
-  for (const auto &x : sig.args) {
+  for (const auto &x : args) {
     if (x.is_stack() || x.is_indirect()) {
       // All stack arguments must be 8-byte aligned
       size_t align = std::max(x.align(), (size_t)8);
@@ -822,11 +854,11 @@ std::string emit_asm_wrapper(AbiSignature &sig,
   }
   size_t unaligned = stack_arg_size % 8;
   size_t stack_arg_padding = unaligned != 0 ? 8 - unaligned : 0;
-  size_t reg_arg_count = sig.args.size() - stack_arg_count;
+  size_t reg_arg_count = args.size() - stack_arg_count;
 
-  allocate_return_locations(sig, arch);
+  auto rets = allocate_return_locations(sig, arch);
   size_t stack_return_size = 0;
-  for (const auto &x : sig.ret) {
+  for (const auto &x : rets) {
     if (x.is_stack() || x.is_indirect()) {
       stack_return_size += x.size();
     }
@@ -961,9 +993,9 @@ std::string emit_asm_wrapper(AbiSignature &sig,
 
   emit_switch_stacks(aw, caller_pkey, target_pkey, arch);
 
-  emit_copy_args(aw, sig.args, stack_return_size, stack_return_padding, stack_alignment, stack_arg_size, stack_arg_padding, caller_pkey, arch);
+  emit_copy_args(aw, args, stack_return_size, stack_return_padding, stack_alignment, stack_arg_size, stack_arg_padding, caller_pkey, arch);
 
-  emit_scrub_regs(aw, caller_pkey, sig.args, reg_arg_count > 0, arch);
+  emit_scrub_regs(aw, caller_pkey, args, reg_arg_count > 0, arch);
 
   if (kind == WrapperKind::IndirectCallsite) {
     emit_load_fn_ptr(aw, arch);
@@ -983,7 +1015,7 @@ std::string emit_asm_wrapper(AbiSignature &sig,
 
   emit_switch_stacks(aw, target_pkey, caller_pkey, arch);
 
-  emit_scrub_regs(aw, target_pkey, sig.ret, true, arch);
+  emit_scrub_regs(aw, target_pkey, rets, true, arch);
 
   emit_set_return_pkru(aw, caller_pkey, arch);
 

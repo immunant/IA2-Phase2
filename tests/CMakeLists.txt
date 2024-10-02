@@ -54,10 +54,13 @@ add_subdirectory(recursion)
 # We don't actually compile the `omit_wrappers` test, but it is picked up by LIT.
 add_subdirectory(shared_data)
 add_subdirectory(global_fn_ptr)
+add_subdirectory(read_config)
+add_subdirectory(rewrite_fn_ptr_eq)
 add_subdirectory(rewrite_macros)
 add_subdirectory(sighandler)
-
+add_subdirectory(simple1)
 add_subdirectory(structs)
+
 # The following tests are not supported on ARM64 yet
 if (NOT LIBIA2_AARCH64)
     # Expected to have compartment violations, but we aren't enforcing yet:
@@ -68,23 +71,19 @@ if (NOT LIBIA2_AARCH64)
     add_subdirectory(untrusted_indirect)
     add_subdirectory(two_keys_minimal)
     add_subdirectory(two_shared_ranges)
+    add_subdirectory(trusted_indirect)
     # TODO(#413): Fix these tests
     add_subdirectory(heap_two_keys)
     add_subdirectory(three_keys_minimal)
 
-    # strange bug with indirect calls
-    add_subdirectory(read_config)
+    # test calls PKRU-specific functions
+    add_subdirectory(mmap_loop)
+    add_subdirectory(tls_protected)
+
     # ARM does not support threads yet
     add_subdirectory(threads)
     add_subdirectory(protected_threads)
-    # test calls PKRU-specific functions for logging
-    add_subdirectory(tls_protected)
+    
     # no permissive mode on ARM
     add_subdirectory(permissive_mode)
-    # not sure why this is failing
-    add_subdirectory(mmap_loop)
-    # we don't support call gates for indirect transitions yet
-    add_subdirectory(simple1)
-    add_subdirectory(trusted_indirect)
-    add_subdirectory(rewrite_fn_ptr_eq)
 endif()

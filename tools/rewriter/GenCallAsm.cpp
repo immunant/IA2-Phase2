@@ -44,7 +44,7 @@ const std::array<const char *, 10> aarch64_preserved_registers = {"x19", "x20", 
 
 /// Compute abi locations for parameters of a C-abi function, given its sequence
 /// of argument kinds.
-std::vector<ArgLocation> allocate_param_locations(const AbiSignature &func, Arch arch) {
+std::vector<ArgLocation> allocate_param_locations(const AbiSignature &func, Arch arch, size_t *stack_arg_size_out) {
   const auto &int_param_reg_order = (arch == Arch::X86) ? x86_int_param_reg_order : arm_int_param_reg_order;
   const auto &float_reg_order = (arch == Arch::X86) ? x86_float_reg_order : arm_float_reg_order;
   std::vector<ArgLocation> args;
@@ -70,6 +70,11 @@ std::vector<ArgLocation> allocate_param_locations(const AbiSignature &func, Arch
   size_t stack_offset = 0;
   size_t floats_used = 0;
   for (auto arg : func.args) {
+    if (arch == Arch::X86 && arg.is_indirect()) {
+      // "indirect" arguments are just passed on the stack in x86, not
+      // indirectly in a register.
+      arg = ArgLocation::Stack(arg.size(), arg.align());
+    }
     switch (arg.kind()) {
     case ArgLocation::Kind::Integral: {
       if ((arg.size() <= 8 || arg.is_indirect()) && ints_used < int_param_reg_order.size()) {
@@ -86,9 +91,10 @@ std::vector<ArgLocation> allocate_param_locations(const AbiSignature &func, Arch
           ints_used += 1;
         }
       } else {
+        assert(arch != Arch::X86 || !arg.is_indirect());
         arg.allocate_stack(stack_offset);
         args.push_back(arg);
-        stack_offset += arg.is_indirect() ? 8 : arg.size();
+        stack_offset += 8;
       }
       break;
     }
@@ -119,6 +125,7 @@ std::vector<ArgLocation> allocate_param_locations(const AbiSignature &func, Arch
     }
     }
   }
+  *stack_arg_size_out = stack_offset;
   return args;
 }
 
@@ -837,21 +844,11 @@ std::string emit_asm_wrapper(AbiSignature &sig,
   // Small sanity check
   assert(caller_pkey != target_pkey);
 
+  size_t stack_arg_size = 0;
   AsmWriter aw = get_asmwriter(as_macro);
-  auto args = allocate_param_locations(sig, arch);
+  auto args = allocate_param_locations(sig, arch, &stack_arg_size);
   size_t stack_arg_count = std::count_if(args.begin(), args.end(),
                                          [](auto &x) { return x.is_stack(); });
-  size_t stack_arg_size = 0;
-  for (const auto &x : args) {
-    if (x.is_stack() || x.is_indirect()) {
-      // All stack arguments must be 8-byte aligned
-      size_t align = std::max(x.align(), (size_t)8);
-      if (stack_arg_size % align != 0) {
-        stack_arg_size += align - (stack_arg_size % align);
-      }
-      stack_arg_size += x.size();
-    }
-  }
   size_t unaligned = stack_arg_size % 8;
   size_t stack_arg_padding = unaligned != 0 ? 8 - unaligned : 0;
   size_t reg_arg_count = args.size() - stack_arg_count;

@@ -334,7 +334,13 @@ static void append_arg_kinds(std::stringstream &ss,
     if (!first) {
       ss << ", ";
     }
-    ss << cabi_arg_kind_names[(int)arg.kind()];
+    if (arg.is_indirect()) {
+      ss << "[mem]";
+    } else if (arg.is_stack()) {
+      ss << "mem";
+    } else {
+      ss << cabi_arg_kind_names[(int)arg.kind()];
+    }
     first = false;
   }
 }
@@ -507,20 +513,24 @@ static void emit_copy_args(AsmWriter &aw, const std::vector<ArgLocation> &args, 
       }
     }
     size_t total_stack_size = stack_return_size + stack_return_padding + indirect_arg_size + stack_arg_size + stack_arg_padding;
+    if (stack_return_size > 0) {
+      // Reserve space to save the original return value pointer. We only want
+      // this slot if we are returning a value on the stack.
+      total_stack_size += 8;
+    }
     if (total_stack_size > 0) {
       add_comment_line(
           aw, "Allocate space on the compartment's stack for stack return and/or args");
       add_asm_line(aw, "sub sp, sp, #" + std::to_string(total_stack_size));
     }
-    size_t stack_args_start = 0;
-    size_t indirect_args_start = stack_arg_size + stack_arg_padding;
-    size_t stack_return_saved_ptr_offset = indirect_args_start + indirect_arg_size;
-    size_t stack_return_start = indirect_args_start + indirect_arg_size + 8;
+    size_t stack_return_saved_ptr_offset = stack_arg_size + stack_arg_padding;
+    size_t stack_return_start = stack_return_saved_ptr_offset + 8;
+    size_t indirect_args_start = stack_return_start + stack_return_size + stack_return_padding;
 
     // Same as for X86 above, we allocate space for the return value and push x8
     // onto the stack so we can point it at the new stack return slot.
     if (stack_return_size > 0) {
-      // stack_return_size already includes space to save the old address
+      // total_stack_size already includes space to save the old address
       add_comment_line(aw, "Save address of the caller's return value");
       add_asm_line(aw, "str x8, [sp, #" + std::to_string(stack_return_saved_ptr_offset) + "]");
       add_comment_line(aw, "Set x8 to the compartment's return value memory");
@@ -537,7 +547,7 @@ static void emit_copy_args(AsmWriter &aw, const std::vector<ArgLocation> &args, 
       emit_memcpy(aw, stack_arg_size, "sp", "x12", "x9", src_offset, arch);
     }
 
-    size_t indirect_arg_current_offset = 0;
+    size_t indirect_arg_current_offset = indirect_args_start;
     for (auto &arg : args) {
       if (arg.is_indirect()) {
         // We can't guarantee more than 16-byte alignment for the stack.
@@ -604,7 +614,7 @@ static void emit_free_stack_space(AsmWriter &aw, size_t stack_size, Arch arch) {
   }
 }
 
-static void emit_copy_stack_returns(AsmWriter &aw, size_t stack_return_size, size_t stack_return_padding, uint32_t caller_pkey, uint32_t target_pkey, Arch arch) {
+static void emit_copy_stack_returns(AsmWriter &aw, size_t stack_return_size, size_t stack_return_padding, size_t stack_arg_size, size_t stack_arg_padding, uint32_t caller_pkey, uint32_t target_pkey, Arch arch) {
   if (arch == Arch::X86) {
     // Copy any stack returns to caller's stack
     if (stack_return_size > 0) {
@@ -625,8 +635,19 @@ static void emit_copy_stack_returns(AsmWriter &aw, size_t stack_return_size, siz
       add_asm_line(aw, "addq $"s + std::to_string(stack_return_size + stack_return_padding) + ", %rsp");
     }
   } else if (arch == Arch::Aarch64) {
-    // TODO ARM stack switch back
-    llvm::errs() << "TODO stack switch-back not implemented on ARM\n";
+    if (stack_return_size > 0) {
+      add_comment_line(aw, "Copy stack returns to caller's stack");
+
+      size_t stack_return_saved_ptr_offset = stack_arg_size + stack_arg_padding;
+      size_t stack_return_start = stack_return_saved_ptr_offset + 8;
+
+      // Pop the original return value address into x8
+      add_asm_line(aw, "ldr x8, [sp, #"s + std::to_string(stack_return_saved_ptr_offset) + "]");
+      // Copy the value back to the caller's stack
+      emit_memcpy(aw, stack_return_size, "x8", "sp", "x9", stack_return_start, arch);
+      // Free the space used for the return value (including the return value address slot)
+      add_asm_line(aw, "add sp, sp, #" + std::to_string(stack_return_size + 8 + stack_return_padding));
+    }
   }
 }
 
@@ -853,6 +874,13 @@ std::string emit_asm_wrapper(AbiSignature &sig,
     | top |Top of the stack (stack grows down on AArch64). This address is
     |     |aligned to 16 bytes.
     +-----+
+    |ind  |Padding for alignment prior to the indirect args
+    |args |as such memory must be 16B aligned. (TODO: verify this)
+    |align|
+    +-----+
+    |ind  |Space for arguments passed indirectly (i.e. in memory). These arguments
+    |args |will point to this region.
+    +-----+
     |ret  |Padding for alignment prior to the compartment's return value (if it
     |align|has class MEMORY) as such memory must be 16B aligned.
     +-----+
@@ -862,13 +890,6 @@ std::string emit_asm_wrapper(AbiSignature &sig,
     +-----+
     |ret  |A pointer saving the caller's address for return value. Only added if
     |ptr  |using ret space. Saves the previous value of x8.
-    +-----+
-    |ind  |Padding for alignment prior to the indirect args
-    |args |as such memory must be 16B aligned. (TODO: verify this)
-    |align|
-    +-----+
-    |ind  |Space for arguments passed indirectly (i.e. in memory). These arguments
-    |args |will point to this region.
     +-----+
     |     |8 bytes for alignment. If the size of the other items on the stack
     |     |(including the return address) aren't a multiple 16, these 8 bytes
@@ -910,11 +931,14 @@ std::string emit_asm_wrapper(AbiSignature &sig,
   // Count room for for the ret align padding, return value, and our ret ptr.
   size_t compartment_stack_space = start_of_ret_space + stack_return_size +
                                    stack_return_padding + stack_arg_size + stack_arg_padding;
-  // Compute what the stack alignment would be before calling the wrapped
-  // function to check if we need to insert 8 bytes for alignment. We add 8
-  // bytes to the compartment_stack_space since the frame is initially off by 8
-  // bytes.
-  size_t stack_alignment = (compartment_stack_space + 8) % 16;
+  size_t stack_alignment = 0;
+  if (arch == Arch::X86) {
+    // Compute what the stack alignment would be before calling the wrapped
+    // function to check if we need to insert 8 bytes for alignment. We add 8
+    // bytes to the compartment_stack_space since the frame is initially off by 8
+    // bytes.
+    stack_alignment = (compartment_stack_space + 8) % 16;
+  }
 
   add_comment_line(aw, "Wrapper for "s + sig_string(sig, target_name) + ":");
   add_asm_line(aw, ".text");
@@ -955,7 +979,7 @@ std::string emit_asm_wrapper(AbiSignature &sig,
 
   emit_free_stack_space(aw, stack_arg_size + stack_arg_padding + stack_alignment, arch);
 
-  emit_copy_stack_returns(aw, stack_return_size, stack_return_padding, caller_pkey, target_pkey, arch);
+  emit_copy_stack_returns(aw, stack_return_size, stack_return_padding, stack_arg_size, stack_arg_padding, caller_pkey, target_pkey, arch);
 
   emit_switch_stacks(aw, target_pkey, caller_pkey, arch);
 

@@ -27,8 +27,8 @@ private:
   size_t _stack_offset = 0;
 
 public:
-  static ArgLocation Register(Kind kind) {
-    return ArgLocation(kind, 8, 8);
+  static ArgLocation Register(Kind kind, unsigned size) {
+    return ArgLocation(kind, size, size);
   }
   static ArgLocation Stack(int64_t size, int64_t align) { 
     auto loc = ArgLocation(Kind::Memory, static_cast<unsigned>(size), static_cast<unsigned>(align)); 

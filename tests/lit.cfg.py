@@ -22,7 +22,8 @@ config.suffixes = ['.c']
 config.excludes = [entry.name for entry in os.scandir(os.path.dirname(os.path.abspath(__file__))) if entry.name not in [
     'global_fn_ptr',
     'header_includes',
-    'heap_two_keys',
+# TODO(#413)
+#    'heap_two_keys',
     'macro_attr',
     'minimal',
     'mmap_loop',

@@ -28,6 +28,10 @@ char *allocate_stack(int i) {
       exit(-1);
     }
   }
+#ifdef __aarch64__
+  /* Tag the allocated stack pointer so it is accessed with the right pkey */
+  stack = (char *)((uint64_t)stack | (uint64_t)i << 56);
+#endif
   /* Each stack frame start + 8 is initially 16-byte aligned. */
   return stack + STACK_SIZE - 8;
 }

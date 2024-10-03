@@ -40,7 +40,6 @@ endif()
 set_target_properties(check PROPERTIES FOLDER "tests")
 
 add_subdirectory(abi)
-add_subdirectory(destructors)
 # add_subdirectory(ffmpeg)
 add_subdirectory(header_includes)
 # add_subdirectory(libusb)
@@ -52,24 +51,26 @@ add_subdirectory(minimal_no_criterion)
 # TODO: support C++ namespaces
 #add_subdirectory(namespaces)
 add_subdirectory(recursion)
-add_subdirectory(ro_sharing)
 # We don't actually compile the `omit_wrappers` test, but it is picked up by LIT.
 add_subdirectory(shared_data)
-add_subdirectory(should_segfault)
-add_subdirectory(trusted_direct)
-add_subdirectory(untrusted_indirect)
-add_subdirectory(two_keys_minimal)
-add_subdirectory(two_shared_ranges)
 add_subdirectory(global_fn_ptr)
 add_subdirectory(rewrite_macros)
 add_subdirectory(sighandler)
 
-# TODO(#413): Fix these tests
-# add_subdirectory(heap_two_keys)
-# add_subdirectory(three_keys_minimal)
-
 # The following tests are not supported on ARM64 yet
 if (NOT LIBIA2_AARCH64)
+    # Expected to have compartment violations, but we aren't enforcing yet:
+    add_subdirectory(destructors)
+    add_subdirectory(ro_sharing)
+    add_subdirectory(should_segfault)
+    add_subdirectory(trusted_direct)
+    add_subdirectory(untrusted_indirect)
+    add_subdirectory(two_keys_minimal)
+    add_subdirectory(two_shared_ranges)
+    # TODO(#413): Fix these tests
+    # add_subdirectory(heap_two_keys)
+    # add_subdirectory(three_keys_minimal)
+
     # strange bug with indirect calls
     add_subdirectory(read_config)
     # ARM does not support threads yet

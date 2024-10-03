@@ -49,6 +49,12 @@ __asm__(
     // Save old stack pointer in main_sp
     "adrp x9, main_sp\n"
     "add x9, x9, #:lo12:main_sp\n"
+    //ask for tag in x0?
+    "eor x0, x0, x0\n"
+    "ldg x0, [x9]\n"
+    // add tag to x9
+    "add x9, x9, x0\n"
+
     "str x29, [x9]\n"
 
     // Load the new stack pointer
@@ -56,6 +62,13 @@ __asm__(
     "mrs x9, tpidr_el0\n"
     "add x9, x9, #:tprel_hi12:ia2_stackptr_1\n"
     "add x9, x9, #:tprel_lo12_nc:ia2_stackptr_1\n"
+
+    //ask for tag in x0?
+    "eor x0, x0, x0\n"
+    "ldg x0, [x9]\n"
+    // add tag to x9
+    "add x9, x9, x0\n"
+
     "ldr x9, [x9]\n"
     "mov sp, x9\n"
 
@@ -71,6 +84,13 @@ __asm__(
     // Restore the old stack pointer
     "adrp x9, main_sp\n"
     "add x9, x9, #:lo12:main_sp\n"
+
+    //ask for tag in x0?
+    "eor x0, x0, x0\n"
+    "ldg x0, [x9]\n"
+    // add tag to x9
+    "add x9, x9, x0\n"
+
     "ldr x9, [x9]\n"
     "mov sp, x9\n"
 

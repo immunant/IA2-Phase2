@@ -214,7 +214,7 @@ void permissive_mode_handler(int sig, siginfo_t *info, void *ctxt) {
 static bool exiting IA2_SHARED_DATA = false;
 
 // Process-specific name for log file
-static char log_name[256] IA2_SHARED_DATA = {0};
+char log_name[256] IA2_SHARED_DATA = {0};
 
 int elfaddr(const void *addr, Dl_info *info) {
   static struct f {
@@ -465,6 +465,7 @@ __attribute__((constructor)) void permissive_mode_init(void) {
   install_permissive_mode_handler();
 }
 
+extern char *ia2_stacks[16];
 /*
  * Constructor to wait for the logging thread to finish and log the memory map.
  * If a process forks and execve's this function will not be called.
@@ -478,7 +479,27 @@ __attribute((destructor)) void wait_logging_thread(void) {
   assert(maps);
   char tmp[256] = {0};
   while (fgets(tmp, sizeof(tmp), maps)) {
-    fprintf(log, "%s", tmp);
+    bool identified = false;
+    uintptr_t start, end, offset;
+    int name_pos;
+    char prot[5] = {0};
+    sscanf(tmp, "%lx-%lx %4c %lx %*lx:%*lx %*lu %n", &start, &end, prot, &offset, &name_pos);
+    fprintf(log, "%08lx-%08lx %s %08lx ", start, end, prot, offset);
+    if (name_pos != strlen(tmp)) {
+        fprintf(log, "%s", tmp + name_pos);
+        identified = true;
+    } else {
+        for (int i = 0; i < 16; i++) {
+            if (start == ia2_stacks[i]) {
+                fprintf(log, "[stack:tid ?:compartment %d]\n", i);
+                identified = true;
+                break;
+            }
+        }
+    }
+    if (!identified) {
+        fprintf(log, "TODO: identify this segment\n");
+    }
     memset(tmp, 0, sizeof(tmp));
   }
   fclose(log);

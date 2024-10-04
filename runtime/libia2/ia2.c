@@ -429,7 +429,7 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
     int access_flags = segment_flags_to_access_flags(phdr.p_flags);
 
     Elf64_Addr start = (info->dlpi_addr + phdr.p_vaddr) & ~0xFFFUL;
-    Elf64_Addr seg_end = (start + phdr.p_memsz + 0xFFFUL) & ~0xFFFUL;
+    Elf64_Addr seg_end = (info->dlpi_addr + phdr.p_vaddr + phdr.p_memsz + 0xFFFUL) & ~0xFFFUL;
     while (start < seg_end) {
       Elf64_Addr cur_end = seg_end;
 

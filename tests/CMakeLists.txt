@@ -68,7 +68,7 @@ if (NOT LIBIA2_AARCH64)
     add_subdirectory(two_keys_minimal)
     add_subdirectory(two_shared_ranges)
     # TODO(#413): Fix these tests
-    # add_subdirectory(heap_two_keys)
+    add_subdirectory(heap_two_keys)
     # add_subdirectory(three_keys_minimal)
 
     # strange bug with indirect calls

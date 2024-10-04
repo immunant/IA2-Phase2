@@ -119,6 +119,7 @@ function(pad_tls_library INPUT OUTPUT)
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/unpadded"
     OUTPUT_NAME "${OUTPUT}"
   )
+  target_link_options(${OUTPUT} INTERFACE $<TARGET_PROPERTY:${INPUT},INTERFACE_LINK_OPTIONS>)
 endfunction()
 
 # Create a fake target that builds the given sources

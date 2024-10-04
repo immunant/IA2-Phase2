@@ -391,7 +391,7 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
 
     struct AddressRange *relro_range = &shared_ranges[shared_range_count++];
     relro_range->start = (info->dlpi_addr + phdr.p_vaddr) & ~0xFFFUL;
-    relro_range->end = (relro_range->start + phdr.p_memsz + 0xFFFUL) & ~0xFFFUL;
+    relro_range->end = (info->dlpi_addr + phdr.p_vaddr + phdr.p_memsz + 0xFFFUL) & ~0xFFFUL;
 
     break;
   }

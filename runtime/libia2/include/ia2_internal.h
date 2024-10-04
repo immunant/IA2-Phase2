@@ -300,8 +300,15 @@ works as a reasonable signpost no-op. */
 #if defined(__aarch64__)
 int ia2_mprotect_with_tag(void *addr, size_t len, int prot, int tag);
 #elif defined(__x86_64__)
+#if LIBIA2_DEBUG_LOG
+static int ia2_mprotect_with_tag(void *addr, size_t len, int prot, int tag) {
+  printf("ia2_mprotect_with_tag(addr=%p, len=%zu, prot=%d, tag=%d)\n", addr, len, prot, tag);
+  return pkey_mprotect(addr, len, prot, tag);
+}
+#else
 /* We can't use an alias attribute since this points to a function outside the translation unit */
 #define ia2_mprotect_with_tag pkey_mprotect
+#endif
 #endif
 char *allocate_stack(int i);
 void verify_tls_padding(void);

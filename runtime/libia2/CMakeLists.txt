@@ -13,6 +13,10 @@ if(LIBIA2_DEBUG)
     target_compile_definitions(libia2 PUBLIC LIBIA2_DEBUG=1)
 endif()
 
+if(LIBIA2_DEBUG_LOG)
+    target_compile_definitions(libia2 PRIVATE LIBIA2_DEBUG_LOG=1)
+endif()
+
 target_link_options(libia2
     INTERFACE
         "-pthread"

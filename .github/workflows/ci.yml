@@ -112,15 +112,22 @@ jobs:
             llvm-project/build/bin
             llvm-project/build/lib/clang
           key: ${{ runner.os }}-clang
-      - name: Check out Clang
-        if: steps.cache-clang.outputs.cache-hit != 'true'
+      - name: Cache built compiler-rt
+        id: cache-compiler-rt
+        uses: actions/cache@v4
+        with:
+          path: |
+            llvm-project/build-compiler-rt/lib/linux
+          key: ${{ runner.os }}-compiler-rt
+      - name: Check out LLVM
+        if: steps.cache-clang.outputs.cache-hit != 'true' || steps.cache-compiler-rt.outputs.cache-hit != 'true'
         uses: actions/checkout@v4
         with:
           repository: immunant/llvm-project
           ref: fw/instrument-llvm-ir
           path: ${{ github.workspace }}/llvm-project
       - name: Build Clang
-        if: steps.cache-clang.outputs.cache-hit != 'true'
+        if: steps.cache-clang.outputs.cache-hit != 'true' || steps.cache-compiler-rt.outputs.cache-hit != 'true'
         working-directory: ${{ github.workspace }}/llvm-project
         run: |
           # first free up space used by unnecessary host tool cache to make room to build clang
@@ -133,6 +140,11 @@ jobs:
           ./build.sh
           # free up space used by libs; our desired clang binary statically links them
           rm -rf build/lib/*.a
+      - name: Build Compiler-rt
+        if: steps.cache-compiler-rt.outputs.cache-hit != 'true'
+        working-directory: ${{ github.workspace }}/llvm-project
+        run: |
+          ./cross-build-compiler-rt.sh
       - name: Test ARM build
         run: |
           LLVM_DIR=`llvm-config-15 --cmakedir`
@@ -149,6 +161,7 @@ jobs:
             -DCMAKE_OBJCOPY=/usr/bin/llvm-objcopy-15 \
             -DCMAKE_C_FLAGS="$cross_flags" \
             -DCMAKE_CXX_FLAGS="$cross_flags" \
+            -DCMAKE_EXE_LINKER_FLAGS=-B`pwd`/../llvm-project/build-compiler-rt/lib/linux \
             -DClang_DIR=$Clang_DIR                                  \
             -DCLANG_EXE=`which clang-15`                            \
             -DLLVM_DIR=$LLVM_DIR                                    \

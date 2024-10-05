@@ -10,6 +10,7 @@
 extern __thread void *ia2_stackptr_0[PAGE_SIZE / sizeof(void *)]
     __attribute__((aligned(4096)));
 
+char *ia2_stacks[16] = {0};
 /* Allocate a fixed-size stack and protect it with the ith pkey. */
 /* Returns the top of the stack, not the base address of the allocation. */
 char *allocate_stack(int i) {
@@ -26,6 +27,7 @@ char *allocate_stack(int i) {
       exit(-1);
     }
   }
+  ia2_stacks[i] = stack;
   /* Each stack frame start + 8 is initially 16-byte aligned. */
   return stack + STACK_SIZE - 8;
 }

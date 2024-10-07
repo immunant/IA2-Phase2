@@ -66,7 +66,7 @@ void ensure_pkeys_allocated(int *n_to_alloc) {
 }
 
 /* Forbid overwriting an existing stack. */
-_Noreturn void ia2_reinit_stack_err(int i) {
+__attribute__((__noreturn__)) void ia2_reinit_stack_err(int i) {
   printf("compartment %d in thread %d tried to allocate existing stack\n",
          i, gettid());
   exit(1);

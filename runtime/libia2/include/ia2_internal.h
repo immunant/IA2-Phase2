@@ -313,7 +313,7 @@ static int ia2_mprotect_with_tag(void *addr, size_t len, int prot, int tag) {
 char *allocate_stack(int i);
 void verify_tls_padding(void);
 void ensure_pkeys_allocated(int *n_to_alloc);
-_Noreturn void ia2_reinit_stack_err(int i);
+__attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
 
 #define _IA2_INIT_RUNTIME(n)                                                   \
   int ia2_n_pkeys_to_alloc = n;                                                \

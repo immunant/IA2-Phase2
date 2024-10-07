@@ -212,9 +212,12 @@ void permissive_mode_handler(int sig, siginfo_t *info, void *ctxt) {
         if (fp < PAGE_SIZE) {
             break;
         }
-        uint64_t ra = *(uint64_t *)(fp + 8);
+        uint64_t ra;
+        memcpy(&ra, fp + 8, sizeof(uint64_t));
         err.ret_addrs[i] = ra;
-        fp = *(uint64_t *)fp;
+        uint64_t next_fp;
+        memcpy(&next_fp, fp, sizeof(uint64_t));
+        fp = next_fp;
     }
     push_queue(q, err);
     release_queue(q);

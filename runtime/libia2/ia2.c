@@ -238,7 +238,7 @@ static bool in_extra_libraries(struct dl_phdr_info *info, const char *extra_libr
 /// Map ELF segment flags to mprotect access flags
 static int segment_flags_to_access_flags(Elf64_Word flags) {
   return
-#if LIBIA2_AARCH64
+#if defined(__aarch64__)
       PROT_MTE |
 #endif
       ((flags & PF_X) != 0 ? PROT_EXEC : 0) |

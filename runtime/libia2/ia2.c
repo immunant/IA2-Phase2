@@ -127,16 +127,22 @@ int ia2_mprotect_with_tag(void *addr, size_t len, int prot, int tag) {
     int res = mprotect(addr, len, prot | PROT_MTE);
     if (res != 0) {
         /* Skip memory tagging if mprotect returned an error */
+        printf("mprotect failed with %d\n", res);
         return res;
     }
+    /* Protect each page */
     assert((len % PAGE_SIZE) == 0);
-    /* Assuming we're using st2g. stgm is undefined at EL0 so it's not an option */
-    const int granule_sz = 32;
-    const int granules_per_page = PAGE_SIZE / 32;
-    for (int i = 0; i < granules_per_page; i++) {
-        // TODO: It may be possible to simplify this to be more efficient using the addg imm offset
-        uint64_t tagged_ptr = insert_tag((uint64_t)addr + (i * granule_sz), tag);
-        set_tag(tagged_ptr);
+    for(int page = 0; page < len / PAGE_SIZE; page++) {
+        char* page_base = addr + page * PAGE_SIZE;
+        /* Assuming we're using st2g. stgm is undefined at EL0 so it's not an option */
+        const int granule_sz = 32;
+        const int granules_per_page = PAGE_SIZE / 32;
+        /* Protect each granule in the page */
+        for (int granule = 0; granule < granules_per_page; granule++) {
+                // TODO: It may be possible to simplify this to be more efficient using the addg imm offset
+                uint64_t tagged_ptr = insert_tag((uint64_t)page_base + (granule * granule_sz), tag);
+                set_tag(tagged_ptr);
+        }
     }
     return 0;
 }
@@ -231,9 +237,13 @@ static bool in_extra_libraries(struct dl_phdr_info *info, const char *extra_libr
 
 /// Map ELF segment flags to mprotect access flags
 static int segment_flags_to_access_flags(Elf64_Word flags) {
-  return ((flags & PF_X) != 0 ? PROT_EXEC : 0) |
-         ((flags & PF_W) != 0 ? PROT_WRITE : 0) |
-         ((flags & PF_R) != 0 ? PROT_READ : 0);
+  return
+#if defined(__aarch64__)
+      PROT_MTE |
+#endif
+      ((flags & PF_X) != 0 ? PROT_EXEC : 0) |
+      ((flags & PF_W) != 0 ? PROT_WRITE : 0) |
+      ((flags & PF_R) != 0 ? PROT_READ : 0);
 }
 
 int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {

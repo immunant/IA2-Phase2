@@ -253,11 +253,12 @@ asm(".macro movz_shifted_tag_x18 tag\n"
         "mov x10, sp\n"                                                        \
         /* switch to old stack */                                              \
         "mov sp, x9\n"                                                         \
-        /* calculate location to save pointer to newly allocated stack */      \
+        /* calculate location to save addr of newly allocated stack */         \
         "mrs x12, tpidr_el0\n"                                                 \
         "adrp x11, :gottprel:ia2_stackptr_" #i "\n"                            \
         "ldr x11, [x11, #:gottprel_lo12:ia2_stackptr_" #i "]\n"                \
         "add x11, x11, x12\n"                                                  \
+        "orr x11, x11, x18\n"                                                  \
         /* write newly allocated stack to ia2_stackptr_i */                    \
         "str x10, [x11]\n"                                                     \
         "mov x18, x19\n"                                                       \
@@ -305,7 +306,7 @@ int ia2_mprotect_with_tag(void *addr, size_t len, int prot, int tag);
 #endif
 char *allocate_stack(int i);
 void verify_tls_padding(void);
-void ensure_pkeys_allocated(int *n_to_alloc);
+void ia2_set_up_tags(int *n_to_alloc);
 _Noreturn void ia2_reinit_stack_err(int i);
 
 #define _IA2_INIT_RUNTIME(n)                                                   \
@@ -331,7 +332,7 @@ _Noreturn void ia2_reinit_stack_err(int i);
                                                                                \
   __attribute__((constructor)) static void ia2_init(void) {                    \
     /* Set up global resources. */                                             \
-    ensure_pkeys_allocated(&ia2_n_pkeys_to_alloc);                             \
+    ia2_set_up_tags(&ia2_n_pkeys_to_alloc);                                    \
     /* Initialize stacks for the main thread/ */                               \
     init_stacks_and_setup_tls();                                               \
     REPEATB##n(setup_destructors_for_compartment, nop_macro);                  \

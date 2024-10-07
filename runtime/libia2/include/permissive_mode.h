@@ -103,7 +103,6 @@ typedef struct mpk_err {
   uint64_t sp;
   uint64_t fp;
   uint32_t pkru;
-  uint64_t local_addr;
 } mpk_err;
 
 struct queue {
@@ -197,7 +196,7 @@ void permissive_mode_handler(int sig, siginfo_t *info, void *ctxt) {
     struct queue *q = get_queue();
     uint64_t val;
     memcpy(&val, info->si_addr, sizeof(uint64_t));
-    mpk_err err = {.addr = (uint64_t)info->si_addr, .val = val, .pc = pc, .sp = sp, .fp = fp, .pkru = old_pkru, .local_addr = (uint64_t)&pc};
+    mpk_err err = {.addr = (uint64_t)info->si_addr, .val = val, .pc = pc, .sp = sp, .fp = fp, .pkru = old_pkru};
     push_queue(q, err);
     release_queue(q);
   } else if (handling_trap) {

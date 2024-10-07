@@ -66,13 +66,19 @@ struct DirectoryParser : public llvm::cl::parser<std::string> {
   bool parse(llvm::cl::Option &O, llvm::StringRef ArgName, const llvm::StringRef &ArgValue,
              std::string &Value) {
     llvm::cl::parser<std::string>::parse(O, ArgName, ArgValue, Value);
-    auto dir = Value;
-    auto exists = llvm::sys::fs::is_directory(dir);
+    llvm::SmallString<PATH_MAX> dir { llvm::StringRef(Value) };
+    bool exists = llvm::sys::fs::is_directory(dir);
     if (!exists) {
       llvm::errs() << "error: directory does not exist: " << dir << "\n";
+      return true; // true on error
     }
-    // true on error
-    return !exists;
+    auto ec = llvm::sys::fs::make_absolute(dir);
+    if (ec) {
+      llvm::errs() << ec.message() << '\n';
+      return true;
+    }
+    Value = std::string(dir);
+    return false;
   }
 };
 

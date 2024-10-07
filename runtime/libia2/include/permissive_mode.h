@@ -94,6 +94,7 @@ int pkru_offset(void) {
  * logging thread pops but there's not much benefit to this for debugging.
  */
 #define QUEUE_SIZE 8192
+#define MAX_STACKTRACE 10
 
 // The entries in the queue
 typedef struct mpk_err {
@@ -103,6 +104,7 @@ typedef struct mpk_err {
   uint64_t sp;
   uint64_t fp;
   uint32_t pkru;
+  uint64_t ret_addrs[MAX_STACKTRACE];
 } mpk_err;
 
 struct queue {
@@ -196,7 +198,24 @@ void permissive_mode_handler(int sig, siginfo_t *info, void *ctxt) {
     struct queue *q = get_queue();
     uint64_t val;
     memcpy(&val, info->si_addr, sizeof(uint64_t));
-    mpk_err err = {.addr = (uint64_t)info->si_addr, .val = val, .pc = pc, .sp = sp, .fp = fp, .pkru = old_pkru};
+    mpk_err err = {
+        .addr = (uint64_t)info->si_addr,
+        .val = val,
+        .pc = pc,
+        .sp = sp,
+        .fp = fp,
+        .pkru = old_pkru
+    };
+    for (int i = 0; i < MAX_STACKTRACE; i++) {
+        // I thought the stopping condition was fp == 0 but it seems to be 1 so
+        // just stop at any obviously bad address
+        if (fp < PAGE_SIZE) {
+            break;
+        }
+        uint64_t ra = *(uint64_t *)(fp + 8);
+        err.ret_addrs[i] = ra;
+        fp = *(uint64_t *)fp;
+    }
     push_queue(q, err);
     release_queue(q);
   } else if (handling_trap) {
@@ -368,6 +387,25 @@ void flush_queue(FILE *log) {
     print_address(log, "sp", (void *)err.sp);
     print_address(log, "fp", (void *)err.fp);
     fprintf(log, "pkru: %x\n", err.pkru);
+
+    Dl_info dlinf = { 0 };
+    const char *fn_name = "??";
+    if (dladdr((void *)err.pc, &dlinf) != 0) {
+        fn_name = dlinf.dli_sname;
+    }
+    fprintf(log, "#0 %p in %s ()\n", (void *)err.pc, fn_name);
+    for (int i = 0; i < MAX_STACKTRACE; i++) {
+        void *ra = (void *)err.ret_addrs[i];
+        if (ra == NULL) {
+            break;
+        }
+        if (dladdr(ra, &dlinf) != 0) {
+            fn_name = dlinf.dli_sname;
+        } else {
+            fn_name = "??";
+        }
+        fprintf(log, "#%d %p in %s ()\n", i + 1, ra, fn_name);
+    }
   }
   release_queue(q);
 }

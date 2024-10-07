@@ -357,6 +357,22 @@ void print_address(FILE *log, char *identifier, void *addr) {
   }
 }
 
+void flush_queue(FILE *log) {
+  // Ensure the sighandler isn't pushing onto the queue
+  struct queue *q = get_queue();
+  mpk_err err;
+  // Pop everything currently in the queue
+  while (pop_queue(q, &err)) {
+    print_address(log, "addr", (void *)err.addr);
+    print_address(log, "val", (void *)err.val);
+    print_address(log, "pc", (void *)err.pc);
+    print_address(log, "sp", (void *)err.sp);
+    print_address(log, "fp", (void *)err.fp);
+    fprintf(log, "pkru: %x\n", err.pkru);
+  }
+  release_queue(q);
+}
+
 // The main function in the logging thread
 void *log_mpk_violations(void *arg) {
   /* Explicitly enter compartment 1, because this function isn't wrapped. */
@@ -368,21 +384,10 @@ void *log_mpk_violations(void *arg) {
     // We don't want this thread to just spin if nothing is happening
     sleep(1);
 
-    // Ensure the sighandler isn't pushing onto the queue
-    struct queue *q = get_queue();
-    mpk_err err;
-    // Pop everything currently in the queue
-    while (pop_queue(q, &err)) {
-      print_address(log, "addr", (void *)err.addr);
-      print_address(log, "val", (void *)err.val);
-      print_address(log, "pc", (void *)err.pc);
-      print_address(log, "sp", (void *)err.sp);
-      print_address(log, "fp", (void *)err.fp);
-      fprintf(log, "pkru: %x\n", err.pkru);
-    }
-    release_queue(q);
+    flush_queue(log);
 
     if (exiting) {
+      flush_queue(log);
       fclose(log);
       return NULL;
     }

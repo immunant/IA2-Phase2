@@ -281,11 +281,12 @@ asm(".macro movz_shifted_tag_x18 tag\n"
         "mov x10, sp\n"                                                        \
         /* switch to old stack */                                              \
         "mov sp, x9\n"                                                         \
-        /* calculate location to save pointer to newly allocated stack */      \
+        /* calculate location to save addr of newly allocated stack */         \
         "mrs x12, tpidr_el0\n"                                                 \
         "adrp x11, :gottprel:ia2_stackptr_" #i "\n"                            \
         "ldr x11, [x11, #:gottprel_lo12:ia2_stackptr_" #i "]\n"                \
         "add x11, x11, x12\n"                                                  \
+        "orr x11, x11, x18\n"                                                  \
         /* write newly allocated stack to ia2_stackptr_i */                    \
         "str x10, [x11]\n"                                                     \
         :                                                                      \

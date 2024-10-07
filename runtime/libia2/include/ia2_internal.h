@@ -13,6 +13,10 @@ struct dl_phdr_info;
 #define _GNU_SOURCE
 #endif
 
+#if __STDC_VERSION__ < 201112L
+#define _Noreturn
+#endif
+
 #include <assert.h>
 #include <errno.h>
 #include <link.h>

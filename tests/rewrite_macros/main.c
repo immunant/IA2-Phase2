@@ -20,9 +20,8 @@ Test(rewrite_macros, main) {
 
     struct event *evt = get_event();
     // Test that the FnPtrCall pass can rewrite simple macros
-    // REWRITER: IA2_CALL(add_event, _ZTSPFbP5eventE)(evt);
-    add_event(evt);
-    // REWRITER: IA2_CALL(actions.add, _ZTSPFbP5eventE)(evt);
+    // add_event(evt);
+    // REWRITER: IA2_CALL(actions.add, _ZTSPFbP5eventE, evt);
     actions.add(evt);
 
     bool(*fn)(struct event *evt) = add_event;
@@ -34,6 +33,6 @@ Test(rewrite_macros, main) {
     // REWRITER: if (IA2_ADDR(fn) == IA2_ADDR(actions.add)) {}
     if (fn == actions.add) {}
 
-    // REWRITER: IA2_CALL(fn, _ZTSPFbP5eventE)(evt);
+    // REWRITER: IA2_CALL(fn, _ZTSPFbP5eventE, evt);
     fn(evt);
 }

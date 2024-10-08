@@ -502,7 +502,7 @@ public:
       return;
     }
 
-    clang::SourceLocation loc = fn_ptr_expr->getExprLoc();
+    clang::SourceLocation loc = fn_ptr_call->getExprLoc();
     Filename filename = get_filename(loc, sm);
     if (should_not_modify_file(filename)) {
       return;
@@ -515,18 +515,33 @@ public:
 
     // Check if the function pointer type already has an ID
     auto expr_ty = fn_ptr_expr->getType()->getCanonicalTypeInternal();
-    auto expr_mangled_ty = mangle_type(ctxt, expr_ty);
-    auto expr_ty_str = expr_ty.getAsString();
-    fn_ptr_types[expr_ty_str] = expr_mangled_ty;
+    auto mangled_ty = mangle_type(ctxt, expr_ty);
 
-    auto *fpt = expr_ty->castAs<clang::PointerType>()
-                    ->getPointeeType()
-                    ->getAsAdjusted<clang::FunctionProtoType>();
-    fn_ptr_abi_sig[expr_ty_str] = determineAbiForProtoType(*fpt, ctxt, Target);
+    auto info = fn_ptr_info.find(mangled_ty);
+    if (info == fn_ptr_info.end()) {
+      // Add the hidden pointer argument to the function pointer arguments
+      auto fn_ptr_ty = expr_ty->getAs<clang::PointerType>();
+      assert(fn_ptr_ty);
+      auto dest_fn_ty = fn_ptr_ty->getPointeeType()->getAs<clang::FunctionProtoType>();
+      assert(dest_fn_ty);
+      auto args = dest_fn_ty->param_types().vec();
+      args.insert(args.begin(), ctxt.VoidPtrTy);
+      auto wrap_fn_ty = ctxt.getFunctionType(dest_fn_ty->getReturnType(), args, dest_fn_ty->getExtProtoInfo());
+      auto wrap_fn_ptr_ty = ctxt.getPointerType(wrap_fn_ty);
+      auto wrap_fn_prototype = wrap_fn_ty->getAs<clang::FunctionProtoType>();
+
+      auto expr_ty_str = wrap_fn_ptr_ty.getAsString();
+
+      auto sig = determineAbiForProtoType(*dest_fn_ty, ctxt, Target);
+      auto wrapper_sig = determineAbiForProtoType(*wrap_fn_prototype, ctxt, Target);
+
+      auto res = fn_ptr_info.emplace(mangled_ty, FnPtrInfo({expr_ty_str, sig, wrapper_sig}));
+      info = res.first;
+    }
 
     // This check must come after modifying the maps in this pass but before the
     // Replacement is added
-    if (in_fn_like_macro(loc, sm)) {
+    if (in_macro_expansion(loc, sm)) {
       auto expansion_file = get_expansion_filename(loc, sm);
       auto expansion_line = sm.getExpansionLineNumber(loc);
       auto spelling_line = sm.getSpellingLineNumber(loc);
@@ -535,24 +550,30 @@ public:
       if (spelling_line != expansion_line) {
         llvm::errs() << filename << ":" << spelling_line << " ";
       }
-      llvm::errs() << "must be rewritten manually (" << expr_mangled_ty << ")\n";
+      llvm::errs() << "must be rewritten manually (" << mangled_ty << ")\n";
       return;
     }
 
     // getTokenRange is required to replace the entire callee expression
-    auto char_range =
+    auto callee_char_range =
         clang::CharSourceRange::getTokenRange(fn_ptr_expr->getSourceRange());
 
-    auto old_expr =
-        clang::Lexer::getSourceText(char_range, sm, ctxt.getLangOpts());
+    auto old_callee =
+        clang::Lexer::getSourceText(callee_char_range, sm, ctxt.getLangOpts());
 
     std::string new_expr =
-        "IA2_CALL("s + old_expr.str() + ", " + expr_mangled_ty + ")";
-
-    if (in_macro_expansion(loc, sm)) {
-      filename = get_expansion_filename(loc, sm);
-      char_range = sm.getExpansionRange(loc);
+        "IA2_CALL("s + old_callee.str() + ", " + mangled_ty;
+    
+    for (auto const &arg : fn_ptr_call->arguments()) {
+      new_expr += ", " + clang::Lexer::getSourceText(
+          clang::CharSourceRange::getTokenRange(arg->getSourceRange()), sm,
+          ctxt.getLangOpts())
+                     .str();
     }
+    new_expr += ")";
+
+    auto char_range = 
+        clang::CharSourceRange::getTokenRange(fn_ptr_call->getSourceRange());
 
     Replacement old_r{sm, char_range, new_expr};
     Replacement r = replace_new_file(filename, old_r);
@@ -563,8 +584,14 @@ public:
     return;
   }
 
-  std::map<OpaqueStruct, std::string> fn_ptr_types;
-  std::map<OpaqueStruct, AbiSignature> fn_ptr_abi_sig;
+  struct FnPtrInfo {
+    std::string type_str;
+    AbiSignature sig;
+    AbiSignature wrapper_sig;
+  };
+
+  // Mapping from mangled type name to function pointer info
+  std::map<OpaqueStruct, FnPtrInfo> fn_ptr_info;
 
 private:
   std::map<std::string, Replacements> &file_replacements;
@@ -1212,28 +1239,20 @@ int main(int argc, const char **argv) {
   std::string wrapper_decls;
   std::set<OpaqueStruct> type_id_macros_generated = {};
   for (int caller_pkey = 1; caller_pkey < num_pkeys; caller_pkey++) {
-    for (const auto &[ty, mangled_ty] : ptr_call_pass.fn_ptr_types) {
-      AbiSignature c_abi_sig;
-      try {
-        c_abi_sig = ptr_call_pass.fn_ptr_abi_sig.at(ty);
-      } catch (std::out_of_range const &exc) {
-        llvm::errs() << "Opaque struct " << ty.c_str()
-                     << " not found by FnPtrCall pass\n";
-        abort();
-      }
+    for (const auto &[mangled_ty, info] : ptr_call_pass.fn_ptr_info) {
       std::string wrapper_name = "__ia2_indirect_callgate_"s +
                                  mangled_ty + "_pkey_" +
                                  std::to_string(caller_pkey);
 
       std::string asm_wrapper =
-          emit_asm_wrapper(c_abi_sig, wrapper_name, std::nullopt,
+          emit_asm_wrapper(info.sig, {info.wrapper_sig}, wrapper_name, std::nullopt,
                            WrapperKind::IndirectCallsite, caller_pkey, 0, Target);
       wrapper_out << "asm(\n";
       wrapper_out << asm_wrapper;
       wrapper_out << ");\n";
 
       if (!type_id_macros_generated.contains(mangled_ty)) {
-        header_out << "#define IA2_TYPE_"s << mangled_ty << " " << ty << "\n";
+        header_out << "#define IA2_TYPE_"s << mangled_ty << " " << info.type_str << "\n";
         type_id_macros_generated.insert(mangled_ty);
       }
       wrapper_decls += "extern char " + wrapper_name + ";\n";
@@ -1247,11 +1266,6 @@ int main(int argc, const char **argv) {
   for (const auto &opaque : ptr_types_pass.fn_ptr_types) {
     header_out << opaque << " { char *ptr; };\n";
   }
-
-  // Declare the pointer read by the indirect call gates
-  header_out << "extern void *ia2_fn_ptr;\n";
-  // Define the pointer read by indirect call gates
-  wrapper_out << "void *ia2_fn_ptr;\n";
 
   std::cout << "Generating direct call gate wrappers\n";
   // Create wrappers for direct calls. These wrappers are inserted by ld --wrap
@@ -1378,7 +1392,7 @@ int main(int argc, const char **argv) {
       continue;
     }
     std::string asm_wrapper =
-        emit_asm_wrapper(c_abi_sig, wrapper_name, target_fn,
+        emit_asm_wrapper(c_abi_sig, std::nullopt, wrapper_name, target_fn,
                          WrapperKind::Direct, caller_pkey, target_pkey, Target);
     wrapper_out << "asm(\n";
     wrapper_out << asm_wrapper;
@@ -1400,7 +1414,7 @@ int main(int argc, const char **argv) {
     }
     std::string wrapper_name = "__wrap_"s + fn_name;
     std::string asm_wrapper =
-        emit_asm_wrapper(c_abi_sig, wrapper_name, fn_name, WrapperKind::Direct,
+        emit_asm_wrapper(c_abi_sig, std::nullopt, wrapper_name, fn_name, WrapperKind::Direct,
                          0, compartment_pkey, Target);
     wrapper_out << "asm(\n";
     wrapper_out << asm_wrapper;
@@ -1427,7 +1441,7 @@ int main(int argc, const char **argv) {
     if (target_pkey != 0) {
       AbiSignature c_abi_sig = fn_decl_pass.abi_signatures[fn_name];
       std::string asm_wrapper =
-          emit_asm_wrapper(c_abi_sig, wrapper_name, fn_name,
+          emit_asm_wrapper(c_abi_sig, std::nullopt, wrapper_name, fn_name,
                            WrapperKind::Pointer, 0, target_pkey, Target);
       wrapper_out << "asm(\n";
       wrapper_out << asm_wrapper;
@@ -1460,7 +1474,7 @@ int main(int argc, const char **argv) {
         AbiSignature c_abi_sig = fn_decl_pass.abi_signatures[fn_name];
 
         std::string asm_wrapper = emit_asm_wrapper(
-            c_abi_sig, wrapper_name, fn_name, WrapperKind::Pointer, 0,
+            c_abi_sig, std::nullopt, wrapper_name, fn_name, WrapperKind::Pointer, 0,
             target_pkey, Target, true /* as_macro */);
         static_wrappers += "#define IA2_DEFINE_WRAPPER_"s + fn_name + " \\\n";
         static_wrappers += "asm(\\\n";

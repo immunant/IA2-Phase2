@@ -42,6 +42,16 @@ const std::array<const char *, 10> aarch64_preserved_registers = {"x19", "x20", 
                                                                   "x25", "x26", "x27",
                                                                   "x28"};
 
+static size_t stack_arg_count(const std::vector<ArgLocation> &args) {
+  return std::count_if(args.begin(), args.end(),
+                       [](auto &x) { return x.is_stack(); });
+}
+
+static size_t reg_arg_count(const std::vector<ArgLocation> &args) {
+  return std::count_if(args.begin(), args.end(),
+                       [](auto &x) { return !x.is_stack(); });
+}
+
 /// Compute abi locations for parameters of a C-abi function, given its sequence
 /// of argument kinds.
 std::vector<ArgLocation> allocate_param_locations(const AbiSignature &func, Arch arch, size_t *stack_arg_size_out) {
@@ -518,7 +528,11 @@ static void x86_emit_intermediate_pkru(AsmWriter &aw, uint32_t caller_pkey, uint
   add_asm_line(aw, restoreline2);
 }
 
-static void emit_copy_args(AsmWriter &aw, const std::vector<ArgLocation> &args, size_t stack_return_size, size_t stack_return_padding, int stack_alignment, size_t stack_arg_size, size_t stack_arg_padding, uint32_t caller_pkey, Arch arch) {
+static void emit_copy_args(AsmWriter &aw, const std::vector<ArgLocation> &args,
+                           const std::optional<std::vector<ArgLocation>> &wrapper_args,
+                           size_t stack_return_size, size_t stack_return_padding, int stack_alignment, 
+                           size_t stack_arg_size, size_t stack_arg_padding, size_t wrapper_stack_arg_size, 
+                           uint32_t caller_pkey, Arch arch) {
   if (arch == Arch::X86) {
     // When returning via memory, the address of the return value is passed in
     // rdi. Since this memory belongs to the caller, we first allocate space for
@@ -562,11 +576,35 @@ static void emit_copy_args(AsmWriter &aw, const std::vector<ArgLocation> &args, 
       // args
       size_t offset =
           stack_arg_size + stack_arg_padding + ((x86_preserved_registers.size() + 1) * 8);
+      offset += wrapper_stack_arg_size - stack_arg_size;
       for (int i = 0; i < stack_arg_size; i += 8) {
         // The index into the caller's stack is backwards since pushq will copy to
         // the compartment's stack from the highest addresses to the lowest.
         add_asm_line(aw,
                      "pushq " + std::to_string(offset - i) + "(%rax)");
+      }
+    }
+
+    if (wrapper_args) {
+      add_comment_line(aw, "Copy arguments into the correct registers");
+      auto src_arg = wrapper_args->begin();
+      auto dest_arg = args.begin();
+      if (stack_return_size > 0) {
+        src_arg++;
+        dest_arg++;
+      }
+      
+      add_asm_line(aw, "movq %"s + src_arg->as_str() + ", %r12");
+      src_arg++;
+      for (; dest_arg != args.end(); src_arg++, dest_arg++) {
+        if (!dest_arg->is_stack()) {
+          if (src_arg->is_stack()) {
+            size_t offset = (x86_preserved_registers.size() + 1) * 8 + src_arg->stack_offset();
+            add_asm_line(aw, "movq %"s + dest_arg->as_str() + ", " + std::to_string(offset) + "(%rax)");
+          } else {
+            add_asm_line(aw, "movq %"s + src_arg->as_str() + ", %"s + dest_arg->as_str());
+          }
+        }
       }
     }
   } else if (arch == Arch::Aarch64) {
@@ -612,6 +650,7 @@ static void emit_copy_args(AsmWriter &aw, const std::vector<ArgLocation> &args, 
       add_comment_line(
           aw, "Copy stack arguments from the caller's stack to the compartment");
       size_t src_offset = ((aarch64_preserved_registers.size() + 2) * 8);
+      src_offset += wrapper_stack_arg_size - stack_arg_size;
       emit_memcpy(aw, stack_arg_size, "sp", "x12", "x9", src_offset, arch);
     }
 
@@ -636,17 +675,29 @@ static void emit_copy_args(AsmWriter &aw, const std::vector<ArgLocation> &args, 
         indirect_arg_current_offset += arg.size();
       }
     }
-  }
-}
 
-static void emit_load_fn_ptr(AsmWriter &aw, Arch arch) {
-  if (arch == Arch::X86) {
-    add_asm_line(aw, "movq ia2_fn_ptr@GOTPCREL(%rip), %r12");
-    add_asm_line(aw, "movq (%r12), %r12");
-  } else if (arch == Arch::Aarch64) {
-    add_asm_line(aw, "adrp x9, ia2_fn_ptr");
-    add_asm_line(aw, "add x9, x9, #:lo12:ia2_fn_ptr");
-    add_asm_line(aw, "ldr x9, [x9]");
+    if (wrapper_args) {
+      add_comment_line(aw, "Copy arguments into the correct registers");
+      auto src_arg = wrapper_args->begin();
+      auto dest_arg = args.begin();
+      if (stack_return_size > 0) {
+        src_arg++;
+        dest_arg++;
+      }
+
+      add_asm_line(aw, "mov x9, "s + src_arg->as_str());
+      src_arg++;
+      for (; dest_arg != args.end(); src_arg++, dest_arg++) {
+        if (!dest_arg->is_stack()) {
+          if (src_arg->is_stack()) {
+            size_t offset = (aarch64_preserved_registers.size() + 2) * 8 + src_arg->stack_offset();
+            add_asm_line(aw, "ldr "s + dest_arg->as_str() + ", [x12, #" + std::to_string(offset) + "]");
+          } else {
+            add_asm_line(aw, "mov "s + dest_arg->as_str() + ", "s + src_arg->as_str());
+          }
+        }
+      }
+    }
   }
 }
 
@@ -719,7 +770,9 @@ static void emit_copy_stack_returns(AsmWriter &aw, size_t stack_return_size, siz
   }
 }
 
-static void emit_scrub_regs(AsmWriter &aw, uint32_t pkey, const std::vector<ArgLocation> &locs, bool preserve_regs, Arch arch) {
+static void emit_scrub_regs(AsmWriter &aw, uint32_t pkey, const std::vector<ArgLocation> &locs, bool indirect, Arch arch) {
+  bool preserve_regs = reg_arg_count(locs) > 0 || indirect;
+
   // Handles register scrubbing for calls into/out of protected compartments.
   // After call: Preserves return values by pushing them to the stack before scrubbing.
   // Before call: Saves argument registers in a similar manner.
@@ -736,6 +789,11 @@ static void emit_scrub_regs(AsmWriter &aw, uint32_t pkey, const std::vector<ArgL
             emit_reg_push(aw, loc);
           }
         }
+
+        if (indirect) {
+          // Save the function pointer argument
+          add_asm_line(aw, "pushq %r12");
+        }
       }
 
       // Scrub all registers except rsp.
@@ -747,6 +805,11 @@ static void emit_scrub_regs(AsmWriter &aw, uint32_t pkey, const std::vector<ArgL
       if (preserve_regs) {
         // Restore saved regs
         add_comment_line(aw, "Restore preserved regs");
+        if (indirect) {
+          // Restore the function pointer argument
+          add_asm_line(aw, "popq %r12");
+        }
+
         for (auto loc = locs.rbegin(); loc != locs.rend(); loc++) {
           if (!loc->is_stack()) {
             emit_reg_pop(aw, *loc);
@@ -757,6 +820,9 @@ static void emit_scrub_regs(AsmWriter &aw, uint32_t pkey, const std::vector<ArgL
   } else if (arch == Arch::Aarch64) {
     auto regs_64bit = std::vector<std::string>();
     auto regs_128bit = std::vector<std::string>();
+    if (indirect) {
+      regs_64bit.push_back("x9");
+    }
     for (auto loc : locs) {
       if (!loc.is_stack() && loc.is_allocated()) {
         // loc is not allocated to a register if it is an indirect return on
@@ -884,7 +950,8 @@ static void emit_return(AsmWriter &aw) {
   add_asm_line(aw, "ret");
 }
 
-std::string emit_asm_wrapper(AbiSignature &sig,
+std::string emit_asm_wrapper(AbiSignature sig,
+                             std::optional<AbiSignature> wrapper_sig,
                              const std::string &wrapper_name,
                              const std::optional<std::string> target_name,
                              WrapperKind kind, int caller_pkey, int target_pkey,
@@ -893,14 +960,17 @@ std::string emit_asm_wrapper(AbiSignature &sig,
   // Small sanity check
   assert(caller_pkey != target_pkey);
 
-  size_t stack_arg_size = 0;
   AsmWriter aw = get_asmwriter(as_macro);
+
+  size_t stack_arg_size = 0;
   auto args = allocate_param_locations(sig, arch, &stack_arg_size);
-  size_t stack_arg_count = std::count_if(args.begin(), args.end(),
-                                         [](auto &x) { return x.is_stack(); });
+  std::optional<std::vector<ArgLocation>> wrapper_args;
+  size_t wrapper_stack_arg_size = stack_arg_size;
+  if (wrapper_sig) {
+    wrapper_args = {allocate_param_locations(*wrapper_sig, arch, &wrapper_stack_arg_size)};
+  }
   size_t unaligned = stack_arg_size % 8;
   size_t stack_arg_padding = unaligned != 0 ? 8 - unaligned : 0;
-  size_t reg_arg_count = args.size() - stack_arg_count;
 
   llvm::errs() << "Generating wrapper for " << sig_string(sig, target_name) << "\n";
   auto rets = allocate_return_locations(sig, arch);
@@ -1051,13 +1121,9 @@ std::string emit_asm_wrapper(AbiSignature &sig,
 
   emit_switch_stacks(aw, caller_pkey, target_pkey, arch);
 
-  emit_copy_args(aw, args, stack_return_size, stack_return_padding, stack_alignment, stack_arg_size, stack_arg_padding, caller_pkey, arch);
+  emit_copy_args(aw, args, wrapper_args, stack_return_size, stack_return_padding, stack_alignment, stack_arg_size, stack_arg_padding, wrapper_stack_arg_size, caller_pkey, arch);
 
-  emit_scrub_regs(aw, caller_pkey, args, reg_arg_count > 0, arch);
-
-  if (kind == WrapperKind::IndirectCallsite) {
-    emit_load_fn_ptr(aw, arch);
-  }
+  emit_scrub_regs(aw, caller_pkey, args, kind == WrapperKind::IndirectCallsite, arch);
 
   emit_set_pkru(aw, target_pkey, arch);
 
@@ -1073,7 +1139,7 @@ std::string emit_asm_wrapper(AbiSignature &sig,
 
   emit_switch_stacks(aw, target_pkey, caller_pkey, arch);
 
-  emit_scrub_regs(aw, target_pkey, rets, true, arch);
+  emit_scrub_regs(aw, target_pkey, rets, false, arch);
 
   emit_set_return_pkru(aw, caller_pkey, arch);
 

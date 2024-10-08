@@ -35,7 +35,7 @@ static const char secret_string[] = "This is a secret.\n";
 static int last_xor;
 
 static int main_read(int i) {
-  if (i >= sizeof(secret_string)) {
+  if (i >= (int) sizeof(secret_string)) {
     return 0;
   }
 

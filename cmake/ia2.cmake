@@ -57,6 +57,7 @@ function(add_ia2_compartment NAME TYPE)
   set_target_properties(${NAME} PROPERTIES PKEY ${ARG_PKEY})
   target_compile_options(${NAME} PRIVATE
     "-Werror=incompatible-pointer-types"
+    "-Werror=sign-compare"
     "-fPIC"
   )
 

@@ -89,8 +89,14 @@ Test(rewrite_fn_ptr_eq, main) {
     // REWRITER: bin_op fn3 = { 0 };
     bin_op fn3 = 0;
 
+    // REWRITER: bin_op fn4 = (typeof(fn)) { 0 };
+    bin_op fn4 = (typeof(fn)) 0;
+
     // REWRITER: fn = (typeof(fn)) { 0 };
     fn = 0;
+
+    // REWRITER: fn = (typeof(fn)) { 0 };
+    fn = (typeof(fn)) 0;
 
     // check that literal zeroes aren't rewritten if not cast to function pointers
     // REWRITER: res = 0;
@@ -103,8 +109,8 @@ Test(rewrite_fn_ptr_eq, main) {
     if (mod.fn == 0) { }
 
     // REWRITER: if (IA2_ADDR(fn) == 0) { }
-    if (fn == (typeof(fn))0) { }
+    //if (fn == (typeof(fn)) 0) { }
 
     // REWRITER: if (IA2_ADDR(mod.fn) == 0) { }
-    if (mod.fn == (typeof(fn))0) { }
+    //if (mod.fn == (typeof(fn)) 0) { }
 }

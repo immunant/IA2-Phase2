@@ -404,7 +404,9 @@ public:
 
     auto fn_ptr_typedef = hasType(typedefNameDecl(hasType(fn_ptr)));
 
-    auto null_expr = implicitCastExpr(ignoringParenCasts(nullPointerConstant()))
+    auto zero_literal = integerLiteral(equals(0));
+    auto null_macro = nullPointerConstant();
+    auto null_expr = implicitCastExpr(ignoringParenCasts(anyOf(null_macro, zero_literal)))
                          .bind("nullExpr");
 
     auto null_fn_ptr = varDecl(hasInitializer(null_expr),

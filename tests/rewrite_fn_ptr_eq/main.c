@@ -31,8 +31,6 @@ Test(rewrite_fn_ptr_eq, main) {
     bin_op fn = add;
     // REWRITER: bin_op fn2 = { NULL };
     bin_op fn2 = NULL;
-    // REWRITER: bin_op fn3 = { 0 };
-    bin_op fn3 = 0;
 
     // Check that pointers for types other than functions are not rewritten
     // REWRITER: if (y) { }
@@ -86,8 +84,11 @@ Test(rewrite_fn_ptr_eq, main) {
     // REWRITER: fn = (typeof(fn)) { NULL };
     fn = NULL;
 
-    // the next test doesn't use NULL so the rewriter output shouldn't rely on it either
-//#undef NULL
+    // the following tests don't use NULL so the rewriter output shouldn't rely on it either
+#undef NULL
+    // REWRITER: bin_op fn3 = { 0 };
+    bin_op fn3 = 0;
+
     // REWRITER: fn = (typeof(fn)) { 0 };
     fn = 0;
 

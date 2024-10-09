@@ -61,7 +61,7 @@ std::vector<ArgLocation> allocate_param_locations(const AbiSignature &func, Arch
       args.push_back(ptr_arg);
       ints_used += 1;
     } else if (arch == Arch::Aarch64) {
-      // memory return goes in x8
+      // memory return region address goes in x8
       auto ptr_arg = ArgLocation::Register(ArgLocation::Kind::Integral, 8);
       ptr_arg.allocate_reg("x8");
       args.push_back(ptr_arg);
@@ -930,12 +930,14 @@ std::string emit_asm_wrapper(AbiSignature &sig,
     |stack|Space required for stack arguments. This is initialized from the
     |args |analogous part of the caller's stack. If all arguments are passed in
     |     |registers this space isn't allocated.
-    +-----+
-    |frame|Previous link register contents. TODO: update this when we transition stacks?
+    | .   |
+    +-----+ <- Start of callee stack frame
+    | .   |
+    |frame|Previous link register contents.
     |ptr  |
     +-----+
-    |ret  |Return address for wrapped function. This is implicitly placed on the
-    |addr |stack by the call to the wrapped function.
+    |ret  |Return address into the wrapper function.
+    |addr |
     +-----+
 
   */

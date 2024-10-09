@@ -524,7 +524,7 @@ public:
       assert(fn_ptr_ty);
       auto dest_fn_ty = fn_ptr_ty->getPointeeType()->getAs<clang::FunctionProtoType>();
       assert(dest_fn_ty);
-      auto args = dest_fn_ty->param_types().vec();
+      std::vector<clang::QualType> args = {dest_fn_ty->param_type_begin(), dest_fn_ty->param_type_end()};
       args.insert(args.begin(), ctxt.VoidPtrTy);
       auto wrap_fn_ty = ctxt.getFunctionType(dest_fn_ty->getReturnType(), args, dest_fn_ty->getExtProtoInfo());
       auto wrap_fn_ptr_ty = ctxt.getPointerType(wrap_fn_ty);

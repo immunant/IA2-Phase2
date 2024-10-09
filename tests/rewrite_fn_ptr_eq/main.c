@@ -67,6 +67,9 @@ Test(rewrite_fn_ptr_eq, main) {
     // REWRITER: res = IA2_ADDR(fn) && IA2_ADDR(fn2) ? IA2_CALL(fn, _ZTSFiiiE)(1, 2) + IA2_CALL(fn2, _ZTSFiiiE)(1, 2) : -1;
     res = fn && fn2 ? fn(1, 2) + fn2(1, 2) : -1;
 
+    // REWRITER: fn = IA2_ADDR(fn2) ? fn2 : fn;
+    fn = fn2 ? fn2 : fn;
+
     bin_op *ptr = &fn;
     // REWRITER: if (IA2_ADDR(*ptr)) { }
     if (*ptr) { }

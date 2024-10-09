@@ -889,7 +889,7 @@ std::string emit_asm_wrapper(AbiSignature &sig,
     |     |this doesn't get placed on the stack. The System V ABI specifies this
     |     |must be placed at the end of the argument area so this cannot be
     |     |placed any lower on the stack.
-    +-----+
+    +-----+ <- Base of reserved space
     |stack|Space required for stack arguments. This is initialized from the
     |args |analogous part of the caller's stack. If all arguments are passed in
     |     |registers this space isn't allocated.
@@ -903,15 +903,8 @@ std::string emit_asm_wrapper(AbiSignature &sig,
     | top |Top of the stack (stack grows down on AArch64). This address is
     |     |aligned to 16 bytes.
     +-----+
-    |ind  |Padding for alignment prior to the indirect args
-    |args |as such memory must be 16B aligned. (TODO: verify this)
-    |align|
-    +-----+
     |ind  |Space for arguments passed indirectly (i.e. in memory). These arguments
     |args |will point to this region.
-    +-----+
-    |ret  |Padding for alignment prior to the compartment's return value (if it
-    |align|has class MEMORY) as such memory must be 16B aligned.
     +-----+
     |     |Space for the compartment's return value if it has class MEMORY. This
     |ret  |space is only allocated if the pointer to the caller's return value
@@ -920,19 +913,15 @@ std::string emit_asm_wrapper(AbiSignature &sig,
     |ret  |A pointer saving the caller's address for return value. Only added if
     |ptr  |using ret space. Saves the previous value of x8.
     +-----+
-    |     |8 bytes for alignment. If the size of the other items on the stack
-    |     |(including the return address) aren't a multiple 16, these 8 bytes
-    |align|are inserted to ensure the stack is aligned for the call. Otherwise
-    |     |this doesn't get placed on the stack. The System V ABI specifies this
-    |     |must be placed at the end of the argument area so this cannot be
-    |     |placed any lower on the stack. (TODO: verify this)
+    |align|8 bytes for alignment if the total size of ind args + ret space 
+    |     |  + ret ptr + stack args is not a multiple of 16.
     +-----+
     |stack|Space required for stack arguments. This is initialized from the
     |args |analogous part of the caller's stack. If all arguments are passed in
     |     |registers this space isn't allocated.
-    | .   |
-    +-----+ <- Start of callee stack frame
-    | .   |
+    |     |
+    +-----+ <- Base of reserved space, Start of callee stack frame, 16-byte aligned
+    |     |
     |frame|Previous link register contents.
     |ptr  |
     +-----+
@@ -940,6 +929,10 @@ std::string emit_asm_wrapper(AbiSignature &sig,
     |addr |
     +-----+
 
+    ind args, ret space, and stack args may each have up to 15 bytes of alignment 
+    above the section on the stack so that the start of the first item in each section is
+    properly aligned. This is necessary if the size of the section is not a multiple 
+    of the alignment of the first item.
   */
 
   // The return value takes up `stack_return_size + 1` eightbytes since we also

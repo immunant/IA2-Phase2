@@ -27,8 +27,12 @@ Test(rewrite_fn_ptr_eq, main) {
     int res;
     int *y = &res;
     void *x = NULL;
+    // REWRITER: bin_op fn = IA2_FN(add);
     bin_op fn = add;
+    // REWRITER: bin_op fn2 = { NULL };
     bin_op fn2 = NULL;
+    // REWRITER: bin_op fn3 = { 0 };
+    bin_op fn3 = 0;
 
     // Check that pointers for types other than functions are not rewritten
     // REWRITER: if (y) { }
@@ -78,4 +82,28 @@ Test(rewrite_fn_ptr_eq, main) {
     if (y || !fn) { }
     // REWRITER: if (x && IA2_ADDR(fn) && y) { }
     if (x && fn && y) { }
+
+    // REWRITER: fn = (typeof(fn)) { NULL };
+    fn = NULL;
+
+    // the next test doesn't use NULL so the rewriter output shouldn't rely on it either
+//#undef NULL
+    // REWRITER: fn = (typeof(fn)) { 0 };
+    fn = 0;
+
+    // check that literal zeroes aren't rewritten if not cast to function pointers
+    // REWRITER: res = 0;
+    res = 0;
+
+    // REWRITER: if (IA2_ADDR(fn) == 0) { }
+    if (fn == 0) { }
+
+    // REWRITER: if (IA2_ADDR(mod.fn) == 0) { }
+    if (mod.fn == 0) { }
+
+    // REWRITER: if (IA2_ADDR(fn) == 0) { }
+    if (fn == (typeof(fn))0) { }
+
+    // REWRITER: if (IA2_ADDR(mod.fn) == 0) { }
+    if (mod.fn == (typeof(fn))0) { }
 }

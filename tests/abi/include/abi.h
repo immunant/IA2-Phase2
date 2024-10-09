@@ -19,6 +19,8 @@ void arg2(int x, int y);
 // Expects x==1 and y==2
 void arg3(int x, float f, int y);
 
+void many_args(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j);
+
 void arg_in_memory(struct in_memory im);
 
 struct in_memory ret_in_memory(int x);

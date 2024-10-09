@@ -91,7 +91,7 @@
 /// value
 ///
 /// `pkru` should be the register value, not the compartment pkey.
-#ifndef LIBIA2_DEBUG
+#ifndef IA2_DEBUG
 #define ASSERT_PKRU(pkru)
 #else
 /* clang-format off */

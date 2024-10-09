@@ -300,7 +300,7 @@ works as a reasonable signpost no-op. */
 #if defined(__aarch64__)
 int ia2_mprotect_with_tag(void *addr, size_t len, int prot, int tag);
 #elif defined(__x86_64__)
-#if LIBIA2_DEBUG_LOG
+#if IA2_DEBUG_LOG
 static int ia2_mprotect_with_tag(void *addr, size_t len, int prot, int tag) {
   printf("ia2_mprotect_with_tag(addr=%p, len=%zu, prot=%d, tag=%d)\n", addr, len, prot, tag);
   return pkey_mprotect(addr, len, prot, tag);

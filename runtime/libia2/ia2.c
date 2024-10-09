@@ -351,7 +351,7 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
     search_args->found_library_count++;
   }
 
-#if LIBIA2_DEBUG_LOG
+#if IA2_DEBUG_LOG
   printf("protecting library: %s\n", basename(info->dlpi_name));
 #endif
 
@@ -381,7 +381,7 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
              search_args->shared_sections[i].end);
       exit(-1);
     }
-#if LIBIA2_DEBUG_LOG
+#if IA2_DEBUG_LOG
     printf("Shared range %zu: 0x%" PRIx64 "-0x%" PRIx64 "\n", shared_range_count, cur_range->start, cur_range->end);
 #endif
 
@@ -435,7 +435,7 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
 
     Elf64_Addr start = (info->dlpi_addr + phdr.p_vaddr) & ~0xFFFUL;
     Elf64_Addr seg_end = (info->dlpi_addr + phdr.p_vaddr + phdr.p_memsz + 0xFFFUL) & ~0xFFFUL;
-#if LIBIA2_DEBUG_LOG
+#if IA2_DEBUG_LOG
     printf("Segment %zu: 0x%" PRIx64 "-0x%" PRIx64 "\n", i, start, seg_end);
 #endif
     while (start < seg_end) {
@@ -448,7 +448,7 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
         // and remove the overlapping portion.
         if (shared_ranges[j].start <= start && shared_ranges[j].end > start) {
           start = shared_ranges[j].end;
-#if LIBIA2_DEBUG_LOG
+#if IA2_DEBUG_LOG
           printf("Shared range %zu overlaps start of segment %zu, adjusting start to 0x%" PRIx64 "\n", j, i, start);
 #endif
         }
@@ -459,7 +459,7 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
         if (shared_ranges[j].start > start &&
             shared_ranges[j].start < cur_end) {
           cur_end = shared_ranges[j].start;
-#if LIBIA2_DEBUG_LOG
+#if IA2_DEBUG_LOG
           printf("Shared range %zu overlaps end of segment %zu, adjusting end to 0x%" PRIx64 "\n", j, i, cur_end);
 #endif
         }

@@ -38,7 +38,7 @@ cmake ..                                                   \
 
 ### Notable CMake variables
 
-- `LIBIA2_DEBUG` - Adds additional runtime assertions to validate control-flow.
+- `IA2_DEBUG` - Adds additional runtime assertions to validate control-flow.
 - `LIBIA2_AARCH64` - Builds the runtime and tests for AArch64 using MTE instead of x86-64 with MPK. Tools are still built for the host.
 - `CMAKE_TOOLCHAIN_FILE` - Typically set to [`cmake/aarch64-toolchain.cmake`](../cmake/aarch64-toolchain.cmake) to build for AArch64 using GCC. This also sets `LIBIA2_AARCH64`.
 - `IA2_TRACER` - Can be used to unconditionally disable the syscall tracer for all tests. Individual tests can opt-out of syscall tracing by specifying `WITHOUT_SANDBOX` in `define_test`.

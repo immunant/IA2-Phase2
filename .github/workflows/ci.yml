@@ -37,7 +37,7 @@ jobs:
             -DClang_DIR=$Clang_DIR                                       \
             -DLLVM_DIR=$LLVM_DIR                                         \
             -DLLVM_EXTERNAL_LIT=$HOME/.local/bin/lit                     \
-            -DLIBIA2_DEBUG=${{ matrix.ia2-debug }}                       \
+            -DIA2_DEBUG=${{ matrix.ia2-debug }}                       \
             -DIA2_TRACER=${{ matrix.ia2-tracer }}                        \
             -G Ninja
           ninja

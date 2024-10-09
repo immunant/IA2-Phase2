@@ -599,8 +599,12 @@ static void emit_copy_args(AsmWriter &aw, const std::vector<ArgLocation> &args,
       for (; dest_arg != args.end(); src_arg++, dest_arg++) {
         if (!dest_arg->is_stack()) {
           if (src_arg->is_stack()) {
-            size_t offset = (x86_preserved_registers.size() + 1) * 8 + src_arg->stack_offset();
-            add_asm_line(aw, "movq %"s + dest_arg->as_str() + ", " + std::to_string(offset) + "(%rax)");
+            size_t offset = (x86_preserved_registers.size() + 1) * 8 + stack_arg_padding + src_arg->stack_offset() + src_arg->size();
+            size_t align = std::max(src_arg->align(), (size_t)8);
+            if (offset % align != 0) {
+              offset += align - (offset % align);
+            }
+            add_asm_line(aw, "movq "s + std::to_string(offset) + "(%rax), %" + dest_arg->as_str());
           } else {
             add_asm_line(aw, "movq %"s + src_arg->as_str() + ", %"s + dest_arg->as_str());
           }

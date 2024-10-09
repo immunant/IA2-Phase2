@@ -404,7 +404,7 @@ public:
 
     auto fn_ptr_typedef = hasType(typedefNameDecl(hasType(fn_ptr)));
 
-    auto zero_literal = integerLiteral(equals(0));
+    auto zero_literal = integerLiteral(equals(0)).bind("literalZero");
     auto null_macro = nullPointerConstant();
     auto null_expr = implicitCastExpr(ignoringParenCasts(anyOf(null_macro, zero_literal)))
                          .bind("nullExpr");
@@ -420,6 +420,7 @@ public:
     refactorer.addMatcher(assign_null, this);
   }
   virtual void run(const MatchFinder::MatchResult &result) {
+    bool spelled_as_zero = result.Nodes.getNodeAs<clang::IntegerLiteral>("literalZero");
     // The two matchers both have a nullExpr node so this getNodeAs can't fail
     auto *null_fn_ptr = result.Nodes.getNodeAs<clang::Expr>("nullExpr");
     assert(null_fn_ptr != nullptr);
@@ -438,6 +439,9 @@ public:
     Filename filename = get_expansion_filename(loc, sm);
 
     std::string new_expr = "{ NULL }";
+    if (spelled_as_zero) {
+        new_expr = "{ 0 }";
+    }
     // If the matcher found an assignment add the type of the LHS variable to
     // new_expr
     if (auto *lhs_ptr = result.Nodes.getNodeAs<clang::Expr>("ptrLHS")) {
@@ -445,7 +449,7 @@ public:
           clang::CharSourceRange::getTokenRange(lhs_ptr->getSourceRange());
       auto lhs_binding =
           clang::Lexer::getSourceText(char_range, sm, ctxt.getLangOpts());
-      new_expr = "(typeof("s + lhs_binding.str() + ")) { NULL }";
+      new_expr = "(typeof("s + lhs_binding.str() + ")) " + new_expr;
     }
 
     clang::CharSourceRange expansion_range = sm.getExpansionRange(loc);

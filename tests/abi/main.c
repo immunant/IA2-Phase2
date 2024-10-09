@@ -29,4 +29,7 @@ Test(abi, main) {
 
     fn_ptr_ret_in_mem fn = ret_in_memory;
     im = fn(1);
+
+    fn_ptr_many_args fn2 = many_args;
+    fn2(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
 }

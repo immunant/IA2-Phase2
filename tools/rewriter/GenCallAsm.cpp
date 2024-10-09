@@ -42,11 +42,6 @@ const std::array<const char *, 10> aarch64_preserved_registers = {"x19", "x20", 
                                                                   "x25", "x26", "x27",
                                                                   "x28"};
 
-static size_t stack_arg_count(const std::vector<ArgLocation> &args) {
-  return std::count_if(args.begin(), args.end(),
-                       [](auto &x) { return x.is_stack(); });
-}
-
 static size_t reg_arg_count(const std::vector<ArgLocation> &args) {
   return std::count_if(args.begin(), args.end(),
                        [](auto &x) { return !x.is_stack(); });

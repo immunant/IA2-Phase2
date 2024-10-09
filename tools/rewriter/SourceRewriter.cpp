@@ -753,11 +753,14 @@ public:
         binaryOperator(anyOf(hasOperatorName("=="), hasOperatorName("!=")),
                        hasRHS(ignoringImpCasts(fn_expr)));
 
+    auto ternary_condition = conditionalOperator(hasCondition(ptr_as_bool));
+
     refactorer.addMatcher(if_stmt, this);
     refactorer.addMatcher(lhs_ptr_op, this);
     refactorer.addMatcher(rhs_ptr_op, this);
     refactorer.addMatcher(lhs_cmp_fn, this);
     refactorer.addMatcher(rhs_cmp_fn, this);
+    refactorer.addMatcher(ternary_condition, this);
   }
   virtual void run(const MatchFinder::MatchResult &result) {
     const clang::Expr *expr = nullptr;

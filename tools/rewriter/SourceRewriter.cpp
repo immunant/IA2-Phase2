@@ -510,7 +510,7 @@ public:
       return;
     }
 
-    clang::SourceLocation loc = fn_ptr_call->getExprLoc();
+    clang::SourceLocation loc = fn_ptr_expr->getExprLoc();
     Filename filename = get_filename(loc, sm);
     if (should_not_modify_file(filename)) {
       return;
@@ -549,7 +549,7 @@ public:
 
     // This check must come after modifying the maps in this pass but before the
     // Replacement is added
-    if (in_macro_expansion(loc, sm)) {
+    if (in_fn_like_macro(loc, sm)) {
       auto expansion_file = get_expansion_filename(loc, sm);
       auto expansion_line = sm.getExpansionLineNumber(loc);
       auto spelling_line = sm.getSpellingLineNumber(loc);
@@ -582,6 +582,12 @@ public:
 
     auto char_range = 
         clang::CharSourceRange::getTokenRange(fn_ptr_call->getSourceRange());
+
+    if (in_macro_expansion(char_range.getBegin(), sm)) {
+      filename = get_expansion_filename(char_range.getBegin(), sm);
+      auto expanded_char_range = sm.getExpansionRange(char_range.getBegin());
+      char_range = clang::CharSourceRange::getTokenRange(expanded_char_range.getBegin(), char_range.getEnd());
+    }
 
     Replacement old_r{sm, char_range, new_expr};
     Replacement r = replace_new_file(filename, old_r);

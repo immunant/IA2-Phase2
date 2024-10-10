@@ -17,13 +17,7 @@
 #define IA2_COMPARTMENT_LIBRARIES NULL
 #endif
 
-#define CONCAT_(x, y) x##y
-#define CONCAT(x, y) CONCAT_(x, y)
-#define COMPARTMENT_IDENT(name) CONCAT(name##_, IA2_COMPARTMENT)
-
-/* Fully expand x to a string if x is a macro (e.g. IA2_COMPARTMENT) */
-#define XSTR(x) STR(x)
-#define STR(x) #x
+#define COMPARTMENT_IDENT(name) IA2_CONCAT(name##_, IA2_COMPARTMENT)
 
 #if !IA2_ENABLE
 
@@ -71,13 +65,13 @@ __attribute__((constructor)) static void COMPARTMENT_IDENT(init_pkey)() {
       /* Set PKRU to the compartment's value */
       "xorl %%ecx, %%ecx\n"
       "xorl %%edx, %%edx\n"
-      "mov_pkru_eax " XSTR(IA2_COMPARTMENT) "\n"
+      "mov_pkru_eax " IA2_STR(IA2_COMPARTMENT) "\n"
       "wrpkru\n"
       :
       :
       : "rax", "rcx", "rdx");
 #elif defined(__aarch64__)
-  __asm__ volatile("movz_shifted_tag_x18 " XSTR(IA2_COMPARTMENT) "\n");
+  __asm__ volatile("movz_shifted_tag_x18 " IA2_STR(IA2_COMPARTMENT) "\n");
 #endif
 
   dl_iterate_phdr(protect_pages, &args);

@@ -31,7 +31,7 @@ void *thread_fn(void *ptr);
 void *thread_fn(void *ptr) {
   cr_log_info("tid %d ptr=%p\n", gettid(), ptr);
 
-  cr_log_info("main-module thread pkru=%08x\n", ia2_get_tag());
+  cr_log_info("main-module thread pkru=%08zx\n", ia2_get_tag());
 #if LIBIA2_AARCH64
   cr_assert_eq(ia2_get_tag(), 1);
 #else
@@ -66,14 +66,14 @@ void *access_ptr_thread_fn(void *ptr) {
 }
 
 Test(threads, main) {
-  cr_log_info("main-module main pkru=%08x\n", ia2_get_tag());
+  cr_log_info("main-module main pkru=%08zx\n", ia2_get_tag());
 #if LIBIA2_AARCH64
   cr_assert_eq(ia2_get_tag(), 1);
 #else
   cr_assert_eq(ia2_get_tag(), 0xfffffff0);
 #endif
   library_showpkru();
-  cr_log_info("main-module main pkru=%08x\n", ia2_get_tag());
+  cr_log_info("main-module main pkru=%08zx\n", ia2_get_tag());
 
   pthread_t lib_thread = library_spawn_thread();
 

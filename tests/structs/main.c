@@ -360,7 +360,7 @@ Test(structs, main) {
         .s1 = s1,
     };
 
-    cr_assert(cksum_s16(s) == cksum_s1(s.s1));
+    cr_assert((int) cksum_s16(s) == cksum_s1(s.s1));
 
     s = get_s16();
     check_field_int(s1.i1, 3);

@@ -666,24 +666,6 @@ public:
 
       auto [it, new_fn] = internal_addr_taken_fns[filename].insert(
           std::make_pair(fn_name, new_type));
-
-      // TODO: Note that this only checks if a function is added to the
-      // internal_addr_taken_fns map. To make the rewriter idempotent we should
-      // check for an existing used attribute.
-      if (new_fn) {
-        auto decl_start = fn_decl->getBeginLoc();
-        if (!decl_start.isFileID()) {
-          llvm::errs() << "Error: non-file loc for function " << fn_name << '\n';
-        } else {
-          Replacement old_used_attr(sm, decl_start, 0,
-                                    llvm::StringRef("__attribute__((used)) "));
-          Replacement used_attr = replace_new_file(filename, old_used_attr);
-          auto err = file_replacements[filename].add(used_attr);
-          if (err) {
-            llvm::errs() << "Error adding replacements: " << err << '\n';
-          }
-        }
-      }
     }
 
     // This check must come after modifying the maps in this pass but before the
@@ -701,6 +683,7 @@ public:
       return;
     }
 
+    // Add the IA2_FN annotation around the function pointer expression
     clang::CharSourceRange expansion_range = sm.getExpansionRange(loc);
     Replacement old_r{sm, expansion_range, new_expr};
     Replacement r = replace_new_file(filename, old_r);

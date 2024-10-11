@@ -56,6 +56,7 @@ add_subdirectory(shared_data)
 add_subdirectory(global_fn_ptr)
 add_subdirectory(rewrite_macros)
 add_subdirectory(sighandler)
+add_subdirectory(static_addr_taken)
 
 # The following tests are not supported on ARM64 yet
 if (NOT LIBIA2_AARCH64)

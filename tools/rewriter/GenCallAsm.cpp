@@ -977,7 +977,9 @@ std::string emit_asm_wrapper(AbiSignature &sig,
 
   emit_prologue(aw, caller_pkey, target_pkey, arch);
 
-  add_raw_line(aw, llvm::formatv("ASSERT_PKRU({0:x8}) \"\\n\"", ~((0b11 << (2 * caller_pkey)) | 0b11)));
+  if (arch == Arch::X86) {
+    add_raw_line(aw, llvm::formatv("ASSERT_PKRU({0:x8}) \"\\n\"", ~((0b11 << (2 * caller_pkey)) | 0b11)));
+  }
 
   if (arch == Arch::X86) {
     x86_emit_intermediate_pkru(aw, caller_pkey, target_pkey, "rcx", "rdx");

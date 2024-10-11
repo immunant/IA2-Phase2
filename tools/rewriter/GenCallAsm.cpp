@@ -141,9 +141,13 @@ std::vector<ArgLocation> allocate_return_locations(const AbiSignature &func, Arc
     case ArgLocation::Kind::Integral:
       if (arg.size() <= 8 || arg.is_indirect()) {
         assert(ints_used < int_ret_reg_order.size());
-        arg.allocate_reg(int_ret_reg_order[ints_used]);
+        if (!arg.is_indirect() || arch == Arch::X86) {
+          // indirect return values addresses are expected to be in return
+          // registers on X86
+          arg.allocate_reg(int_ret_reg_order[ints_used]);
+          ints_used += 1;
+        }
         args.push_back(arg);
-        ints_used += 1;
         break;
       } else {
         assert(arg.size() == 16);
@@ -163,13 +167,13 @@ std::vector<ArgLocation> allocate_return_locations(const AbiSignature &func, Arc
       floats_used += 1;
       break;
     case ArgLocation::Kind::Memory:
-      // memory return also returns address in first return register on x86
-      if (arch == Arch::X86) {
-        assert(ints_used == 0);
-        arg.allocate_reg(int_ret_reg_order[ints_used]);
-        arg.set_indirect_on_stack();
-        args.push_back(arg);
-      }
+      // Memory return also returns address in first return register on x86.
+      // Memory returns on AArch64 are classified as indirect and handled above.
+      assert(arch == Arch::X86);
+      assert(ints_used == 0);
+      arg.allocate_reg(int_ret_reg_order[ints_used]);
+      arg.set_indirect_on_stack();
+      args.push_back(arg);
       break;
     }
   }
@@ -729,7 +733,11 @@ static void emit_scrub_regs(AsmWriter &aw, uint32_t pkey, const std::vector<ArgL
     auto regs_64bit = std::vector<std::string>();
     auto regs_128bit = std::vector<std::string>();
     for (auto loc : locs) {
-      if (!loc.is_stack()) {
+      if (!loc.is_stack() && loc.is_allocated()) {
+        // loc is not allocated to a register if it is an indirect return on
+        // AArch64. x8 does not have to be preserved by the callee, see AArch64
+        // Procedure Call Standard 6.9: "(there is no requirement for the callee
+        // to preserve the value stored in x8)".
         if (loc.is_128bit_float()) {
           regs_128bit.push_back(loc.as_str());
         } else {
@@ -853,7 +861,12 @@ std::string emit_asm_wrapper(AbiSignature &sig,
   size_t stack_arg_padding = unaligned != 0 ? 8 - unaligned : 0;
   size_t reg_arg_count = args.size() - stack_arg_count;
 
+  llvm::errs() << "Generating wrapper for " << sig_string(sig, target_name) << "\n";
   auto rets = allocate_return_locations(sig, arch);
+
+  // std::stringstream ss;
+  // append_arg_kinds(ss, rets);
+  // llvm::errs() << "Return kinds: " << ss.str() << "\n";
   size_t stack_return_size = 0;
   for (const auto &x : rets) {
     if (x.is_stack() || x.is_indirect()) {

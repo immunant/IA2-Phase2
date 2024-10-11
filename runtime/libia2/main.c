@@ -14,16 +14,16 @@ __asm__(
 #if defined(__x86_64__)
     "pushq %rbp\n"
     "movq %rsp, %rbp\n"
-    // Save the old stack pointer in main_sp.
-    "movq %rsp, main_sp(%rip)\n"
-    // Load the stack pointer for this compartment's stack.
-    "mov ia2_stackptr_1@GOTTPOFF(%rip), %r11\n"
-    "mov %fs:(%r11), %rsp\n"
     // Switch pkey to the appropriate compartment.
     "xor %ecx,%ecx\n"
     "mov %ecx,%edx\n"
     "mov_pkru_eax 1\n"
     "wrpkru\n"
+    // Save the old stack pointer in main_sp.
+    "movq %rsp, main_sp(%rip)\n"
+    // Load the stack pointer for this compartment's stack.
+    "mov ia2_stackptr_1@GOTTPOFF(%rip), %r11\n"
+    "mov %fs:(%r11), %rsp\n"
     // Align the stack before calling main.
     "subq $8, %rsp\n"
     // Call the real main function.

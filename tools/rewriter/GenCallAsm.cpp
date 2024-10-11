@@ -478,20 +478,15 @@ static void emit_set_pkru(AsmWriter &aw, uint32_t target_pkey, Arch arch) {
   }
 }
 
-static void emit_free_stack_space(AsmWriter &aw, size_t stack_arg_size, size_t stack_arg_padding, int stack_alignment, Arch arch) {
+static void emit_free_stack_space(AsmWriter &aw, size_t stack_size, Arch arch) {
+  if (stack_size == 0) {
+    return;
+  }
+
+  add_comment_line(aw, "Free stack space used for stack args");
   if (arch == Arch::X86) {
     // Free stack space used for stack args on the target stack
-    if (stack_arg_size > 0) {
-      add_comment_line(aw, "Free stack space used for stack args");
-      add_asm_line(aw, "addq $"s + std::to_string(stack_arg_size + stack_arg_padding) + ", %rsp");
-    }
-
-    // If we inserted 8 bytes to align the stack before calling the wrapped
-    // function, free this space.
-    if (stack_alignment != 0) {
-      assert(stack_alignment == 8);
-      add_asm_line(aw, "addq $8, %rsp");
-    }
+    add_asm_line(aw, "addq $"s + std::to_string(stack_size) + ", %rsp");
   } else if (arch == Arch::Aarch64) {
     // TODO ARM free stack space
     llvm::errs() << "TODO stack space freeing not implemented on ARM\n";
@@ -742,7 +737,7 @@ std::string emit_asm_wrapper(const CAbiSignature &sig,
 
   emit_intermediate_pkru(aw, caller_pkey, target_pkey, "rax", "rdx", arch);
 
-  emit_free_stack_space(aw, stack_arg_size, stack_arg_padding, stack_alignment, arch);
+  emit_free_stack_space(aw, stack_arg_size + stack_arg_padding + stack_alignment, arch);
 
   emit_copy_stack_returns(aw, stack_return_size, stack_return_padding, caller_pkey, target_pkey, arch);
 

@@ -45,7 +45,7 @@
 #define IA2_ADDR(opaque) (void *)opaque
 #define IA2_AS_PTR(opaque) opaque
 #define IA2_FN(func) func
-#define IA2_CALL(opaque, id) opaque
+#define IA2_CALL(opaque, id, ...) opaque(__VA_ARGS__)
 #define IA2_CAST(func, ty) (ty) (void *) func
 #else
 #define IA2_DEFINE_WRAPPER(func) IA2_DEFINE_WRAPPER_##func
@@ -133,7 +133,7 @@
 
 /// Call an IA2 opaque function pointer, which should be in target compartment
 /// `id`
-#define IA2_CALL(opaque, id) _IA2_CALL(opaque, id, PKEY)
+#define IA2_CALL(opaque, id, ...) _IA2_CALL(opaque, id, PKEY, ##__VA_ARGS__)
 
 /// Get an IA2 opaque function pointer of type `ty` for the wrapper version of `func`
 ///

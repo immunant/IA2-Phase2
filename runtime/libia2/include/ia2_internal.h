@@ -27,17 +27,11 @@ struct dl_phdr_info;
 /* Supress unused warning */
 #define __IA2_UNUSED __attribute__((__unused__))
 
-/*
- * When IA2_CALL has caller pkey = 0, it just casts the opaque struct to an fn
- * ptr. Otherwise it sets ia2_fn_ptr to the opaque struct's value then calls
- * an indirect call gate depending on the opaque struct's type.
- */
-#define __IA2_CALL(opaque, id, pkey)                                           \
+#define __IA2_CALL(opaque, id, pkey, ...)                                      \
   ({                                                                           \
-    ia2_fn_ptr = opaque.ptr;                                                   \
-    (IA2_TYPE_##id) & __ia2_indirect_callgate_##id##_pkey_##pkey;              \
+    ((IA2_TYPE_##id) & __ia2_indirect_callgate_##id##_pkey_##pkey)(opaque.ptr, ##__VA_ARGS__); \
   })
-#define _IA2_CALL(opaque, id, pkey) __IA2_CALL(opaque, id, pkey)
+#define _IA2_CALL(opaque, id, pkey, ...) __IA2_CALL(opaque, id, pkey, ##__VA_ARGS__)
 
 /* clang-format off */
 #define REPEATB0(fn, basefn) basefn(0)

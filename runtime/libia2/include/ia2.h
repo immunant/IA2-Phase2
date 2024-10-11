@@ -49,7 +49,7 @@
 #define IA2_CAST(func, ty) (ty) (void *) func
 #else
 #define IA2_DEFINE_WRAPPER(func) \
-    __attribute__((__used__)) typeof(func) func; \
+    __attribute__((__used__)) static void *keep_##func = (void *)func; \
     IA2_DEFINE_WRAPPER_##func
 #define IA2_SIGHANDLER(func) ia2_sighandler_##func
 /// Create a wrapped signal handler for `sa_sigaction`

@@ -175,7 +175,7 @@ asm(".macro movz_shifted_tag_x18 tag\n"
 /* Allocate and protect the stack for this thread's i'th compartment. */
 #define ALLOCATE_COMPARTMENT_STACK_AND_SETUP_TLS(i)                            \
   {                                                                            \
-    __IA2_UNUSED extern __thread void *ia2_stackptr_##i;                       \
+    __IA2_UNUSED __attribute__((visibility ("default"))) extern __thread void *ia2_stackptr_##i;                       \
                                                                                \
     register void *stack asm("rax") = allocate_stack(i);                       \
                                                                                \
@@ -292,9 +292,9 @@ always fail because it maps a non-page-aligned addr with MAP_FIXED, so it
 works as a reasonable signpost no-op. */
 #define mark_init_finished() (void)mmap((void *)IA2_FINISH_INIT_MAGIC, 0, 0, MAP_FIXED, -1, 0)
 
-#define declare_init_tls_fn(n) void init_tls_##n(void);
+#define declare_init_tls_fn(n) __attribute__((visibility("default"))) void init_tls_##n(void);
 #define setup_destructors_for_compartment(n)                                   \
-  void ia2_setup_destructors_##n(void);                                        \
+  __attribute__((visibility("default"))) void ia2_setup_destructors_##n(void);                                        \
   ia2_setup_destructors_##n();
 
 #if defined(__aarch64__)
@@ -316,20 +316,20 @@ void ensure_pkeys_allocated(int *n_to_alloc);
 _Noreturn void ia2_reinit_stack_err(int i);
 
 #define _IA2_INIT_RUNTIME(n)                                                   \
-  int ia2_n_pkeys_to_alloc = n;                                                \
-  __thread void *ia2_stackptr_0[PAGE_SIZE / sizeof(void *)]                    \
+  __attribute__((visibility("default"))) int ia2_n_pkeys_to_alloc = n;                                                \
+  __attribute__((visibility("default"))) __thread void *ia2_stackptr_0[PAGE_SIZE / sizeof(void *)]                    \
       __attribute__((aligned(4096)));                                          \
                                                                                \
   REPEATB(n, declare_init_tls_fn, nop_macro);                                  \
                                                                                \
   /* Returns `&ia2_stackptr_N` given a pkru value for the Nth compartment. */  \
-  void **ia2_stackptr_for_pkru(uint32_t pkru) {                                \
+  __attribute__((visibility("default"))) void **ia2_stackptr_for_pkru(uint32_t pkru) {                                \
     REPEATB(n, return_stackptr_if_compartment,                                 \
             return_stackptr_if_compartment);                                   \
     return NULL;                                                               \
   }                                                                            \
                                                                                \
-  __attribute__((weak)) void init_stacks_and_setup_tls(void) {                 \
+  __attribute__((visibility("default"))) __attribute__((weak)) void init_stacks_and_setup_tls(void) {                 \
     verify_tls_padding();                                                      \
     REPEATB(n, ALLOCATE_COMPARTMENT_STACK_AND_SETUP_TLS, nop_macro);           \
     /* allocate an unprotected stack for the untrusted compartment */          \

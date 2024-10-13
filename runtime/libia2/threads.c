@@ -4,8 +4,8 @@
 
 #include "ia2.h"
 
-void init_stacks_and_setup_tls(void);
-void **ia2_stackptr_for_pkru(uint32_t pkey);
+__attribute__((visibility("default"))) void init_stacks_and_setup_tls(void);
+__attribute__((visibility("default"))) void **ia2_stackptr_for_pkru(uint32_t pkey);
 
 struct ia2_thread_thunk {
   void *(*fn)(void *);

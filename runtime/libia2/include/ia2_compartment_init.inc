@@ -37,7 +37,7 @@ __attribute__((used)) void COMPARTMENT_IDENT(ia2_compartment_destructor)(void) {
 
 #else
 
-__thread void *COMPARTMENT_IDENT(ia2_stackptr) __attribute__((used));
+__attribute__((visibility("default"))) __thread void *COMPARTMENT_IDENT(ia2_stackptr) __attribute__((used));
 
 /*
 ** Initializes a compartment with protection key `n`. Called automatically as a
@@ -113,7 +113,7 @@ __attribute__((constructor)) static void COMPARTMENT_IDENT(init_pkey)() {
   }
 }
 
-void COMPARTMENT_IDENT(init_tls)(void) {
+__attribute__((visibility("default"))) void COMPARTMENT_IDENT(init_tls)(void) {
   struct PhdrSearchArgs args = {
       .pkey = IA2_COMPARTMENT,
       .address = &COMPARTMENT_IDENT(init_tls),
@@ -137,7 +137,7 @@ static volatile struct FinalizerInfo finalizers
 
 extern void COMPARTMENT_IDENT(__wrap_ia2_compartment_destructor)(void);
 
-__attribute__((no_sanitize("undefined"))) __attribute__((used)) void
+__attribute__((visibility("default"))) __attribute__((no_sanitize("undefined"))) __attribute__((used)) void
 COMPARTMENT_IDENT(ia2_compartment_destructor)(void) {
   static bool ran_destructors = false;
   if (ran_destructors)
@@ -169,7 +169,7 @@ static inline uint32_t ubsan_access_phdr_type(Elf64_Phdr *phdr, int i) {
     return phdr[i].p_type;
 }
 
-void COMPARTMENT_IDENT(ia2_setup_destructors)(void) {
+__attribute__((visibility("default"))) void COMPARTMENT_IDENT(ia2_setup_destructors)(void) {
   int res = 0;
   Elf64_Ehdr *ehdr = &__ehdr_start;
   Elf64_Phdr *phdr = (Elf64_Phdr *)((uint8_t *)ehdr + __ehdr_start.e_phoff);

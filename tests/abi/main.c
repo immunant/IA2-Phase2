@@ -18,11 +18,13 @@ Test(abi, main) {
     arg1(1);
     arg2(1, 2);
     arg3(1, 1.0, 2);
+    many_args(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
 
     struct in_memory im = {0};
     im.arr[0] = 1;
     arg_in_memory(im);
-    im = ret_in_memory(1);
+    im = ret_in_memory(2);
+    cr_assert(2 == im.arr[0]);
     cr_assert(1 == return_val());
 
     fn_ptr_ret_in_mem fn = ret_in_memory;

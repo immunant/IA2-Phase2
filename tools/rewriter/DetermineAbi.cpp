@@ -14,120 +14,25 @@
 #include "clang/Lex/PreprocessorOptions.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/Support/Casting.h"
+#include "llvm/Support/Debug.h"
 #include <cstddef>
 #include <optional>
 #include <vector>
 
-// Compute sequence of eightbyte classifications for a type that Clang has
-// chosen to pass directly in registers
-static std::vector<CAbiArgLocation> classifyDirectType(const clang::Type &type,
-                                               const clang::ASTContext &astContext) {
-  if (type.isVoidType()) {
-    return {};
-  } else if (type.isScalarType()) {
-    switch (type.getScalarTypeKind()) {
-    case clang::Type::ScalarTypeKind::STK_CPointer:
-    case clang::Type::ScalarTypeKind::STK_Bool:
-    case clang::Type::ScalarTypeKind::STK_Integral:
-    case clang::Type::ScalarTypeKind::STK_FixedPoint:
-      return {CAbiArgLocation{CAbiArgKind::Integral}};
-    case clang::Type::ScalarTypeKind::STK_Floating:
-      return {CAbiArgLocation{CAbiArgKind::Float}};
-    case clang::Type::ScalarTypeKind::STK_IntegralComplex:
-    case clang::Type::ScalarTypeKind::STK_FloatingComplex:
-      llvm::report_fatal_error(
-          "complex types not yet supported for ABI computation");
-    case clang::Type::ScalarTypeKind::STK_BlockPointer:
-    case clang::Type::ScalarTypeKind::STK_ObjCObjectPointer:
-    case clang::Type::ScalarTypeKind::STK_MemberPointer:
-      // these may have special ABI handling due to containing code
-      // pointers or having special calling convention
-      llvm::report_fatal_error(
-          "unsupported scalar type (obj-C object, Clang block, or C++ member) found during ABI computation");
-    }
-  } else if (type.getAsStructureType()) {
-    // Handle the case where we pass a struct directly in a register.
-    // The strategy here is to iterate through each field of the struct
-    // and record the ABI type each time we exit an eightbyte chunk.
+#define VERBOSE_DEBUG 0
 
-    const clang::RecordType *rec = type.getAsStructureType();
-    const clang::RecordDecl *decl = rec->getDecl();
+#if VERBOSE_DEBUG
+#define DEBUG(X) do { X; } while (0)
+#else
+#define DEBUG(X) do { } while (0)
+#endif
 
-    if (decl->canPassInRegisters()) {
-      std::vector<CAbiArgLocation> out; // Classifications for the entire record
-      std::optional<CAbiArgLocation> pending_location;
-      int64_t prev_end_offset = 0; // Initially, first eightbyte
-
-      const clang::ASTRecordLayout &layout =
-          astContext.getASTRecordLayout(decl);
-
-      // Consider the classification of each field, but only push the current
-      // classification each time we leave an eightbyte
-      for (auto field : decl->fields()) {
-        int64_t offset = layout.getFieldOffset(field->getFieldIndex());
-
-        // Save the classification of the last eightbyte if we've left it
-        bool same_eightbyte = offset / 64 == prev_end_offset / 64;
-        if (!same_eightbyte) {
-          assert(pending_location.has_value());
-          out.push_back(*pending_location);
-          pending_location.reset();
-        }
-
-        // Update pending_kind based on ABI rules.
-        // We expect the field to fit in a single register (any larger and we
-        // should pass the entire struct on the stack). The field may be another
-        // struct, so we have to call this recursively.
-        auto recur = classifyDirectType(*field->getType(), astContext);
-        if (recur.size() != 1) {
-          llvm::report_fatal_error(
-              "unexpectedly classified register-passable field as multiple eightbytes");
-        }
-        auto new_location = recur[0];
-        // This block sets pending_kind = new_kind regardless.
-        // However we format it this way to match §3.2.3.4 of the x86_64 ABI.
-        // In the future, if we add support for X87 types etc, this logic will
-        // be more complex.
-        if (pending_location) {
-          if (pending_location->kind != new_location.kind) {
-            if (new_location.kind == CAbiArgKind::Memory) {
-              pending_location = new_location;
-            } else if (new_location.kind == CAbiArgKind::Integral) {
-              pending_location = new_location;
-              // TODO: handle X87/X87UP/COMPLEX_X87
-            } else {
-              pending_location = new_location;
-            }
-          }
-        } else {
-          pending_location = new_location;
-        }
-
-        // Update prev_end_offset for next iteration
-        if (field->isBitField()) {
-          prev_end_offset = offset + field->getBitWidthValue(astContext);
-        } else {
-          prev_end_offset = offset + astContext.getTypeSize(field->getType());
-        }
-      }
-      // Store any pending kind if the last field did not an eightbyte
-      if (pending_location) {
-        out.push_back(*pending_location);
-        pending_location.reset();
-      }
-      return out;
-    }
-  }
-  type.dump();
-  llvm::report_fatal_error(
-      "classifyDirectType called on non-scalar, non-canPassInRegisters type");
-}
-
-static CAbiArgLocation classifyLlvmType(const llvm::Type &type) {
+static ArgLocation classifyScalarType(const llvm::Type &type) {
+  auto Size = type.getScalarSizeInBits() / 8;
   if (type.isFloatingPointTy()) {
-    return CAbiArgLocation{CAbiArgKind::Float};
-  } else if (type.isSingleValueType()) {
-    return CAbiArgLocation{CAbiArgKind::Integral};
+    return ArgLocation::Register(ArgLocation::Kind::Float, Size);
+  } else if (type.isIntOrPtrTy()) {
+    return ArgLocation::Register(ArgLocation::Kind::Integral, Size);
   } else if (type.isAggregateType()) {
     llvm::report_fatal_error("nested aggregates not currently handled");
   } else {
@@ -137,7 +42,7 @@ static CAbiArgLocation classifyLlvmType(const llvm::Type &type) {
 }
 
 // Given a single argument, determine its ABI slots
-static std::vector<CAbiArgLocation>
+static std::vector<ArgLocation>
 abiSlotsForArg(const clang::QualType &qt,
                const clang::CodeGen::ABIArgInfo &argInfo,
                const clang::ASTContext &astContext,
@@ -157,11 +62,11 @@ abiSlotsForArg(const clang::QualType &qt,
       const clang::RecordDecl *decl = rec->getDecl();
       const clang::ASTRecordLayout &layout =
           astContext.getASTRecordLayout(decl);
-      return {CAbiArgLocation{
-          .kind = CAbiArgKind::Memory,
-          .size = static_cast<unsigned>(layout.getSize().getQuantity()),
-          .align = static_cast<unsigned>(layout.getAlignment().getQuantity()),
-      }};
+      return {ArgLocation::Indirect(
+          layout.getSize().getQuantity(),
+          layout.getAlignment().getQuantity())};
+    } else {
+      llvm::report_fatal_error("indirect argument not a struct");
     }
   }
   // in register with zext/sext
@@ -169,32 +74,41 @@ abiSlotsForArg(const clang::QualType &qt,
     [[fallthrough]];
   case Kind::Direct: // in register
   {
-    llvm::StructType *STy =
-        llvm::dyn_cast<llvm::StructType>(argInfo.getCoerceToType());
+    auto Ty = argInfo.getCoerceToType();
+    llvm::StructType *STy = llvm::dyn_cast<llvm::StructType>(Ty);
     if (STy) {
       // Struct case
       if (argInfo.getCanBeFlattened()) {
         // A struct is "flattenable" if its individual elements can be passed as arguments.
         // In this case we classify each element of the struct and add each to the list.
         auto elems = STy->elements();
-        std::vector<CAbiArgLocation> out = {};
+        std::vector<ArgLocation> out = {};
         for (const auto &elem : elems) {
-          out.push_back(classifyLlvmType(*elem));
+          out.push_back(classifyScalarType(*elem));
         }
         return out;
       } else {
-        // A non-flattenable direct (passed in register) type is a pointer.
-        // see clang's ClangToLLVMArgMapping::construct
-        return {CAbiArgLocation{CAbiArgKind::Integral}};
+        llvm::report_fatal_error("non-flattenable struct cannot be passed directly in registers");
       }
     }
+    llvm::ArrayType *ATy = llvm::dyn_cast<llvm::ArrayType>(Ty);
+    if (ATy) {
+      // Array case
+      return std::vector(ATy->getNumElements(), classifyScalarType(*ATy->getElementType()));
+    }
+    llvm::FixedVectorType *VTy = llvm::dyn_cast<llvm::FixedVectorType>(Ty);
+    if (VTy) {
+      // Vector case
+      return std::vector(VTy->getNumElements(), classifyScalarType(*VTy->getElementType()));
+    }
     // We have a scalar type, so classify it.
-    return classifyDirectType(*qt.getCanonicalType(), astContext);
+    return {classifyScalarType(*Ty)};
   }
   case Kind::Ignore:   // no ABI presence
-                       // fall through
-  case Kind::InAlloca: // via implicit pointer
     return {};
+  case Kind::InAlloca: // via implicit pointer
+    // It looks like inalloca is only valid on Win32
+    llvm::report_fatal_error("Cannot handle InAlloca arguments");
   case Kind::Expand: // split aggregate into multiple registers -- already
                      // handled before our logic runs?
     llvm::report_fatal_error(
@@ -224,10 +138,10 @@ cgFunctionInfo(clang::CodeGen::CodeGenModule &cgm,
   }
 }
 
-CAbiSignature determineAbi(const clang::CodeGen::CGFunctionInfo &info,
+AbiSignature determineAbi(const clang::CodeGen::CGFunctionInfo &info,
                            const clang::ASTContext &astContext, Arch arch) {
   // get ABI for return type and each parameter
-  CAbiSignature sig;
+  AbiSignature sig;
   sig.variadic = info.isVariadic();
 
   // We want to find the layout of the parameter and return value "slots."
@@ -239,29 +153,18 @@ CAbiSignature determineAbi(const clang::CodeGen::CGFunctionInfo &info,
 
   // Get the slots for the return value.
   auto &returnInfo = info.getReturnInfo();
+  DEBUG({
+    llvm::dbgs() << "return: ";
+    returnInfo.dump();
+  });
   sig.ret = abiSlotsForArg(info.getReturnType(), returnInfo, astContext, arch);
-
-  auto is_integral = [](auto &x) { return x.kind == CAbiArgKind::Integral; };
-
-  // num_regs is the number of registers in which the return value is stored.
-  // This may be one for a value up to 64 bits or two for a 128-bit value.
-  std::size_t num_regs = std::count_if(sig.ret.begin(), sig.ret.end(), is_integral);
-  // It's possible that clang gives us back a value of three or more integers,
-  // for example a struct full of ints. However, in reality the whole value
-  // goes on the stack in this case according to the x64 ABI.
-  // We handle that case here.
-  if (num_regs > 2) { // TODO do we need to do the same on ARM?
-    // Replace the integer slots with an equal number of memory (stack) slots
-    std::erase_if(sig.ret, is_integral);
-    sig.ret.push_back(CAbiArgLocation{
-        .kind = CAbiArgKind::Memory,
-        .size = static_cast<unsigned>(num_regs) * 8,
-        .align = 8,
-    });
-  }
 
   // Now determine the slots for the arguments
   for (auto &argInfo : info.arguments()) {
+    DEBUG({
+      llvm::dbgs() << "arg: ";
+      argInfo.info.dump();
+    });
     clang::QualType paramType = argInfo.type;
     auto slots = abiSlotsForArg(paramType, argInfo.info, astContext, arch);
     sig.args.insert(sig.args.end(), slots.begin(), slots.end());
@@ -270,7 +173,7 @@ CAbiSignature determineAbi(const clang::CodeGen::CGFunctionInfo &info,
   return sig;
 }
 
-CAbiSignature determineAbiForDecl(const clang::FunctionDecl &fnDecl, Arch arch) {
+AbiSignature determineAbiForDecl(const clang::FunctionDecl &fnDecl, Arch arch) {
   clang::ASTContext &astContext = fnDecl.getASTContext();
 
   // set up context for codegen so we can ask about function ABI
@@ -301,6 +204,7 @@ CAbiSignature determineAbiForDecl(const clang::FunctionDecl &fnDecl, Arch arch) 
 
   auto name = fnDecl.getNameInfo().getAsString();
   const auto &info = cgFunctionInfo(cgm, fnDecl);
+  DEBUG(llvm::dbgs() << "determineAbiForDecl: " << name << "\n");
 
   const auto &convention = info.getEffectiveCallingConvention();
 
@@ -315,7 +219,7 @@ CAbiSignature determineAbiForDecl(const clang::FunctionDecl &fnDecl, Arch arch) 
   return determineAbi(info, astContext, arch);
 }
 
-CAbiSignature determineAbiForProtoType(const clang::FunctionProtoType &fpt,
+AbiSignature determineAbiForProtoType(const clang::FunctionProtoType &fpt,
                                        clang::ASTContext &astContext, Arch arch) {
   // FIXME: This is copied verbatim from determineAbiForDecl and could be
   // factored out. This depends on what we do with PR #78 so I'm leaving it as

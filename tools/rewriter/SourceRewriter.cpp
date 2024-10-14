@@ -564,7 +564,7 @@ public:
   }
 
   std::map<OpaqueStruct, std::string> fn_ptr_types;
-  std::map<OpaqueStruct, CAbiSignature> fn_ptr_abi_sig;
+  std::map<OpaqueStruct, AbiSignature> fn_ptr_abi_sig;
 
 private:
   std::map<std::string, Replacements> &file_replacements;
@@ -897,7 +897,7 @@ public:
       return;
     }
 
-    CAbiSignature fn_sig = determineAbiForDecl(*fn_node, Target);
+    AbiSignature fn_sig = determineAbiForDecl(*fn_node, Target);
     abi_signatures[fn_name] = fn_sig;
 
     // Get the translation unit's filename to figure out the pkey
@@ -914,7 +914,7 @@ public:
 
   std::set<Function> defined_fns[MAX_PKEYS];
   std::set<Function> declared_fns[MAX_PKEYS];
-  std::map<Function, CAbiSignature> abi_signatures;
+  std::map<Function, AbiSignature> abi_signatures;
   std::map<Function, Pkey> fn_pkeys;
 };
 
@@ -1216,7 +1216,7 @@ int main(int argc, const char **argv) {
   std::set<OpaqueStruct> type_id_macros_generated = {};
   for (int caller_pkey = 1; caller_pkey < num_pkeys; caller_pkey++) {
     for (const auto &[ty, mangled_ty] : ptr_call_pass.fn_ptr_types) {
-      CAbiSignature c_abi_sig;
+      AbiSignature c_abi_sig;
       try {
         c_abi_sig = ptr_call_pass.fn_ptr_abi_sig.at(ty);
       } catch (std::out_of_range const &exc) {
@@ -1327,7 +1327,7 @@ int main(int argc, const char **argv) {
       // original entries in these maps for the renamed symbols. While we could
       // avoid this duplication if necessary, this simplifies the call gate
       // generation.
-      CAbiSignature c_abi;
+      AbiSignature c_abi;
       try {
         c_abi = fn_decl_pass.abi_signatures.at(fn_name);
       } catch (std::out_of_range const &exc) {
@@ -1355,7 +1355,7 @@ int main(int argc, const char **argv) {
   // At this point direct_call_wrappers has both single-caller and multicaller
   // functions so we just need to generate the callgates
   for (const auto &[fn_name, caller_pkey] : direct_call_wrappers) {
-    CAbiSignature c_abi_sig;
+    AbiSignature c_abi_sig;
     try {
       c_abi_sig = fn_decl_pass.abi_signatures.at(fn_name);
     } catch (std::out_of_range const &exc) {
@@ -1393,7 +1393,7 @@ int main(int argc, const char **argv) {
   // Create wrapper for compartment destructor
   for (int compartment_pkey = 1; compartment_pkey < num_pkeys; compartment_pkey++) {
     std::string fn_name = "ia2_compartment_destructor_" + std::to_string(compartment_pkey);
-    CAbiSignature c_abi_sig;
+    AbiSignature c_abi_sig;
     try {
       c_abi_sig = fn_decl_pass.abi_signatures.at(fn_name);
     } catch (std::out_of_range const &exc) {
@@ -1428,7 +1428,7 @@ int main(int argc, const char **argv) {
 
     Pkey target_pkey = fn_decl_pass.fn_pkeys[fn_name];
     if (target_pkey != 0) {
-      CAbiSignature c_abi_sig = fn_decl_pass.abi_signatures[fn_name];
+      AbiSignature c_abi_sig = fn_decl_pass.abi_signatures[fn_name];
       std::string asm_wrapper =
           emit_asm_wrapper(c_abi_sig, wrapper_name, fn_name,
                            WrapperKind::Pointer, 0, target_pkey, Target);
@@ -1460,7 +1460,7 @@ int main(int argc, const char **argv) {
       // also has pkey 0 then it just needs call the original function
       Pkey target_pkey = fn_decl_pass.fn_pkeys[fn_name];
       if (target_pkey != 0) {
-        CAbiSignature c_abi_sig = fn_decl_pass.abi_signatures[fn_name];
+        AbiSignature c_abi_sig = fn_decl_pass.abi_signatures[fn_name];
 
         std::string asm_wrapper = emit_asm_wrapper(
             c_abi_sig, wrapper_name, fn_name, WrapperKind::Pointer, 0,

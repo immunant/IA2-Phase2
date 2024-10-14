@@ -34,6 +34,20 @@ void arg3(int x, float f, int y) {
   cr_log_info("arg3");
 }
 
+void many_args(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j) {
+  cr_assert(a == 1);
+  cr_assert(b == 2);
+  cr_assert(c == 3);
+  cr_assert(d == 4);
+  cr_assert(e == 5);
+  cr_assert(f == 6);
+  cr_assert(g == 7);
+  cr_assert(h == 8);
+  cr_assert(i == 9);
+  cr_assert(j == 10);
+  cr_log_info("many_args");
+}
+
 void arg_in_memory(struct in_memory im) {
   cr_assert(im.arr[0] == 1);
   cr_log_info("arg_in_memory");

@@ -69,7 +69,12 @@ function(add_ia2_compartment NAME TYPE)
     target_link_options(${NAME} PRIVATE ${UBSAN_FLAG})
   endif()
 
-  target_link_libraries(${NAME} PRIVATE dl libia2 partition-alloc)
+  if (LIBIA2_AARCH64)
+      set(ALLOCATOR_LIB "")
+  else()
+      set(ALLOCATOR_LIB "partition-alloc")
+  endif()
+  target_link_libraries(${NAME} PRIVATE dl libia2 ${ALLOCATOR_LIB})
   target_link_options(${NAME} PRIVATE "-Wl,--export-dynamic")
 
   target_link_libraries(${NAME} PRIVATE ${ARG_LIBRARIES})

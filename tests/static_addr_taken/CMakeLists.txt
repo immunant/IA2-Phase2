@@ -1,5 +1,6 @@
 define_shared_lib(
     SRCS lib.c
+    NEEDS_LD_WRAP
     PKEY 2
 )
 

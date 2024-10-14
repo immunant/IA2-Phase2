@@ -2,8 +2,8 @@
 #include <criterion/logging.h>
 #include <ia2.h>
 
-#define IA2_DEFINE_TEST_HANDLER
-#include <test_fault_handler.h>
+//#define IA2_DEFINE_TEST_HANDLER
+//#include <test_fault_handler.h>
 
 INIT_RUNTIME(2);
 #define IA2_COMPARTMENT 1
@@ -11,7 +11,9 @@ INIT_RUNTIME(2);
 
 #include "static_fns.h"
 
-static void duplicate_noop(void) {
+#define LOCAL static
+
+LOCAL void duplicate_noop(void) {
     printf("called %s in main binary\n", __func__);
 }
 

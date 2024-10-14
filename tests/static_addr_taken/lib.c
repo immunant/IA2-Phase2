@@ -2,7 +2,7 @@
 #include <criterion/logging.h>
 #include <ia2.h>
 
-#include <test_fault_handler.h>
+//#include <test_fault_handler.h>
 
 #define IA2_COMPARTMENT 2
 #include <ia2_compartment_init.inc>

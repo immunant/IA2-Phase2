@@ -686,6 +686,22 @@ public:
       }
     }
 
+    if (fn_decl->getVisibility() != clang::Visibility::DefaultVisibility) {
+      auto decl_start = fn_decl->getBeginLoc();
+      if (!decl_start.isFileID()) {
+        llvm::errs() << "Error: non-file loc for function " << fn_name << '\n';
+      } else {
+        llvm::errs() << "trying to add __attribute__((visibility(\"default\"))) for " << fn_name << '\n';
+        Replacement old_used_attr(sm, decl_start, 0,
+                                  llvm::StringRef("__attribute__((visibility(\"default\"))) "));
+        Replacement used_attr = replace_new_file(filename, old_used_attr);
+        auto err = file_replacements[filename].add(used_attr);
+        if (err) {
+          llvm::errs() << "Error adding replacements: " << err << '\n';
+        }
+      }
+    }
+
     // This check must come after modifying the maps in this pass but before the
     // Replacement is added
     if (in_fn_like_macro(loc, sm)) {

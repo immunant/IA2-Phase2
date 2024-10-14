@@ -249,6 +249,7 @@ asm(".macro movz_shifted_tag_x18 tag\n"
         "mov $" #i ",%%rdi\n"                                                  \
         "call ia2_reinit_stack_err\n"                                          \
         "ud2\n"                                                                \
+        /* %= produces a unique (to this inline asm block) label value */      \
         ".Lfresh_init%=" #i ":\n"                                              \
         /* store the stack addr in the stack pointer */                        \
         "mov %%r10,%%fs:(%%r11)\n"                                             \

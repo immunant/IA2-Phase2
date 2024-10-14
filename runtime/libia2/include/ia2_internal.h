@@ -47,22 +47,22 @@ struct dl_phdr_info;
 #define _IA2_CALL(opaque, id, pkey) __IA2_CALL(opaque, id, pkey)
 
 /* clang-format off */
-#define REPEATA0(fn, basefn, ...) basefn(0, ##__VA_ARGS__)
-#define REPEATA1(fn, basefn, ...) REPEATA0(fn, basefn, ##__VA_ARGS__) fn(1, ##__VA_ARGS__)
-#define REPEATA2(fn, basefn, ...) REPEATA1(fn, basefn, ##__VA_ARGS__) fn(2, ##__VA_ARGS__)
-#define REPEATA3(fn, basefn, ...) REPEATA2(fn, basefn, ##__VA_ARGS__) fn(3, ##__VA_ARGS__)
-#define REPEATA4(fn, basefn, ...) REPEATA3(fn, basefn, ##__VA_ARGS__) fn(4, ##__VA_ARGS__)
-#define REPEATA5(fn, basefn, ...) REPEATA4(fn, basefn, ##__VA_ARGS__) fn(5, ##__VA_ARGS__)
-#define REPEATA6(fn, basefn, ...) REPEATA5(fn, basefn, ##__VA_ARGS__) fn(6, ##__VA_ARGS__)
-#define REPEATA7(fn, basefn, ...) REPEATA6(fn, basefn, ##__VA_ARGS__) fn(7, ##__VA_ARGS__)
-#define REPEATA8(fn, basefn, ...) REPEATA7(fn, basefn, ##__VA_ARGS__) fn(8, ##__VA_ARGS__)
-#define REPEATA9(fn, basefn, ...) REPEATA8(fn, basefn, ##__VA_ARGS__) fn(9, ##__VA_ARGS__)
-#define REPEATA10(fn, basefn, ...) REPEATA9(fn, basefn, ##__VA_ARGS__) fn(10, ##__VA_ARGS__)
-#define REPEATA11(fn, basefn, ...) REPEATA10(fn, basefn, ##__VA_ARGS__) fn(11, ##__VA_ARGS__)
-#define REPEATA12(fn, basefn, ...) REPEATA11(fn, basefn, ##__VA_ARGS__) fn(12, ##__VA_ARGS__)
-#define REPEATA13(fn, basefn, ...) REPEATA12(fn, basefn, ##__VA_ARGS__) fn(13, ##__VA_ARGS__)
-#define REPEATA14(fn, basefn, ...) REPEATA13(fn, basefn, ##__VA_ARGS__) fn(14, ##__VA_ARGS__)
-#define REPEATA15(fn, basefn, ...) REPEATA14(fn, basefn, ##__VA_ARGS__) fn(15, ##__VA_ARGS__)
+#define REPEATB_REV0(fn, basefn, ...) basefn(0, ##__VA_ARGS__)
+#define REPEATB_REV1(fn, basefn, ...) REPEATB_REV0(fn, basefn, ##__VA_ARGS__) fn(1, ##__VA_ARGS__)
+#define REPEATB_REV2(fn, basefn, ...) REPEATB_REV1(fn, basefn, ##__VA_ARGS__) fn(2, ##__VA_ARGS__)
+#define REPEATB_REV3(fn, basefn, ...) REPEATB_REV2(fn, basefn, ##__VA_ARGS__) fn(3, ##__VA_ARGS__)
+#define REPEATB_REV4(fn, basefn, ...) REPEATB_REV3(fn, basefn, ##__VA_ARGS__) fn(4, ##__VA_ARGS__)
+#define REPEATB_REV5(fn, basefn, ...) REPEATB_REV4(fn, basefn, ##__VA_ARGS__) fn(5, ##__VA_ARGS__)
+#define REPEATB_REV6(fn, basefn, ...) REPEATB_REV5(fn, basefn, ##__VA_ARGS__) fn(6, ##__VA_ARGS__)
+#define REPEATB_REV7(fn, basefn, ...) REPEATB_REV6(fn, basefn, ##__VA_ARGS__) fn(7, ##__VA_ARGS__)
+#define REPEATB_REV8(fn, basefn, ...) REPEATB_REV7(fn, basefn, ##__VA_ARGS__) fn(8, ##__VA_ARGS__)
+#define REPEATB_REV9(fn, basefn, ...) REPEATB_REV8(fn, basefn, ##__VA_ARGS__) fn(9, ##__VA_ARGS__)
+#define REPEATB_REV10(fn, basefn, ...) REPEATB_REV9(fn, basefn, ##__VA_ARGS__) fn(10, ##__VA_ARGS__)
+#define REPEATB_REV11(fn, basefn, ...) REPEATB_REV10(fn, basefn, ##__VA_ARGS__) fn(11, ##__VA_ARGS__)
+#define REPEATB_REV12(fn, basefn, ...) REPEATB_REV11(fn, basefn, ##__VA_ARGS__) fn(12, ##__VA_ARGS__)
+#define REPEATB_REV13(fn, basefn, ...) REPEATB_REV12(fn, basefn, ##__VA_ARGS__) fn(13, ##__VA_ARGS__)
+#define REPEATB_REV14(fn, basefn, ...) REPEATB_REV13(fn, basefn, ##__VA_ARGS__) fn(14, ##__VA_ARGS__)
+#define REPEATB_REV15(fn, basefn, ...) REPEATB_REV14(fn, basefn, ##__VA_ARGS__) fn(15, ##__VA_ARGS__)
 #define REPEATB0(fn, basefn, ...) basefn(0, ##__VA_ARGS__)
 #define REPEATB1(fn, basefn, ...) fn(1, ##__VA_ARGS__) REPEATB0(fn, basefn, ##__VA_ARGS__)
 #define REPEATB2(fn, basefn, ...) fn(2, ##__VA_ARGS__) REPEATB1(fn, basefn, ##__VA_ARGS__)
@@ -81,12 +81,20 @@ struct dl_phdr_info;
 #define REPEATB15(fn, basefn, ...) fn(15, ##__VA_ARGS__) REPEATB14(fn, basefn, ##__VA_ARGS__)
 /* clang-format on */
 
-/* Macro to repeatedly apply a function or function-like macro `fn` a given
-number of times, passing the index to each invocation. The passed index `n` is
-first, followed by n-1 and so on. For the base case of 0, `basefn` is applied
-instead of `fn`. */
-#define REPEATA(n, fn, basefn, ...) REPEATA##n(fn, basefn, ##__VA_ARGS__)
+/* 
+ * REPEATB(n, fn, basefn, ...) 
+ * REPEATB_REV(n, basefn, fn, ...)
+ *
+ * Macro to repeatedly apply a function or function-like macro `fn` a given
+ * number of times, passing the index to each invocation. The passed index `n`
+ * is first, followed by n-1 and so on. For the base case of 0, `basefn` is
+ * applied instead of `fn`.
+ *
+ * REPEATB repeats from N to 0 (basefn is last). REPEATB_REV repeats from 0 to N
+ * (basefn is first).
+ */
 #define REPEATB(n, fn, basefn, ...) REPEATB##n(fn, basefn, ##__VA_ARGS__)
+#define REPEATB_REV(n, basefn, fn, ...) REPEATB_REV##n(fn, basefn, ##__VA_ARGS__)
 /* Handy as the base-case for repeating from N to 1, excluding 1. */
 #define nop_macro(x)
 
@@ -369,7 +377,7 @@ __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
         :                                                                      \
         :                                                                      \
         : "rax", "rcx", "rdx", "cc"                                            \
-        : REPEATA(max, PKRU_LABEL, PKRU_LABEL_NO_COMMA));                      \
+        : REPEATB_REV(max, PKRU_LABEL_NO_COMMA, PKRU_LABEL));                  \
     REPEATB(max, BODY_AND_WRPKRU, BODY_AND_WRPKRU, body, max)                  \
     done:
 
@@ -396,7 +404,7 @@ __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
         :                                                                      \
         :                                                                      \
         : "x19", "cc"                                                          \
-        : REPEATA(max, PKRU_LABEL, PKRU_LABEL_NO_COMMA));                      \
+        : REPEATB_REV(max, PKRU_LABEL_NO_COMMA, PKRU_LABEL));                  \
     REPEATB(max, BODY_AND_WRPKRU, BODY_AND_WRPKRU, body)                       \
     done:
 

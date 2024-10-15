@@ -675,10 +675,11 @@ public:
         if (!decl_start.isFileID()) {
           llvm::errs() << "Error: non-file loc for function " << fn_name << '\n';
         } else {
+          Filename decl_filename = get_filename(decl_start, sm);
           Replacement old_used_attr(sm, decl_start, 0,
                                     llvm::StringRef("__attribute__((used)) "));
-          Replacement used_attr = replace_new_file(filename, old_used_attr);
-          auto err = file_replacements[filename].add(used_attr);
+          Replacement used_attr = replace_new_file(decl_filename, old_used_attr);
+          auto err = file_replacements[decl_filename].add(used_attr);
           if (err) {
             llvm::errs() << "Error adding replacements: " << err << '\n';
           }

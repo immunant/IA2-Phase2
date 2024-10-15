@@ -5,8 +5,8 @@ RUN: cat main.c | FileCheck --match-full-lines --check-prefix=REWRITER %s
 
 // Check that readelf shows exactly one executable segment
 #include "plugin.h"
-#include <criterion/criterion.h>
-#include <criterion/logging.h>
+#include <ia2_test_runner.h>
+
 #include <ia2.h>
 #include <ia2_allocator.h>
 #include <string.h>

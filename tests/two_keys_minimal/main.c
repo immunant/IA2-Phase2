@@ -5,8 +5,8 @@ RUN: cat two_keys_minimal_call_gates_2.ld | FileCheck --check-prefix=LINKARGS %s
 
 // Check that readelf shows exactly one executable segment
 
-#include <criterion/criterion.h>
-#include <criterion/logging.h>
+#include <ia2_test_runner.h>
+
 #include <stdio.h>
 #include <unistd.h>
 #include <ia2.h>

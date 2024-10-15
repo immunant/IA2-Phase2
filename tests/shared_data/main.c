@@ -5,7 +5,7 @@ RUN: sh -c 'if [ ! -s "shared_data_call_gates_0.ld" ]; then echo "No link args a
 #include <assert.h>
 #include <ia2.h>
 #include "access_shared.h"
-#include <criterion/criterion.h>
+#include <ia2_test_runner.h>
 
 INIT_RUNTIME(1);
 #define IA2_COMPARTMENT 1

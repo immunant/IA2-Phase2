@@ -1,8 +1,8 @@
 /*
 RUN: cat threads_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 */
-#include <criterion/criterion.h>
-#include <criterion/logging.h>
+#include <ia2_test_runner.h>
+
 #include "library.h"
 #include <ia2.h>
 #include <stdio.h>

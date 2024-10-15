@@ -2,7 +2,8 @@
 RUN: cat ro_sharing_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 */
 #include "test_fault_handler.h"
-#include <criterion/logging.h>
+#include <ia2_test_runner.h>
+
 #include <ia2.h>
 #include <stdint.h>
 #include <stdio.h>

@@ -1,5 +1,5 @@
-#include <criterion/criterion.h>
-#include <criterion/logging.h>
+#include <ia2_test_runner.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>

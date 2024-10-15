@@ -12,7 +12,7 @@ RUN: cat two_keys_minimal_call_gates_2.ld | FileCheck --check-prefix=LINKARGS %s
 #include <ia2.h>
 #include "plugin.h"
 #define IA2_DEFINE_TEST_HANDLER
-#include "test_fault_handler.h"
+
 
 // This test uses two protection keys
 INIT_RUNTIME(2);

@@ -3,7 +3,7 @@
 
 // Check that readelf shows exactly one executable segment
 #include "library.h"
-#include "test_fault_handler.h"
+
 #include <ia2_test_runner.h>
 
 #include <ia2.h>

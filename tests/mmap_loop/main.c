@@ -6,7 +6,7 @@ RUN: sh -c 'if [ ! -s "mmap_loop_call_gates_0.ld" ]; then echo "No link args as 
 #include <ia2.h>
 #include <math.h>
 #include <stdio.h>
-#include <criterion/criterion.h>
+#include <ia2_test_runner.h>
 
 #define IA2_DEFINE_TEST_HANDLER
 #include "test_fault_handler.h"

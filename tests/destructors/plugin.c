@@ -1,5 +1,5 @@
-#include <criterion/criterion.h>
-#include <criterion/logging.h>
+#include <ia2_test_runner.h>
+
 #include <stdio.h>
 #include <ia2.h>
 #include "exported_fn.h"

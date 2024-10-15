@@ -1,8 +1,8 @@
 /*
 RUN: cat trusted_direct_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 */
-#include <criterion/criterion.h>
-#include <criterion/new/assert.h>
+#include <ia2_test_runner.h>
+
 #include "exported_fn.h"
 #include "test_fault_handler.h"
 

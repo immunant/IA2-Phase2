@@ -1,7 +1,7 @@
 #include "ia2_internal.h"
 #include "lib_1/lib_1.h"
 #include "lib_2/lib_2.h"
-#include <criterion/criterion.h>
+#include <ia2_test_runner.h>
 #include <ia2.h>
 
 INIT_RUNTIME(3);

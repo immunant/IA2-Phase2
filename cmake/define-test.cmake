@@ -137,7 +137,7 @@ function(define_test)
 
     set(ADD_SANDBOX_DEP FALSE)
     if (DEFINE_TEST_CRITERION_TEST)
-        list(APPEND DEFINE_TEST_UNWRAPPED_LIBS criterion)
+        list(APPEND DEFINE_TEST_UNWRAPPED_LIBS ia2_test_runner)
         if (NOT DEFINE_TEST_NOT_IN_CHECK_IA2)
             if (LIBIA2_AARCH64)
                 # unless natively AArch64, default to running tests with qemu-aarch64 and a custom LD_LIBRARY_PATH

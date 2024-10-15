@@ -4,7 +4,7 @@ RUN: cat main.c | FileCheck --match-full-lines --check-prefix=REWRITER %s
 #include "lib.h"
 #include <stddef.h>
 #include <ia2.h>
-#include <criterion/criterion.h>
+#include <ia2_test_runner.h>
 
 INIT_RUNTIME(1);
 #define IA2_COMPARTMENT 1

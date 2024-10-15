@@ -1,7 +1,7 @@
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
-#include <criterion/criterion.h>
+#include <ia2_test_runner.h>
 #include <ia2.h>
 #include <permissive_mode.h>
 

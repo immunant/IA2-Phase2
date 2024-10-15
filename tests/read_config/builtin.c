@@ -1,7 +1,8 @@
 /*
 RUN: cat read_config_call_gates_2.ld | FileCheck --check-prefix=LINKARGS %s
 */
-#include <criterion/logging.h>
+
+#include <ia2_test_runner.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ia2.h>

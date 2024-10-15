@@ -1,7 +1,8 @@
 /*
 RUN: cat macro_attr_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 */
-#include <criterion/logging.h>
+
+#include <ia2_test_runner.h>
 #include "functions.h"
 
 // LINKARGS: --wrap=f

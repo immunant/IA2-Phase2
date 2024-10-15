@@ -3,7 +3,8 @@ RUN: cat shared_data_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 */
 #include <stdio.h>
 #include "access_shared.h"
-#include <criterion/logging.h>
+#include <ia2_test_runner.h>
+
 
 // LINKARGS: --wrap=read_shared
 uint8_t read_shared(uint8_t *shared) {

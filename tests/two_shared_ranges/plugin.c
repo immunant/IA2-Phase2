@@ -4,7 +4,8 @@ RUN: cat two_shared_ranges_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %
 
 // Check that readelf shows exactly one executable segment
 
-#include <criterion/logging.h>
+
+#include <ia2_test_runner.h>
 #include <ia2.h>
 #include "exported_fn.h"
 #include "test_fault_handler.h"

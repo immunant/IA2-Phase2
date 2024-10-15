@@ -614,6 +614,7 @@ public:
     auto *fn_ptr_expr = result.Nodes.getNodeAs<clang::DeclRefExpr>("fnPtrExpr");
     assert(fn_ptr_expr != nullptr);
 
+    auto annotation = fn_ptr_expr->getDecl()->getAttr<clang::AnnotateAttr>();
     assert(result.SourceManager != nullptr);
     auto &sm = *result.SourceManager;
 

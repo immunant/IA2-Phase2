@@ -1,22 +1,33 @@
 #pragma once
+#include <ia2.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <assert.h>
 
+#if !defined(IA2_TEST_RUNNER_SOURCE)
+typedef void *ia2_test_fn;
+#else
+typedef void (*ia2_test_fn)(void);
+#endif
+
 struct fake_criterion_test {
-  void (*test)(void);
-  void (*init)(void);
+  ia2_test_fn test;
+  ia2_test_fn init;
   int exit_code;
 };
 
+#if !defined(IA2_TEST_RUNNER_SOURCE)
 #define Test(suite, name, ...)                                                                                                 \
+  IA2_BEGIN_NO_WRAP                                                                                                            \
   void fake_criterion_##suite##_##name(void);                                                                                  \
+  IA2_END_NO_WRAP                                                                                                              \
   __attribute__((__section__("fake_criterion_tests"))) struct fake_criterion_test fake_criterion_##suite##_##name##_##test = { \
       .test = fake_criterion_##suite##_##name,                                                                                 \
       ##__VA_ARGS__};                                                                                                          \
   void fake_criterion_##suite##_##name(void)
+#endif
 
 #define cr_log_info(f, ...) printf(f "\n", ##__VA_ARGS__)
 #define cr_log_error(f, ...) fprintf(stderr, f "\n", ##__VA_ARGS__)

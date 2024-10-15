@@ -6,7 +6,7 @@ RUN: sh -c 'if [ ! -s "ro_sharing_call_gates_0.ld" ]; then echo "No link args as
 #include <plugin.h>
 #include <ia2.h>
 #include <stdio.h>
-#define IA2_DEFINE_TEST_HANDLER
+
 
 
 // This test checks that all RO data mapped in from executable files is shared.

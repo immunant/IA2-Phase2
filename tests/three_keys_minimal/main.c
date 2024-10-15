@@ -10,7 +10,7 @@ INIT_RUNTIME(3);
 #include <ia2_compartment_init.inc>
 #include <threads.h>
 
-#define IA2_DEFINE_TEST_HANDLER
+
 
 
 void main_noop(void) {

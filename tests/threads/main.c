@@ -9,7 +9,7 @@ RUN: sh -c 'if [ ! -s "threads_call_gates_0.ld" ]; then echo "No link args as ex
 #include <pthread.h>
 #include <string.h>
 #include <sys/wait.h>
-#define IA2_DEFINE_TEST_HANDLER
+
 
 #include <unistd.h>
 

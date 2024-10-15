@@ -11,7 +11,7 @@ INIT_RUNTIME(3);
 #include <threads.h>
 
 #define IA2_DEFINE_TEST_HANDLER
-#include "test_fault_handler.h"
+
 
 void main_noop(void) {
 }

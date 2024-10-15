@@ -8,7 +8,7 @@ We need this because lib.c uses LINKARGS checks but not this file.
 #include <signal.h>
 #include <ia2.h>
 #define IA2_DEFINE_TEST_HANDLER
-#include <test_fault_handler.h>
+
 #include <ia2_test_runner.h>
 
 INIT_RUNTIME(2);

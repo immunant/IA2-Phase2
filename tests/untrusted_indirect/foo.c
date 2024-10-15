@@ -5,7 +5,7 @@ RUN: cat untrusted_indirect_call_gates_1.ld | FileCheck --check-prefix=LINKARGS 
 
 #include <signal.h>
 #include "foo.h"
-#include "test_fault_handler.h"
+
 
 extern bool clean_exit;
 

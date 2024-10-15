@@ -15,7 +15,7 @@ RUN: cat main.c | FileCheck --match-full-lines --check-prefix=REWRITER %s
 // including plugin.h (which does include the output header) before core.h.
 #include "core.h"
 #define IA2_DEFINE_TEST_HANDLER
-#include <test_fault_handler.h>
+
 
 /*
     This test is modeled after nginx's function pointer usage. In this test,

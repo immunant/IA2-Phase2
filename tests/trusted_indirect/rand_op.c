@@ -7,7 +7,7 @@ RUN: cat trusted_indirect_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 
 #include <stdbool.h>
 #include "rand_op.h"
-#include "test_fault_handler.h"
+
 
 // This library either returns a pointer to `add` or to `sub`. One of the functions is static and
 // the other is part of the public API to ensure that both types of cross-compartment function

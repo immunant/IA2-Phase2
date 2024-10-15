@@ -1,5 +1,6 @@
 #pragma once
 #include <stdio.h>
+#include <stdbool.h>
 
 struct fake_criterion_test {
   void (*test)(void);
@@ -25,3 +26,30 @@ struct fake_criterion_test {
     fprintf(stderr, s "\n"); \
     exit(1);                 \
   } while (0)
+
+/*
+ * This header defines a test framework for detecting MPK violations using
+ * signal handlers. This file must be included exactly once from a source file
+ * in the main binary with IA2_DEFINE_TEST_HANDLER defined by the preprocessor.
+ * This will define the functions and variables used by the test handler, ensure
+ * it is initialized before main and provide access to the LOG and
+ * CHECK_VIOLATION macros. Other files which need CHECK_VIOLATION or LOG may
+ * include the header without defining IA2_DEFINE_TEST_HANDLER. Using
+ * CHECK_VIOLATION without defining the test handler will trigger a linker error
+ * when building the shared object.
+ */
+
+// Configure the signal handler to expect an mpk violation when `expr` is
+// evaluated. If `expr` doesn't trigger a fault, this macro manually raises a
+// fault with a different message.
+#define CHECK_VIOLATION(expr)                                                  \
+  ({                                                                           \
+    expect_fault = true;                                                       \
+    asm volatile("" : : : "memory");                                           \
+    volatile typeof(expr) _tmp = expr;                                         \
+    printf("CHECK_VIOLATION: did not seg fault as expected\n");                \
+    _exit(1);                                                                  \
+    _tmp;                                                                      \
+  })
+
+extern bool expect_fault;

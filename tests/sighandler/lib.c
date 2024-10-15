@@ -8,7 +8,7 @@ RUN: cat sighandler_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 #include <ia2_test_runner.h>
 
 #define IA2_DEFINE_TEST_HANDLER
-#include <test_fault_handler.h>
+
 
 #define IA2_COMPARTMENT 2
 #include <ia2_compartment_init.inc>

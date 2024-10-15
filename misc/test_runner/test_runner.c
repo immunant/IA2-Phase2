@@ -1,4 +1,4 @@
-#include "include/criterion/criterion.h"
+#include "include/ia2_test_runner.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include <sys/wait.h>

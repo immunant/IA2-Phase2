@@ -1,8 +1,8 @@
 /*
 RUN: cat trusted_direct_call_gates_0.ld | FileCheck --check-prefix=LINKARGS %s
 */
-#include <criterion/criterion.h>
-#include <criterion/logging.h>
+#include <ia2_test_runner.h>
+
 #include <inttypes.h>
 #include <string.h>
 #include <unistd.h>

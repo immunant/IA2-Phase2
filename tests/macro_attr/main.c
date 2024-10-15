@@ -3,7 +3,7 @@ RUN: sh -c 'if [ ! -s "macro_attr_call_gates_0.ld" ]; then echo "No link args as
 */
 #include "functions.h"
 #include <ia2.h>
-#include <criterion/criterion.h>
+#include <ia2_test_runner.h>
 
 INIT_RUNTIME(1);
 #define IA2_COMPARTMENT 1

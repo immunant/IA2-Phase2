@@ -7,7 +7,8 @@ We need this because main.c uses LINKARGS checks but not this file.
 #include "plugin.h"
 #include "core.h"
 #include <ia2.h>
-#include <criterion/logging.h>
+#include <ia2_test_runner.h>
+
 #include <stdlib.h>
 #include <string.h>
 

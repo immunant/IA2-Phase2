@@ -3,8 +3,8 @@ RUN: sh -c 'if [ ! -s "header_includes_call_gates_0.ld" ]; then echo "No link ar
 */
 #include "liboption.h"
 #include "types.h"
-#include <criterion/criterion.h>
-#include <criterion/logging.h>
+#include <ia2_test_runner.h>
+
 #include <ia2.h>
 
 INIT_RUNTIME(1);

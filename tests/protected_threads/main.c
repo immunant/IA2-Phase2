@@ -8,7 +8,7 @@ RUN: sh -c 'if [ ! -s "protected_threads_call_gates_0.ld" ]; then echo "No link 
 #include <string.h>
 #include <sys/wait.h>
 #define IA2_DEFINE_TEST_HANDLER
-#include <criterion/criterion.h>
+#include <ia2_test_runner.h>
 #include <test_fault_handler.h>
 #include <unistd.h>
 

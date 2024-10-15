@@ -2,7 +2,7 @@
 RUN: cat global_fn_ptr_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 */
 #include "operations.h"
-#include <criterion/criterion.h>
+#include <ia2_test_runner.h>
 #include <stdio.h>
 
 extern Op operations[2];

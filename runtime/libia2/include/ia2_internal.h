@@ -24,6 +24,13 @@ struct dl_phdr_info;
 #include <sys/mman.h>
 #include <unistd.h>
 
+#define IA2_CONCAT_(x, y) x##y
+#define IA2_CONCAT(x, y) IA2_CONCAT_(x, y)
+
+/* Fully expand x to a string if x is a macro (e.g. IA2_COMPARTMENT) */
+#define IA2_XSTR(x) #x
+#define IA2_STR(x) IA2_XSTR(x)
+
 /* Supress unused warning */
 #define __IA2_UNUSED __attribute__((__unused__))
 
@@ -40,29 +47,54 @@ struct dl_phdr_info;
 #define _IA2_CALL(opaque, id, pkey) __IA2_CALL(opaque, id, pkey)
 
 /* clang-format off */
-#define REPEATB0(fn, basefn) basefn(0)
-#define REPEATB1(fn, basefn) fn(1); REPEATB0(fn, basefn)
-#define REPEATB2(fn, basefn) fn(2); REPEATB1(fn, basefn)
-#define REPEATB3(fn, basefn) fn(3); REPEATB2(fn, basefn)
-#define REPEATB4(fn, basefn) fn(4); REPEATB3(fn, basefn)
-#define REPEATB5(fn, basefn) fn(5); REPEATB4(fn, basefn)
-#define REPEATB6(fn, basefn) fn(6); REPEATB5(fn, basefn)
-#define REPEATB7(fn, basefn) fn(7); REPEATB6(fn, basefn)
-#define REPEATB8(fn, basefn) fn(8); REPEATB7(fn, basefn)
-#define REPEATB9(fn, basefn) fn(9); REPEATB8(fn, basefn)
-#define REPEATB10(fn, basefn) fn(10); REPEATB9(fn, basefn)
-#define REPEATB11(fn, basefn) fn(11); REPEATB10(fn, basefn)
-#define REPEATB12(fn, basefn) fn(12); REPEATB11(fn, basefn)
-#define REPEATB13(fn, basefn) fn(13); REPEATB12(fn, basefn)
-#define REPEATB14(fn, basefn) fn(14); REPEATB13(fn, basefn)
-#define REPEATB15(fn, basefn) fn(15); REPEATB14(fn, basefn)
+#define REPEATB_REV0(fn, basefn, ...) basefn(0, ##__VA_ARGS__)
+#define REPEATB_REV1(fn, basefn, ...) REPEATB_REV0(fn, basefn, ##__VA_ARGS__) fn(1, ##__VA_ARGS__)
+#define REPEATB_REV2(fn, basefn, ...) REPEATB_REV1(fn, basefn, ##__VA_ARGS__) fn(2, ##__VA_ARGS__)
+#define REPEATB_REV3(fn, basefn, ...) REPEATB_REV2(fn, basefn, ##__VA_ARGS__) fn(3, ##__VA_ARGS__)
+#define REPEATB_REV4(fn, basefn, ...) REPEATB_REV3(fn, basefn, ##__VA_ARGS__) fn(4, ##__VA_ARGS__)
+#define REPEATB_REV5(fn, basefn, ...) REPEATB_REV4(fn, basefn, ##__VA_ARGS__) fn(5, ##__VA_ARGS__)
+#define REPEATB_REV6(fn, basefn, ...) REPEATB_REV5(fn, basefn, ##__VA_ARGS__) fn(6, ##__VA_ARGS__)
+#define REPEATB_REV7(fn, basefn, ...) REPEATB_REV6(fn, basefn, ##__VA_ARGS__) fn(7, ##__VA_ARGS__)
+#define REPEATB_REV8(fn, basefn, ...) REPEATB_REV7(fn, basefn, ##__VA_ARGS__) fn(8, ##__VA_ARGS__)
+#define REPEATB_REV9(fn, basefn, ...) REPEATB_REV8(fn, basefn, ##__VA_ARGS__) fn(9, ##__VA_ARGS__)
+#define REPEATB_REV10(fn, basefn, ...) REPEATB_REV9(fn, basefn, ##__VA_ARGS__) fn(10, ##__VA_ARGS__)
+#define REPEATB_REV11(fn, basefn, ...) REPEATB_REV10(fn, basefn, ##__VA_ARGS__) fn(11, ##__VA_ARGS__)
+#define REPEATB_REV12(fn, basefn, ...) REPEATB_REV11(fn, basefn, ##__VA_ARGS__) fn(12, ##__VA_ARGS__)
+#define REPEATB_REV13(fn, basefn, ...) REPEATB_REV12(fn, basefn, ##__VA_ARGS__) fn(13, ##__VA_ARGS__)
+#define REPEATB_REV14(fn, basefn, ...) REPEATB_REV13(fn, basefn, ##__VA_ARGS__) fn(14, ##__VA_ARGS__)
+#define REPEATB_REV15(fn, basefn, ...) REPEATB_REV14(fn, basefn, ##__VA_ARGS__) fn(15, ##__VA_ARGS__)
+#define REPEATB0(fn, basefn, ...) basefn(0, ##__VA_ARGS__)
+#define REPEATB1(fn, basefn, ...) fn(1, ##__VA_ARGS__) REPEATB0(fn, basefn, ##__VA_ARGS__)
+#define REPEATB2(fn, basefn, ...) fn(2, ##__VA_ARGS__) REPEATB1(fn, basefn, ##__VA_ARGS__)
+#define REPEATB3(fn, basefn, ...) fn(3, ##__VA_ARGS__) REPEATB2(fn, basefn, ##__VA_ARGS__)
+#define REPEATB4(fn, basefn, ...) fn(4, ##__VA_ARGS__) REPEATB3(fn, basefn, ##__VA_ARGS__)
+#define REPEATB5(fn, basefn, ...) fn(5, ##__VA_ARGS__) REPEATB4(fn, basefn, ##__VA_ARGS__)
+#define REPEATB6(fn, basefn, ...) fn(6, ##__VA_ARGS__) REPEATB5(fn, basefn, ##__VA_ARGS__)
+#define REPEATB7(fn, basefn, ...) fn(7, ##__VA_ARGS__) REPEATB6(fn, basefn, ##__VA_ARGS__)
+#define REPEATB8(fn, basefn, ...) fn(8, ##__VA_ARGS__) REPEATB7(fn, basefn, ##__VA_ARGS__)
+#define REPEATB9(fn, basefn, ...) fn(9, ##__VA_ARGS__) REPEATB8(fn, basefn, ##__VA_ARGS__)
+#define REPEATB10(fn, basefn, ...) fn(10, ##__VA_ARGS__) REPEATB9(fn, basefn, ##__VA_ARGS__)
+#define REPEATB11(fn, basefn, ...) fn(11, ##__VA_ARGS__) REPEATB10(fn, basefn, ##__VA_ARGS__)
+#define REPEATB12(fn, basefn, ...) fn(12, ##__VA_ARGS__) REPEATB11(fn, basefn, ##__VA_ARGS__)
+#define REPEATB13(fn, basefn, ...) fn(13, ##__VA_ARGS__) REPEATB12(fn, basefn, ##__VA_ARGS__)
+#define REPEATB14(fn, basefn, ...) fn(14, ##__VA_ARGS__) REPEATB13(fn, basefn, ##__VA_ARGS__)
+#define REPEATB15(fn, basefn, ...) fn(15, ##__VA_ARGS__) REPEATB14(fn, basefn, ##__VA_ARGS__)
 /* clang-format on */
 
-/* Macro to repeatedly apply a function or function-like macro `fn` a given
-number of times, passing the index to each invocation. The passed index `n` is
-first, followed by n-1 and so on. For the base case of 0, `basefn` is applied
-instead of `fn`. */
-#define REPEATB(n, fn, basefn) REPEATB##n(fn, basefn)
+/* 
+ * REPEATB(n, fn, basefn, ...) 
+ * REPEATB_REV(n, basefn, fn, ...)
+ *
+ * Macro to repeatedly apply a function or function-like macro `fn` a given
+ * number of times, passing the index to each invocation. The passed index `n`
+ * is first, followed by n-1 and so on. For the base case of 0, `basefn` is
+ * applied instead of `fn`.
+ *
+ * REPEATB repeats from N to 0 (basefn is last). REPEATB_REV repeats from 0 to N
+ * (basefn is first).
+ */
+#define REPEATB(n, fn, basefn, ...) REPEATB##n(fn, basefn, ##__VA_ARGS__)
+#define REPEATB_REV(n, basefn, fn, ...) REPEATB_REV##n(fn, basefn, ##__VA_ARGS__)
 /* Handy as the base-case for repeating from N to 1, excluding 1. */
 #define nop_macro(x)
 
@@ -154,6 +186,11 @@ asm(".macro mov_pkru_eax pkey\n"
     ".long ~((3 << (2 * \\pkey)) | 3)\n"
     ".endm");
 
+// Compare eax with the given PKRU mask
+asm(".macro cmp_pkru_eax pkey\n"
+    "cmpl $~((3 << (2 * \\pkey)) | 3), %eax\n"
+    ".endm");
+
 // This emits the 4 bytes corresponding to movz x18, $shifted_tag, lsl #48
 asm(".macro movz_shifted_tag_x18 tag\n"
     ".byte 0x12\n"
@@ -176,6 +213,15 @@ asm(".macro movz_shifted_tag_x18 tag\n"
 #define ALLOCATE_COMPARTMENT_STACK_AND_SETUP_TLS(i)                            \
   {                                                                            \
     __IA2_UNUSED __attribute__((visibility ("default"))) extern __thread void *ia2_stackptr_##i;                       \
+    __asm__ volatile(                                                          \
+        /* write new pkru */                                                   \
+        "xorl %%ecx, %%ecx\n"                                                  \
+        "xorl %%edx, %%edx\n"                                                  \
+        "mov_pkru_eax " #i "\n"                                                \
+        "wrpkru\n"                                                             \
+        :                                                                      \
+        :                                                                      \
+        : "rax", "rcx", "rdx");                                                \
                                                                                \
     register void *stack asm("rax") = allocate_stack(i);                       \
                                                                                \
@@ -183,17 +229,6 @@ asm(".macro movz_shifted_tag_x18 tag\n"
     /* stack pointer is part of the compartment whose stack it points to. */   \
     __asm__ volatile(                                                          \
         "mov %0, %%r10\n"                                                      \
-        /* zero ecx as precondition of rdpkru */                               \
-        "xor %%ecx,%%ecx\n"                                                    \
-        /* eax = old pkru; also zeroes edx, which is required for wrpkru */    \
-        "rdpkru\n"                                                             \
-        /* save pkru in r12d. XXX: if a callee here spills r12, it could */    \
-        /* be corrupted by another thread subsequently corrupt the pkru */     \
-        /* when we restore it from r12d */                                     \
-        "mov %%eax,%%r12d\n"                                                   \
-        /* write new pkru */                                                   \
-        "mov_pkru_eax " #i "\n"                                                \
-        "wrpkru\n"                                                             \
         /* save current rsp onto compartment stack */                          \
         "mov %%rsp,(%%r10)\n"                                                  \
         /* switch onto compartment stack */                                    \
@@ -210,19 +245,14 @@ asm(".macro movz_shifted_tag_x18 tag\n"
         "mov ia2_stackptr_" #i "@GOTTPOFF(%%rip),%%r11\n"                      \
         /* check that stack pointer holds NULL */                              \
         "cmpq $0x0,%%fs:(%%r11)\n"                                             \
-        "je .Lfresh_init" #i "\n"                                              \
+        "je .Lfresh_init%=" #i "\n"                                            \
         "mov $" #i ",%%rdi\n"                                                  \
         "call ia2_reinit_stack_err\n"                                          \
         "ud2\n"                                                                \
-        ".Lfresh_init" #i ":\n"                                                \
+        /* %= produces a unique (to this inline asm block) label value */      \
+        ".Lfresh_init%=" #i ":\n"                                              \
         /* store the stack addr in the stack pointer */                        \
         "mov %%r10,%%fs:(%%r11)\n"                                             \
-        /* restore old pkru */                                                 \
-        "mov %%r12d,%%eax\n"                                                   \
-        /* zero ecx+edx as precondition of wrpkru */                           \
-        "xor %%ecx,%%ecx\n"                                                    \
-        "xor %%edx,%%edx\n"                                                    \
-        "wrpkru\n"                                                             \
         :                                                                      \
         : "rax"(stack)                                                         \
         : "rdi", "rcx", "rdx", "r10", "r11", "r12");                           \
@@ -236,8 +266,6 @@ asm(".macro movz_shifted_tag_x18 tag\n"
                                                                                \
     register void *stack asm("x0") = allocate_stack(i);                        \
     __asm__ volatile(                                                          \
-        /* using x19 since we can't use x18 as a register constraint */        \
-        "mov x19, x18\n"                                                       \
         "movz_shifted_tag_x18 " #i "\n"                                        \
         /* save old stack pointer */                                           \
         "mov x9, sp\n"                                                         \
@@ -260,7 +288,6 @@ asm(".macro movz_shifted_tag_x18 tag\n"
         "add x11, x11, x12\n"                                                  \
         /* write newly allocated stack to ia2_stackptr_i */                    \
         "str x10, [x11]\n"                                                     \
-        "mov x18, x19\n"                                                       \
         :                                                                      \
         : "r"(stack)                                                           \
         : "x9", "x10", "x11", "x12", "x19"                                     \
@@ -315,6 +342,76 @@ void verify_tls_padding(void);
 void ensure_pkeys_allocated(int *n_to_alloc);
 __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
 
+/* clang-format can't handle inline asm in macros */
+/* clang-format off */
+#define PKRU_LABEL(i) , pkru##i
+#define PKRU_LABEL_NO_COMMA(i) pkru##i
+#if defined(__x86_64__)
+#define CMP_AND_JMP(i)                                                         \
+  "cmp_pkru_eax " #i "\n"                                                      \
+  "je " IA2_STR(IA2_CONCAT(%l, i)) "\n"                                        \
+
+#define BODY_AND_WRPKRU(i, body, max)                                          \
+    pkru##i:                                                                   \
+    do { body } while (0);                                                     \
+    __asm__ volatile(                                                          \
+        "xorl %%ecx, %%ecx\n"                                                  \
+        "xorl %%edx, %%edx\n"                                                  \
+        "mov_pkru_eax " #i "\n"                                                \
+        "wrpkru\n"                                                             \
+        :                                                                      \
+        :                                                                      \
+        : "rax", "rcx", "rdx");                                                \
+    goto done;                                                                 \
+
+#define COMPARTMENT_SAVE_AND_RESTORE(body, max)                                \
+    __asm__ goto (                                                             \
+        /* zero ecx as precondition of rdpkru */                               \
+        "xor %%ecx,%%ecx\n"                                                    \
+        /* eax = old pkru; also zeroes edx, which is required for wrpkru */    \
+        "rdpkru\n"                                                             \
+        /* compare eax against each valid PKRU (up to max) and jump to the */  \
+        /* corresponding label defined by BODY_AND_WRPKRU(i, body) */          \
+        REPEATB(max, CMP_AND_JMP, CMP_AND_JMP)                                 \
+        /* If we get here, we have an unexpected PKRU value, default to 0. */  \
+        "jmp %l0\n"                                                            \
+        :                                                                      \
+        :                                                                      \
+        : "rax", "rcx", "rdx", "cc"                                            \
+        : REPEATB_REV(max, PKRU_LABEL_NO_COMMA, PKRU_LABEL));                  \
+    REPEATB(max, BODY_AND_WRPKRU, BODY_AND_WRPKRU, body, max)                  \
+    done:
+
+#elif defined(__aarch64__)
+#define CMP_AND_JMP(i)                                                         \
+  "cmp x19, " #i "\n"                                                          \
+  "b.eq " IA2_STR(IA2_CONCAT(%l, i)) "\n"                                      \
+
+#define BODY_AND_WRPKRU(i, body)                                               \
+    pkru##i:                                                                   \
+    do { body } while (0);                                                     \
+    __asm__ volatile(                                                          \
+        "movz_shifted_tag_x18 " #i "\n");                                      \
+    goto done;                                                                 \
+
+#define COMPARTMENT_SAVE_AND_RESTORE(body, max)                                \
+    __asm__ goto (                                                             \
+        "lsr x19, x18, #56\n"                                                  \
+        /* compare x19 against each valid key (up to max) and jump to the */   \
+        /* corresponding label defined by BODY_AND_WRPKRU(i, body) */          \
+        REPEATB(max, CMP_AND_JMP, CMP_AND_JMP)                                 \
+        /* If we get here, we have an unexpected PKRU value, default to 0. */  \
+        "b %l0\n"                                                              \
+        :                                                                      \
+        :                                                                      \
+        : "x19", "cc"                                                          \
+        : REPEATB_REV(max, PKRU_LABEL_NO_COMMA, PKRU_LABEL));                  \
+    REPEATB(max, BODY_AND_WRPKRU, BODY_AND_WRPKRU, body)                       \
+    done:
+
+#endif
+/* clang-format on */
+
 #define _IA2_INIT_RUNTIME(n)                                                   \
   __attribute__((visibility("default"))) int ia2_n_pkeys_to_alloc = n;                                                \
   __attribute__((visibility("default"))) __thread void *ia2_stackptr_0[PAGE_SIZE / sizeof(void *)]                    \
@@ -331,7 +428,7 @@ __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
                                                                                \
   __attribute__((visibility("default"))) __attribute__((weak)) void init_stacks_and_setup_tls(void) {                 \
     verify_tls_padding();                                                      \
-    REPEATB(n, ALLOCATE_COMPARTMENT_STACK_AND_SETUP_TLS, nop_macro);           \
+    COMPARTMENT_SAVE_AND_RESTORE(REPEATB(n, ALLOCATE_COMPARTMENT_STACK_AND_SETUP_TLS, nop_macro), n); \
     /* allocate an unprotected stack for the untrusted compartment */          \
     ia2_stackptr_0[0] = allocate_stack(0);                                     \
   }                                                                            \

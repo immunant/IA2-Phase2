@@ -5,7 +5,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <unistd.h>
-#define IA2_DEFINE_TEST_HANDLER
+
 
 #include <threads.h>
 

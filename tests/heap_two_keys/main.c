@@ -9,7 +9,7 @@ RUN: sh -c 'if [ ! -s "heap_two_keys_call_gates_0.ld" ]; then echo "No link args
 #include <ia2.h>
 #include <ia2_allocator.h>
 #include "plugin.h"
-#define IA2_DEFINE_TEST_HANDLER
+
 
 
 // This test uses two protection keys

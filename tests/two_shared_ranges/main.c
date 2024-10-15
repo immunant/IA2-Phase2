@@ -9,7 +9,7 @@ RUN: cat two_shared_ranges_call_gates_2.ld | FileCheck --check-prefix=LINKARGS %
 #include <unistd.h>
 #include <ia2.h>
 #include "plugin.h"
-#define IA2_DEFINE_TEST_HANDLER
+
 
 
 // This test uses two protection keys

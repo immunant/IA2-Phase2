@@ -7,7 +7,7 @@ RUN: sh -c 'if [ ! -s "should_segfault_call_gates_0.ld" ]; then echo "No link ar
 #include <stdint.h>
 #include <print_secret.h>
 #include <ia2.h>
-#define IA2_DEFINE_TEST_HANDLER
+
 
 
 INIT_RUNTIME(1);

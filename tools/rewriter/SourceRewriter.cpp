@@ -671,10 +671,12 @@ public:
       // internal_addr_taken_fns map. To make the rewriter idempotent we should
       // check for an existing used attribute.
       if (new_fn) {
-        auto decl_start = fn_decl->getBeginLoc();
-        if (!decl_start.isFileID()) {
+        auto static_fn_range = fn_decl->getSourceRange();
+        auto expansion_range = sm.getExpansionRange(static_fn_range);
+        if (!expansion_range.getBegin().isFileID()) {
           llvm::errs() << "Error: non-file loc for function " << fn_name << '\n';
         } else {
+          auto decl_start = expansion_range.getBegin();
           Filename decl_filename = get_filename(decl_start, sm);
           Replacement old_used_attr(sm, decl_start, 0,
                                     llvm::StringRef("__attribute__((used)) "));

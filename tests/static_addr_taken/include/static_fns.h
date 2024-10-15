@@ -1,5 +1,7 @@
 #pragma once
 
+#define LOCAL static
+
 typedef void (*fn_ptr_ty)(void);
 
 static void inline_noop(void) {

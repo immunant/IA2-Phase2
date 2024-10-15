@@ -12,13 +12,17 @@ static void duplicate_noop(void) {
     printf("called %s in main binary\n", __func__);
 }
 
+LOCAL void macro_attr_noop(void) {
+    printf("called %s in main binary\n", __func__);
+}
+
 static void identical_name(void) {
     static int x = 3;
     printf("%s in main binary read x = %d\n", __func__, x);
 }
 
-static fn_ptr_ty ptrs[3] IA2_SHARED_DATA = {
-    inline_noop, duplicate_noop, identical_name
+static fn_ptr_ty ptrs[] IA2_SHARED_DATA = {
+    inline_noop, duplicate_noop, identical_name, macro_attr_noop,
 };
 
 fn_ptr_ty *get_ptrs_in_main(void) {
@@ -26,7 +30,7 @@ fn_ptr_ty *get_ptrs_in_main(void) {
 }
 
 Test(static_addr_taken, call_ptrs_in_main) {
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < sizeof(ptrs) / sizeof(ptrs[0]); i++) {
         ptrs[i]();
     }
 }

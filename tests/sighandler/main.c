@@ -7,7 +7,7 @@ We need this because lib.c uses LINKARGS checks but not this file.
 #include <stddef.h>
 #include <signal.h>
 #include <ia2.h>
-#define IA2_DEFINE_TEST_HANDLER
+
 
 #include <ia2_test_runner.h>
 

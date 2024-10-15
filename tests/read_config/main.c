@@ -14,7 +14,7 @@ RUN: cat main.c | FileCheck --match-full-lines --check-prefix=REWRITER %s
 // need wrapped function pointer definitions. For now just hack around this by
 // including plugin.h (which does include the output header) before core.h.
 #include "core.h"
-#define IA2_DEFINE_TEST_HANDLER
+
 
 
 /*

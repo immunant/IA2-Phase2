@@ -6,7 +6,7 @@ RUN: sh -c 'if [ ! -s "trusted_indirect_call_gates_0.ld" ]; then echo "No link a
 
 #include "rand_op.h"
 #include <ia2.h>
-#define IA2_DEFINE_TEST_HANDLER
+
 
 
 /*

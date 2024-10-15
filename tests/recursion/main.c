@@ -7,7 +7,7 @@ RUN: cat recursion_call_gates_2.ld | FileCheck --check-prefix=LINKARGS %s
 
 #include <ia2.h>
 #include <stdio.h>
-#define IA2_DEFINE_TEST_HANDLER
+
 
 
 INIT_RUNTIME(2);

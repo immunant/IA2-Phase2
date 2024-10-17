@@ -660,31 +660,26 @@ public:
     OpaqueStruct new_type = kFnPtrTypePrefix + mangled_type;
 
     auto linkage = fn_decl->getFormalLinkage();
-    if (clang::isExternallyVisible(linkage)) {
-      addr_taken_fns[fn_name] = new_type;
-    } else {
+    auto [it, new_fn] = addr_taken_fns[filename].insert(
+        std::make_pair(fn_name, new_type));
 
-      auto [it, new_fn] = internal_addr_taken_fns[filename].insert(
-          std::make_pair(fn_name, new_type));
-
-      // TODO: Note that this only checks if a function is added to the
-      // internal_addr_taken_fns map. To make the rewriter idempotent we should
-      // check for an existing used attribute.
-      if (new_fn) {
-        auto static_fn_range = fn_decl->getSourceRange();
-        auto expansion_range = sm.getExpansionRange(static_fn_range);
-        if (!expansion_range.getBegin().isFileID()) {
-          llvm::errs() << "Error: non-file loc for function " << fn_name << '\n';
-        } else {
-          auto decl_start = expansion_range.getBegin();
-          Filename decl_filename = get_filename(decl_start, sm);
-          Replacement old_used_attr(sm, decl_start, 0,
-                                    llvm::StringRef("__attribute__((used)) "));
-          Replacement used_attr = replace_new_file(decl_filename, old_used_attr);
-          auto err = file_replacements[decl_filename].add(used_attr);
-          if (err) {
-            llvm::errs() << "Error adding replacements: " << err << '\n';
-          }
+    // TODO: Note that this only checks if a function is added to the
+    // addr_taken_fns map. To make the rewriter idempotent we should
+    // check for an existing used attribute.
+    if (new_fn) {
+      auto static_fn_range = fn_decl->getSourceRange();
+      auto expansion_range = sm.getExpansionRange(static_fn_range);
+      if (!expansion_range.getBegin().isFileID()) {
+        llvm::errs() << "Error: non-file loc for function " << fn_name << '\n';
+      } else {
+        auto decl_start = expansion_range.getBegin();
+        Filename decl_filename = get_filename(decl_start, sm);
+        Replacement old_used_attr(sm, decl_start, 0,
+                                  llvm::StringRef("__attribute__((used)) "));
+        Replacement used_attr = replace_new_file(decl_filename, old_used_attr);
+        auto err = file_replacements[decl_filename].add(used_attr);
+        if (err) {
+          llvm::errs() << "Error adding replacements: " << err << '\n';
         }
       }
     }
@@ -714,9 +709,8 @@ public:
     return;
   }
 
-  std::map<Function, OpaqueStruct> addr_taken_fns;
   std::map<Filename, std::set<std::pair<Function, OpaqueStruct>>>
-      internal_addr_taken_fns;
+      addr_taken_fns;
 
 private:
   std::map<std::string, Replacements> &file_replacements;
@@ -1417,51 +1411,22 @@ int main(int argc, const char **argv) {
   }
 
   std::cout << "Generating function pointer wrappers\n";
-  // Define wrappers for function pointers (i.e. those referenced by IA2_FN)
-  for (const auto &[fn_name, opaque] : ptr_expr_pass.addr_taken_fns) {
-    /*
-     * Declare these wrapper in the output header so that IA2_FN can reference
-     * them. e.g. extern struct IA2_fnptr_ZTSFiiE __ia2_foo;
-     *
-     * The type used in these declarations is arbitrary and chosen to make it
-     * easy to go from a function's name to its mangled type in IA2_FN.
-     */
-    std::string wrapper_name = "__ia2_"s + fn_name;
-    header_out << "extern " << opaque << " " << wrapper_name << ";\n";
-
-    Pkey target_pkey = fn_decl_pass.fn_pkeys[fn_name];
-    if (target_pkey != 0) {
-      AbiSignature c_abi_sig = fn_decl_pass.abi_signatures[fn_name];
-      std::string asm_wrapper =
-          emit_asm_wrapper(c_abi_sig, wrapper_name, fn_name,
-                           WrapperKind::Pointer, 0, target_pkey, Target);
-      wrapper_out << "asm(\n";
-      wrapper_out << asm_wrapper;
-      wrapper_out << ");\n";
-    } else {
-      header_out << "asm(\n";
-      header_out << "  \".set " << wrapper_name << ", __real_" << fn_name << "\\n\"\n";
-      header_out << ");\n";
-    }
-  }
-
-  std::cout << "Generating function pointer wrappers for static functions\n";
-  // Define wrappers for pointers to static functions (also those referenced by
-  // IA2_FN)
+  // Define wrappers for pointers to static functions (those referenced by IA2_FN)
   std::string static_wrappers;
-  for (const auto &[filename, addr_taken_fns] :
-       ptr_expr_pass.internal_addr_taken_fns) {
+  for (const auto &[filename, addr_taken_fns_in_file] :
+       ptr_expr_pass.addr_taken_fns) {
 
     // Open each file that took the address of a static function
     std::ofstream source_file(filename, std::ios::app);
 
     // For each static function, define a macro to define the wrapper in the
     // output header and invoke it in the source file
-    for (const auto [fn_name, opaque] : addr_taken_fns) {
+    for (const auto [fn_name, opaque] : addr_taken_fns_in_file) {
       std::string wrapper_name = "__ia2_"s + fn_name;
       // TODO: These wrapper go from pkey 0 to the target pkey so if the target
       // also has pkey 0 then it just needs call the original function
       Pkey target_pkey = fn_decl_pass.fn_pkeys[fn_name];
+      header_out << "extern " << opaque << " " << wrapper_name << ";\n";
       if (target_pkey != 0) {
         AbiSignature c_abi_sig = fn_decl_pass.abi_signatures[fn_name];
 
@@ -1473,9 +1438,11 @@ int main(int argc, const char **argv) {
         static_wrappers += asm_wrapper;
         static_wrappers += ");\n";
 
-        header_out << "extern " << opaque << " " << wrapper_name << ";\n";
-
         source_file << "IA2_DEFINE_WRAPPER(" << fn_name << ")\n";
+      } else {
+        header_out << "asm(\n";
+        header_out << "  \".set " << wrapper_name << ", __real_" << fn_name << "\\n\"\n";
+        header_out << ");\n";
       }
     }
   }

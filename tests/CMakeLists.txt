@@ -59,6 +59,7 @@ add_subdirectory(rewrite_fn_ptr_eq)
 add_subdirectory(rewrite_macros)
 add_subdirectory(sighandler)
 add_subdirectory(simple1)
+add_subdirectory(static_addr_taken)
 add_subdirectory(structs)
 
 # The following tests are not supported on ARM64 yet

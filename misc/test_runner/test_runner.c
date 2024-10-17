@@ -106,9 +106,10 @@ void print_mpk_message(int sig) {
   _exit(0);
 }
 
-// Installs the previously defined signal handler and disables buffering on
-// stdout to allow using printf prior to the sighandler
+// Installs the previously defined signal handler
 __attribute__((constructor)) void install_segfault_handler(void) {
-  setbuf(stdout, NULL);
-  signal(SIGSEGV, handle_segfault);
+  struct sigaction act = {
+      .sa_handler = handle_segfault,
+  };
+  sigaction(SIGSEGV, &act, NULL);
 }

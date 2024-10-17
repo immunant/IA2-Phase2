@@ -5,8 +5,8 @@ RUN: cat main.c | FileCheck --match-full-lines --check-prefix=REWRITER %s
 
 // Check that readelf shows exactly one executable segment
 #include "plugin.h"
-#include <criterion/criterion.h>
-#include <criterion/logging.h>
+#include <ia2_test_runner.h>
+
 #include <ia2.h>
 #include <ia2_allocator.h>
 #include <string.h>
@@ -14,8 +14,8 @@ RUN: cat main.c | FileCheck --match-full-lines --check-prefix=REWRITER %s
 // need wrapped function pointer definitions. For now just hack around this by
 // including plugin.h (which does include the output header) before core.h.
 #include "core.h"
-#define IA2_DEFINE_TEST_HANDLER
-#include <test_fault_handler.h>
+
+
 
 /*
     This test is modeled after nginx's function pointer usage. In this test,

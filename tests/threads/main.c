@@ -1,16 +1,16 @@
 /*
 RUN: sh -c 'if [ ! -s "threads_call_gates_0.ld" ]; then echo "No link args as expected"; exit 0; fi; echo "Unexpected link args"; exit 1;'
 */
-#include <criterion/criterion.h>
-#include <criterion/logging.h>
+#include <ia2_test_runner.h>
+
 #include "library.h"
 #include <assert.h>
 #include <ia2.h>
 #include <pthread.h>
 #include <string.h>
 #include <sys/wait.h>
-#define IA2_DEFINE_TEST_HANDLER
-#include <test_fault_handler.h>
+
+
 #include <unistd.h>
 
 INIT_RUNTIME(1);

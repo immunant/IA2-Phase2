@@ -3,7 +3,7 @@ RUN: cat minimal_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 */
 
 #include "abi.h"
-#include <criterion/criterion.h>
+#include <ia2_test_runner.h>
 
 // LINKARGS: --wrap=arg1
 void arg1(int x) {

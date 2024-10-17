@@ -371,6 +371,7 @@ void flush_queue(FILE *log) {
     fprintf(log, "pkru: %x\n", err.pkru);
   }
   release_queue(q);
+  fflush(log);
 }
 
 // The main function in the logging thread

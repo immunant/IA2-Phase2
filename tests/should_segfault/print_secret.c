@@ -1,12 +1,13 @@
 /*
 RUN: cat should_segfault_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 */
-#include <criterion/criterion.h>
+#include <ia2_test_runner.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <signal.h>
 #include "print_secret.h"
-#include "test_fault_handler.h"
+
 
 static bool early_fault = false;
 

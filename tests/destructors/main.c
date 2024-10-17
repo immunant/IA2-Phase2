@@ -1,12 +1,12 @@
-#include <criterion/criterion.h>
-#include <criterion/logging.h>
+#include <ia2_test_runner.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <ia2.h>
 #include "plugin.h"
-#define IA2_DEFINE_TEST_HANDLER
-#include "test_fault_handler.h"
+
+
 
 // This test uses two protection keys
 INIT_RUNTIME(2);

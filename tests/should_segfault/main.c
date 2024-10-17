@@ -1,14 +1,14 @@
 /*
 RUN: sh -c 'if [ ! -s "should_segfault_call_gates_0.ld" ]; then echo "No link args as expected"; exit 0; fi; echo "Unexpected link args"; exit 1;'
 */
-#include <criterion/criterion.h>
+#include <ia2_test_runner.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <stdint.h>
 #include <print_secret.h>
 #include <ia2.h>
-#define IA2_DEFINE_TEST_HANDLER
-#include "test_fault_handler.h"
+
+
 
 INIT_RUNTIME(1);
 #define IA2_COMPARTMENT 1

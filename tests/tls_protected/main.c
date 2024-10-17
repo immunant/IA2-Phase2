@@ -1,12 +1,12 @@
-#include <criterion/criterion.h>
-#include <criterion/logging.h>
+#include <ia2_test_runner.h>
+
 #include <ia2.h>
 #include <library.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <unistd.h>
-#define IA2_DEFINE_TEST_HANDLER
-#include "test_fault_handler.h"
+
+
 #include <threads.h>
 
 INIT_RUNTIME(2);

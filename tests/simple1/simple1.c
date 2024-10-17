@@ -2,7 +2,8 @@
 Source rewriter pass is a noop for PKEY=0.
 RUN: cat simple1_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 */
-#include <criterion/logging.h>
+
+#include <ia2_test_runner.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>

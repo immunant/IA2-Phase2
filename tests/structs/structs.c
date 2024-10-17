@@ -2,7 +2,7 @@
 RUN: cat structs_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 */
 #include "structs.h"
-#include <criterion/criterion.h>
+#include <ia2_test_runner.h>
 #include <math.h>
 
 // LINKARGS: --wrap=check_s5

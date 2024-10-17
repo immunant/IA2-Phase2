@@ -2,7 +2,7 @@
 RUN: cat recursion_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 */
 #include "recursion_main.h"
-#include <criterion/criterion.h>
+#include <ia2_test_runner.h>
 #include <ia2.h>
 #include <stdio.h>
 

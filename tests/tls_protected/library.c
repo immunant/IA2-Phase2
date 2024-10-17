@@ -3,9 +3,9 @@
 
 // Check that readelf shows exactly one executable segment
 #include "library.h"
-#include "test_fault_handler.h"
-#include <criterion/criterion.h>
-#include <criterion/logging.h>
+
+#include <ia2_test_runner.h>
+
 #include <ia2.h>
 #include <stdbool.h>
 #include <stdlib.h>

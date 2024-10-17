@@ -1,7 +1,7 @@
 /*
 RUN: cat main.c | FileCheck --match-full-lines --check-prefix=REWRITER %S/main.c
 */
-#include <criterion/criterion.h>
+#include <ia2_test_runner.h>
 #include <stdio.h>
 #include <lib.h>
 #include <ia2.h>

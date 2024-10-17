@@ -3,7 +3,7 @@ RUN: sh -c 'if [ ! -s "global_fn_ptr_call_gates_0.ld" ]; then echo "No link args
 */
 #include "operations.h"
 #include <ia2.h>
-#include <criterion/criterion.h>
+#include <ia2_test_runner.h>
 
 uint32_t add(uint32_t x, uint32_t y) { return x + y; }
 uint16_t sub(uint16_t x, uint16_t y) { return x - y; }

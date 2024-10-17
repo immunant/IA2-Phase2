@@ -1,41 +1,49 @@
-#include <stdio.h>
-#include <signal.h>
+#define IA2_TEST_RUNNER_SOURCE
+#include "include/ia2_test_runner.h"
 #include <stdbool.h>
-#include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
-/*
- * This header defines a test framework for detecting MPK violations using
- * signal handlers. This file must be included exactly once from a source file
- * in the main binary with IA2_DEFINE_TEST_HANDLER defined by the preprocessor.
- * This will define the functions and variables used by the test handler, ensure
- * it is initialized before main and provide access to the LOG and
- * CHECK_VIOLATION macros. Other files which need CHECK_VIOLATION or LOG may
- * include the header without defining IA2_DEFINE_TEST_HANDLER. Using
- * CHECK_VIOLATION without defining the test handler will trigger a linker error
- * when building the shared object.
- */
+extern struct fake_criterion_test __start_fake_criterion_tests;
+extern struct fake_criterion_test __stop_fake_criterion_tests;
 
-#define VA_ARGS(...) , ##__VA_ARGS__
-#define LOG(msg, ...) printf("%s: " msg "\n", __func__ VA_ARGS(__VA_ARGS__))
+int main() {
+  struct fake_criterion_test *test_info = &__start_fake_criterion_tests;
+  for (; test_info < &__stop_fake_criterion_tests; test_info++) {
+    if (!test_info->test) {
+      break;
+    }
+    pid_t pid = fork();
+    bool in_child = pid == 0;
+    if (in_child) {
+      if (test_info->init) {
+        (*test_info->init)();
+      }
+      (*test_info->test)();
+      return 0;
+    }
+    // otherwise, in parent
+    int stat;
+    pid_t waited_pid = waitpid(pid, &stat, 0);
+    if (waited_pid < 0) {
+      perror("waitpid");
+      return 2;
+    }
+    if WIFSIGNALED(stat) {
+      fprintf(stderr, "forked test child was terminated by signal %d\n", WTERMSIG(stat));
+      return 1;
+    }
+    int exit_status = WEXITSTATUS(stat);
+    if (exit_status != test_info->exit_code) {
+      fprintf(stderr, "forked test child exited with status %d, but %d was expected\n", exit_status, test_info->exit_code);
+      return 1;
+    }
+  }
+  return 0;
+}
 
-// Configure the signal handler to expect an mpk violation when `expr` is
-// evaluated. If `expr` doesn't trigger a fault, this macro manually raises a
-// fault with a different message.
-#define CHECK_VIOLATION(expr)                                                  \
-  ({                                                                           \
-    expect_fault = true;                                                       \
-    asm volatile("" : : : "memory");                                           \
-    volatile typeof(expr) _tmp = expr;                                         \
-    printf("CHECK_VIOLATION: did not seg fault as expected\n");                \
-    _exit(1);                                                                  \
-    _tmp;                                                                      \
-  })
-
-#ifndef IA2_DEFINE_TEST_HANDLER
-extern bool expect_fault;
-#else
 // This is shared data to allow checking for violations in multiple
 // compartments. We avoid using IA2_SHARED_DATA here to avoid including ia2.h
 // since that would pull in libia2 as a dependency (the libia2 build generates a
@@ -98,10 +106,10 @@ void print_mpk_message(int sig) {
   _exit(0);
 }
 
-// Installs the previously defined signal handler and disables buffering on
-// stdout to allow using printf prior to the sighandler
+// Installs the previously defined signal handler
 __attribute__((constructor)) void install_segfault_handler(void) {
-  setbuf(stdout, NULL);
-  signal(SIGSEGV, handle_segfault);
+  struct sigaction act = {
+      .sa_handler = handle_segfault,
+  };
+  sigaction(SIGSEGV, &act, NULL);
 }
-#endif

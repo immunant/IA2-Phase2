@@ -2,8 +2,9 @@
 RUN: cat minimal_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 */
 
+#include <ia2_test_runner.h>
 #include "minimal.h"
-#include <criterion/logging.h>
+
 
 // LINKARGS: --wrap=arg1
 void arg1(int x) {

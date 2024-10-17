@@ -43,13 +43,8 @@ function(add_ia2_compartment NAME TYPE)
     add_library(${NAME} SHARED)
   endif()
 
-  # The x86 version is missing a dependency here and libs rely on include path overlap to pick up
-  # criterion header. I want to keep spoofed criterion static for simplicity so we add the -I
-  # directly here.
-  if (LIBIA2_AARCH64)
-    target_include_directories(${NAME} PRIVATE
-        ${CMAKE_SOURCE_DIR}/misc/spoofed_criterion/include)
-  endif()
+  target_include_directories(${NAME} PRIVATE
+      ${CMAKE_SOURCE_DIR}/misc/test_runner/include)
   target_compile_definitions(${NAME} PRIVATE
     IA2_ENABLE=1
     PKEY=${ARG_PKEY}
@@ -153,10 +148,11 @@ function(create_compile_commands NAME TYPE)
   # Copy target properties from the real target. We might need to add more properties.
   target_link_libraries(${COMPILE_COMMAND_TARGET} PRIVATE $<TARGET_PROPERTY:${NAME},LINK_LIBRARIES>)
   target_include_directories(${COMPILE_COMMAND_TARGET} PRIVATE ${INCLUDE_DIRECTORIES})
-  if (LIBIA2_AARCH64)
-    target_include_directories(${COMPILE_COMMAND_TARGET} PRIVATE
-        ${CMAKE_SOURCE_DIR}/misc/spoofed_criterion/include)
-  endif()
+  # The test runner is a static library that just defines main so we don't link it into
+  # the libraries defined by tests and instead just add the include flags for its
+  # assertions
+  target_include_directories(${COMPILE_COMMAND_TARGET} PRIVATE
+      ${CMAKE_SOURCE_DIR}/misc/test_runner/include)
   set(CMAKE_EXPORT_COMPILE_COMMANDS OFF)
 endfunction()
 

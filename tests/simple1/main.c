@@ -2,9 +2,9 @@
 RUN: cat main.c | FileCheck --match-full-lines --check-prefix=REWRITER %s
 RUN: cat simple1_call_gates_0.ld | FileCheck --check-prefix=LINKARGS %s
 */
-#include <criterion/criterion.h>
-#include <criterion/logging.h>
-#include <criterion/new/assert.h>
+#include <ia2_test_runner.h>
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>

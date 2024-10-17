@@ -1,7 +1,7 @@
 #include "ia2_internal.h"
 #include "lib_1/lib_1.h"
 #include "lib_2/lib_2.h"
-#include <criterion/criterion.h>
+#include <ia2_test_runner.h>
 #include <ia2.h>
 
 INIT_RUNTIME(3);
@@ -10,8 +10,8 @@ INIT_RUNTIME(3);
 #include <ia2_compartment_init.inc>
 #include <threads.h>
 
-#define IA2_DEFINE_TEST_HANDLER
-#include "test_fault_handler.h"
+
+
 
 void main_noop(void) {
 }

@@ -1,11 +1,11 @@
 /*
 RUN: cat untrusted_indirect_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 */
-#include <criterion/criterion.h>
-#include <criterion/new/assert.h>
+#include <ia2_test_runner.h>
+
 #include <signal.h>
 #include "foo.h"
-#include "test_fault_handler.h"
+
 
 extern bool clean_exit;
 

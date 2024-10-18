@@ -112,22 +112,24 @@ jobs:
             llvm-project/build/bin
             llvm-project/build/lib/clang
           key: ${{ runner.os }}-clang
-      - name: Cache built compiler-rt
-        id: cache-compiler-rt
+      - name: Cache built runtime libraries
+        id: cache-rtlibs
         uses: actions/cache@v4
         with:
           path: |
-            llvm-project/build-compiler-rt/lib/linux
-          key: ${{ runner.os }}-compiler-rt
+            llvm-project/build-rtlibs/compiler-rt/lib/linux
+            llvm-project/build-rtlibs/lib
+            llvm-project/build-rtlibs/include
+          key: ${{ runner.os }}-rtlibs
       - name: Check out LLVM
-        if: steps.cache-clang.outputs.cache-hit != 'true' || steps.cache-compiler-rt.outputs.cache-hit != 'true'
+        if: steps.cache-clang.outputs.cache-hit != 'true' || steps.cache-rtlibs.outputs.cache-hit != 'true'
         uses: actions/checkout@v4
         with:
           repository: immunant/llvm-project
           ref: fw/instrument-llvm-ir
           path: ${{ github.workspace }}/llvm-project
       - name: Build Clang
-        if: steps.cache-clang.outputs.cache-hit != 'true' || steps.cache-compiler-rt.outputs.cache-hit != 'true'
+        if: steps.cache-clang.outputs.cache-hit != 'true' || steps.cache-rtlibs.outputs.cache-hit != 'true'
         working-directory: ${{ github.workspace }}/llvm-project
         run: |
           # first free up space used by unnecessary host tool cache to make room to build clang
@@ -140,18 +142,22 @@ jobs:
           ./build.sh
           # free up space used by libs; our desired clang binary statically links them
           rm -rf build/lib/*.a
-      - name: Build Compiler-rt
-        if: steps.cache-compiler-rt.outputs.cache-hit != 'true'
+      - name: Build runtime libraries
+        if: steps.cache-rtlibs.outputs.cache-hit != 'true'
         working-directory: ${{ github.workspace }}/llvm-project
         run: |
-          ./cross-build-compiler-rt.sh
+          ./cross-build-rtlibs.sh
       - name: Test ARM build
         run: |
           LLVM_DIR=`llvm-config-15 --cmakedir`
           Clang_DIR=`realpath $LLVM_DIR/../clang`
           mkdir build
           pushd build
-          cross_flags="-isystem /usr/aarch64-linux-gnu/include --gcc-toolchain=/usr -march=armv8.5-a+memtag -ffixed-x18"
+          cross_link_flags="-B$(pwd)/../llvm-project/build-rtlibs/compiler-rt/lib/linux -L`pwd`/../llvm-project/build-rtlibs/lib \
+          --rtlib=compiler-rt --unwindlib=libunwind"
+          # TODO: rpath needs addition but this would override it:
+          # "-Wl,-rpath,$(pwd)/../llvm-project/build-rtlibs/lib"
+          cross_flags="-isystem /usr/aarch64-linux-gnu/include --gcc-toolchain=/usr -march=armv8.5-a+memtag -ffixed-x18 --rtlib=compiler-rt --stdlib=libc++ -I$(pwd)/../llvm-project/build-rtlibs/include/c++/v1"
           export LDFLAGS="-L/usr/aarch64-linux-gnu/lib"
           cmake .. \
             -DCMAKE_CROSSCOMPILING_EMULATOR=${{ github.workspace }}/qemu/build/qemu-aarch64 \
@@ -161,7 +167,8 @@ jobs:
             -DCMAKE_OBJCOPY=/usr/bin/llvm-objcopy-15 \
             -DCMAKE_C_FLAGS="$cross_flags" \
             -DCMAKE_CXX_FLAGS="$cross_flags" \
-            -DCMAKE_EXE_LINKER_FLAGS=-B`pwd`/../llvm-project/build-compiler-rt/lib/linux \
+            -DCMAKE_EXE_LINKER_FLAGS="$cross_link_flags -lm" \
+            -DCMAKE_SHARED_LINKER_FLAGS="$cross_link_flags" \
             -DClang_DIR=$Clang_DIR                                  \
             -DCLANG_EXE=`which clang-15`                            \
             -DLLVM_DIR=$LLVM_DIR                                    \

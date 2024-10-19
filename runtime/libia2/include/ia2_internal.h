@@ -338,6 +338,7 @@ static int ia2_mprotect_with_tag(void *addr, size_t len, int prot, int tag) {
 #endif
 #endif
 char *allocate_stack(int i);
+void allocate_stack_0();
 void verify_tls_padding(void);
 void ensure_pkeys_allocated(int *n_to_alloc);
 __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
@@ -430,7 +431,7 @@ __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
     verify_tls_padding();                                                      \
     COMPARTMENT_SAVE_AND_RESTORE(REPEATB(n, ALLOCATE_COMPARTMENT_STACK_AND_SETUP_TLS, nop_macro), n); \
     /* allocate an unprotected stack for the untrusted compartment */          \
-    ia2_stackptr_0[0] = allocate_stack(0);                                     \
+    allocate_stack_0();                                     \
   }                                                                            \
                                                                                \
   __attribute__((constructor)) static void ia2_init(void) {                    \

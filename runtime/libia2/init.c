@@ -30,6 +30,10 @@ char *allocate_stack(int i) {
   return stack + STACK_SIZE - 8;
 }
 
+void allocate_stack_0() {
+  ia2_stackptr_0[0] = allocate_stack(0);
+}
+
 /* Confirm that stack pointers for compartments 0 and 1 are on separate */
 /* pages. */
 void verify_tls_padding(void) {

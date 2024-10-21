@@ -111,16 +111,23 @@ jobs:
           path: |
             llvm-project/build/bin
             llvm-project/build/lib/clang
-          key: ${{ runner.os }}-clang
+          key: ${{ runner.os }}-clang-2
       - name: Cache built runtime libraries
         id: cache-rtlibs
         uses: actions/cache@v4
         with:
           path: |
-            llvm-project/build-rtlibs/compiler-rt/lib/linux
-            llvm-project/build-rtlibs/lib
-            llvm-project/build-rtlibs/include
+            build-rtlibs/compiler-rt/lib/linux
+            build-rtlibs/lib
+            build-rtlibs/include
           key: ${{ runner.os }}-rtlibs
+        # cloning llvm is required if we need to build rtlibs, but the cached clang would already be in the directory that git wants to create
+      - name: Move cached clang out of the way of git clone
+        if: steps.cache-clang.outputs.cache-hit == 'true' && steps.cache-rtlibs.outputs.cache-hit != 'true'
+        working-directory: ${{ github.workspace }}
+        run: |
+          mv llvm-project llvm-project-built
+        # if we need to build either clang or rtlibs, clone our LLVM fork
       - name: Check out LLVM
         if: steps.cache-clang.outputs.cache-hit != 'true' || steps.cache-rtlibs.outputs.cache-hit != 'true'
         uses: actions/checkout@v4
@@ -129,7 +136,7 @@ jobs:
           ref: fw/instrument-llvm-ir
           path: ${{ github.workspace }}/llvm-project
       - name: Build Clang
-        if: steps.cache-clang.outputs.cache-hit != 'true' || steps.cache-rtlibs.outputs.cache-hit != 'true'
+        if: steps.cache-clang.outputs.cache-hit != 'true'
         working-directory: ${{ github.workspace }}/llvm-project
         run: |
           # first free up space used by unnecessary host tool cache to make room to build clang
@@ -142,11 +149,24 @@ jobs:
           ./build.sh
           # free up space used by libs; our desired clang binary statically links them
           rm -rf build/lib/*.a
+        # if clang was cached, move it into the git tree to the same location as it would be built
+      - name: Move cached Clang
+        if: steps.cache-clang.outputs.cache-hit == 'true' && steps.cache-rtlibs.outputs.cache-hit != 'true'
+        working-directory: ${{ github.workspace }}
+        run: |
+          mkdir -p llvm-project
+          mv llvm-project-built/* llvm-project/
       - name: Build runtime libraries
         if: steps.cache-rtlibs.outputs.cache-hit != 'true'
         working-directory: ${{ github.workspace }}/llvm-project
         run: |
           ./cross-build-rtlibs.sh
+          mv build-rtlibs ../
+        # move rtlibs into the git tree to where IA2 build expects them
+      - name: Move cached runtime libraries
+        working-directory: ${{ github.workspace }}/llvm-project
+        run: |
+          mv ../build-rtlibs ./
       - name: Test ARM build
         run: |
           LLVM_DIR=`llvm-config-15 --cmakedir`

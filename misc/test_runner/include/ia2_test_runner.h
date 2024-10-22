@@ -6,6 +6,10 @@
 #include <unistd.h>
 #include <assert.h>
 
+/*
+ * Tests should include this header without defining the following macro to avoid rewriting function
+ * pointers that shouldn't be rewritten.
+ */
 #if !defined(IA2_TEST_RUNNER_SOURCE)
 typedef void *ia2_test_fn;
 #else
@@ -18,7 +22,12 @@ struct fake_criterion_test {
   int exit_code;
 };
 
-#if !defined(IA2_TEST_RUNNER_SOURCE)
+/*
+ * Placing IA2_{BEGIN,END}_NO_WRAP between the function declaration stops the rewriter from creating a
+ * direct call gate for the test function or indirect call gates for function pointer expressions
+ * that reference it like the RHS when initializing struct fake_criterion_test's test field. The
+ * last line of this macro is the start of the test function's definition and should be followed by { }
+ */
 #define Test(suite, name, ...)                                                                                                 \
   IA2_BEGIN_NO_WRAP                                                                                                            \
   void fake_criterion_##suite##_##name(void);                                                                                  \
@@ -27,7 +36,6 @@ struct fake_criterion_test {
       .test = fake_criterion_##suite##_##name,                                                                                 \
       ##__VA_ARGS__};                                                                                                          \
   void fake_criterion_##suite##_##name(void)
-#endif
 
 #define cr_log_info(f, ...) printf(f "\n", ##__VA_ARGS__)
 #define cr_log_error(f, ...) fprintf(stderr, f "\n", ##__VA_ARGS__)
@@ -42,20 +50,9 @@ struct fake_criterion_test {
   } while (0)
 
 /*
- * This header defines a test framework for detecting MPK violations using
- * signal handlers. This file must be included exactly once from a source file
- * in the main binary with IA2_DEFINE_TEST_HANDLER defined by the preprocessor.
- * This will define the functions and variables used by the test handler, ensure
- * it is initialized before main and provide access to the LOG and
- * CHECK_VIOLATION macros. Other files which need CHECK_VIOLATION or LOG may
- * include the header without defining IA2_DEFINE_TEST_HANDLER. Using
- * CHECK_VIOLATION without defining the test handler will trigger a linker error
- * when building the shared object.
+ * Configure the signal handler to expect an mpk violation when `expr` is evaluated. If `expr`
+ * doesn't trigger a fault, the process exits with a non-zero exit status.
  */
-
-// Configure the signal handler to expect an mpk violation when `expr` is
-// evaluated. If `expr` doesn't trigger a fault, this macro manually raises a
-// fault with a different message.
 #define CHECK_VIOLATION(expr)                                                  \
   ({                                                                           \
     expect_fault = true;                                                       \

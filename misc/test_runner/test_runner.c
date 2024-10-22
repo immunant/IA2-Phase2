@@ -1,5 +1,7 @@
+/* Define this macro to make the pointers in struct fake_criterion_test function pointers */
 #define IA2_TEST_RUNNER_SOURCE
 #include "include/ia2_test_runner.h"
+
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
@@ -9,7 +11,17 @@
 extern struct fake_criterion_test __start_fake_criterion_tests;
 extern struct fake_criterion_test __stop_fake_criterion_tests;
 
+__attribute__((naked)) void handle_segfault(int sig);
+
 int main() {
+  struct sigaction act = {
+      .sa_handler = handle_segfault,
+  };
+  /*
+   * Installs a signal handler that will be inherited by the child processes created for each
+   * invocation of the Test macro
+   */
+  sigaction(SIGSEGV, &act, NULL);
   struct fake_criterion_test *test_info = &__start_fake_criterion_tests;
   for (; test_info < &__stop_fake_criterion_tests; test_info++) {
     if (!test_info->test) {
@@ -18,6 +30,11 @@ int main() {
     pid_t pid = fork();
     bool in_child = pid == 0;
     if (in_child) {
+      /*
+       * This .c is not rewritten so these indirect callsites have no callgates and their callees must
+       * not be wrapped. That means the Test macro should not expose function pointer types to
+       * rewritten source files (i.e. the test sources).
+       */
       if (test_info->init) {
         (*test_info->init)();
       }
@@ -44,17 +61,14 @@ int main() {
   return 0;
 }
 
-// This is shared data to allow checking for violations in multiple
-// compartments. We avoid using IA2_SHARED_DATA here to avoid including ia2.h
-// since that would pull in libia2 as a dependency (the libia2 build generates a
-// header included in ia2.h).
-bool expect_fault __attribute__((section("ia2_shared_data"))) = false;
+/* This is shared data to allow checking for violations from different compartments */
+bool expect_fault IA2_SHARED_DATA = false;
 
-// Create a stack for the signal handler to use
-char sighandler_stack[4 * 1024] __attribute__((section("ia2_shared_data")))
-__attribute__((aligned(16))) = {0};
-char *sighandler_sp __attribute__((section("ia2_shared_data"))) =
-    &sighandler_stack[(4 * 1024) - 8];
+/* Create a stack for the signal handler to use since the tests may trigger it from any compartment */
+char sighandler_stack[4 * 1024] IA2_SHARED_DATA __attribute__((aligned(16))) = {0};
+
+/* Pointer to the start of the signal handler stack */
+char *sighandler_sp IA2_SHARED_DATA = &sighandler_stack[(4 * 1024) - 8];
 
 // This function must be declared naked because it's not necessarily safe for it
 // to write to the stack in its prelude (the stack isn't written to when the
@@ -64,7 +78,7 @@ __attribute__((naked)) void handle_segfault(int sig) {
   // This asm must preserve %rdi which contains the argument since
   // print_mpk_message reads it
   __asm__(
-      // Signal handlers are defined in the main binary, but they don't run with
+      // This signal handler is defined in the main binary, but it doesn't run with
       // the same pkru state as the interrupted context. This means we have to
       // remove all MPK restrictions to ensure can run it correctly.
       "xorl %ecx, %ecx\n"
@@ -72,7 +86,7 @@ __attribute__((naked)) void handle_segfault(int sig) {
       "xorl %eax, %eax\n"
       "wrpkru\n"
       // Switch the stack to a shared buffer. There's only one u32 argument and
-      // no returns so we don't need a full wrapper here.
+      // no returns so we don't need a full callgate wrapper here.
       "movq sighandler_sp@GOTPCREL(%rip), %rsp\n"
       "movq (%rsp), %rsp\n"
       "callq print_mpk_message");
@@ -85,12 +99,15 @@ void handle_segfault(int sig) {
 }
 #endif
 
-// The test output should be checked to see that the segfault occurred at the
-// expected place.
+/*
+ * The test output is used for manual sanity-checks to ensure check whether a segfault occurred and
+ * if it was expected or not.
+ */
 void print_mpk_message(int sig) {
   if (sig == SIGSEGV) {
-    // Write directly to stdout since printf is not async-signal-safe
+    /* segfault happened at the expected place so exit with status code zero */
     const char *ok_msg = "CHECK_VIOLATION: seg faulted as expected\n";
+    /* segfault happened at an unexpected place so exit with non-zero status */
     const char *early_fault_msg = "CHECK_VIOLATION: unexpected seg fault\n";
     const char *msg;
     if (expect_fault) {
@@ -98,18 +115,11 @@ void print_mpk_message(int sig) {
     } else {
       msg = early_fault_msg;
     }
+    /* Write directly to stdout since printf is not async-signal-safe */
     write(1, msg, strlen(msg));
     if (!expect_fault) {
       _exit(-1);
     }
   }
   _exit(0);
-}
-
-// Installs the previously defined signal handler
-__attribute__((constructor)) void install_segfault_handler(void) {
-  struct sigaction act = {
-      .sa_handler = handle_segfault,
-  };
-  sigaction(SIGSEGV, &act, NULL);
 }

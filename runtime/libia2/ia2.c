@@ -1,6 +1,7 @@
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
+#include <execinfo.h>
 #include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
@@ -507,3 +508,21 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
   // library
   return 0;
 }
+
+#if IA2_DEBUG
+void ia2_print_backtrace(void) {
+#define IA2_BT_SZ 10
+    void *ra_buf[IA2_BT_SZ];
+    int num_ra = backtrace(ra_buf, IA2_BT_SZ);
+    char **fn_names = backtrace_symbols(ra_buf, num_ra);
+    for (size_t i = 0; i < num_ra; i++) {
+        if (fn_names) {
+            fprintf(stderr, "#%d %p in %s ()\n", i, ra_buf[i], fn_names[i]);
+        } else {
+            fprintf(stderr, "#%d %p ()\n", i, ra_buf[i]);
+        }
+    }
+    fflush(stderr);
+    _exit(-1);
+}
+#endif

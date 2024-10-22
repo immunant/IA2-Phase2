@@ -102,7 +102,12 @@
   "rdpkru\n"                                    \
   "cmpl $" #pkru ", %eax\n"                     \
   "je 1f\n"                                     \
-  "ud2\n"                                       \
+  "movq %rax, %rax\n"                           \
+  "movq %rcx, %rcx\n"                           \
+  "movq %rdx, %rdx\n"                           \
+  "wrpkru\n"                                    \
+  "subq $8, %rsp\n"                             \
+  "call ia2_print_backtrace\n"                  \
 "1:\n"                                          \
   "movq %r11, %rdx\n"                           \
   "movq %r10, %rcx\n"
@@ -156,6 +161,10 @@ uint32_t ia2_get_pkru();
 
 /// Returns the current compartment pkey
 size_t ia2_get_pkey();
+
+#if IA2_DEBUG
+void ia2_print_backtrace(void);
+#endif
 
 #ifdef __cplusplus
 }

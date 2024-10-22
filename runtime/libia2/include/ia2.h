@@ -138,7 +138,12 @@
   "rdpkru\n"                                    \
   "cmpl $" #pkru ", %eax\n"                     \
   "je 1f\n"                                     \
-  "ud2\n"                                       \
+  "movq %rax, %rax\n"                           \
+  "movq %rcx, %rcx\n"                           \
+  "movq %rdx, %rdx\n"                           \
+  "wrpkru\n"                                    \
+  "subq $8, %rsp\n"                             \
+  "call ia2_print_backtrace\n"                  \
 "1:\n"                                          \
   "movq %r11, %rdx\n"                           \
   "movq %r10, %rcx\n"
@@ -224,6 +229,10 @@ void ia2_register_compartment(const char *lib, int compartment, const char *extr
 /// This function must be defined in the main executable and should primarily be used to call
 /// ia2_register_compartment for each protected compartment.
 extern void ia2_main(void);
+
+#if IA2_DEBUG
+void ia2_print_backtrace(void);
+#endif
 
 #ifdef __cplusplus
 }

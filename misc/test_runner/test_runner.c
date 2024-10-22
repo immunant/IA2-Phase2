@@ -11,56 +11,6 @@
 extern struct fake_criterion_test __start_fake_criterion_tests;
 extern struct fake_criterion_test __stop_fake_criterion_tests;
 
-__attribute__((naked)) void handle_segfault(int sig);
-
-int main() {
-  struct sigaction act = {
-      .sa_handler = handle_segfault,
-  };
-  /*
-   * Installs a signal handler that will be inherited by the child processes created for each
-   * invocation of the Test macro
-   */
-  sigaction(SIGSEGV, &act, NULL);
-  struct fake_criterion_test *test_info = &__start_fake_criterion_tests;
-  for (; test_info < &__stop_fake_criterion_tests; test_info++) {
-    if (!test_info->test) {
-      break;
-    }
-    pid_t pid = fork();
-    bool in_child = pid == 0;
-    if (in_child) {
-      /*
-       * This .c is not rewritten so these indirect callsites have no callgates and their callees must
-       * not be wrapped. That means the Test macro should not expose function pointer types to
-       * rewritten source files (i.e. the test sources).
-       */
-      if (test_info->init) {
-        (*test_info->init)();
-      }
-      (*test_info->test)();
-      return 0;
-    }
-    // otherwise, in parent
-    int stat;
-    pid_t waited_pid = waitpid(pid, &stat, 0);
-    if (waited_pid < 0) {
-      perror("waitpid");
-      return 2;
-    }
-    if WIFSIGNALED(stat) {
-      fprintf(stderr, "forked test child was terminated by signal %d\n", WTERMSIG(stat));
-      return 1;
-    }
-    int exit_status = WEXITSTATUS(stat);
-    if (exit_status != test_info->exit_code) {
-      fprintf(stderr, "forked test child exited with status %d, but %d was expected\n", exit_status, test_info->exit_code);
-      return 1;
-    }
-  }
-  return 0;
-}
-
 /* This is shared data to allow checking for violations from different compartments */
 bool expect_fault IA2_SHARED_DATA = false;
 
@@ -122,4 +72,52 @@ void print_mpk_message(int sig) {
     }
   }
   _exit(0);
+}
+
+int main() {
+  struct sigaction act = {
+      .sa_handler = handle_segfault,
+  };
+  /*
+   * Installs a signal handler that will be inherited by the child processes created for each
+   * invocation of the Test macro
+   */
+  sigaction(SIGSEGV, &act, NULL);
+  struct fake_criterion_test *test_info = &__start_fake_criterion_tests;
+  for (; test_info < &__stop_fake_criterion_tests; test_info++) {
+    if (!test_info->test) {
+      break;
+    }
+    pid_t pid = fork();
+    bool in_child = pid == 0;
+    if (in_child) {
+      /*
+       * This .c is not rewritten so these indirect callsites have no callgates and their callees must
+       * not be wrapped. That means the Test macro should not expose function pointer types to
+       * rewritten source files (i.e. the test sources).
+       */
+      if (test_info->init) {
+        (*test_info->init)();
+      }
+      (*test_info->test)();
+      return 0;
+    }
+    // otherwise, in parent
+    int stat;
+    pid_t waited_pid = waitpid(pid, &stat, 0);
+    if (waited_pid < 0) {
+      perror("waitpid");
+      return 2;
+    }
+    if WIFSIGNALED(stat) {
+      fprintf(stderr, "forked test child was terminated by signal %d\n", WTERMSIG(stat));
+      return 1;
+    }
+    int exit_status = WEXITSTATUS(stat);
+    if (exit_status != test_info->exit_code) {
+      fprintf(stderr, "forked test child exited with status %d, but %d was expected\n", exit_status, test_info->exit_code);
+      return 1;
+    }
+  }
+  return 0;
 }

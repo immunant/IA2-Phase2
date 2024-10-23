@@ -111,7 +111,7 @@ jobs:
           path: |
             llvm-project/build/bin
             llvm-project/build/lib/clang
-          key: ${{ runner.os }}-clang
+          key: ${{ runner.os }}-clang-2
       - name: Cache built runtime libraries
         id: cache-rtlibs
         uses: actions/cache@v4

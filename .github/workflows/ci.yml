@@ -119,6 +119,7 @@ jobs:
           path: |
             build-rtlibs/compiler-rt/lib/linux
             build-rtlibs/lib
+            build-rtlibs/include
           key: ${{ runner.os }}-rtlibs
         # cloning llvm is required if we need to build rtlibs, but the cached clang would already be in the directory that git wants to create
       - name: Move cached clang out of the way of git clone

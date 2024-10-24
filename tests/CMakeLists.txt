@@ -32,7 +32,11 @@ set_target_properties(check-ia2 PROPERTIES FOLDER "tests")
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# Set up 'check' target and check-exec on arm
+# Set up 'check' target
+if (LIBIA2_AARCH64)
+    # On aarch64, avoid swallowing QEMU MTE check failures
+    set(CMAKE_CTEST_COMMAND ${CMAKE_CTEST_COMMAND} --verbose)
+endif()
 add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure)
 if (NOT LIBIA2_AARCH64)
     add_dependencies(check check-ia2)

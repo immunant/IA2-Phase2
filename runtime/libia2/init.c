@@ -1,4 +1,6 @@
 #include "ia2_internal.h"
+#include <sys/auxv.h>
+#include <sys/prctl.h>
 
 /* The 0th compartment is unprivileged and does not protect its memory, */
 /* so declare its stack pointer in the shared object that sets up the */
@@ -26,6 +28,10 @@ char *allocate_stack(int i) {
       exit(-1);
     }
   }
+#ifdef __aarch64__
+  /* Tag the allocated stack pointer so it is accessed with the right pkey */
+  stack = (char *)((uint64_t)stack | (uint64_t)i << 56);
+#endif
   /* Each stack frame start + 8 is initially 16-byte aligned. */
   return stack + STACK_SIZE - 8;
 }
@@ -43,8 +49,8 @@ void verify_tls_padding(void) {
   }
 }
 
-/* Ensure that all required pkeys are allocated or no-op on aarch64. */
-void ensure_pkeys_allocated(int *n_to_alloc) {
+/* Allocates the required pkeys on x86 or enables MTE on aarch64 */
+void ia2_set_up_tags(int *n_to_alloc) {
 #if defined(__x86_64__)
   if (*n_to_alloc != 0) {
     for (int pkey = 1; pkey <= *n_to_alloc; pkey++) {
@@ -61,6 +67,18 @@ void ensure_pkeys_allocated(int *n_to_alloc) {
       }
     }
     *n_to_alloc = 0;
+  }
+#elif defined(__aarch64__)
+  if (!(getauxval(AT_HWCAP2) & HWCAP2_MTE)) {
+    printf("MTE is not supported\n");
+    exit(-1);
+  }
+  int res = prctl(PR_SET_TAGGED_ADDR_CTRL,
+                  PR_TAGGED_ADDR_ENABLE | PR_MTE_TCF_SYNC | (0xFFFE << PR_MTE_TAG_SHIFT),
+                  0, 0, 0);
+  if (res) {
+    printf("prctl(PR_SET_TAGGED_ADDR_CTRL) failed to enable MTE: (%s)\n", errno_s);
+    exit(-1);
   }
 #endif
 }

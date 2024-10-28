@@ -163,6 +163,9 @@ And then we also have to enable GNU C extensions:
 `dav1d` uses `-std=c99`, so we use `-std=gnu99`.
 IA2 depends on some GNU C extensions for some assembly stuff and for statement expressions.
 
+Documenting this properly is tracked in [#389](https://github.com/immunant/IA2-Phase2/issues/389),
+though at least this document now documents it somewhat (for `dav1d`).
+
 ## Rewriting
 
 Now that we've generated a `compile_commands.json` that works with `ia2-rewriter`,
@@ -312,6 +315,9 @@ However, as the function pointer type is defined with `struct __va_list_tag *`,
 and because `__va_list_tag` is a private type, this will fail to compile.
 Instead, we can use `va_list` rather than `struct __va_list_tag *`.
 
+Fixing this properly in `ia2-rewriter` (by emitting just `va_list`)
+is tracked in [#429](https://github.com/immunant/IA2-Phase2/issues/429).
+
 #### `dlsym`
 
 `dav1d` calls `dlsym` at one point to conditionally call a function
@@ -329,6 +335,10 @@ for this function pointer type and then create an instance of it with:
 ```c
 (struct IA2_fnptr__ZTSFmPK14pthread_attr_tE) { .ptr = dlsym(RTLD_DEFAULT, "__pthread_get_minstack") }
 ```
+
+Fixing this properly in `ia2-rewriter`
+(by using a dedicated macro instead of having to look up the mangled type suffix)
+is tracked in [#425](https://github.com/immunant/IA2-Phase2/issues/425).
 
 ## Compiling
 
@@ -457,6 +467,8 @@ but it needs a lot of extra link args:
   `__tls_get_addr@@GLIBC_2.3`, a TLS symbol from `glibc`, is no longer defined.
   Adding the loader `ld.so` as an explicit argument seemed to fix this.
 
+  Fixing this properly is tracked in [#456](https://github.com/immunant/IA2-Phase2/issues/456).
+
 ### `libia2` Changes
 
 #### `pthread_atfork` Undefined
@@ -470,6 +482,8 @@ though it's still unclear why this is happening.
 When running `dav1d` as single-threaded (or without permissive mode),
 this shouldn't be an issue, but it still needs a proper solution.
 
+Fixing this is tracked in [#455](https://github.com/immunant/IA2-Phase2/issues/455).
+
 ### `-fvisibility=hidden`
 
 `dav1d` compiles with `-fvisibility=hidden`,
@@ -482,7 +496,7 @@ But the part where call gates for non-exported
 address-taken functions are defined in the call gates DSO,
 and thus either need to be default visibility
 or defined in the same source file as the function they're wrapping
-hasn't been fixed yet.
+hasn't been fixed yet (tracked in [#443](https://github.com/immunant/IA2-Phase2/issues/443)).
 
 Thus, for now we disable `-fvisibility=hidden` in the `meson.build`.
 This has the risk of making all of these symbols public,
@@ -511,6 +525,9 @@ Putting it in a different library forces the "Local Exec" TLS model to not be us
 Thus, this fully fixes this issue,
 but we should solve the "Local Exec" TLS model issue more properly,
 as it could also cause other problems with other TLS variables.
+
+Fixing this properly is tracked in [#457](https://github.com/immunant/IA2-Phase2/issues/457)
+and the workaround is [#458](https://github.com/immunant/IA2-Phase2/pull/458).
 
 ### `pad-tls` Padding
 
@@ -544,7 +561,8 @@ so we reuse it for the padded libraries.
 
 This obviously does not work with `linux-vdso.so.1`, as it has no path.
 And it doesn't work with `ld.so`, as it's the loader
-(there might be a way to do this, but I'm not sure how yet).
+(There might be a way to do this, but I'm not sure how yet.
+Also, see [#449](https://github.com/immunant/IA2-Phase2/issues/449) for if we need to do this.).
 It does work with `libc.so`, `libm.so`, `libpartition-alloc.so`,
 `libcallgates.so`, and `libdav1d.so`, but it still doesn't work for
 `libgcc_s.so` and `libstdc++.so` yet, for which I'm not sure why.
@@ -566,3 +584,5 @@ I haven't figured out exactly why yet, or if I was calling it correctly.
 But since the signal handler is not very important in the first place,
 we just commented out the whole signal handler installation code
 and now `dav1d` just works.
+
+Fixing this is tracked in [#459](https://github.com/immunant/IA2-Phase2/issues/459).

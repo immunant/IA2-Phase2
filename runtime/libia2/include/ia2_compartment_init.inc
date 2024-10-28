@@ -44,9 +44,9 @@ extern int ia2_n_pkeys_to_alloc;
 extern char __start_ia2_shared_data __attribute__((visibility("hidden"))),
     __stop_ia2_shared_data __attribute__((visibility("hidden")));
 
-void ensure_pkeys_allocated(int *n_to_alloc);
+void ia2_set_up_tags(int *n_to_alloc);
 __attribute__((constructor)) static void COMPARTMENT_IDENT(init_pkey)() {
-  ensure_pkeys_allocated(&ia2_n_pkeys_to_alloc);
+  ia2_set_up_tags(&ia2_n_pkeys_to_alloc);
   struct IA2SharedSection shared_sections[2] = {{
                                                     &__start_ia2_shared_data,
                                                     &__stop_ia2_shared_data,

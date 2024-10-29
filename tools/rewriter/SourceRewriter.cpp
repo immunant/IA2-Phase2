@@ -662,14 +662,14 @@ public:
 
     auto linkage = fn_decl->getFormalLinkage();
     if (clang::isExternallyVisible(linkage)) {
-      addr_taken_fns[fn_name] = new_type;
+      addr_taken_fns[fn_name] = std::make_pair(new_type, get_file_pkey(sm));
     } else {
 
-      auto [it, new_fn] = internal_addr_taken_fns[filename].insert(
+      auto [it, new_fn] = static_addr_taken_fns[filename].insert(
           std::make_pair(fn_name, new_type));
 
       // TODO: Note that this only checks if a function is added to the
-      // internal_addr_taken_fns map. To make the rewriter idempotent we should
+      // static_addr_taken_fns map. To make the rewriter idempotent we should
       // check for an existing used attribute.
       if (new_fn) {
         auto static_fn_range = fn_decl->getSourceRange();
@@ -715,9 +715,9 @@ public:
     return;
   }
 
-  std::map<Function, OpaqueStruct> addr_taken_fns;
+  std::map<Function, std::pair<OpaqueStruct, Pkey>> addr_taken_fns;
   std::map<Filename, std::set<std::pair<Function, OpaqueStruct>>>
-      internal_addr_taken_fns;
+      static_addr_taken_fns;
 
 private:
   std::map<std::string, Replacements> &file_replacements;
@@ -911,6 +911,7 @@ public:
     if (definition) {
       defined_fns[pkey].insert(fn_name);
       fn_pkeys[fn_name] = pkey;
+      fn_definitions[fn_name] = get_filename(fn_node->getLocation(), sm);
     } else {
       declared_fns[pkey].insert(fn_name);
     }
@@ -920,6 +921,7 @@ public:
   std::set<Function> declared_fns[MAX_PKEYS];
   std::map<Function, AbiSignature> abi_signatures;
   std::map<Function, Pkey> fn_pkeys;
+  std::map<Function, Filename> fn_definitions;
 };
 
 static void create_file(llvm::raw_fd_ostream *file[MAX_PKEYS], int i, const char *extension) {
@@ -1418,8 +1420,9 @@ int main(int argc, const char **argv) {
   }
 
   std::cout << "Generating function pointer wrappers\n";
+  std::string static_wrappers;
   // Define wrappers for function pointers (i.e. those referenced by IA2_FN)
-  for (const auto &[fn_name, opaque] : ptr_expr_pass.addr_taken_fns) {
+  for (const auto &[fn_name, pair] : ptr_expr_pass.addr_taken_fns) {
     /*
      * Declare these wrapper in the output header so that IA2_FN can reference
      * them. e.g. extern struct IA2_fnptr_ZTSFiiE __ia2_foo;
@@ -1427,18 +1430,29 @@ int main(int argc, const char **argv) {
      * The type used in these declarations is arbitrary and chosen to make it
      * easy to go from a function's name to its mangled type in IA2_FN.
      */
+    OpaqueStruct opaque;
+    Pkey caller_pkey;
+    std::tie(opaque, caller_pkey) = pair;
+
     std::string wrapper_name = "__ia2_"s + fn_name;
     header_out << "extern " << opaque << " " << wrapper_name << ";\n";
 
     Pkey target_pkey = fn_decl_pass.fn_pkeys[fn_name];
+    Filename filename = fn_decl_pass.fn_definitions.at(fn_name);
     if (target_pkey != 0) {
       AbiSignature c_abi_sig = fn_decl_pass.abi_signatures[fn_name];
       std::string asm_wrapper =
           emit_asm_wrapper(c_abi_sig, wrapper_name, fn_name,
-                           WrapperKind::Pointer, 0, target_pkey, Target);
-      wrapper_out << "asm(\n";
-      wrapper_out << asm_wrapper;
-      wrapper_out << ");\n";
+                           WrapperKind::Pointer, 0, target_pkey, Target,
+                           true /* as_macro */);
+      static_wrappers += "#define IA2_DEFINE_WRAPPER_"s + fn_name + " \\\n";
+      static_wrappers += "asm(\\\n";
+      static_wrappers += asm_wrapper;
+      static_wrappers += ");\n";
+
+      std::ofstream source_file(filename, std::ios::app);
+      source_file << "IA2_DEFINE_WRAPPER(" << fn_name << ")\n";
+
     } else {
       header_out << "asm(\n";
       header_out << "  \".set " << wrapper_name << ", __real_" << fn_name << "\\n\"\n";
@@ -1449,9 +1463,8 @@ int main(int argc, const char **argv) {
   std::cout << "Generating function pointer wrappers for static functions\n";
   // Define wrappers for pointers to static functions (also those referenced by
   // IA2_FN)
-  std::string static_wrappers;
   for (const auto &[filename, addr_taken_fns] :
-       ptr_expr_pass.internal_addr_taken_fns) {
+       ptr_expr_pass.static_addr_taken_fns) {
 
     // Open each file that took the address of a static function
     std::ofstream source_file(filename, std::ios::app);

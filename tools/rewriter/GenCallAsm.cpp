@@ -355,6 +355,10 @@ static void emit_switch_stacks(AsmWriter &aw, int old_pkey, int new_pkey, Arch a
     add_asm_line(aw, "adrp x10, :gottprel:ia2_stackptr_"s + std::to_string(old_pkey));
     add_asm_line(aw, "ldr x10, [x10, #:gottprel_lo12:ia2_stackptr_"s + std::to_string(old_pkey) + "]");
     add_asm_line(aw, "add x10, x10, x9");
+    // Tag the pointer with the old pkey
+    if (old_pkey != 0) {
+            add_asm_line(aw, llvm::formatv("orr x10, x10, #{0:x}00000000000000", old_pkey));
+    }
     add_comment_line(aw, "Write old stack pointer to memory");
     // Keep the old stack pointer in x12
     add_asm_line(aw, "mov x12, sp");
@@ -364,6 +368,10 @@ static void emit_switch_stacks(AsmWriter &aw, int old_pkey, int new_pkey, Arch a
     add_asm_line(aw, "adrp x10, :gottprel:ia2_stackptr_"s + std::to_string(new_pkey));
     add_asm_line(aw, "ldr x10, [x10, #:gottprel_lo12:ia2_stackptr_"s + std::to_string(new_pkey) + "]");
     add_asm_line(aw, "add x10, x10, x9");
+    // Tag the pointer with the new pkey
+    if (new_pkey != 0) {
+            add_asm_line(aw, llvm::formatv("orr x10, x10, #{0:x}00000000000000", new_pkey));
+    }
     add_comment_line(aw, "Read new stack pointer from memory");
     add_asm_line(aw, "ldr x11, [x10]");
     add_asm_line(aw, "mov sp, x11");

@@ -284,14 +284,13 @@ use macros like `IA2_IGNORE`, which will work with the
 
 A similar things occurs with signal handlers,
 as they are function pointers passed to `sigaction`.
-To fix this, we are supposed to wrap the function pointer in `IA2_SIGHANDLER`
-and to call `IA2_DEFINE_SIGHANDLER(signal_handler, PKEY)`
+To fix this, we can wrap the function pointer in `IA2_SIGHANDLER`
+and call `IA2_DEFINE_SIGHANDLER(signal_handler, PKEY)`
 with the compartment/pkey that the signal handler should run in.
-However, as we'll get to later, this leads to a segfault,
-so the installation of the signal handler is skipped entirely,
-as the signal handler is not very critical to `dav1d` in the first place.
-This is something we should fix, though.
-
+Importantly, `IA2_DEFINE_SIGHANDLER` must be called outside of any functions.
+It defines a function itself, and nested functions aren't allowed in C,
+so it must be in the global scope.  Otherwise, it will segfault.
+ 
 #### Rewrites in Macros
 
 There are some rewrites that happen in macros,
@@ -576,13 +575,3 @@ This can be fixed by using `shared_malloc` from `partition-alloc` instead,
 but since all of these stack variables in `dav1d` were declared in `main`,
 we just made them globals instead, where we can use
 `IA2_SHARED_DATA` to move them into their own shared section.
-
-### `IA2_DEFINE_SIGHANDLER`
-
-As mentioned before, calling `IA2_DEFINE_SIGHANDLER` resulted in a segfault.
-I haven't figured out exactly why yet, or if I was calling it correctly.
-But since the signal handler is not very important in the first place,
-we just commented out the whole signal handler installation code
-and now `dav1d` just works.
-
-Fixing this is tracked in [#459](https://github.com/immunant/IA2-Phase2/issues/459).

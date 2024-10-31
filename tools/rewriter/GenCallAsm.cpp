@@ -979,7 +979,7 @@ std::string emit_asm_wrapper(AbiSignature &sig,
 
   add_comment_line(aw, "Wrapper for "s + sig_string(sig, target_name) + ":");
   add_asm_line(aw, ".text");
-  if (!as_macro) {
+  if (kind != WrapperKind::PointerToStatic) {
     add_asm_line(aw, ".global "s + wrapper_name);
   } else {
     add_asm_line(aw, ".local "s + wrapper_name);

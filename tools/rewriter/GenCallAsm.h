@@ -10,6 +10,8 @@ enum class WrapperKind {
   Direct,
   // Indirect call through a pointer sent to another compartment
   Pointer,
+  // Indirect call through a pointer sent to another compartment
+  PointerToStatic,
   // Indirect call through a pointer received from another compartment
   IndirectCallsite,
 };

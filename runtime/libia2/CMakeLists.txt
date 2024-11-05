@@ -19,6 +19,7 @@ endif()
 
 target_link_options(libia2
     INTERFACE
+        "-lunwind"
         "-pthread"
         "-Wl,--wrap=pthread_create"
         "-Wl,--wrap=main"
@@ -28,6 +29,10 @@ target_link_options(libia2
         # So that we can mark all relocatable data as read-only after relocation
         "-Wl,-z,relro"
 )
+
+if (LIBIA2_X86_64)
+    target_link_options(libia2 INTERFACE "-lunwind-x86_64")
+endif()
 
 target_link_libraries(libia2 PRIVATE dl)
 

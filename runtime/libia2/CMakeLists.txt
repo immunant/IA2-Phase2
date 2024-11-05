@@ -56,6 +56,7 @@ endif()
 
 target_link_options(libia2
     INTERFACE
+        "-lunwind"
         "-pthread"
         "-Wl,--wrap=pthread_create"
         "-Wl,--wrap=main"
@@ -81,6 +82,10 @@ set(CARGO_PROFILE_DIR "debug")
 else()
 set(CARGO_PROFILE "release")
 set(CARGO_PROFILE_DIR "release")
+endif()
+
+if (LIBIA2_X86_64)
+    target_link_options(libia2 INTERFACE "-lunwind-x86_64")
 endif()
 
 target_link_libraries(libia2 PRIVATE dl)

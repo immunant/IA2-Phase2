@@ -309,7 +309,6 @@ asm(".macro movz_shifted_tag_x18 tag\n"
     return out;                                                                \
   }
 #elif defined(__aarch64__)
-#warning "libia2 does not implement return_stackptr_if_compartment yet"
 #define return_stackptr_if_compartment(compartment)                            \
   if (tag == compartment) {                                                    \
     void *out;                                                                 \

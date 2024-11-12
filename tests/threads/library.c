@@ -36,12 +36,12 @@ void library_memset(void *ptr, uint8_t byte, size_t n) {
 
 // LINKARGS: --wrap=library_showpkru
 void library_showpkru() {
-  uint32_t actual_pkru = ia2_get_tag();
-  cr_log_info("library pkru %08x", actual_pkru);
-#if LIBIA2_AARCH64
-  cr_assert_eq(0, actual_pkru);
+  uint32_t actual_tag = ia2_get_tag();
+  cr_log_info("library tag %08x", actual_tag);
+#if defined(__aarch64__)
+  cr_assert_eq(0, actual_tag);
 #else
-  cr_assert_eq(0xfffffffc, actual_pkru);
+  cr_assert_eq(0xfffffffc, actual_tag);
 #endif
 }
 

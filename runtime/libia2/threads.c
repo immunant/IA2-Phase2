@@ -63,7 +63,6 @@ void *ia2_thread_begin(void *arg) {
       : [fn] "r"(fn), [data] "r"(data), [new_sp_addr] "r"(new_sp_addr)
       : "rdi");
 #elif defined(__aarch64__)
-#warning "ia2_thread_begin does not align the stack correctly"
   __asm__ volatile(
         // Copy stack pointer to x10
         "mov x10, sp\n"
@@ -72,6 +71,14 @@ void *ia2_thread_begin(void *arg) {
         "mov sp, x0\n"
         // Push the old stack pointer
         "str x10, [sp, #-8]!\n"
+        // Align the stack
+        "movn x10, #0x000f\n"
+        "mov x11, sp\n"
+        "and x11, x11, x10\n"
+        "mov sp, x11\n"
+        // Prologue
+        "str x29, [sp, #-8]!\n"
+        "mov x29, sp\n"
         // Load argument
         "ldr x0, [%[data]]\n"
         // Call fn(data)
@@ -85,6 +92,8 @@ void *ia2_thread_begin(void *arg) {
       : [result] "=r"(result)
       : [fn] "r"(fn), [data] "r"(&data), [new_sp_addr] "r"(new_sp_addr)
       : "x0", "x10");
+#else
+#error "unknown architecture"
 #endif
   /* clang-format on */
 

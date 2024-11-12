@@ -24,19 +24,19 @@ volatile void *addr;
 // CHECK_VIOLATION prints a different message.
 void run_test(bool access_lib_secret) {
   errno = 5;
-  cr_log_info("errno=%d, pkru=%08x\n", errno, ia2_get_tag());
+  cr_log_info("errno=%d, pkru=%08zx\n", errno, ia2_get_tag());
 
   lib_print_lib_secret();
 
   // Access to thread-local from the same compartment should work.
   cr_log_info("main: main secret is %x\n", main_secret);
-  cr_log_info("errno=%d, pkru=%08x\n", errno, ia2_get_tag());
+  cr_log_info("errno=%d, pkru=%08zx\n", errno, ia2_get_tag());
   lib_print_lib_secret();
 
-  cr_log_info("errno=%d, pkru=%08x\n", errno, ia2_get_tag());
+  cr_log_info("errno=%d, pkru=%08zx\n", errno, ia2_get_tag());
 
   errno = 5;
-  cr_log_info("pkru=%08x\n", ia2_get_tag());
+  cr_log_info("pkru=%08zx\n", ia2_get_tag());
   cr_log_info("errno=%d\n", errno);
 
   // Perform forbidden access.
@@ -47,7 +47,9 @@ void run_test(bool access_lib_secret) {
       cr_log_info("main: accessing lib secret at %p\n", addr);
     }
     cr_log_info("main: lib secret is %x\n", CHECK_VIOLATION(lib_secret));
+#if defined(__x86_64__)
     cr_assert(false); // Should not reach here
+#endif
   } else {
     lib_print_main_secret();
   }

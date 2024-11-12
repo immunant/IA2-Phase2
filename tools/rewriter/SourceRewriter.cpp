@@ -1457,7 +1457,11 @@ int main(int argc, const char **argv) {
       macros_defining_wrappers += asm_wrapper;
       macros_defining_wrappers += ");\n";
 
-      /* Invoke the macro we just defined in the source file defining the target function */
+      /*
+       * Invoke IA2_DEFINE_WRAPPER from ia2.h in the source file defining the
+       * target function. This expands to the IA2_DEFINE_WRAPPER_* macro we just
+       * defined
+       */
       auto filename = fn_decl_pass.fn_definitions[fn_name];
       std::ofstream source_file(filename, std::ios::app);
       source_file << "IA2_DEFINE_WRAPPER(" << fn_name << ")\n";
@@ -1498,6 +1502,11 @@ int main(int argc, const char **argv) {
 
         header_out << "extern " << opaque << " " << wrapper_name << ";\n";
 
+        /*
+         * Invoke IA2_DEFINE_WRAPPER from ia2.h in the source file defining the
+         * target function. This expands to the IA2_DEFINE_WRAPPER_* macro we just
+         * defined
+         */
         source_file << "IA2_DEFINE_WRAPPER(" << fn_name << ")\n";
       }
     }

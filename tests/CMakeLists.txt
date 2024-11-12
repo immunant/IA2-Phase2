@@ -67,7 +67,6 @@ add_subdirectory(static_addr_taken)
 add_subdirectory(structs)
 add_subdirectory(threads)
 add_subdirectory(protected_threads)
-add_subdirectory(tls_protected)
 # The following tests are not supported on ARM64 yet
 if (NOT LIBIA2_AARCH64)
     # Expected to have compartment violations, but we aren't enforcing yet:
@@ -85,6 +84,9 @@ if (NOT LIBIA2_AARCH64)
 
     # test calls PKRU-specific functions
     add_subdirectory(mmap_loop)
+
+    # MTE permissions aren't enforced for file-backed mappings
+    add_subdirectory(tls_protected)
 
     # no permissive mode on ARM
     add_subdirectory(permissive_mode)

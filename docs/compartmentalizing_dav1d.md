@@ -375,6 +375,9 @@ For global compile args, we add these:
   To detect errors around function pointers and their wrapped call gates types.
 * `-DIA2_PERMISSIVE_MODE=1`:
   If we want permissive mode, or we can disable it.
+  Note that this is a `#define` we added to `dav1d` specifically
+  to make it easier to selectively `#include <permissive_mode.h>`,
+  which is the normal IA2 way of turning on permissive mode.
 
 For global link args, we add these:
 

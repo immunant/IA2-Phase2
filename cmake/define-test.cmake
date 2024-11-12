@@ -143,12 +143,11 @@ function(define_test)
                 # unless natively AArch64, default to running tests with qemu-aarch64 and a custom LD_LIBRARY_PATH
                 if (NOT ${CMAKE_HOST_SYSTEM_PROCESSOR} STREQUAL aarch64)
                     if (NOT DEFINED CMAKE_CROSSCOMPILING_EMULATOR)
-                        set(CMAKE_CROSSCOMPILING_EMULATOR qemu-aarch64 -E LD_LIBRARY_PATH=/usr/aarch64-linux-gnu/lib:/usr/aarch64-linux-gnu/lib64)
+                        set(CMAKE_CROSSCOMPILING_EMULATOR qemu-aarch64-static -E LD_LIBRARY_PATH=/usr/aarch64-linux-gnu/lib:/usr/aarch64-linux-gnu/lib64)
                     endif()
                 endif()
                 add_test(NAME ${TEST_NAME}
                     COMMAND ${CMAKE_CROSSCOMPILING_EMULATOR}
-                        "-one-insn-per-tb"
                         "-L" "${CMAKE_BINARY_DIR}/external/glibc/sysroot/usr/"
                         "-E" "LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/external/glibc/sysroot/usr/lib:/usr/aarch64-linux-gnu/lib:/usr/aarch64-linux-gnu/lib64"
                         ${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME}

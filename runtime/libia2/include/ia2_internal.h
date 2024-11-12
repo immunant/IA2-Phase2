@@ -107,9 +107,7 @@ struct dl_phdr_info;
 /* clang-format off */
 #if defined(__x86_64__)
 #define _IA2_DEFINE_SIGNAL_HANDLER(function, pkey)    \
-    __asm__(".global ia2_sighandler_" #function "\n"  \
-            "ia2_sighandler_" #function ":\n"         \
-            "movq %rcx, %r10\n"                       \
+    __asm__("movq %rcx, %r10\n"                       \
             "movq %rdx, %r11\n"                       \
             "movq %rax, %r12\n"                       \
             "xorl %ecx, %ecx\n"                       \
@@ -119,13 +117,7 @@ struct dl_phdr_info;
             "movq %r12, %rax\n"                       \
             "movq %r11, %rdx\n"                       \
             "movq %r10, %rcx\n"                       \
-            "jmp " #function "\n")
-#elif defined(__aarch64__)
-#define _IA2_DEFINE_SIGNAL_HANDLER(function, tag)    \
-    __asm__(".global ia2_sighandler_" #function "\n" \
-            "ia2_sighandler_" #function ":\n"        \
-            "movz_shifted_tag_x18 " #tag "\n"        \
-            "b " #function "\n")
+            "jmp " #function "\n");
 #endif
 /* clang-format on */
 

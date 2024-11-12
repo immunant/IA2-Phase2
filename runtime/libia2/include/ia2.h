@@ -49,7 +49,10 @@
 #define IA2_CAST(func, ty) (ty) (void *) func
 #else
 #define IA2_DEFINE_WRAPPER(func) IA2_DEFINE_WRAPPER_##func
+
+#if defined(__x86_64__)
 #define IA2_SIGHANDLER(func) ia2_sighandler_##func
+
 /// Create a wrapped signal handler for `sa_sigaction`
 ///
 /// Wraps the given function with `pkey`, creating a handler for use with
@@ -59,9 +62,10 @@
 ///
 /// Creates a new function with `ia2_sighandler_` prepended to the given
 /// function name which should be registered with sigaction().
-#define IA2_DEFINE_SIGACTION(function, pkey)                                   \
-  void ia2_sighandler_##function(int, siginfo_t *, void *);                    \
-  _IA2_DEFINE_SIGNAL_HANDLER(function, pkey)
+#define IA2_DEFINE_SIGACTION(function, pkey)                                        \
+  __attribute__((naked)) void ia2_sighandler_##function(int, siginfo_t *, void *) { \
+  _IA2_DEFINE_SIGNAL_HANDLER(function, pkey)                                        \
+  }
 
 /// Create a wrapped signal handler for `sa_handler`
 ///
@@ -73,8 +77,10 @@
 /// Creates a new function with `ia2_sighandler_` prepended to the given
 /// function name which should be registered with sigaction().
 #define IA2_DEFINE_SIGHANDLER(function, pkey)                                  \
-  void ia2_sighandler_##function(int);                                         \
-  _IA2_DEFINE_SIGNAL_HANDLER(function, pkey)
+  __attribute__((naked)) void ia2_sighandler_##function(int) {                 \
+  _IA2_DEFINE_SIGNAL_HANDLER(function, pkey)                                   \
+  }
+#endif // __x86_64__
 
 /// Initialize the IA2 runtime, must only be invoked once per in a process
 ///

@@ -414,6 +414,14 @@ static std::string sig_string(const AbiSignature &sig,
   return ss.str();
 }
 
+static void emit_direct_call(AsmWriter &aw, Arch arch, std::string_view fn_name) {
+  if (arch == Arch::X86) {
+    add_asm_line(aw, llvm::formatv("call {0}", fn_name));
+  } else if (arch == Arch::Aarch64) {
+    add_asm_line(aw, llvm::formatv("bl {0}", fn_name));
+  }
+}
+
 static void emit_fn_call(
     const std::optional<std::string> target_name,
     WrapperKind kind,
@@ -432,11 +440,7 @@ static void emit_fn_call(
     }
   } else {
     // direct call
-    if (arch == Arch::X86) {
-      add_asm_line(aw, "call "s + target_name.value());
-    } else if (arch == Arch::Aarch64) {
-      add_asm_line(aw, "bl "s + target_name.value());
-    }
+    emit_direct_call(aw, arch, *target_name);
   }
 }
 
@@ -818,6 +822,12 @@ static void emit_set_return_pkru(AsmWriter &aw, uint32_t caller_pkey, Arch arch)
   }
 }
 
+static void emit_post_condition_fn_call(AsmWriter &aw, Arch arch, std::string_view target_post_condition_name) {
+  llvm::errs() << "emitting post condition call to " << target_post_condition_name << "\n";
+  add_comment_line(aw, "Call post condition function");
+  emit_direct_call(aw, arch, target_post_condition_name);
+}
+
 static void emit_epilogue(AsmWriter &aw, uint32_t caller_pkey, Arch arch) {
   if (arch == Arch::X86) {
     // Load registers that are preserved across function calls after switching
@@ -934,7 +944,7 @@ std::string emit_asm_wrapper(AbiSignature &sig,
     |ret  |A pointer saving the caller's address for return value. Only added if
     |ptr  |using ret space. Saves the previous value of x8.
     +-----+
-    |align|8 bytes for alignment if the total size of ind args + ret space 
+    |align|8 bytes for alignment if the total size of ind args + ret space
     |     |  + ret ptr + stack args is not a multiple of 16.
     +-----+
     |stack|Space required for stack arguments. This is initialized from the
@@ -950,9 +960,9 @@ std::string emit_asm_wrapper(AbiSignature &sig,
     |addr |
     +-----+
 
-    ind args, ret space, and stack args may each have up to 15 bytes of alignment 
+    ind args, ret space, and stack args may each have up to 15 bytes of alignment
     above the section on the stack so that the start of the first item in each section is
-    properly aligned. This is necessary if the size of the section is not a multiple 
+    properly aligned. This is necessary if the size of the section is not a multiple
     of the alignment of the first item.
   */
 
@@ -1033,6 +1043,19 @@ std::string emit_asm_wrapper(AbiSignature &sig,
   emit_scrub_regs(aw, target_pkey, rets, true, arch);
 
   emit_set_return_pkru(aw, caller_pkey, arch);
+
+  // Call the post-condition function, if one was specified.
+  // The call happens in the caller's compartment.
+  // For now, we hardcode the existence and name of the post-condition function.
+  // The name is `${target_name}_post_condition`,
+  // and we only do this for `dav1d_get_picture`.
+  std::optional<std::string> target_post_condition_name = std::nullopt;
+  if (target_name && *target_name == "dav1d_get_picture") {
+    target_post_condition_name = *target_name + "_post_condition";
+  }
+  if (target_post_condition_name) {
+    emit_post_condition_fn_call(aw, arch, *target_post_condition_name);
+  }
 
   emit_epilogue(aw, caller_pkey, arch);
 

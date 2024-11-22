@@ -824,8 +824,11 @@ static void emit_set_return_pkru(AsmWriter &aw, uint32_t caller_pkey, Arch arch)
 
 static void emit_post_condition_fn_call(AsmWriter &aw, Arch arch, std::string_view target_post_condition_name) {
   llvm::errs() << "emitting post condition call to " << target_post_condition_name << "\n";
+  add_comment_line(aw, "Align stack");
+  add_asm_line(aw, "subq $8, %rsp");
   add_comment_line(aw, "Call post condition function");
   emit_direct_call(aw, arch, target_post_condition_name);
+  add_asm_line(aw, "addq $8, %rsp");
 }
 
 static void emit_epilogue(AsmWriter &aw, uint32_t caller_pkey, Arch arch) {

@@ -11,6 +11,9 @@ int dav1d_get_picture(Dav1dContext *const c, Dav1dPicture *const out) {
     return 0;
 }
 
-void dav1d_get_picture_post_condition() {
+void dav1d_get_picture_post_condition(Dav1dContext *const c, Dav1dPicture *const out) {
     cr_log_info("dav1d_get_picture post condition ran");
+    if (out->stride[0] < 0) {
+        cr_log_info("negative stride");
+    }
 }

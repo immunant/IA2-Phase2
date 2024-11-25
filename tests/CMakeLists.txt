@@ -91,4 +91,6 @@ if (NOT LIBIA2_AARCH64)
     
     # no permissive mode on ARM
     add_subdirectory(permissive_mode)
+
+    add_subdirectory(post_condition)
 endif()

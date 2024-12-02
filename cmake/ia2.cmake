@@ -247,7 +247,7 @@ function(add_ia2_call_gates NAME)
       set(OBJCOPY_CMD ${OBJCOPY_GLUE} $<JOIN:$<TARGET_OBJECTS:${target}>, \\\; && ${OBJCOPY_GLUE} >)
       add_custom_command(TARGET ${target} PRE_LINK
                          COMMAND "${OBJCOPY_CMD}"
-                         DEPENDS ${target_objcopy_args_file}
+                         #DEPENDS ${target_objcopy_args_file}
                          VERBATIM
                          COMMAND_EXPAND_LISTS)
       list(APPEND OBJCOPY_ARGS_FILES "${target_objcopy_args_file}")

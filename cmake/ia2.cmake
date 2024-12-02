@@ -1,7 +1,7 @@
 if (LIBIA2_AARCH64)
-    set(UBSAN_FLAG "")
+  set(UBSAN_FLAG "")
 else()
-    set(UBSAN_FLAG "-fsanitize=undefined")
+  set(UBSAN_FLAG "-fsanitize=undefined")
 endif()
 # Creates a compartmentalized IA2 target
 #
@@ -276,7 +276,7 @@ function(add_ia2_call_gates NAME)
       # default to --as-needed so this is needed to fix some runtime ld.so lookup
       # error
       if (LIBIA2_AARCH64)
-          target_link_options(${target} PRIVATE "-Wl,--no-as-needed")
+        target_link_options(${target} PRIVATE "-Wl,--no-as-needed")
       endif()
       target_link_libraries(${target} PRIVATE ${CALL_GATE_TARGET})
 
@@ -289,9 +289,9 @@ function(add_ia2_call_gates NAME)
   endforeach()
 
   if (LIBIA2_AARCH64)
-      set(ARCH_FLAG "--arch=aarch64")
+    set(ARCH_FLAG "--arch=aarch64")
   else()
-      set(SYSROOT_FLAG
+    set(SYSROOT_FLAG
         --extra-arg=-isystem "--extra-arg=${CLANG_HEADERS_INCLUDE}"
         --extra-arg=-isystem "--extra-arg=${CLANG_HEADERS_INCLUDE_FIXED}")
   endif()

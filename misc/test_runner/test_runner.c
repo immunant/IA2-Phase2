@@ -85,6 +85,7 @@ int main() {
   sigaction(SIGSEGV, &act, NULL);
   struct fake_criterion_test *test_info = &__start_fake_criterion_tests;
   for (; test_info < &__stop_fake_criterion_tests; test_info++) {
+    fprintf(stderr, "running suite '%s' test '%s'...\n", test_info->suite, test_info->name);
     if (!test_info->test) {
       break;
     }

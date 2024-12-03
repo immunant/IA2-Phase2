@@ -17,10 +17,15 @@ typedef void (*ia2_test_fn)(void);
 #endif
 
 struct fake_criterion_test {
+  const char *suite;
+  const char *name;
   ia2_test_fn test;
   ia2_test_fn init;
   int exit_code;
 };
+
+#define _STRINGIFY(a) #a
+#define STRINGIFY(a) _STRINGIFY(a)
 
 /*
  * Placing IA2_{BEGIN,END}_NO_WRAP between the function declaration stops the rewriter from creating a
@@ -28,14 +33,16 @@ struct fake_criterion_test {
  * that reference it like the RHS when initializing struct fake_criterion_test's test field. The
  * last line of this macro is the start of the test function's definition and should be followed by { }
  */
-#define Test(suite, name, ...)                                                                                                 \
-  IA2_BEGIN_NO_WRAP                                                                                                            \
-  void fake_criterion_##suite##_##name(void);                                                                                  \
-  IA2_END_NO_WRAP                                                                                                              \
-  __attribute__((__section__("fake_criterion_tests"))) struct fake_criterion_test fake_criterion_##suite##_##name##_##test = { \
-      .test = fake_criterion_##suite##_##name,                                                                                 \
-      ##__VA_ARGS__};                                                                                                          \
-  void fake_criterion_##suite##_##name(void)
+#define Test(suite_, name_, ...)                                                                                                 \
+  IA2_BEGIN_NO_WRAP                                                                                                              \
+  void fake_criterion_##suite_##_##name_(void);                                                                                  \
+  IA2_END_NO_WRAP                                                                                                                \
+  __attribute__((__section__("fake_criterion_tests"))) struct fake_criterion_test fake_criterion_##suite_##_##name_##_##test = { \
+      .suite = STRINGIFY(suite_),                                                                                                \
+      .name = STRINGIFY(name_),                                                                                                  \
+      .test = fake_criterion_##suite_##_##name_,                                                                                 \
+      ##__VA_ARGS__};                                                                                                            \
+  void fake_criterion_##suite_##_##name_(void)
 
 #define cr_log_info(f, ...) printf(f "\n", ##__VA_ARGS__)
 #define cr_log_error(f, ...) fprintf(stderr, f "\n", ##__VA_ARGS__)

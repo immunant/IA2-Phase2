@@ -17,12 +17,15 @@ typedef void (*ia2_test_fn)(void);
 #endif
 
 struct fake_criterion_test {
+  struct fake_criterion_test *next;
   const char *suite;
   const char *name;
   ia2_test_fn test;
   ia2_test_fn init;
   int exit_code;
 };
+
+extern struct fake_criterion_test *fake_criterion_tests;
 
 #define _STRINGIFY(a) #a
 #define STRINGIFY(a) _STRINGIFY(a)
@@ -33,15 +36,20 @@ struct fake_criterion_test {
  * that reference it like the RHS when initializing struct fake_criterion_test's test field. The
  * last line of this macro is the start of the test function's definition and should be followed by { }
  */
-#define Test(suite_, name_, ...)                                                                                                 \
-  IA2_BEGIN_NO_WRAP                                                                                                              \
-  void fake_criterion_##suite_##_##name_(void);                                                                                  \
-  IA2_END_NO_WRAP                                                                                                                \
-  __attribute__((__section__("fake_criterion_tests"))) struct fake_criterion_test fake_criterion_##suite_##_##name_##_##test = { \
-      .suite = STRINGIFY(suite_),                                                                                                \
-      .name = STRINGIFY(name_),                                                                                                  \
-      .test = fake_criterion_##suite_##_##name_,                                                                                 \
-      ##__VA_ARGS__};                                                                                                            \
+#define Test(suite_, name_, ...)                                                            \
+  IA2_BEGIN_NO_WRAP                                                                         \
+  void fake_criterion_##suite_##_##name_(void);                                             \
+  IA2_END_NO_WRAP                                                                           \
+  struct fake_criterion_test fake_criterion_##suite_##_##name_##_##test IA2_SHARED_DATA = { \
+      .next = NULL,                                                                         \
+      .suite = STRINGIFY(suite_),                                                           \
+      .name = STRINGIFY(name_),                                                             \
+      .test = fake_criterion_##suite_##_##name_,                                            \
+      ##__VA_ARGS__};                                                                       \
+  __attribute__((constructor)) void fake_criterion_add_##suite_##_##name_##_##test(void) {  \
+    fake_criterion_##suite_##_##name_##_##test.next = fake_criterion_tests;                 \
+    fake_criterion_tests = &fake_criterion_##suite_##_##name_##_##test;                     \
+  }                                                                                         \
   void fake_criterion_##suite_##_##name_(void)
 
 #define cr_log_info(f, ...) printf(f "\n", ##__VA_ARGS__)

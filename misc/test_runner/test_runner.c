@@ -8,8 +8,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-extern struct fake_criterion_test __start_fake_criterion_tests;
-extern struct fake_criterion_test __stop_fake_criterion_tests;
+struct fake_criterion_test *fake_criterion_tests IA2_SHARED_DATA = NULL;
 
 /* This is shared data to allow checking for violations from different compartments */
 bool expect_fault IA2_SHARED_DATA = false;
@@ -83,12 +82,8 @@ int main() {
    * invocation of the Test macro
    */
   sigaction(SIGSEGV, &act, NULL);
-  struct fake_criterion_test *test_info = &__start_fake_criterion_tests;
-  for (; test_info < &__stop_fake_criterion_tests; test_info++) {
+  for (struct fake_criterion_test *test_info = fake_criterion_tests; test_info; test_info = test_info->next) {
     fprintf(stderr, "running suite '%s' test '%s'...\n", test_info->suite, test_info->name);
-    if (!test_info->test) {
-      break;
-    }
     pid_t pid = fork();
     bool in_child = pid == 0;
     if (in_child) {

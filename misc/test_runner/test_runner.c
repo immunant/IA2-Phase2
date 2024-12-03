@@ -45,7 +45,7 @@ __attribute__((naked)) void handle_segfault(int sig) {
 #warning "Review test_fault_handler implementation after enabling x18 switching"
 void print_mpk_message(int sig);
 void handle_segfault(int sig) {
-    print_mpk_message(sig);
+  print_mpk_message(sig);
 }
 #endif
 
@@ -109,7 +109,7 @@ int main() {
       perror("waitpid");
       return 2;
     }
-    if WIFSIGNALED(stat) {
+    if WIFSIGNALED (stat) {
       fprintf(stderr, "forked test child was terminated by signal %d\n", WTERMSIG(stat));
       return 1;
     }

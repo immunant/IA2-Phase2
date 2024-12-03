@@ -1,10 +1,10 @@
 #pragma once
+#include <assert.h>
 #include <ia2.h>
-#include <stdio.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <assert.h>
 
 /*
  * Tests should include this header without defining the following macro to avoid rewriting function
@@ -53,14 +53,14 @@ struct fake_criterion_test {
  * Configure the signal handler to expect an mpk violation when `expr` is evaluated. If `expr`
  * doesn't trigger a fault, the process exits with a non-zero exit status.
  */
-#define CHECK_VIOLATION(expr)                                                  \
-  ({                                                                           \
-    expect_fault = true;                                                       \
-    asm volatile("" : : : "memory");                                           \
-    volatile typeof(expr) _tmp = expr;                                         \
-    printf("CHECK_VIOLATION: did not seg fault as expected\n");                \
-    _exit(1);                                                                  \
-    _tmp;                                                                      \
+#define CHECK_VIOLATION(expr)                                   \
+  ({                                                            \
+    expect_fault = true;                                        \
+    asm volatile("" : : : "memory");                            \
+    volatile typeof(expr) _tmp = expr;                          \
+    printf("CHECK_VIOLATION: did not seg fault as expected\n"); \
+    _exit(1);                                                   \
+    _tmp;                                                       \
   })
 
 extern bool expect_fault;

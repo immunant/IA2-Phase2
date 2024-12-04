@@ -245,9 +245,9 @@ function(add_ia2_call_gates NAME)
       set(target_objcopy_args_file "${REWRITER_OUTPUT_PREFIX}_${target_pkey}.objcopy")
       set(OBJCOPY_GLUE ${CMAKE_OBJCOPY} "--redefine-syms=${target_objcopy_args_file}")
       set(OBJCOPY_CMD ${OBJCOPY_GLUE} $<JOIN:$<TARGET_OBJECTS:${target}>, \\\; && ${OBJCOPY_GLUE} >)
+      set_target_properties(${target} PROPERTIES LINK_DEPENDS ${target_objcopy_args_file})
       add_custom_command(TARGET ${target} PRE_LINK
                          COMMAND "${OBJCOPY_CMD}"
-                         #DEPENDS ${target_objcopy_args_file}
                          VERBATIM
                          COMMAND_EXPAND_LISTS)
       list(APPEND OBJCOPY_ARGS_FILES "${target_objcopy_args_file}")

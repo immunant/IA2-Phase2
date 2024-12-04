@@ -155,8 +155,13 @@ are also required:
 -DPKEY=$PKEY
 -DIA2_ENABLE=1
 -include /path/to/generated_output_header.h
+-I $IA2_PATH/runtime/partition-alloc/include
 -Werror=incompatible-pointer-types
 -Wl,--wrap=pthread_create
+-Wl,--wrap=calloc
+-Wl,--wrap=malloc
+-Wl,--wrap=realloc
+-Wl,--wrap=free
 -pthread
 -Wl,-z,now
 -Wl,-z,relro
@@ -166,6 +171,11 @@ are also required:
 -Wl,--wrap=main
 -Wl,--dynamic-list=$IA2_PATH/runtime/libia2/dynsym.syms
 -Wl,--export-dynamic
+-L$IA2_PATH/build/runtime/libia2
+-L$IA2_PATH/build/runtime/partition-alloc
+-llibia2
+-lpartition-alloc
+-lcallgates
 ```
 
 Also if the rewriter produces a linker args file for a given compartment (i.e. a

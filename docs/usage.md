@@ -185,7 +185,7 @@ linking that DSO.
 
 ## Using Thread Local Storage
 
-When using TLS in a containerized app, you'll need to run the `pad-tls` tool on
+When using TLS in a compartmentalized app, you'll need to run the `pad-tls` tool on
 all shared objects in the app. This includes `libc.so` as libc both initializes
 and makes use of TLS. If you're seeing compartment violations when accessing TLS
 then you likely need to run `pad-tls` on the relevant. The tool can be found at

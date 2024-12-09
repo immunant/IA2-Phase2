@@ -189,4 +189,4 @@ When using TLS in a compartmentalized app, you'll need to run the `pad-tls` tool
 all shared objects in the app. This includes `libc.so` as libc both initializes
 and makes use of TLS. If you're seeing compartment violations when accessing TLS
 then you likely need to run `pad-tls` on the relevant. The tool can be found at
-`$IA2_PATH/build/tools/pad-tls/pad-tls`.
+`$IA2_PATH/build/tools/pad-tls/pad-tls`. Note that the `ldd` and `lddtree` tools can be used to list the DSO dependencies of your app.

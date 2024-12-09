@@ -155,6 +155,7 @@ are also required:
 -DPKEY=$PKEY
 -DIA2_ENABLE=1
 -include /path/to/generated_output_header.h
+-I $IA2_PATH/runtime/libia2/include
 -I $IA2_PATH/runtime/partition-alloc/include
 -Werror=incompatible-pointer-types
 -Wl,--wrap=pthread_create
@@ -185,7 +186,7 @@ linking that DSO.
 ## Using Thread Local Storage
 
 When using TLS in a containerized app, you'll need to run the `pad-tls` tool on
-all shared objects in the app. This includes `libc.so` as libc initializes TLS.
-If you're seeing compartment violations when accessing TLS then you likely need
-to run `pad-tls` on the relevant. The tool can be found at
+all shared objects in the app. This includes `libc.so` as libc both initializes
+and makes use of TLS. If you're seeing compartment violations when accessing TLS
+then you likely need to run `pad-tls` on the relevant. The tool can be found at
 `$IA2_PATH/build/tools/pad-tls/pad-tls`.

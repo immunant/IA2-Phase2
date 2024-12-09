@@ -7,10 +7,21 @@ allocator, first build `libpartition_alloc.so` with the CMake `partition-alloc` 
 your program against `libpartition_alloc.so` with the following linker flags.
 
 ```
--Wl,--wrap=calloc  \
--Wl,--wrap=malloc  \
--Wl,--wrap=realloc \
--Wl,--wrap=free
+-Wl,-wrap,calloc
+-Wl,-wrap,free
+-Wl,-wrap,malloc
+-Wl,-wrap,memalign
+-Wl,-wrap,posix_memalign
+-Wl,-wrap,pvalloc
+-Wl,-wrap,realloc
+-Wl,-wrap,valloc
+-Wl,-wrap,malloc_usable_size
+-Wl,-wrap,realpath
+-Wl,-wrap,strdup
+-Wl,-wrap,strndup
+-Wl,-wrap,getcwd
+-Wl,-wrap,asprintf
+-Wl,-wrap,vasprintf
 ```
 
 [wrap]: https://chromium.googlesource.com/chromium/src/base/+/refs/heads/main/allocator/allocator_shim_override_libc_symbols.h

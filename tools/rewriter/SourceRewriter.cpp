@@ -23,6 +23,7 @@
 #include <clang/AST/PrettyPrinter.h>
 #include <clang/Basic/SourceLocation.h>
 #include <dirent.h>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -1097,6 +1098,9 @@ int main(int argc, const char **argv) {
   RootDirectory = RootDirectoryOption;
   OutputDirectory = OutputDirectoryOption;
   OutputPrefix = OutputPrefixOption;
+
+  RootDirectory = std::filesystem::canonical(RootDirectory);
+  OutputDirectory = std::filesystem::canonical(OutputDirectory);
 
   RefactoringTool tool(options_parser.getCompilations(),
                        options_parser.getSourcePathList());

@@ -10,12 +10,14 @@
 #include <string.h>
 #include <sys/mman.h>
 
-#include <ia2_internal.h>
 #include <ia2.h>
 
 #ifndef IA2_COMPARTMENT_LIBRARIES
 #define IA2_COMPARTMENT_LIBRARIES NULL
 #endif
+
+#define IA2_CONCAT_(x, y) x##y
+#define IA2_CONCAT(x, y) IA2_CONCAT_(x, y)
 
 #define COMPARTMENT_IDENT(name) IA2_CONCAT(name##_, IA2_COMPARTMENT)
 

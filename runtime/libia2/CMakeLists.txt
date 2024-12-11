@@ -78,15 +78,19 @@ if (LIBIA2_AARCH64)
             ${SYSROOT_SRC_DIR}/include/*/*.h
             ${SYSROOT_SRC_DIR}/include/*/*/*.h)
         string(REGEX REPLACE ${SYSROOT_SRC_DIR} ${SYSROOT_BIN_DIR} ${SYSROOT_HEADERS_SRC} SYSROOT_HEADERS)
-        add_custom_target(glibc
-            BYPRODUCTS
+        add_custom_command(
+            OUTPUT
                 ${SYSROOT_BIN_DIR}/lib/libc.so.6
                 ${SYSROOT_BIN_DIR}/lib/ld-linux-aarch64.so.1
                 ${SYSROOT_HEADERS}
             COMMAND ${CMAKE_COMMAND} -E copy ${SYSROOT_SRC_DIR}/lib/libc.so.6 ${SYSROOT_BIN_DIR}/lib/
             COMMAND ${CMAKE_COMMAND} -E copy ${SYSROOT_SRC_DIR}/lib/ld-linux-aarch64.so.1 ${SYSROOT_BIN_DIR}/lib/
             COMMAND ${CMAKE_COMMAND} -E copy_directory ${SYSROOT_SRC_DIR}/include ${SYSROOT_BIN_DIR}/include
-            COMMENT "Copying glibc prebuilts to sysroot")
+            COMMENT "Copying glibc prebuilts to sysroot"
+        )
+        add_custom_target(glibc
+            DEPENDS ${SYSROOT_BIN_DIR}/lib/libc.so.6 ${SYSROOT_BIN_DIR}/lib/ld-linux-aarch64.so.1 ${SYSROOT_HEADERS}
+        )
     endif()
     set(LIBC_PATH ${SYSROOT_BIN_DIR}/lib/libc.so.6)
 else()

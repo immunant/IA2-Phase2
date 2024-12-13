@@ -77,6 +77,7 @@ struct DirectoryParser : public llvm::cl::parser<std::string> {
       llvm::errs() << ec.message() << '\n';
       return true;
     }
+    llvm::sys::path::remove_dots(dir, true);
     Value = std::string(dir);
     return false;
   }

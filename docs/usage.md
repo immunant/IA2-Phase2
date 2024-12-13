@@ -18,7 +18,7 @@ must be taken.
 
 The rewriter needs to know which compartment each source file belongs to, and it
 needs each compartment to be initialized in one of the source files. To specify
-the compartment for each file, add a `-DPKEY=$PKEY` argument to the compiler,
+the compartment for each file, add a `-DPKEY=$PKEY` argument to the compile command,
 where `$PKEY` is the compartment number for that source file.
 
 The compartments for each DSO are declared with macros in one of their

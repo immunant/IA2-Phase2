@@ -81,7 +81,7 @@ Instead of rewriting sources in-place, the rewriter creates a set of new,
 intermediate source (and header) files. Since the rewriter only accepts a list
 of `.c` source files, the set of intermediate headers that will be created is
 controlled by the `--root-directory` and `--output-directory` command-line
-flags. Any file from subdirectories of the root directory which is `#include`d
+flags. Any file from subdirectories of the root directory that is `#include`d
 in an input `.c` is copied over to the output directory under the same
 subdirectory. Any `#include`d file which is not under the root directory is
 treated as a system header and does not get rewritten.

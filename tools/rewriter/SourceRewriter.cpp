@@ -72,13 +72,13 @@ struct DirectoryParser : public llvm::cl::parser<std::string> {
       llvm::errs() << "error: directory does not exist: " << dir << "\n";
       return true; // true on error
     }
-    auto ec = llvm::sys::fs::make_absolute(dir);
+    llvm::SmallString<PATH_MAX> real_path;
+    auto ec = llvm::sys::fs::real_path(dir, real_path);
     if (ec) {
       llvm::errs() << ec.message() << '\n';
       return true;
     }
-    llvm::sys::path::remove_dots(dir, true);
-    Value = std::string(dir);
+    Value = std::string(real_path);
     return false;
   }
 };

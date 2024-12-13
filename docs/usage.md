@@ -52,10 +52,12 @@ compiler flags used to compile each source file. If your build system does not
 directly support generating a compile commands file, you can use a tool like
 `bear` to record the compiler invocations that your build system makes.
 
-One limitiation is that the rewriter currently does not support having multiple
-compile commands for the same source file. If your build system builds the same
-source file multiple times, e.g. building for both a shared lib and a static
-lib, you'll need to change your build such that it only builds the sources once.
+Be aware that if there are multiple compile commands for a single source file the
+rewriter will use the first one it finds, which may not be correct for your
+project. The rewriter will generate warnings if this is the case. If your build
+system builds the same source file multiple times, e.g. building for both a
+shared lib and a static lib, it's recommended to change your build such that it
+only builds the sources once before capturing the compile commands.
 
 Note that `libclangTooling`, which `ia2-rewriter` uses, is very finicky
 about relative paths, so we suggest making all relative paths absolute.

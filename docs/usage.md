@@ -7,7 +7,7 @@ they are either assigned one of 15 protection keys or default to the untrusted
 protection key. This doc walks through how to compartmentalize a program using
 our source rewriter.
 
-## Running the Rewriter
+## Setup and the Rewriter
 
 The build process for a compartmentalized program is to first run the sources
 through our source rewriter, then compile with any standard C toolchain with a

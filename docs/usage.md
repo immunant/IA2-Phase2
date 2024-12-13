@@ -7,44 +7,19 @@ they are either assigned one of 15 protection keys or default to the untrusted
 protection key. This doc walks through how to compartmentalize a program using
 our source rewriter.
 
-## Build process
+## Running the Rewriter
 
 The build process for a compartmentalized program is to first run the sources
 through our source rewriter, then compile with any standard C toolchain with a
-few additional flags. Instead of rewriting sources in-place, the rewriter
-creates a set of new, intermediate source (and header) files. Since the rewriter
-only accepts a list of `.c` source files, the set of intermediate headers that
-will be created is controlled by the `--root-directory` and `--output-directory`
-command-line flags. Any file from subdirectories of the root directory
-which is `#include`d in an input `.c` is copied over to the output directory
-under the same subdirectory. Any `#include`d file which is not under the root
-directory is treated as a system header and does not get rewritten.
+few additional flags. In order to run the rewriter a few preparation steps
+must be taken.
 
-Additionally, the rewriter also takes an optional `--output-prefix` for naming
-the build artifacts it generates and a list of source files. Generally, you'll
-want to generate and use a `compile_commands.json` to ensure the rewriter
-preprocesses each source file with the same command-line arguments as when it is
-compiled.
+### Defining Compartments
 
-### Compile Command Paths
-
-Note that `libclangTooling`, which `ia2-rewriter` uses, is very finicky
-about relative paths, so we suggest making all relative paths absolute.
-Furthermore, `ia2-rewriter` itself sometimes uses paths as keys,
-so we suggest making all paths canonical.  We have a script,
-[`canonicalize_compile_command_paths.py`](../tools/rewriter/canonicalize_compile_command_paths.py),
-that does this automatically (doing its best to detect paths embedded in args).
-`libclangTooling` also requires compilation databases to be named exactly
-`compile_commands.json`, so this script assumes that as well,
-and must be run in the directory of the `compile_commands.json`, like this:
-
-```sh
-(cd $build_directory && $ia2_dir/tools/rewriter/canonicalize_compile_command_paths.py)
-```
-
-## Manual source changes
-
-### Defining compartments
+The rewriter needs to know which compartment each source file belongs to, and it
+needs each compartment to be initialized in one of the source files. To specify
+the compartment for each file, add a `-DPKEY=$PKEY` argument to the compiler,
+where `$PKEY` is the compartment number for that source file.
 
 The compartments for each DSO are declared with macros in one of their
 constituent source files. We also need to declare the number of pkeys used by
@@ -69,6 +44,76 @@ INIT_RUNTIME(2); // This is the number of pkeys needed
 ```
 
 Note that this must only be included in one source file per DSO.
+
+### Capturing Compile Commands
+
+The rewriter relies on a `compile_commands.json` file with information about the
+compiler flags used to compile each source file. If your build system does not
+directly support generating a compile commands file, you can use a tool like
+`bear` to record the compiler invocations that your build system makes.
+
+One limitiation is that the rewriter currently does not support having multiple
+compile commands for the same source file. If your build system builds the same
+source file multiple times, e.g. building for both a shared lib and a static
+lib, you'll need to change your build such that it only builds the sources once.
+
+Note that `libclangTooling`, which `ia2-rewriter` uses, is very finicky
+about relative paths, so we suggest making all relative paths absolute.
+Furthermore, `ia2-rewriter` itself sometimes uses paths as keys,
+so we suggest making all paths canonical. We have a script,
+[`canonicalize_compile_command_paths.py`](../tools/rewriter/canonicalize_compile_command_paths.py),
+that does this automatically (doing its best to detect paths embedded in args).
+`libclangTooling` also requires compilation databases to be named exactly
+`compile_commands.json`, so this script assumes that as well,
+and must be run in the directory of the `compile_commands.json`, like this:
+
+```sh
+(cd $build_directory && $ia2_dir/tools/rewriter/canonicalize_compile_command_paths.py)
+```
+
+### Running the Rewriter
+
+Once you have added the code to initialize each compartment, and have generated
+a `compile_commands.json` with the necessary `PKEY` values specified (via
+`-DPKEY=N`), you can run the rewriter.
+
+Instead of rewriting sources in-place, the rewriter creates a set of new,
+intermediate source (and header) files. Since the rewriter only accepts a list
+of `.c` source files, the set of intermediate headers that will be created is
+controlled by the `--root-directory` and `--output-directory` command-line
+flags. Any file from subdirectories of the root directory which is `#include`d
+in an input `.c` is copied over to the output directory under the same
+subdirectory. Any `#include`d file which is not under the root directory is
+treated as a system header and does not get rewritten.
+
+You'll also have to specify a prefix to use for the additional files that the
+source rewriter generates.
+
+For example, if you have two source files `src/foo.c` and `source/bar.c`, your
+invocation of the rewriter would look like this:
+
+```sh
+$IA2_PATH/build/tools/rewriter/ia2-rewriter \
+  --root-directory=$PROJ_ROOT \
+  --output-directory=$OUT_DIR \
+  --output-prefix=wrapper \
+  $PROJ_ROOT/src/foo.c \
+  $PROJ_ROOT/src/bar.c
+```
+
+Note that, like with capturing compile commands, we need to use absolute,
+canonicalized paths for the list of files we specify to the rewriter.
+
+In addition to putting the rewritten sources in `$OUT_DIR`, the rewriter will
+generate some additional files in the directory where you run it. You can either
+copy those files to a more appropriate location, or you can run the rewriter in
+the appropriate output directory.
+
+## Manual source changes
+
+In some cases the rewriter will be unable to fully rewrite your code, and so
+you'll need to make additional manual changes to your rewritten sources before
+it will compile and run successfully.
 
 ### Sharing data
 

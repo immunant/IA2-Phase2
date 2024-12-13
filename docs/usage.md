@@ -155,8 +155,25 @@ are also required:
 -DPKEY=$PKEY
 -DIA2_ENABLE=1
 -include /path/to/generated_output_header.h
+-I $IA2_PATH/runtime/libia2/include
+-I $IA2_PATH/runtime/partition-alloc/include
 -Werror=incompatible-pointer-types
 -Wl,--wrap=pthread_create
+-Wl,--wrap=calloc
+-Wl,--wrap=free
+-Wl,--wrap=malloc
+-Wl,--wrap=memalign
+-Wl,--wrap=posix_memalign
+-Wl,--wrap=pvalloc
+-Wl,--wrap=realloc
+-Wl,--wrap=valloc
+-Wl,--wrap=malloc_usable_size
+-Wl,--wrap=realpath
+-Wl,--wrap=strdup
+-Wl,--wrap=strndup
+-Wl,--wrap=getcwd
+-Wl,--wrap=asprintf
+-Wl,--wrap=vasprintf
 -pthread
 -Wl,-z,now
 -Wl,-z,relro
@@ -166,8 +183,22 @@ are also required:
 -Wl,--wrap=main
 -Wl,--dynamic-list=$IA2_PATH/runtime/libia2/dynsym.syms
 -Wl,--export-dynamic
+-L$IA2_PATH/build/runtime/libia2
+-L$IA2_PATH/build/runtime/partition-alloc
+-llibia2
+-lpartition-alloc
+-lcallgates
 ```
 
 Also if the rewriter produces a linker args file for a given compartment (i.e. a
 `.ld` file), you must include `-Wl,@/path/to/generated_linker_args_$PKEY.ld` when
 linking that DSO.
+
+## Using Thread Local Storage
+
+When using TLS in a compartmentalized app, you'll need to run the `pad-tls` tool
+on all shared objects in the app. This includes `libc.so` as libc both
+initializes and makes use of TLS. If you're seeing compartment violations when
+accessing TLS then you likely need to run `pad-tls` on the relevant. The tool
+can be found at `$IA2_PATH/build/tools/pad-tls/pad-tls`. Note that the `ldd` and
+`lddtree` tools can be used to list the DSO dependencies of your app.

@@ -1053,9 +1053,10 @@ std::string emit_asm_wrapper(AbiSignature &sig,
   // The name is `${target_name}_post_condition`,
   // and we only do this for `dav1d_get_picture`.
   std::optional<std::string> target_post_condition_name = std::nullopt;
-  if (target_name && *target_name == "dav1d_get_picture") {
+  if (enable_dav1d_get_picture_post_condition && target_name && *target_name == "dav1d_get_picture") {
     target_post_condition_name = *target_name + "_post_condition";
   }
+
   if (target_post_condition_name) {
     emit_post_condition_fn_call(aw, arch, *target_post_condition_name);
   }

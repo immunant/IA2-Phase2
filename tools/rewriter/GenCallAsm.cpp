@@ -1105,7 +1105,27 @@ static std::string emit_asm_wrapper(AbiSignature &sig,
 }
 
 static std::string emit_c_wrapper(ApiSignature& sig, const std::string &wrapper_name, bool as_macro) {
-  return "";
+  std::string wrapper = "";
+  // wrapper += "__attribute__((flatten)) "s; // Inline all calls inside this function.
+  wrapper += sig.ret.type;
+  wrapper += " ";
+  wrapper += wrapper_name;
+  wrapper += "_c";
+  wrapper += "(";
+  if (sig.args.empty()) {
+    wrapper += "void";
+  }
+  size_t i = 0;
+  for (auto& arg : sig.args) {
+    if (i++ != 0) {
+      wrapper += ", ";
+    }
+    wrapper += arg.type;
+    wrapper += " ";
+    wrapper += arg.name;
+  }
+  wrapper += ");";
+  return wrapper;
 }
 
 std::string emit_wrapper(FnSignature &sig,

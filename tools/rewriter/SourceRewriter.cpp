@@ -909,7 +909,7 @@ public:
       return;
     }
 
-    fn_signatures[fn_name] = determineSignatureForDecl(*fn_node, Target);
+    fn_signatures[fn_name] = determineSignatureForDecl(*fn_node, *result.Context, Target);
 
     // Get the translation unit's filename to figure out the pkey
     Pkey pkey = get_file_pkey(sm);

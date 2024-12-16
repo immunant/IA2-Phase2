@@ -3,8 +3,8 @@
 #include "GenCallAsm.h"
 #include "clang/AST/AST.h"
 
-auto determineSignatureForDecl(const clang::FunctionDecl &fnDecl, Arch arch) -> FnSignature;
+FnSignature determineSignatureForDecl(const clang::FunctionDecl &fnDecl, const clang::ASTContext &ast_context, Arch arch);
 
 FnSignature determineSignatureForProtoType(const clang::FunctionProtoType &fpt,
-                                       clang::ASTContext &astContext,
-                                       Arch arch);
+                                           clang::ASTContext &astContext,
+                                           Arch arch);

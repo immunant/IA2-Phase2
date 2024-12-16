@@ -85,8 +85,15 @@ struct AbiSignature {
   bool variadic;
 };
 
+struct ApiArg {
+  std::string type;
+  std::string name;
+};
+
 struct ApiSignature {
-  const clang::FunctionProtoType *prototype;
+  ApiArg ret;
+  std::vector<ApiArg> args;
+  bool variadic;
 };
 
 struct FnSignature {

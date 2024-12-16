@@ -8,7 +8,7 @@ typedef void (*Fn)(void);
 
 // This function does nothing, but should get wrapped
 // LINKARGS: --wrap=library_foo
-void library_foo();
+void library_foo(void);
 
 // LINKARGS: --wrap=library_spawn_thread
 pthread_t library_spawn_thread(void);

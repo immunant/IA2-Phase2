@@ -4,4 +4,4 @@
 
 Option Some(int x);
 
-Option None();
+Option None(void);

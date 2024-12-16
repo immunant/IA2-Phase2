@@ -66,7 +66,7 @@ struct DirectoryParser : public llvm::cl::parser<std::string> {
   bool parse(llvm::cl::Option &O, llvm::StringRef ArgName, const llvm::StringRef &ArgValue,
              std::string &Value) {
     llvm::cl::parser<std::string>::parse(O, ArgName, ArgValue, Value);
-    llvm::SmallString<PATH_MAX> dir { llvm::StringRef(Value) };
+    llvm::SmallString<PATH_MAX> dir{llvm::StringRef(Value)};
     bool exists = llvm::sys::fs::is_directory(dir);
     if (!exists) {
       llvm::errs() << "error: directory does not exist: " << dir << "\n";
@@ -1052,7 +1052,7 @@ std::optional<Pkey> pkey_from_commands(std::function<std::optional<std::vector<C
     comp_cmds.resize(1);
   }
   assert(comp_cmds.size() == 1);
-  
+
   auto cc_cmd = *comp_cmd_with_pkey;
 
   auto pkey_define = std::find_if(cc_cmd.CommandLine.begin(),
@@ -1162,7 +1162,7 @@ int main(int argc, const char **argv) {
   if (!(config_0 || config_1)) {
     llvm::errs() << "Error in pkey configuration. The following pkeys were used: [";
     bool first = true;
-    for (const Pkey& pkey : pkeys_used) {
+    for (const Pkey &pkey : pkeys_used) {
       if (!first) {
         llvm::errs() << ", ";
       }
@@ -1431,7 +1431,7 @@ int main(int argc, const char **argv) {
   // Define wrappers for function pointers (i.e. those referenced by IA2_FN)
   for (const auto &[fn_name, opaque] : ptr_expr_pass.addr_taken_fns) {
     if (generated_wrappers.contains(fn_name)) {
-        continue;
+      continue;
     }
     llvm::errs() << " inserting " << fn_name << " into set\n";
     generated_wrappers.insert(fn_name);

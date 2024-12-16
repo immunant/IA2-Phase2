@@ -1037,6 +1037,8 @@ std::string emit_asm_wrapper(AbiSignature &sig,
   add_asm_line(aw, ".type "s + wrapper_name + ", @function");
   add_asm_line(aw, wrapper_name + ":");
 
+  // Note that when there's a post condition call,
+  // the prologue needs to undo the `pushq`s added in `emit_prologue` to save the register params.
   emit_prologue(aw, caller_pkey, target_pkey, arch, target_post_condition_name.has_value());
 
   if (arch == Arch::X86) {

@@ -257,18 +257,20 @@ static AbiSignature determineAbiForProtoType(const clang::FunctionProtoType &fpt
   return determineAbi(info, astContext, arch);
 }
 
-static ApiSignature determineApiForDecl(const clang::FunctionDecl &fnDecl, Arch arch) {
-  return {};
-}
-
-static ApiSignature determineApiForProtoType(const clang::FunctionProtoType &fpt,
-                                             clang::ASTContext &astContext, Arch arch) {
-  return {};
-}
-
 FnSignature determineSignatureForDecl(const clang::FunctionDecl &fnDecl, Arch arch) {
+  clang::QualType fn_qual_type = fnDecl.getType();
+  const clang::Type *fn_type = fn_qual_type.getTypePtr();
+  const clang::FunctionProtoType *fn_prototype = fn_type->getAs<clang::FunctionProtoType>();
+  if (!fn_prototype) {
+    fnDecl.dump();
+    // TODO(kkysen) Make this error lazy, as it should only be required for functions that need callgates.
+    llvm::report_fatal_error("function does not have a prototype (you probably forgot to specify the `void` in `foo(void)`)");
+  }
+
   return (FnSignature){
-      .api = determineApiForDecl(fnDecl, arch),
+      .api = (ApiSignature){
+          .prototype = fn_prototype,
+      },
       .abi = determineAbiForDecl(fnDecl, arch),
   };
 }
@@ -276,7 +278,9 @@ FnSignature determineSignatureForDecl(const clang::FunctionDecl &fnDecl, Arch ar
 FnSignature determineSignatureForProtoType(const clang::FunctionProtoType &fpt,
                                            clang::ASTContext &astContext, Arch arch) {
   return (FnSignature){
-      .api = determineApiForProtoType(fpt, astContext, arch),
+      .api = (ApiSignature){
+          .prototype = &fpt,
+      },
       .abi = determineAbiForProtoType(fpt, astContext, arch),
   };
 }

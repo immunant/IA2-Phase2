@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 
+#include "clang/AST/AST.h"
+
 class ArgLocation {
 public:
   enum class Kind {
@@ -84,7 +86,7 @@ struct AbiSignature {
 };
 
 struct ApiSignature {
-  bool _todo;
+  const clang::FunctionProtoType *prototype;
 };
 
 struct FnSignature {

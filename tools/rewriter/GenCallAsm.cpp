@@ -494,6 +494,10 @@ static void emit_prologue(AsmWriter &aw, uint32_t caller_pkey, uint32_t target_p
       // TODO(performance): We could store by pairs (STP)
       add_asm_line(aw, "str "s + aarch64_preserved_registers[i] + ", [sp, #" + std::to_string(i * 8) + "]");
     }
+
+    if (save_param_regs) {
+      llvm::report_fatal_error("--enable-dav1d_get_picture-post-condition is not yet supported on aarch64");
+    }
   }
 }
 

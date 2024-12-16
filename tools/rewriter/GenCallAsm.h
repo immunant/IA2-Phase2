@@ -17,7 +17,8 @@ enum class WrapperKind {
 };
 
 enum class Arch {
-    Aarch64, X86
+  Aarch64,
+  X86
 };
 
 extern bool enable_dav1d_get_picture_post_condition;

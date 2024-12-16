@@ -1274,9 +1274,7 @@ int main(int argc, const char **argv) {
       std::string asm_wrapper =
           emit_asm_wrapper(info.sig, {info.wrapper_sig}, wrapper_name, std::nullopt,
                            WrapperKind::IndirectCallsite, caller_pkey, 0, Target);
-      wrapper_out << "asm(\n";
       wrapper_out << asm_wrapper;
-      wrapper_out << ");\n";
 
       if (!type_id_macros_generated.contains(mangled_ty)) {
         header_out << "#define IA2_TYPE_"s << mangled_ty << " " << info.type_str << "\n";
@@ -1421,9 +1419,7 @@ int main(int argc, const char **argv) {
     std::string asm_wrapper =
         emit_asm_wrapper(c_abi_sig, std::nullopt, wrapper_name, target_fn,
                          WrapperKind::Direct, caller_pkey, target_pkey, Target);
-    wrapper_out << "asm(\n";
     wrapper_out << asm_wrapper;
-    wrapper_out << ");\n";
 
     write_to_file(ld_args_out, caller_pkey, "--wrap="s + fn_name + '\n', ".ld");
   }
@@ -1443,9 +1439,7 @@ int main(int argc, const char **argv) {
     std::string asm_wrapper =
         emit_asm_wrapper(c_abi_sig, std::nullopt, wrapper_name, fn_name, WrapperKind::Direct,
                          0, compartment_pkey, Target);
-    wrapper_out << "asm(\n";
     wrapper_out << asm_wrapper;
-    wrapper_out << ");\n";
 
     write_to_file(ld_args_out, compartment_pkey,
                   "--wrap="s + fn_name + '\n', ".ld");
@@ -1484,9 +1478,7 @@ int main(int argc, const char **argv) {
                            WrapperKind::Pointer, 0, target_pkey, Target,
                            true /* as_macro */);
       macros_defining_wrappers += "#define IA2_DEFINE_WRAPPER_"s + fn_name + " \\\n";
-      macros_defining_wrappers += "asm(\\\n";
       macros_defining_wrappers += asm_wrapper;
-      macros_defining_wrappers += ");\n";
 
       /*
        * Invoke IA2_DEFINE_WRAPPER from ia2.h in the source file defining the
@@ -1527,9 +1519,7 @@ int main(int argc, const char **argv) {
             c_abi_sig, std::nullopt, wrapper_name, fn_name, WrapperKind::PointerToStatic, 0,
             target_pkey, Target, true /* as_macro */);
         macros_defining_wrappers += "#define IA2_DEFINE_WRAPPER_"s + fn_name + " \\\n";
-        macros_defining_wrappers += "asm(\\\n";
         macros_defining_wrappers += asm_wrapper;
-        macros_defining_wrappers += ");\n";
 
         header_out << "extern " << opaque << " " << wrapper_name << ";\n";
 

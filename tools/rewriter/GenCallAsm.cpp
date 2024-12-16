@@ -1159,5 +1159,12 @@ std::string emit_asm_wrapper(AbiSignature sig,
   // for indirect wrappers or `.text` for the direct case
   add_asm_line(aw, ".previous");
 
-  return aw.ss.str();
+  std::string wrapper = "asm("s;
+  if (as_macro) {
+    wrapper += "\\";
+  }
+  wrapper += "\n";
+  wrapper += aw.ss.str();
+  wrapper += ");\n";
+  return wrapper;
 }

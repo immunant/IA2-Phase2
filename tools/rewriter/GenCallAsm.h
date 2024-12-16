@@ -20,6 +20,8 @@ enum class Arch {
     Aarch64, X86
 };
 
+extern bool enable_dav1d_get_picture_post_condition;
+
 // Generates a wrapper for a function named \p name with the signature \p sig.
 // The WrapperKind parameter \p kind determines the type of call which may
 // affect the order of operations and the layout of the wrapper stack frame.

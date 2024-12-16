@@ -98,10 +98,17 @@ static llvm::cl::opt<std::string>
                        llvm::cl::cat(SourceRewriterCategory),
                        llvm::cl::desc("<prefix for output files>"));
 
+static llvm::cl::opt<bool>
+    EnableDav1dGetPicturePostCondition("enable-dav1d_get_picture-post-condition",
+                                       llvm::cl::init(true),
+                                       llvm::cl::cat(SourceRewriterCategory),
+                                       llvm::cl::desc("enable calling the post condition function hardcoded for dav1d_get_picture"));
+
 static Arch Target;
 static std::string RootDirectory;
 static std::string OutputDirectory;
 static std::string OutputPrefix;
+bool enable_dav1d_get_picture_post_condition = true;
 
 // Map each translation unit's filename to its pkey.
 static std::map<Filename, Pkey> file_pkeys;
@@ -1098,6 +1105,7 @@ int main(int argc, const char **argv) {
   RootDirectory = RootDirectoryOption;
   OutputDirectory = OutputDirectoryOption;
   OutputPrefix = OutputPrefixOption;
+  enable_dav1d_get_picture_post_condition = EnableDav1dGetPicturePostCondition;
 
   RefactoringTool tool(options_parser.getCompilations(),
                        options_parser.getSourcePathList());

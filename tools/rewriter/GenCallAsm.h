@@ -34,7 +34,7 @@ extern bool enable_dav1d_get_picture_post_condition;
 // which must be valid to pass to the `PKRU` macro in ia2.h.
 // \p as_macro determines if the wrappers for direct calls is emitted as a
 // macro. Indirect calls are unconditionally emitted as macros.
-std::string emit_wrapper(AbiSignature &sig,
+std::string emit_wrapper(FnSignature &sig,
                          const std::string &wrapper_name,
                          const std::optional<std::string> target_name,
                          WrapperKind kind, int caller_pkey, int target_pkey,

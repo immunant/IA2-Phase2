@@ -178,7 +178,7 @@ AbiSignature determineAbi(const clang::CodeGen::CGFunctionInfo &info,
   return sig;
 }
 
-AbiSignature determineAbiForDecl(const clang::FunctionDecl &fnDecl, Arch arch) {
+static AbiSignature determineAbiForDecl(const clang::FunctionDecl &fnDecl, Arch arch) {
   clang::ASTContext &astContext = fnDecl.getASTContext();
 
   // set up context for codegen so we can ask about function ABI
@@ -224,8 +224,8 @@ AbiSignature determineAbiForDecl(const clang::FunctionDecl &fnDecl, Arch arch) {
   return determineAbi(info, astContext, arch);
 }
 
-AbiSignature determineAbiForProtoType(const clang::FunctionProtoType &fpt,
-                                       clang::ASTContext &astContext, Arch arch) {
+static AbiSignature determineAbiForProtoType(const clang::FunctionProtoType &fpt,
+                                             clang::ASTContext &astContext, Arch arch) {
   // FIXME: This is copied verbatim from determineAbiForDecl and could be
   // factored out. This depends on what we do with PR #78 so I'm leaving it as
   // is for now.
@@ -255,4 +255,28 @@ AbiSignature determineAbiForProtoType(const clang::FunctionProtoType &fpt,
       fpt.getCanonicalTypeUnqualified().castAs<clang::FunctionProtoType>());
 
   return determineAbi(info, astContext, arch);
+}
+
+static ApiSignature determineApiForDecl(const clang::FunctionDecl &fnDecl, Arch arch) {
+  return {};
+}
+
+static ApiSignature determineApiForProtoType(const clang::FunctionProtoType &fpt,
+                                             clang::ASTContext &astContext, Arch arch) {
+  return {};
+}
+
+FnSignature determineSignatureForDecl(const clang::FunctionDecl &fnDecl, Arch arch) {
+  return (FnSignature){
+      .api = determineApiForDecl(fnDecl, arch),
+      .abi = determineAbiForDecl(fnDecl, arch),
+  };
+}
+
+FnSignature determineSignatureForProtoType(const clang::FunctionProtoType &fpt,
+                                           clang::ASTContext &astContext, Arch arch) {
+  return (FnSignature){
+      .api = determineApiForProtoType(fpt, astContext, arch),
+      .abi = determineAbiForProtoType(fpt, astContext, arch),
+  };
 }

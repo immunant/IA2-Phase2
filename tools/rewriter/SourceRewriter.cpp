@@ -530,7 +530,7 @@ public:
     auto *fpt = expr_ty->castAs<clang::PointerType>()
                     ->getPointeeType()
                     ->getAsAdjusted<clang::FunctionProtoType>();
-    fn_ptr_abi_sig[expr_ty_str] = determineAbiForProtoType(*fpt, ctxt, Target);
+    fn_ptr_sig[expr_ty_str] = determineSignatureForProtoType(*fpt, ctxt, Target);
 
     // This check must come after modifying the maps in this pass but before the
     // Replacement is added
@@ -572,7 +572,7 @@ public:
   }
 
   std::map<OpaqueStruct, std::string> fn_ptr_types;
-  std::map<OpaqueStruct, AbiSignature> fn_ptr_abi_sig;
+  std::map<OpaqueStruct, FnSignature> fn_ptr_sig;
 
 private:
   std::map<std::string, Replacements> &file_replacements;
@@ -909,8 +909,7 @@ public:
       return;
     }
 
-    AbiSignature fn_sig = determineAbiForDecl(*fn_node, Target);
-    abi_signatures[fn_name] = fn_sig;
+    fn_signatures[fn_name] = determineSignatureForDecl(*fn_node, Target);
 
     // Get the translation unit's filename to figure out the pkey
     Pkey pkey = get_file_pkey(sm);
@@ -928,7 +927,7 @@ public:
 
   std::set<Function> defined_fns[MAX_PKEYS];
   std::set<Function> declared_fns[MAX_PKEYS];
-  std::map<Function, AbiSignature> abi_signatures;
+  std::map<Function, FnSignature> fn_signatures;
   std::map<Function, Pkey> fn_pkeys;
   std::map<Function, Filename> fn_definitions;
 };
@@ -1232,9 +1231,9 @@ int main(int argc, const char **argv) {
   std::set<OpaqueStruct> type_id_macros_generated = {};
   for (int caller_pkey = 1; caller_pkey < num_pkeys; caller_pkey++) {
     for (const auto &[ty, mangled_ty] : ptr_call_pass.fn_ptr_types) {
-      AbiSignature c_abi_sig;
+      FnSignature fn_sig;
       try {
-        c_abi_sig = ptr_call_pass.fn_ptr_abi_sig.at(ty);
+        fn_sig = ptr_call_pass.fn_ptr_sig.at(ty);
       } catch (std::out_of_range const &exc) {
         llvm::errs() << "Opaque struct " << ty.c_str()
                      << " not found by FnPtrCall pass\n";
@@ -1245,7 +1244,7 @@ int main(int argc, const char **argv) {
                                  std::to_string(caller_pkey);
 
       std::string wrapper =
-          emit_wrapper(c_abi_sig, wrapper_name, std::nullopt,
+          emit_wrapper(fn_sig, wrapper_name, std::nullopt,
                        WrapperKind::IndirectCallsite, caller_pkey, 0, Target);
       wrapper_out << wrapper;
 
@@ -1341,14 +1340,14 @@ int main(int argc, const char **argv) {
       // original entries in these maps for the renamed symbols. While we could
       // avoid this duplication if necessary, this simplifies the call gate
       // generation.
-      AbiSignature c_abi;
+      FnSignature fn_sig;
       try {
-        c_abi = fn_decl_pass.abi_signatures.at(fn_name);
+        fn_sig = fn_decl_pass.fn_signatures.at(fn_name);
       } catch (std::out_of_range const &exc) {
         llvm::errs() << "ABI signature not known for function " << fn_name << "\n";
         abort();
       }
-      fn_decl_pass.abi_signatures.insert({new_fn_name, c_abi});
+      fn_decl_pass.fn_signatures.insert({new_fn_name, fn_sig});
 
       Pkey pkey;
       try {
@@ -1369,9 +1368,9 @@ int main(int argc, const char **argv) {
   // At this point direct_call_wrappers has both single-caller and multicaller
   // functions so we just need to generate the callgates
   for (const auto &[fn_name, caller_pkey] : direct_call_wrappers) {
-    AbiSignature c_abi_sig;
+    FnSignature fn_sig;
     try {
-      c_abi_sig = fn_decl_pass.abi_signatures.at(fn_name);
+      fn_sig = fn_decl_pass.fn_signatures.at(fn_name);
     } catch (std::out_of_range const &exc) {
       llvm::errs() << "C ABI signature for function " << fn_name.c_str()
                    << " not found by FnDecl pass\n";
@@ -1395,7 +1394,7 @@ int main(int argc, const char **argv) {
       continue;
     }
     std::string wrapper =
-        emit_wrapper(c_abi_sig, wrapper_name, target_fn,
+        emit_wrapper(fn_sig, wrapper_name, target_fn,
                      WrapperKind::Direct, caller_pkey, target_pkey, Target);
     wrapper_out << wrapper;
 
@@ -1405,9 +1404,9 @@ int main(int argc, const char **argv) {
   // Create wrapper for compartment destructor
   for (int compartment_pkey = 1; compartment_pkey < num_pkeys; compartment_pkey++) {
     std::string fn_name = "ia2_compartment_destructor_" + std::to_string(compartment_pkey);
-    AbiSignature c_abi_sig;
+    FnSignature fn_sig;
     try {
-      c_abi_sig = fn_decl_pass.abi_signatures.at(fn_name);
+      fn_sig = fn_decl_pass.fn_signatures.at(fn_name);
     } catch (std::out_of_range const &exc) {
       llvm::errs() << "Could not find ia2_compartment_destructor_" << compartment_pkey << '\n'
                    << "Make sure to #include ia2_compartment_init.inc for this compartment\n";
@@ -1415,7 +1414,7 @@ int main(int argc, const char **argv) {
     }
     std::string wrapper_name = "__wrap_"s + fn_name;
     std::string wrapper =
-        emit_wrapper(c_abi_sig, wrapper_name, fn_name, WrapperKind::Direct,
+        emit_wrapper(fn_sig, wrapper_name, fn_name, WrapperKind::Direct,
                      0, compartment_pkey, Target);
     wrapper_out << wrapper;
 
@@ -1450,9 +1449,9 @@ int main(int argc, const char **argv) {
 
     Pkey target_pkey = fn_decl_pass.fn_pkeys[fn_name];
     if (target_pkey != 0) {
-      AbiSignature c_abi_sig = fn_decl_pass.abi_signatures[fn_name];
+      FnSignature fn_sig = fn_decl_pass.fn_signatures[fn_name];
       std::string wrapper =
-          emit_wrapper(c_abi_sig, wrapper_name, fn_name,
+          emit_wrapper(fn_sig, wrapper_name, fn_name,
                        WrapperKind::Pointer, 0, target_pkey, Target,
                        true /* as_macro */);
       macros_defining_wrappers += "#define IA2_DEFINE_WRAPPER_"s + fn_name + " \\\n";
@@ -1491,10 +1490,10 @@ int main(int argc, const char **argv) {
       // also has pkey 0 then it just needs call the original function
       Pkey target_pkey = fn_decl_pass.fn_pkeys[fn_name];
       if (target_pkey != 0) {
-        AbiSignature c_abi_sig = fn_decl_pass.abi_signatures[fn_name];
+        FnSignature fn_sig = fn_decl_pass.fn_signatures[fn_name];
 
         std::string wrapper = emit_wrapper(
-            c_abi_sig, wrapper_name, fn_name, WrapperKind::PointerToStatic, 0,
+            fn_sig, wrapper_name, fn_name, WrapperKind::PointerToStatic, 0,
             target_pkey, Target, true /* as_macro */);
         macros_defining_wrappers += "#define IA2_DEFINE_WRAPPER_"s + fn_name + " \\\n";
         macros_defining_wrappers += wrapper;

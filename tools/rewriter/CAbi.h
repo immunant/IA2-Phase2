@@ -82,3 +82,12 @@ struct AbiSignature {
   std::vector<ArgLocation> ret;
   bool variadic;
 };
+
+struct ApiSignature {
+  bool _todo;
+};
+
+struct FnSignature {
+  ApiSignature api;
+  AbiSignature abi;
+};

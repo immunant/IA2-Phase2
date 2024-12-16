@@ -3,8 +3,8 @@
 #include "GenCallAsm.h"
 #include "clang/AST/AST.h"
 
-auto determineAbiForDecl(const clang::FunctionDecl &fnDecl, Arch arch) -> AbiSignature;
+auto determineSignatureForDecl(const clang::FunctionDecl &fnDecl, Arch arch) -> FnSignature;
 
-AbiSignature determineAbiForProtoType(const clang::FunctionProtoType &fpt,
+FnSignature determineSignatureForProtoType(const clang::FunctionProtoType &fpt,
                                        clang::ASTContext &astContext,
                                        Arch arch);

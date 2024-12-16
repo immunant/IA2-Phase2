@@ -1244,10 +1244,10 @@ int main(int argc, const char **argv) {
                                  mangled_ty + "_pkey_" +
                                  std::to_string(caller_pkey);
 
-      std::string asm_wrapper =
-          emit_asm_wrapper(c_abi_sig, wrapper_name, std::nullopt,
-                           WrapperKind::IndirectCallsite, caller_pkey, 0, Target);
-      wrapper_out << asm_wrapper;
+      std::string wrapper =
+          emit_wrapper(c_abi_sig, wrapper_name, std::nullopt,
+                       WrapperKind::IndirectCallsite, caller_pkey, 0, Target);
+      wrapper_out << wrapper;
 
       if (!type_id_macros_generated.contains(mangled_ty)) {
         header_out << "#define IA2_TYPE_"s << mangled_ty << " " << ty << "\n";
@@ -1394,10 +1394,10 @@ int main(int argc, const char **argv) {
                    << ") since its definition was not found by FnDecl pass\n";
       continue;
     }
-    std::string asm_wrapper =
-        emit_asm_wrapper(c_abi_sig, wrapper_name, target_fn,
-                         WrapperKind::Direct, caller_pkey, target_pkey, Target);
-    wrapper_out << asm_wrapper;
+    std::string wrapper =
+        emit_wrapper(c_abi_sig, wrapper_name, target_fn,
+                     WrapperKind::Direct, caller_pkey, target_pkey, Target);
+    wrapper_out << wrapper;
 
     write_to_file(ld_args_out, caller_pkey, "--wrap="s + fn_name + '\n', ".ld");
   }
@@ -1414,10 +1414,10 @@ int main(int argc, const char **argv) {
       abort();
     }
     std::string wrapper_name = "__wrap_"s + fn_name;
-    std::string asm_wrapper =
-        emit_asm_wrapper(c_abi_sig, wrapper_name, fn_name, WrapperKind::Direct,
-                         0, compartment_pkey, Target);
-    wrapper_out << asm_wrapper;
+    std::string wrapper =
+        emit_wrapper(c_abi_sig, wrapper_name, fn_name, WrapperKind::Direct,
+                     0, compartment_pkey, Target);
+    wrapper_out << wrapper;
 
     write_to_file(ld_args_out, compartment_pkey,
                   "--wrap="s + fn_name + '\n', ".ld");
@@ -1451,12 +1451,12 @@ int main(int argc, const char **argv) {
     Pkey target_pkey = fn_decl_pass.fn_pkeys[fn_name];
     if (target_pkey != 0) {
       AbiSignature c_abi_sig = fn_decl_pass.abi_signatures[fn_name];
-      std::string asm_wrapper =
-          emit_asm_wrapper(c_abi_sig, wrapper_name, fn_name,
-                           WrapperKind::Pointer, 0, target_pkey, Target,
-                           true /* as_macro */);
+      std::string wrapper =
+          emit_wrapper(c_abi_sig, wrapper_name, fn_name,
+                       WrapperKind::Pointer, 0, target_pkey, Target,
+                       true /* as_macro */);
       macros_defining_wrappers += "#define IA2_DEFINE_WRAPPER_"s + fn_name + " \\\n";
-      macros_defining_wrappers += asm_wrapper;
+      macros_defining_wrappers += wrapper;
 
       /*
        * Invoke IA2_DEFINE_WRAPPER from ia2.h in the source file defining the
@@ -1493,11 +1493,11 @@ int main(int argc, const char **argv) {
       if (target_pkey != 0) {
         AbiSignature c_abi_sig = fn_decl_pass.abi_signatures[fn_name];
 
-        std::string asm_wrapper = emit_asm_wrapper(
+        std::string wrapper = emit_wrapper(
             c_abi_sig, wrapper_name, fn_name, WrapperKind::PointerToStatic, 0,
             target_pkey, Target, true /* as_macro */);
         macros_defining_wrappers += "#define IA2_DEFINE_WRAPPER_"s + fn_name + " \\\n";
-        macros_defining_wrappers += asm_wrapper;
+        macros_defining_wrappers += wrapper;
 
         header_out << "extern " << opaque << " " << wrapper_name << ";\n";
 

@@ -884,11 +884,11 @@ static void emit_return(AsmWriter &aw) {
   add_asm_line(aw, "ret");
 }
 
-std::string emit_asm_wrapper(AbiSignature &sig,
-                             const std::string &wrapper_name,
-                             const std::optional<std::string> target_name,
-                             WrapperKind kind, int caller_pkey, int target_pkey,
-                             Arch arch, bool as_macro) {
+static std::string emit_asm_wrapper(AbiSignature &sig,
+                                    const std::string &wrapper_name,
+                                    const std::optional<std::string> target_name,
+                                    WrapperKind kind, int caller_pkey, int target_pkey,
+                                    Arch arch, bool as_macro) {
 
   // Small sanity check
   assert(caller_pkey != target_pkey);
@@ -1102,4 +1102,12 @@ std::string emit_asm_wrapper(AbiSignature &sig,
   wrapper += aw.ss.str();
   wrapper += ");\n";
   return wrapper;
+}
+
+std::string emit_wrapper(AbiSignature &sig,
+                         const std::string &wrapper_name,
+                         const std::optional<std::string> target_name,
+                         WrapperKind kind, int caller_pkey, int target_pkey,
+                         Arch arch, bool as_macro) {
+  return emit_asm_wrapper(sig, wrapper_name, target_name, kind, caller_pkey, target_pkey, arch, as_macro);
 }

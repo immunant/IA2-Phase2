@@ -1104,10 +1104,19 @@ static std::string emit_asm_wrapper(AbiSignature &sig,
   return wrapper;
 }
 
+static std::string emit_c_wrapper(const std::string &wrapper_name, bool as_macro) {
+  return "";
+}
+
 std::string emit_wrapper(AbiSignature &sig,
                          const std::string &wrapper_name,
                          const std::optional<std::string> target_name,
                          WrapperKind kind, int caller_pkey, int target_pkey,
                          Arch arch, bool as_macro) {
-  return emit_asm_wrapper(sig, wrapper_name, target_name, kind, caller_pkey, target_pkey, arch, as_macro);
+  const std::string asm_wrapper_name = wrapper_name + ""s;
+  std::string wrapper = emit_asm_wrapper(sig, asm_wrapper_name, target_name, kind, caller_pkey, target_pkey, arch, as_macro);
+  wrapper += "\n";
+  wrapper += emit_c_wrapper(wrapper_name, as_macro);
+  wrapper += "\n\n";
+  return wrapper;
 }

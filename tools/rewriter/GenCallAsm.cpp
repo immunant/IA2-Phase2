@@ -838,12 +838,19 @@ static void emit_set_return_pkru(AsmWriter &aw, uint32_t caller_pkey, Arch arch)
 static void emit_post_condition_fn_call(AsmWriter &aw, Arch arch, std::string_view target_post_condition_name) {
   llvm::errs() << "emitting post condition call to " << target_post_condition_name << "\n";
   if (arch == Arch::X86) {
+    add_comment_line(aw, "Discard sixth param register on stack");
+    // Pop sixth register off the stack into an arbitrary register. This value will get overwritten
+    add_asm_line(aw, "popq %r9");
     add_comment_line(aw, "Restore param regs for post condition call");
-    for (auto it = x86_int_param_reg_order.rbegin(); it != x86_int_param_reg_order.rend(); ++it) {
+    // Pop registers five through one. Note the registers popped differ from the registers pushed by one
+    for (auto it = x86_int_param_reg_order.rbegin(); it != x86_int_param_reg_order.rend() - 1; ++it) {
       auto &r = *it;
       add_asm_line(aw, "popq %"s + r);
     }
   }
+  // Put the return value in the first register
+  add_comment_line(aw, "Put return value in the first register");
+  add_asm_line(aw, "movq %rax, %rdi");
   add_comment_line(aw, "Align stack");
   add_asm_line(aw, "subq $8, %rsp");
   add_comment_line(aw, "Call post condition function");

@@ -182,6 +182,20 @@ IA2_CALL(opaque, id) // Call the the wrapper that `opaque` points to
 IA2_CAST(func, ty) // Get a struct of type `ty` pointing to `func`'s wrapper
 ```
 
+## `static` Function Pointers
+
+If a `static` function is used as an address-taken function for cross-compartment calls, then the rewriter needs to add `__attribute__((used))` to the function declaration in order for it to link correctly with the generated callgates. Normally the rewriter can achieve this, but if the `static` keyword comes from a macro the rewriter will not be able to insert the attribute. For example:
+
+```c
+#define local static
+local void function() {}
+```
+
+The same issue can happen when using 
+
+If this pattern occurs in your code, you can remove the `static` modifier or add
+`__attribute__((used))` manually post-rewriter.
+
 ## Building the callgate shim
 
 Running the source rewriter produces a `.c` that will be used to build the
@@ -249,3 +263,38 @@ initializes and makes use of TLS. If you're seeing compartment violations when
 accessing TLS then you likely need to run `pad-tls` on the relevant. The tool
 can be found at `$IA2_PATH/build/tools/pad-tls/pad-tls`. Note that the `ldd` and
 `lddtree` tools can be used to list the DSO dependencies of your app.
+
+## Hidden Symbols and Linker Errors
+
+When building the post-rewriter compartmentalized version of your project you
+may run into linker errors where `libcallgates.so` can't find symbols within a
+compartment. There are a couple of reasons why that may happen.
+
+As mentioned in the rewriter section, if a function is `static`, but the
+`static` keyword comes from inside a macro, then the rewriter will fail to emit
+an `__attribute__((used))` annotation for the function. This can lead to linker
+errors if the function is used as an address-taken function across compartments.
+
+Similar issues can occur when using linker scripts. If your project uses a
+linker script to mark functions local, you'll run into linker errors where the
+generated callgates can't find the local function. For example if you had a
+linker script:
+
+```txt
+YOURLIB_1.0.0 {
+  local:
+    foo;
+};
+```
+
+If you're seeing errors along the lines of:
+
+```txt
+/usr/bin/ld: libcallgates.so: undefined reference to `foo'
+```
+
+Then IA2 needs `foo` to not be marked local.
+
+Note also that an `__attribute__((visibility ("hidden")))` annotation can have
+the same effect as hiding the symbol in a linker script. Such annotation will
+have to be removed to work in a containerized app.

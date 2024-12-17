@@ -65,6 +65,8 @@ add_subdirectory(sighandler)
 add_subdirectory(simple1)
 add_subdirectory(static_addr_taken)
 add_subdirectory(structs)
+add_subdirectory(heap_two_keys)
+add_subdirectory(three_keys_minimal)
 
 # The following tests are not supported on ARM64 yet
 if (NOT LIBIA2_AARCH64)
@@ -77,9 +79,6 @@ if (NOT LIBIA2_AARCH64)
     add_subdirectory(two_keys_minimal)
     add_subdirectory(two_shared_ranges)
     add_subdirectory(trusted_indirect)
-    # TODO(#413): Fix these tests
-    add_subdirectory(heap_two_keys)
-    add_subdirectory(three_keys_minimal)
 
     # test calls PKRU-specific functions
     add_subdirectory(mmap_loop)

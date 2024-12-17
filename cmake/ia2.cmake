@@ -1,7 +1,7 @@
 if (LIBIA2_AARCH64)
-    set(UBSAN_FLAG "")
+  set(UBSAN_FLAG "")
 else()
-    set(UBSAN_FLAG "-fsanitize=undefined")
+  set(UBSAN_FLAG "-fsanitize=undefined")
 endif()
 # Creates a compartmentalized IA2 target
 #
@@ -245,9 +245,9 @@ function(add_ia2_call_gates NAME)
       set(target_objcopy_args_file "${REWRITER_OUTPUT_PREFIX}_${target_pkey}.objcopy")
       set(OBJCOPY_GLUE ${CMAKE_OBJCOPY} "--redefine-syms=${target_objcopy_args_file}")
       set(OBJCOPY_CMD ${OBJCOPY_GLUE} $<JOIN:$<TARGET_OBJECTS:${target}>, \\\; && ${OBJCOPY_GLUE} >)
+      set_target_properties(${target} PROPERTIES LINK_DEPENDS ${target_objcopy_args_file})
       add_custom_command(TARGET ${target} PRE_LINK
                          COMMAND "${OBJCOPY_CMD}"
-                         DEPENDS ${target_objcopy_args_file}
                          VERBATIM
                          COMMAND_EXPAND_LISTS)
       list(APPEND OBJCOPY_ARGS_FILES "${target_objcopy_args_file}")
@@ -276,7 +276,7 @@ function(add_ia2_call_gates NAME)
       # default to --as-needed so this is needed to fix some runtime ld.so lookup
       # error
       if (LIBIA2_AARCH64)
-          target_link_options(${target} PRIVATE "-Wl,--no-as-needed")
+        target_link_options(${target} PRIVATE "-Wl,--no-as-needed")
       endif()
       target_link_libraries(${target} PRIVATE ${CALL_GATE_TARGET})
 
@@ -289,9 +289,9 @@ function(add_ia2_call_gates NAME)
   endforeach()
 
   if (LIBIA2_AARCH64)
-      set(ARCH_FLAG "--arch=aarch64")
+    set(ARCH_FLAG "--arch=aarch64")
   else()
-      set(SYSROOT_FLAG
+    set(SYSROOT_FLAG
         --extra-arg=-isystem "--extra-arg=${CLANG_HEADERS_INCLUDE}"
         --extra-arg=-isystem "--extra-arg=${CLANG_HEADERS_INCLUDE_FIXED}")
   endif()

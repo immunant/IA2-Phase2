@@ -62,6 +62,9 @@ add_subdirectory(rewrite_fn_ptr_eq)
 add_subdirectory(rewrite_macros)
 add_subdirectory(sighandler)
 add_subdirectory(static_addr_taken)
+add_subdirectory(read_config)
+add_subdirectory(heap_two_keys)
+add_subdirectory(three_keys_minimal)
 
 # The following tests are not supported on ARM64 yet
 if (NOT LIBIA2_AARCH64)
@@ -78,11 +81,6 @@ if (NOT LIBIA2_AARCH64)
     add_subdirectory(structs)
     # LLVM patch seems to break this test
     add_subdirectory(simple1)
-    # ARM does not support shared heap allocation yet
-    add_subdirectory(read_config)
-    # ARM does not support tagged heap allocation yet
-    add_subdirectory(heap_two_keys)
-    add_subdirectory(three_keys_minimal)
 
     # test calls PKRU-specific functions
     add_subdirectory(mmap_loop)

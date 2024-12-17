@@ -37,7 +37,7 @@ void WriteProtectThreadIsolatedMemory(ThreadIsolationOption thread_isolation,
 #elif BUILDFLAG(ENABLE_MTE_ISOLATION)
   partition_alloc::internal::TagMemoryWithMte(
       thread_isolation.enabled ? thread_isolation.pkey : kDefaultPkey, address,
-      size);
+      (size+0xfff)&~0xfff);
 #else
 #error unexpected thread isolation mode
 #endif

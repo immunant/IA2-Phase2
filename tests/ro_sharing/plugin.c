@@ -23,7 +23,7 @@ const uint32_t plugin_shared_ro = 0x730283;
 uint32_t plugin_secret_rw = 0x8294671;
 
 // LINKARGS: --wrap=get_plugin_str
-const char *get_plugin_str() {
+const char *get_plugin_str(void) {
   return plugin_str;
 }
 

@@ -21,7 +21,7 @@ void library_call_fn(Fn what) {
 }
 
 // LINKARGS: --wrap=library_foo
-void library_foo() {
+void library_foo(void) {
   cr_log_info("data in library: %d\n", data_in_lib);
   cr_assert_eq(data_in_lib, 900);
 }
@@ -35,7 +35,7 @@ void library_memset(void *ptr, uint8_t byte, size_t n) {
 }
 
 // LINKARGS: --wrap=library_showpkru
-void library_showpkru() {
+void library_showpkru(void) {
   uint32_t actual_pkru = ia2_get_pkru();
   cr_log_info("library pkru %08x", actual_pkru);
   cr_assert_eq(0xfffffffc, actual_pkru);

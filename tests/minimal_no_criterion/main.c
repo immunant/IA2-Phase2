@@ -12,7 +12,7 @@ INIT_RUNTIME(1);
 #define IA2_COMPARTMENT 1
 #include <ia2_compartment_init.inc>
 
-int main() {
+int main(void) {
     printf("Calling foo");
     foo();
 }

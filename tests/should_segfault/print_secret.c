@@ -14,12 +14,12 @@ static bool early_fault = false;
 // Trigger a fault earlier than expected to test that CHECK_VIOLATION prints a
 // different message than in the mpk violation case.
 // LINKARGS: --wrap=do_early_fault
-void do_early_fault() {
+void do_early_fault(void) {
     early_fault = true;
 }
 
 // LINKARGS: --wrap=print_secret
-void print_secret() {
+void print_secret(void) {
     if (early_fault) {
         raise(SIGSEGV);
     }

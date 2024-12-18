@@ -339,7 +339,7 @@ static int ia2_mprotect_with_tag(void *addr, size_t len, int prot, int tag) {
 #endif
 #endif
 char *allocate_stack(int i);
-void allocate_stack_0();
+void allocate_stack_0(void);
 void verify_tls_padding(void);
 void ia2_set_up_tags(int *n_to_alloc);
 __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);

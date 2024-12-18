@@ -7,7 +7,7 @@ RUN: cat header_includes_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 #include "types.h"
 
 // LINKARGS: --wrap=None
-Option None() {
+Option None(void) {
     cr_log_info("returning `None`");
     Option none = {
         .value = 0,

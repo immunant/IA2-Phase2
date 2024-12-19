@@ -24,8 +24,6 @@ void dav1d_get_picture_post_condition(Dav1dContext *const c, Dav1dPicture *const
   cr_log_info("dav1d_get_picture post condition ran");
   if (out->stride[0] < 0) {
     cr_log_info("negative stride");
-    // signals, like the `SIGABRT` from `assert` don't yet work with
-    // `ia2-sandbox` and its `ptrace` tracer.
-    exit(128 + SIGABRT);
   }
+  assert(out->stride[0] > 0);
 }

@@ -487,32 +487,38 @@ enum wait_trap_result {
   WAIT_PTRACE_FORK,
   WAIT_EXEC,
   WAIT_CONT,
+  // Child received another signal that does not require special handling.
+  WAIT_NONFATAL_SIGNAL,
 };
 
-/* wait for the next trap from the inferior.
-
-returns the wait_trap_result corresponding to the event.
-
-if the exit is WAIT_EXITED, the exit status will be placed in *exit_status_out
-if it is non-NULL. */
-static enum wait_trap_result wait_for_next_trap(pid_t pid, pid_t *pid_out, int *exit_status_out) {
+/**
+ * Wait for the next trap from the inferior.
+ *
+ * Returns the `wait_trap_result` corresponding to the event.
+ *
+ * If the exit is WAIT_EXITED, the exit status will be placed in `*exit_status_out` if not `NULL`.
+ *
+ * If `WAIT_NONFATAL_SIGNAL` is returned, the signal received is written to `*signal_out` if not `NULL`.
+ */
+static enum wait_trap_result wait_for_next_trap(pid_t pid, pid_t *pid_out, int *exit_status_out, int *signal_out) {
   bool entry = (pid == -1);
   int stat = 0;
   static pid_t last_pid = 0; /* used to limit logs to when pid changes */
   pid_t waited_pid = waitpid(pid, &stat, __WALL);
-  if (pid_out)
+  if (pid_out) {
     *pid_out = waited_pid;
+  }
   if (last_pid != waited_pid) {
     debug_wait("waited, pid=%d\n", waited_pid);
     last_pid = waited_pid;
   }
+  if (exit_status_out != NULL)
+    *exit_status_out = stat;
   if (waited_pid < 0) {
     perror("waitpid");
     return WAIT_ERROR;
   }
   if (WIFEXITED(stat)) {
-    if (exit_status_out)
-      *exit_status_out = WEXITSTATUS(stat);
     return WAIT_EXITED;
   }
   if (WIFSIGNALED(stat)) {
@@ -573,8 +579,10 @@ static enum wait_trap_result wait_for_next_trap(pid_t pid, pid_t *pid_out, int *
       debug_event("child stopped by sigsegv\n");
       return WAIT_SIGSEGV;
     default:
-      fprintf(stderr, "child stopped by unexpected signal %d\n", WSTOPSIG(stat));
-      return WAIT_ERROR;
+      debug_event("child stopped by nonfatal signal %d\n", WSTOPSIG(stat));
+      if (signal_out != NULL)
+        *signal_out = WSTOPSIG(stat);
+      return WAIT_NONFATAL_SIGNAL;
     }
   }
   fprintf(stderr, "unknown wait status %x\n", stat);
@@ -805,8 +813,9 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
   while (true) {
     /* wait for the process to get signalled */
     pid_t waited_pid = pid;
+    int sig;
     debug("waiting for process to get signalled\n");
-    enum wait_trap_result wait_result = wait_for_next_trap(-1, &waited_pid, exit_status_out);
+    enum wait_trap_result wait_result = wait_for_next_trap(-1, &waited_pid, exit_status_out, &sig);
     struct memory_map_for_process *map_for_proc = find_memory_map(&maps, waited_pid);
     if (!map_for_proc) {
       // we saw an event for a process we don't yet know we're tracing. this can happen because
@@ -829,6 +838,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
         perror("could not ptrace(continue_request)...");
       }
       continue;
+      break;
     }
     case WAIT_STOP: {
       if (ptrace(continue_request, waited_pid, 0, SIGSTOP) < 0) {
@@ -846,6 +856,12 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
     case WAIT_SIGSEGV:
       if (ptrace(continue_request, waited_pid, 0, SIGSEGV) < 0) {
         perror("could not ptrace(continue_request)...");
+      }
+      continue;
+      break;
+    case WAIT_NONFATAL_SIGNAL:
+      if (ptrace(continue_request, waited_pid, 0, sig) < 0) {
+        perror("could not PTRACE_SYSCALL...");
       }
       continue;
       break;
@@ -924,14 +940,16 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
     }
     case WAIT_SIGNALED: {
       fprintf(stderr, "process received fatal signal (syscall entry)\n");
-      enum control_flow cf = handle_thread_exit(&maps, waited_pid);
-      return false;
+      propagate(handle_thread_exit(&maps, waited_pid));
+
+      // this process is gone, so wait for a new one
+      continue;
     }
     case WAIT_EXITED: {
       debug_exit("pid %d exited (syscall entry)\n", waited_pid);
       propagate(handle_thread_exit(&maps, waited_pid));
 
-      // in any case, this process is gone, so wait for a new one
+      // this process is gone, so wait for a new one
       continue;
     }
     }
@@ -990,7 +1008,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       if (ptrace(PTRACE_SYSCALL, waited_pid, 0, 0) < 0) {
         perror("could not PTRACE_SYSCALL");
       }
-      enum wait_trap_result wait_result_after_syscall = wait_for_next_trap(waited_pid, NULL, exit_status_out);
+      enum wait_trap_result wait_result_after_syscall = wait_for_next_trap(waited_pid, NULL, exit_status_out, NULL);
       switch (wait_result_after_syscall) {
       case WAIT_SYSCALL:
         debug("wait_syscall returned (case 2)\n");
@@ -1028,7 +1046,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
     if (ptrace(PTRACE_SYSCALL, waited_pid, 0, 0) < 0) {
       perror("could not PTRACE_SYSCALL");
     }
-    switch (wait_for_next_trap(waited_pid, NULL, exit_status_out)) {
+    switch (wait_for_next_trap(waited_pid, NULL, exit_status_out, NULL)) {
     case WAIT_STOP:
       break;
     case WAIT_SYSCALL:

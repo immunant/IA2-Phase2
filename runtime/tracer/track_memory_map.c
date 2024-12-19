@@ -471,15 +471,24 @@ enum wait_trap_result {
   WAIT_PTRACE_FORK,
   WAIT_EXEC,
   WAIT_CONT,
+
+  // Passthrough ptrace the stopped signal.
+  // This is the default cause.
+  WAIT_PASSTHROUGH_SIGNAL,
 };
 
-/* wait for the next trap from the inferior.
-
-returns the wait_trap_result corresponding to the event.
-
-if the exit is WAIT_EXITED, the exit status will be placed in *exit_status_out
-if it is non-NULL. */
-static enum wait_trap_result wait_for_next_trap(pid_t pid, pid_t *pid_out, int *exit_status_out) {
+/**
+ * Wait for the next trap from the inferior.
+ *
+ * Returns the `wait_trap_result` corresponding to the event.
+ *
+ * If the exit is `WAIT_EXITED`, the exit status will be placed
+ * in `*exit_status_out` if it is non-NULL.
+ *
+ * If the exit is `WAIT_PASSTHROUGH_SIGNAL`, the signal will be placed
+ * in `*passthrough_signal` if it is non-NULL.
+ */
+static enum wait_trap_result wait_for_next_trap(pid_t pid, pid_t *pid_out, int *exit_status_out, int *passthrough_signal) {
   bool entry = (pid == -1);
   int stat = 0;
   static pid_t last_pid = 0; /* used to limit logs to when pid changes */
@@ -556,8 +565,11 @@ static enum wait_trap_result wait_for_next_trap(pid_t pid, pid_t *pid_out, int *
       debug_event("child stopped by sigsegv\n");
       return WAIT_SIGSEGV;
     default:
-      fprintf(stderr, "child stopped by unexpected signal %d\n", WSTOPSIG(stat));
-      return WAIT_ERROR;
+      debug_event("child stopped by unexpected signal %d\n", WSTOPSIG(stat));
+      if (passthrough_signal) {
+        *passthrough_signal = WSTOPSIG(stat);
+      }
+      return WAIT_PASSTHROUGH_SIGNAL;
     }
   }
   fprintf(stderr, "unknown wait status %x\n", stat);
@@ -716,7 +728,8 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
   while (true) {
     /* wait for the process to get signalled */
     pid_t waited_pid = pid;
-    enum wait_trap_result wait_result = wait_for_next_trap(-1, &waited_pid, exit_status_out);
+    int passthrough_signal = 0;
+    enum wait_trap_result wait_result = wait_for_next_trap(-1, &waited_pid, exit_status_out, &passthrough_signal);
     switch (wait_result) {
     /* we need to handle events relating to process lifetime upfront: these
     include clone()/fork()/exec() and sigchld */
@@ -741,6 +754,12 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       break;
     case WAIT_SIGSEGV:
       if (ptrace(continue_request, waited_pid, 0, SIGSEGV) < 0) {
+        perror("could not PTRACE_SYSCALL...");
+      }
+      continue;
+      break;
+    case WAIT_PASSTHROUGH_SIGNAL:
+      if (ptrace(continue_request, waited_pid, 0, passthrough_signal) < 0) {
         perror("could not PTRACE_SYSCALL...");
       }
       continue;
@@ -817,7 +836,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
     case WAIT_SIGNALED: {
       fprintf(stderr, "process received fatal signal (syscall entry)\n");
       enum control_flow cf = handle_process_exit(&maps, waited_pid);
-      return false;
+      return true;
     }
     case WAIT_EXITED: {
       debug_exit("pid %d exited (syscall entry)\n", waited_pid);
@@ -888,7 +907,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       if (ptrace(PTRACE_SYSCALL, waited_pid, 0, 0) < 0) {
         perror("could not PTRACE_SYSCALL");
       }
-      switch (wait_for_next_trap(waited_pid, NULL, exit_status_out)) {
+      switch (wait_for_next_trap(waited_pid, NULL, exit_status_out, NULL)) {
       case WAIT_SYSCALL:
         break;
       case WAIT_ERROR:
@@ -922,7 +941,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
     if (ptrace(PTRACE_SYSCALL, waited_pid, 0, 0) < 0) {
       perror("could not PTRACE_SYSCALL");
     }
-    switch (wait_for_next_trap(waited_pid, NULL, exit_status_out)) {
+    switch (wait_for_next_trap(waited_pid, NULL, exit_status_out, NULL)) {
     case WAIT_STOP:
       break;
     case WAIT_SYSCALL:

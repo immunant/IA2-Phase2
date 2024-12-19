@@ -1,4 +1,5 @@
 #define _GNU_SOURCE
+#include <assert.h>
 #include <libgen.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -83,13 +84,22 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
-  int exit_status = 0;
-  bool success = track_memory_map(pid, &exit_status, TRACE_MODE_PTRACE_SYSCALL);
+  int wait_status = 0;
+  bool success = track_memory_map(pid, &wait_status, TRACE_MODE_PTRACE_SYSCALL);
   /* ensure the child is dead */
   kill(pid, SIGKILL);
 
   if (success) {
-    fprintf(stderr, "inferior exited with code %d\n", exit_status);
+    if (WIFEXITED(wait_status)) {
+      fprintf(stderr, "inferior exited with code %d\n", WEXITSTATUS(wait_status));
+    }
+    if (WIFSIGNALED(wait_status)) {
+      fprintf(stderr, "inferior killed by signal %d\n", WTERMSIG(wait_status));
+    }
+    if (WIFSTOPPED(wait_status)) {
+      fprintf(stderr, "inferior stopped by signal %d\n", WSTOPSIG(wait_status));
+    }
+    assert(false);
   } else {
     fprintf(stderr, "error tracking memory map\n");
   }

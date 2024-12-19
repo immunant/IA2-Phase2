@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+
 /* Define this macro to make the pointers in struct fake_criterion_test function pointers */
 #define IA2_TEST_RUNNER_SOURCE
 #include "include/ia2_test_runner.h"
@@ -83,8 +85,18 @@ int main() {
    */
   sigaction(SIGSEGV, &act, NULL);
   for (struct fake_criterion_test *test_info = fake_criterion_tests; test_info; test_info = test_info->next) {
-    fprintf(stderr, "running suite '%s' test '%s', expecting exit code %d...\n",
-            test_info->suite, test_info->name, test_info->exit_code);
+    const int exit_code = test_info->exit_code;
+    fprintf(stderr, "running suite '%s' test '%s', expecting exit code %d",
+            test_info->suite, test_info->name, exit_code);
+    if (exit_code == EXIT_SUCCESS) {
+      fprintf(stderr, " (%s)", STRINGIFY(EXIT_SUCCESS));
+    } else if (exit_code == EXIT_FAILURE) {
+      fprintf(stderr, " (%s)", STRINGIFY(EXIT_FAILURE));
+    } else if (exit_code > 128) {
+      fprintf(stderr, " (SIG%s)", sigabbrev_np(exit_code - 128));
+    }
+    fprintf(stderr, "...\n");
+
     pid_t pid = fork();
     bool in_child = pid == 0;
     if (in_child) {

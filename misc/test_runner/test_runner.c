@@ -83,7 +83,8 @@ int main() {
    */
   sigaction(SIGSEGV, &act, NULL);
   for (struct fake_criterion_test *test_info = fake_criterion_tests; test_info; test_info = test_info->next) {
-    fprintf(stderr, "running suite '%s' test '%s'...\n", test_info->suite, test_info->name);
+    fprintf(stderr, "running suite '%s' test '%s', expecting exit code %d...\n",
+            test_info->suite, test_info->name, test_info->exit_code);
     pid_t pid = fork();
     bool in_child = pid == 0;
     if (in_child) {

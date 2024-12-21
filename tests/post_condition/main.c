@@ -21,7 +21,7 @@ Test(post_condition, normal) {
   dav1d_get_picture(&c, &pic);
 }
 
-Test(post_condition, corrupt_bounds, .exit_code = 128 + SIGABRT) {
+Test(post_condition, corrupt_bounds, .signal = SIGABRT) {
   corrupt_stride = true;
   dav1d_get_picture(&c, &pic);
 }

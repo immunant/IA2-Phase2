@@ -116,6 +116,12 @@ int main() {
       fprintf(stderr, " (%s)", STRINGIFY(EXIT_FAILURE));
     } else if (exit_code > 128) {
       fprintf(stderr, " (SIG%s)", sigabbrev_np(exit_code - 128));
+    } else if (test_info->signal != 0) {
+      // Sometimes the signal doesn't show up with `WIFSIGNALED`, so we check the exit status as well.
+      fprintf(stderr, " (SIG%s)", sigabbrev_np(test_info->signal));
+    }
+    if (test_info->signal != 0) {
+      fprintf(stderr, ", signal (SIG%s)", sigabbrev_np(test_info->signal));
     }
     fprintf(stderr, "...\n");
 
@@ -144,12 +150,14 @@ int main() {
       perror("waitpid");
       return 2;
     }
-    if WIFSIGNALED (stat) {
+    if (WIFSIGNALED(stat) && WTERMSIG(stat) != test_info->signal) {
       fprintf(stderr, "forked test child was terminated by signal %d\n", WTERMSIG(stat));
       return 1;
     }
     int exit_status = WEXITSTATUS(stat);
-    if (exit_status != test_info->exit_code) {
+    if (exit_status != test_info->exit_code ||
+        // Sometimes the signal doesn't show up with `WIFSIGNALED`, so we check the exit status as well.
+        (exit_status > 128 && exit_status - 128 == test_info->signal)) {
       fprintf(stderr, "forked test child exited with status %d, but %d was expected\n", exit_status, test_info->exit_code);
       return 1;
     }

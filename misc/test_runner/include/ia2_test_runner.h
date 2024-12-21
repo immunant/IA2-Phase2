@@ -28,8 +28,8 @@ struct fake_criterion_test {
 
 extern struct fake_criterion_test *fake_criterion_tests;
 
-#define _STRINGIFY(a) #a
-#define STRINGIFY(a) _STRINGIFY(a)
+#define STRINGIFY(a) #a
+#define EXPAND_AND_STRINGIFY(a) STRINGIFY(a)
 
 /*
  * Placing IA2_{BEGIN,END}_NO_WRAP between the function declaration stops the rewriter from creating a
@@ -43,8 +43,8 @@ extern struct fake_criterion_test *fake_criterion_tests;
   IA2_END_NO_WRAP                                                                           \
   struct fake_criterion_test fake_criterion_##suite_##_##name_##_##test IA2_SHARED_DATA = { \
       .next = NULL,                                                                         \
-      .suite = STRINGIFY(suite_),                                                           \
-      .name = STRINGIFY(name_),                                                             \
+      .suite = EXPAND_AND_STRINGIFY(suite_),                                                           \
+      .name = EXPAND_AND_STRINGIFY(name_),                                                             \
       .test = fake_criterion_##suite_##_##name_,                                            \
       ##__VA_ARGS__};                                                                       \
   __attribute__((constructor)) void fake_criterion_add_##suite_##_##name_##_##test(void) {  \

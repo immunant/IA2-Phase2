@@ -6,6 +6,9 @@ RUN: cat dav1d_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 #include <ia2_test_runner.h>
 #include <signal.h>
 
+#define IA2_COMPARTMENT 2
+#include <ia2_compartment_init.inc>
+
 bool corrupt_stride IA2_SHARED_DATA = false;
 
 // LINKARGS: --wrap=dav1d_get_picture

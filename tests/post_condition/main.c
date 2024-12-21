@@ -9,7 +9,7 @@ RUN: sh -c 'if [ ! -s "dav1d_call_gates_0.ld" ]; then echo "No link args as expe
 #include <ia2_test_runner.h>
 #include <signal.h>
 
-INIT_RUNTIME(1);
+INIT_RUNTIME(2);
 #define IA2_COMPARTMENT 1
 #include <ia2_compartment_init.inc>
 

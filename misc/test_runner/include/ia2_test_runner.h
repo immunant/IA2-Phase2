@@ -23,6 +23,7 @@ struct fake_criterion_test {
   ia2_test_fn test;
   ia2_test_fn init;
   int exit_code;
+  int signal;
 };
 
 extern struct fake_criterion_test *fake_criterion_tests;

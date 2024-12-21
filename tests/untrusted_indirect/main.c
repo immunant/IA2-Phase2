@@ -57,7 +57,7 @@ uint64_t leak_secret_address(uint64_t x, uint64_t y) {
     return (uint64_t)&secret;
 }
 
-void do_test() {
+void do_test(void) {
     cr_log_info("TRUSTED: the secret is 0x%lx\n", secret);
     cr_log_info("0x%lx\n", apply_callback(1, 2));
 

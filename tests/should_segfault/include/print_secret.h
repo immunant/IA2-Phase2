@@ -3,6 +3,6 @@
 
 extern uint32_t secret;
 
-void print_secret();
+void print_secret(void);
 
-void do_early_fault();
+void do_early_fault(void);

@@ -6,14 +6,14 @@
 
 #ifdef __x86_64__
 __attribute__((__visibility__("hidden")))
-uint32_t ia2_get_pkru() {
+uint32_t ia2_get_pkru(void) {
   uint32_t pkru = 0;
   __asm__ volatile("rdpkru" : "=a"(pkru) : "a"(0), "d"(0), "c"(0));
   return pkru;
 }
 
 __attribute__((__visibility__("hidden")))
-size_t ia2_get_pkey() {
+size_t ia2_get_pkey(void) {
   uint32_t pkru;
   __asm__("rdpkru" : "=a"(pkru) : "a"(0), "d"(0), "c"(0));
   switch (pkru) {

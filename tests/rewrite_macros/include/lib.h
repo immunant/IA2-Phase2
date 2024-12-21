@@ -35,5 +35,5 @@ extern struct event_actions actions;
 #define call_add_event(evt) IA2_CALL(actions.add, _ZTSPFbP5eventE)(evt)
 #endif
 
-struct event *get_event();
-void init_actions();
+struct event *get_event(void);
+void init_actions(void);

@@ -5,10 +5,10 @@ struct in_memory {
 };
 
 // This function does nothing
-void foo();
+void foo(void);
 
 // This returns an integer 1
-int return_val();
+int return_val(void);
 
 // This takes an integer, expects value 1
 void arg1(int x);

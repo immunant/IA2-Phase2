@@ -36,7 +36,7 @@ char *allocate_stack(int i) {
   return stack + STACK_SIZE - 8;
 }
 
-void allocate_stack_0() {
+void allocate_stack_0(void) {
   ia2_stackptr_0[0] = allocate_stack(0);
 }
 

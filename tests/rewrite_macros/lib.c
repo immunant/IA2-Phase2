@@ -16,7 +16,7 @@ struct event {
 };
 
 // LINKARGS: --wrap=get_event
-struct event *get_event() {
+struct event *get_event(void) {
     static struct event evt = { .id = 1 };
     return &evt;
 }
@@ -27,7 +27,7 @@ static bool nop(struct event *evt) {
 static void nop2(struct event *evt) { }
 
 // LINKARGS: --wrap=init_actions
-void init_actions() {
+void init_actions(void) {
     actions.add = nop;
     actions.del = nop;
     actions.enable = nop2;

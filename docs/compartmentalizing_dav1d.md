@@ -151,7 +151,6 @@ Then there are overrides:
 First just disabling some warnings/errors that `dav1d` enabled but IA2's runtime doesn't follow
 (so this would be different for another project):
 
-* `-Wno-strict-prototypes`
 * `-Wno-missing-prototypes`
 * `-Wno-unused-function`
 * `-Wno-unknown-warning-option`

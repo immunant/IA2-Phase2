@@ -456,7 +456,19 @@ public:
       new_expr = "(typeof("s + lhs_binding.str() + ")) " + new_expr;
     }
 
-    clang::CharSourceRange expansion_range = sm.getExpansionRange(loc);
+    // clang::CharSourceRange expansion_range = sm.getExpansionRange(loc);
+
+    clang::SourceRange expr_source_range = null_fn_ptr->getSourceRange();
+    clang::CharSourceRange expansion_range = clang::CharSourceRange::getTokenRange(expr_source_range);
+    llvm::StringRef original_code = clang::Lexer::getSourceText(expansion_range, sm, result.Context->getLangOpts());
+
+    // Get the line number from the SourceManager
+    unsigned line_number = sm.getExpansionLineNumber(loc);
+
+    // Print debug info with line number
+    llvm::errs() << "Replacement in " << filename << ":" << line_number << ": "
+                << original_code << " replaced with " << new_expr << "\n";
+
     Replacement old_r{sm, expansion_range, new_expr};
     Replacement r = replace_new_file(filename, old_r);
     auto err = file_replacements[filename].add(r);

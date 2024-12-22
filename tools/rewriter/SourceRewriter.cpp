@@ -412,21 +412,6 @@ public:
             implicitCastExpr(null_value),
             cStyleCastExpr(zero_literal)
         )).bind("nullExpr");
-    //auto literal_zero = implicitCastExpr(ignoringParenCasts(integerLiteral(equals(0))));
-    //auto cast_zero = cStyleCastExpr(ignoringParenCasts(integerLiteral(equals(0))));
-    //auto null_macro = implicitCastExpr(cStyleCastExpr(integerLiteral(equals(0))));
-    //auto null_expr = expr(anyOf(literal_zero, cast_zero, null_macro)).bind("nullExpr");
-    //auto literal_zero = integerLiteral(equals(0)).bind("literalZero");
-    //auto null_macro = nullPointerConstant();
-
-    //auto null_expr = expr(anyOf(
-    //    implicitCastExpr(ignoringParenCasts(null_macro)),
-    //    implicitCastExpr(zero_literal),
-        //implicitCastExpr(anyOf(zero_literal, null_macro)),
-        //cStyleCastExpr(ignoringParenCasts(anyOf(zero_literal, null_macro))))).bind("nullExpr");
-
-    //auto null_expr = implicitCastExpr(ignoringParenCasts(anyOf(null_macro, zero_literal)))
-    //                     .bind("nullExpr");
 
     auto null_fn_ptr = varDecl(hasInitializer(null_expr),
                                anyOf(fn_ptr_typedef, hasType(fn_ptr)));

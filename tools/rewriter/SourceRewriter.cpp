@@ -461,23 +461,21 @@ public:
     clang::CharSourceRange token_range = clang::CharSourceRange::getTokenRange(source_range);
     clang::CharSourceRange file_range = clang::Lexer::makeFileCharRange(token_range, sm, lang_opts);
 
-    llvm::StringRef original_code = clang::Lexer::getSourceText(token_range, sm, lang_opts);
-    unsigned line_number = sm.getExpansionLineNumber(loc);
-
     // If the source range we're trying to replace isn't valid, it likely means
     // that the expression is partially contained within a macro in such a way
     // that we can't cleanly replace it.
     if (!file_range.isValid()) {
       llvm::errs()
-        << filename << ":" << line_number << ": "
-        << "Could not rewrite `" << original_code << "` to `"
-        << new_expr << "` (code may originate inside macros), this may need to be rewriten manually"
+        << filename << ":" << sm.getExpansionLineNumber(loc) << ": "
+        << "Could not rewrite assignment operation with `"
+        << new_expr << "` (code may originate inside macros), this needs to be rewriten manually"
         << "\n";
       return;
     }
 
     // TODO: Remove debug logging.
-    llvm::errs() << "Replacement in " << filename << ":" << line_number << ": "
+    llvm::StringRef original_code = clang::Lexer::getSourceText(token_range, sm, lang_opts);
+    llvm::errs() << "Replacement in " << filename << ":" << sm.getExpansionLineNumber(loc) << ": "
                 << original_code << " replaced with " << new_expr << "\n";
 
     Replacement old_r{sm, file_range, new_expr};

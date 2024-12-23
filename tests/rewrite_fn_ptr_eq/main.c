@@ -84,6 +84,16 @@ Test(rewrite_fn_ptr_eq, main) {
     // REWRITER: fn = (typeof(fn)) { NULL };
     fn = NULL;
 
+    // Do we handle custom NULL defines?
+#define IA2NULL 0
+
+    // REWRITER: fn = (typeof(fn)) { 0 };
+    fn = IA2NULL;
+
+    // What about a cast combined with a null macro?
+    // REWRITER: fn = (typeof(fn)) { 0 };
+    fn = (typeof(fn)) IA2NULL;
+
     // the following tests don't use NULL so the rewriter output shouldn't rely on it either
 #undef NULL
     // REWRITER: bin_op fn3 = { 0 };

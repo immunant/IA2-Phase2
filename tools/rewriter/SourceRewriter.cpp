@@ -456,20 +456,30 @@ public:
       new_expr = "(typeof("s + lhs_binding.str() + ")) " + new_expr;
     }
 
-    // clang::CharSourceRange expansion_range = sm.getExpansionRange(loc);
+    clang::CharSourceRange expansion_range = sm.getExpansionRange(loc);
 
-    clang::SourceRange expr_source_range = null_fn_ptr->getSourceRange();
-    clang::CharSourceRange expansion_range = clang::CharSourceRange::getTokenRange(expr_source_range);
-    llvm::StringRef original_code = clang::Lexer::getSourceText(expansion_range, sm, result.Context->getLangOpts());
+    auto &lang_opts = result.Context->getLangOpts();
+    clang::SourceRange source_range = null_fn_ptr->getSourceRange();
+    clang::CharSourceRange token_range = clang::CharSourceRange::getTokenRange(source_range);
+    clang::CharSourceRange file_range = clang::Lexer::makeFileCharRange(token_range, sm, lang_opts);
 
-    // Get the line number from the SourceManager
+    // Decide whether to use the file range or the expansion range.
+    clang::CharSourceRange replacement_range;
+    // if (file_range.isValid()) {
+    //   replacement_range = file_range;
+    // } else {
+    //   llvm::errs() << "Falling back to expansion range" << "\n";
+    //   replacement_range = expansion_range;
+    // }
+    replacement_range = file_range;
+
+    // TODO: Remove debug logging.
+    llvm::StringRef original_code = clang::Lexer::getSourceText(token_range, sm, lang_opts);
     unsigned line_number = sm.getExpansionLineNumber(loc);
-
-    // Print debug info with line number
     llvm::errs() << "Replacement in " << filename << ":" << line_number << ": "
                 << original_code << " replaced with " << new_expr << "\n";
 
-    Replacement old_r{sm, expansion_range, new_expr};
+    Replacement old_r{sm, replacement_range, new_expr};
     Replacement r = replace_new_file(filename, old_r);
     auto err = file_replacements[filename].add(r);
     if (err) {

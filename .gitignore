@@ -31,7 +31,6 @@ _deps
 build.ninja
 
 # Rust artifacts
-Cargo.lock
 target/
 
 include/pkey_init.h

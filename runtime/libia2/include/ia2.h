@@ -108,7 +108,7 @@
   "movq %r10, %rcx\n"
 /* clang-format on */
 #else
-// TODO aarch64
+#warning "ASSERT_PKRU is unimplemented on this target"
 #define ASSERT_PKRU(pkru)
 #endif
 

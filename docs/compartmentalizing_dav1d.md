@@ -11,12 +11,12 @@ and the changes can be seen in [`master..ia2`](https://github.com/immunant/dav1d
 
 The IA2 tools that we need to compartmentalize and run `dav1d` are:
 
-| Binary Name             | `ninja` Target Name |
-| ----------------------- | ------------------- |
-| `ia2-rewriter`          | `rewriter`          |
-| `pad-tls`               | `pad-tls`           |
-| `libpartition-alloc.so` | `partition-alloc`   |
-| `liblibia2.a`           | `libia2`            |
+| Binary Name             | `ninja` Target Name       |
+| ----------------------- | ------------------------- |
+| `ia2-rewriter`          | `rewriter`                |
+| `pad-tls`               | `pad-tls`                 |
+| `libpartition-alloc.so` | `partition-alloc-padding` |
+| `liblibia2.a`           | `libia2`                  |
 
 As described in [`build_instructions`](./build_instructions.md),
 we can build IA2 by running

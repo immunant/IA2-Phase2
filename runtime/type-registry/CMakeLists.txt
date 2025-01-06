@@ -1,0 +1,21 @@
+cmake_minimum_required(VERSION 3.12)
+project(type-registry)
+
+if (LIBIA2_AARCH64)
+set(CARGO_TARGET_FLAG "--target=aarch64-unknown-linux-gnu" "--config" "target.aarch64-unknown-linux-gnu.linker=\\\"aarch64-linux-gnu-gcc\\\"")
+set(CARGO_ARCH_SUFFIX "aarch64-unknown-linux-gnu")
+else()
+set(CARGO_TARGET_FLAG "")
+set(CARGO_ARCH_SUFFIX "")
+endif()
+
+add_custom_command(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${CARGO_ARCH_SUFFIX}/release/libtype_registry.so
+  COMMAND CARGO_TARGET_DIR=${CMAKE_CURRENT_BINARY_DIR} cargo build ${CARGO_TARGET_FLAG} --manifest-path ${CMAKE_CURRENT_SOURCE_DIR}/Cargo.toml --release
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/Cargo.toml ${CMAKE_CURRENT_SOURCE_DIR}/src/lib.rs
+)
+
+add_library(type-registry STATIC IMPORTED)
+set_property(TARGET type-registry PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_BINARY_DIR}/${CARGO_ARCH_SUFFIX}/release/libtype_registry.so)
+add_custom_target(type-registry-tgt DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${CARGO_ARCH_SUFFIX}/release/libtype_registry.so)
+add_dependencies(type-registry type-registry-tgt)

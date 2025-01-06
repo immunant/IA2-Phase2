@@ -8,6 +8,7 @@ else()
 set(CARGO_TARGET_FLAG "")
 set(CARGO_ARCH_SUFFIX "")
 endif()
+
 add_custom_command(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${CARGO_ARCH_SUFFIX}/release/libmemory_map.so
   COMMAND CARGO_TARGET_DIR=${CMAKE_CURRENT_BINARY_DIR} cargo build ${CARGO_TARGET_FLAG} --manifest-path ${CMAKE_CURRENT_SOURCE_DIR}/memory-map/Cargo.toml --release

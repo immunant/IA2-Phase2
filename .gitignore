@@ -32,7 +32,8 @@ build.ninja
 
 # Rust artifacts
 Cargo.lock
-libia2/target
+target/
+
 include/pkey_init.h
 libia2/pkey_init.h
 

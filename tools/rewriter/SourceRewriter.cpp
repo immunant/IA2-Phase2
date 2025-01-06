@@ -1105,7 +1105,7 @@ int main(int argc, const char **argv) {
   RootDirectory = RootDirectoryOption;
   OutputDirectory = OutputDirectoryOption;
   OutputPrefix = OutputPrefixOption;
-  enable_dav1d_get_picture_post_condition = EnableDav1dGetPicturePostCondition;
+  enable_dav1d_get_picture_post_condition = EnableDav1dGetPicturePostCondition && Target == Arch::X86;
 
   RefactoringTool tool(options_parser.getCompilations(),
                        options_parser.getSourcePathList());

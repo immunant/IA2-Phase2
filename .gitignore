@@ -35,3 +35,5 @@ Cargo.lock
 libia2/target
 include/pkey_init.h
 libia2/pkey_init.h
+
+.gdb_history

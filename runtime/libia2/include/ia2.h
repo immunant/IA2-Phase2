@@ -93,7 +93,7 @@
 /// `pkru` should be the register value, not the compartment pkey.
 #ifndef IA2_DEBUG
 #define ASSERT_PKRU(pkru)
-#else
+#elif defined(__x86_64__)
 /* clang-format off */
 #define ASSERT_PKRU(pkru)                       \
   "movq %rcx, %r10\n"                           \
@@ -107,6 +107,9 @@
   "movq %r11, %rdx\n"                           \
   "movq %r10, %rcx\n"
 /* clang-format on */
+#else
+// TODO aarch64
+#define ASSERT_PKRU(pkru)
 #endif
 
 #define IA2_IGNORE(x) x

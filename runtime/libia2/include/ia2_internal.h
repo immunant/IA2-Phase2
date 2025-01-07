@@ -271,12 +271,12 @@ asm(".macro movz_shifted_tag_x18 tag\n"
         "mov x9, sp\n"                                                         \
         /* switch to newly allocated stack */                                  \
         "mov sp, %0\n"                                                         \
-        /* push old stack pointer to new stack */                              \
-        "str x9, [sp], #-8\n"                                                  \
+        /* push sp in x9 and a dummy reg to keep new stack 16-byte aligned */  \
+        "stp x9, x10, [sp, #-16]!\n"                                           \
         /* initialize TLS */                                                   \
         "bl init_tls_" #i "\n"                                                 \
         /* pop old stack pointer from new stack */                             \
-        "ldr x9, [sp, #8]!\n"                                                  \
+        "ldp x9, x10, [sp], #16\n"                                             \
         /* save pointer to new stack */                                        \
         "mov x10, sp\n"                                                        \
         /* switch to old stack */                                              \

@@ -55,16 +55,16 @@ Test(rewrite_fn_ptr_eq, main) {
     struct module *mod_ptr = &mod;
     if (mod_ptr->fn) { }
 
-    // REWRITER: res = IA2_ADDR(fn) ? IA2_CALL(fn, _ZTSPFiiiE)(1, 2) : -1;
+    // REWRITER: res = IA2_ADDR(fn) ? IA2_CALL(fn, _ZTSPFiiiE, 1, 2) : -1;
     res = fn ? fn(1, 2) : -1;
 
-    // REWRITER: res = !IA2_ADDR(fn) ? -1 : IA2_CALL(fn, _ZTSPFiiiE)(1, 2);
+    // REWRITER: res = !IA2_ADDR(fn) ? -1 : IA2_CALL(fn, _ZTSPFiiiE, 1, 2);
     res = !fn ? -1 : fn(1, 2);
 
-    // REWRITER: res = x && IA2_ADDR(fn) ? IA2_CALL(fn, _ZTSPFiiiE)(1, 2) : -1;
+    // REWRITER: res = x && IA2_ADDR(fn) ? IA2_CALL(fn, _ZTSPFiiiE, 1, 2) : -1;
     res = x && fn ? fn(1, 2) : -1;
 
-    // REWRITER: res = IA2_ADDR(fn) && IA2_ADDR(fn2) ? IA2_CALL(fn, _ZTSPFiiiE)(1, 2) + IA2_CALL(fn2, _ZTSPFiiiE)(1, 2) : -1;
+    // REWRITER: res = IA2_ADDR(fn) && IA2_ADDR(fn2) ? IA2_CALL(fn, _ZTSPFiiiE, 1, 2) + IA2_CALL(fn2, _ZTSPFiiiE, 1, 2) : -1;
     res = fn && fn2 ? fn(1, 2) + fn2(1, 2) : -1;
 
     // REWRITER: fn = IA2_ADDR(fn2) ? fn2 : fn;

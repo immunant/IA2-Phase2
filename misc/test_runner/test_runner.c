@@ -99,6 +99,14 @@ int main() {
 
   for (i = 0; i < num_tests; i++) {
     const struct fake_criterion_test *test_info = &tests[i];
+    /* Run a single test without checking exit status if IA2_TEST_NAME is set. */
+    bool single_test = getenv("IA2_TEST_NAME") != NULL;
+    if (single_test) {
+      if (strcmp(test_info->name, getenv("IA2_TEST_NAME")))
+        continue;
+      fprintf(stderr, "running single test alone (exit status will not be checked):\n");
+    }
+
     const int exit_code = test_info->exit_code;
     fprintf(stderr, "running suite '%s' test '%s', expecting exit code %d",
             test_info->suite, test_info->name, exit_code);
@@ -111,7 +119,11 @@ int main() {
     }
     fprintf(stderr, "...\n");
 
-    pid_t pid = fork();
+    /* Do not fork or check exit status if only running one test. */
+    pid_t pid = 0;
+    if (!single_test) {
+      pid = fork();
+    }
     bool in_child = pid == 0;
     if (in_child) {
       /*

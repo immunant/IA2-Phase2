@@ -1,7 +1,7 @@
 #pragma once
 #include <optional>
 #include <string>
-#include <unordered_set>
+#include <unordered_map>
 
 #include "CAbi.h"
 
@@ -22,8 +22,10 @@ enum class Arch {
   X86
 };
 
-extern std::unordered_set<std::string> pre_condition_functions;
-extern std::unordered_set<std::string> post_condition_functions;
+// Key is target function.
+// Value is pre/post condition function name.
+extern std::unordered_multimap<std::string, std::string> pre_condition_funcs;
+extern std::unordered_multimap<std::string, std::string> post_condition_funcs;
 
 // Generates a wrapper for a function named \p name with the signature \p sig.
 // The WrapperKind parameter \p kind determines the type of call which may

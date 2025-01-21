@@ -1098,20 +1098,6 @@ std::string emit_asm_wrapper(AbiSignature sig,
     stack_alignment = (compartment_stack_space + 8) % 16;
   }
 
-  // For now, we hardcode the name of the pre- and post-condition functions
-  // as `${target_name}_{pre,post}_condition`,
-  // and we do this for every function specified with `--{pre,post}-condition-functions`.
-  std::optional<std::string> target_pre_condition_name = std::nullopt;
-  std::optional<std::string> target_post_condition_name = std::nullopt;
-  if (target_name) {
-    if (pre_condition_functions.contains(*target_name)) {
-      target_pre_condition_name = *target_name + "_pre_condition";
-    }
-    if (post_condition_functions.contains(*target_name)) {
-      target_post_condition_name = *target_name + "_post_condition";
-    }
-  }
-
   add_comment_line(aw, "Wrapper for "s + sig_string(sig, target_name) + ":");
   add_asm_line(aw, ".text");
   if (kind != WrapperKind::PointerToStatic) {
@@ -1124,11 +1110,19 @@ std::string emit_asm_wrapper(AbiSignature sig,
   add_asm_line(aw, wrapper_name + ":");
 
   emit_prologue(aw, caller_pkey, target_pkey, arch);
-  if (target_pre_condition_name) {
-    emit_pre_condition_fn_call(aw, arch, *target_pre_condition_name);
-  }
-  if (target_post_condition_name) {
-    emit_save_args(aw, arch);
+  // Call the pre-condition functions for this target function.
+  // The calls happens in the caller's compartment.
+  // If there are any post-condition functions, save the args for that, too.
+  bool saved_args = false;
+  if (target_name) {
+    for (auto pre_condition_name = pre_condition_funcs.find(*target_name); pre_condition_name != pre_condition_funcs.end(); pre_condition_name++) {
+      emit_pre_condition_fn_call(aw, arch, pre_condition_name->second);
+    }
+    saved_args = post_condition_funcs.count(*target_name) > 0;
+    if (saved_args) {
+      saved_args = true;
+      emit_save_args(aw, arch);
+    }
   }
 
   if (arch == Arch::X86) {
@@ -1163,11 +1157,13 @@ std::string emit_asm_wrapper(AbiSignature sig,
 
   emit_set_return_pkru(aw, caller_pkey, arch);
 
-  // Call the post-condition function, if one was specified.
-  // The call happens in the caller's compartment.
-  if (target_post_condition_name) {
+  // Call the post-condition functions for this target function.
+  // The calls happens in the caller's compartment.
+  if (saved_args) {
     emit_restore_args(aw, arch);
-    emit_post_condition_fn_call(aw, arch, *target_post_condition_name);
+    for (auto post_condition_name = post_condition_funcs.find(*target_name); post_condition_name != post_condition_funcs.end(); post_condition_name++) {
+      emit_post_condition_fn_call(aw, arch, post_condition_name->second);
+    }
   }
 
   emit_epilogue(aw, caller_pkey, arch);

@@ -1214,9 +1214,11 @@ int main(int argc, const char **argv) {
     return rc;
   }
 
+  header_out << "#ifndef __ASSEMBLER__\n";
+  header_out << '\n';
+
   header_out << "#include <ia2.h>\n";
   header_out << "#include <scrub_registers.h>\n";
-
   header_out << '\n';
 
   wrapper_out << "#include <ia2.h>\n";
@@ -1531,6 +1533,9 @@ int main(int argc, const char **argv) {
   header_out << "asm(\"__libia2_abort:\\n\"\n"
              << "    \"" << undef_insn << "\");\n";
   header_out << macros_defining_wrappers.c_str();
+
+  header_out << '\n';
+  header_out << "#endif\n";
 
   for (int i = 0; i < num_pkeys; i++) {
     if (ld_args_out[i] != nullptr) {

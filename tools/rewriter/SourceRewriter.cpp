@@ -98,17 +98,18 @@ static llvm::cl::opt<std::string>
                        llvm::cl::cat(SourceRewriterCategory),
                        llvm::cl::desc("<prefix for output files>"));
 
-static llvm::cl::opt<bool>
-    EnableDav1dGetPicturePostCondition("enable-dav1d_get_picture-post-condition",
-                                       llvm::cl::init(true),
-                                       llvm::cl::cat(SourceRewriterCategory),
-                                       llvm::cl::desc("enable calling the post condition function hardcoded for dav1d_get_picture"));
+static llvm::cl::list<std::string>
+    PostConditionFunctions("post-condition-functions",
+                           llvm::cl::CommaSeparated,
+                           llvm::cl::cat(SourceRewriterCategory),
+                           llvm::cl::desc("list of functions that have post condition functions named *_post_condition"),
+                           llvm::cl::value_desc("function"));
 
 static Arch Target;
 static std::string RootDirectory;
 static std::string OutputDirectory;
 static std::string OutputPrefix;
-bool enable_dav1d_get_picture_post_condition = true;
+std::unordered_set<std::string> post_condition_functions = {};
 
 // Map each translation unit's filename to its pkey.
 static std::map<Filename, Pkey> file_pkeys;
@@ -571,16 +572,15 @@ public:
 
     std::string new_expr =
         "IA2_CALL("s + old_callee.str() + ", " + mangled_ty;
-    
     for (auto const &arg : fn_ptr_call->arguments()) {
       new_expr += ", " + clang::Lexer::getSourceText(
-          clang::CharSourceRange::getTokenRange(arg->getSourceRange()), sm,
-          ctxt.getLangOpts())
-                     .str();
+                             clang::CharSourceRange::getTokenRange(arg->getSourceRange()), sm,
+                             ctxt.getLangOpts())
+                             .str();
     }
     new_expr += ")";
 
-    auto char_range = 
+    auto char_range =
         clang::CharSourceRange::getTokenRange(fn_ptr_call->getSourceRange());
 
     if (in_macro_expansion(char_range.getBegin(), sm)) {
@@ -1138,7 +1138,10 @@ int main(int argc, const char **argv) {
   RootDirectory = RootDirectoryOption;
   OutputDirectory = OutputDirectoryOption;
   OutputPrefix = OutputPrefixOption;
-  enable_dav1d_get_picture_post_condition = EnableDav1dGetPicturePostCondition && Target == Arch::X86;
+  if (Target == Arch::X86) {
+    // not implemented on aarch64 yet
+    post_condition_functions = std::unordered_set(PostConditionFunctions.begin(), PostConditionFunctions.end());
+  }
 
   RefactoringTool tool(options_parser.getCompilations(),
                        options_parser.getSourcePathList());

@@ -1,6 +1,7 @@
 #pragma once
 #include <optional>
 #include <string>
+#include <unordered_set>
 
 #include "CAbi.h"
 
@@ -17,10 +18,11 @@ enum class WrapperKind {
 };
 
 enum class Arch {
-    Aarch64, X86
+  Aarch64,
+  X86
 };
 
-extern bool enable_dav1d_get_picture_post_condition;
+extern std::unordered_set<std::string> post_condition_functions;
 
 // Generates a wrapper for a function named \p name with the signature \p sig.
 // The WrapperKind parameter \p kind determines the type of call which may

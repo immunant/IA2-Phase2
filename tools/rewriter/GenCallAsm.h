@@ -22,6 +22,7 @@ enum class Arch {
   X86
 };
 
+extern std::unordered_set<std::string> pre_condition_functions;
 extern std::unordered_set<std::string> post_condition_functions;
 
 // Generates a wrapper for a function named \p name with the signature \p sig.

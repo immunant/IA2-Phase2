@@ -99,6 +99,13 @@ static llvm::cl::opt<std::string>
                        llvm::cl::desc("<prefix for output files>"));
 
 static llvm::cl::list<std::string>
+    PreConditionFunctions("pre-condition-functions",
+                           llvm::cl::CommaSeparated,
+                           llvm::cl::cat(SourceRewriterCategory),
+                           llvm::cl::desc("list of functions that have pre condition functions named *_pre_condition"),
+                           llvm::cl::value_desc("function"));
+
+static llvm::cl::list<std::string>
     PostConditionFunctions("post-condition-functions",
                            llvm::cl::CommaSeparated,
                            llvm::cl::cat(SourceRewriterCategory),
@@ -109,6 +116,7 @@ static Arch Target;
 static std::string RootDirectory;
 static std::string OutputDirectory;
 static std::string OutputPrefix;
+std::unordered_set<std::string> pre_condition_functions = {};
 std::unordered_set<std::string> post_condition_functions = {};
 
 // Map each translation unit's filename to its pkey.
@@ -1140,6 +1148,7 @@ int main(int argc, const char **argv) {
   OutputPrefix = OutputPrefixOption;
   if (Target == Arch::X86) {
     // not implemented on aarch64 yet
+    pre_condition_functions = std::unordered_set(PreConditionFunctions.begin(), PreConditionFunctions.end());
     post_condition_functions = std::unordered_set(PostConditionFunctions.begin(), PostConditionFunctions.end());
   }
 

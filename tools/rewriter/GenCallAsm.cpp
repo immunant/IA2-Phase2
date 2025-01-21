@@ -458,7 +458,7 @@ static AsmWriter get_asmwriter(bool as_macro) {
   return {.ss = {}, .terminator = terminator};
 }
 
-static void emit_prologue(AsmWriter &aw, uint32_t caller_pkey, uint32_t target_pkey, Arch arch, bool save_param_regs) {
+static void emit_prologue(AsmWriter &aw, uint32_t caller_pkey, uint32_t target_pkey, Arch arch) {
   if (arch == Arch::X86) {
     // Save the old frame pointer and set the frame pointer for the call gate
     add_asm_line(aw, "pushq %rbp");
@@ -469,15 +469,6 @@ static void emit_prologue(AsmWriter &aw, uint32_t caller_pkey, uint32_t target_p
     for (auto &r : x86_preserved_registers) {
       add_asm_line(aw, "pushq %"s + r);
     }
-    if (save_param_regs) {
-      // Push first 6 registers for args onto the stack, too,
-      // so that we can store them for the post condition function.
-      add_comment_line(aw, "Save param regs for post condition call");
-      for (auto &r : x86_int_param_reg_order) {
-        add_asm_line(aw, "pushq %"s + r);
-      }
-    }
-    // TODO this for arm, too
   } else if (arch == Arch::Aarch64) {
     // Frame pointer and link register need to be saved first, to make backtraces work
     add_asm_line(aw, "stp x29, x30, [sp, #-16]!");
@@ -498,10 +489,6 @@ static void emit_prologue(AsmWriter &aw, uint32_t caller_pkey, uint32_t target_p
     for (size_t i = 0; i < aarch64_preserved_registers.size(); i++) {
       // TODO(performance): We could store by pairs (STP)
       add_asm_line(aw, "str "s + aarch64_preserved_registers[i] + ", [sp, #" + std::to_string(i * 8) + "]");
-    }
-
-    if (save_param_regs) {
-      llvm::report_fatal_error("--post-condition-functions are not yet supported on aarch64");
     }
   }
 }
@@ -525,8 +512,8 @@ static void x86_emit_intermediate_pkru(AsmWriter &aw, uint32_t caller_pkey, uint
 
 static void emit_copy_args(AsmWriter &aw, const std::vector<ArgLocation> &args,
                            const std::optional<std::vector<ArgLocation>> &wrapper_args,
-                           size_t stack_return_size, size_t stack_return_padding, int stack_alignment, 
-                           size_t stack_arg_size, size_t stack_arg_padding, size_t wrapper_stack_arg_size, 
+                           size_t stack_return_size, size_t stack_return_padding, int stack_alignment,
+                           size_t stack_arg_size, size_t stack_arg_padding, size_t wrapper_stack_arg_size,
                            uint32_t caller_pkey, Arch arch) {
   if (arch == Arch::X86) {
     // When returning via memory, the address of the return value is passed in
@@ -588,7 +575,7 @@ static void emit_copy_args(AsmWriter &aw, const std::vector<ArgLocation> &args,
         src_arg++;
         dest_arg++;
       }
-      
+
       add_asm_line(aw, "movq %"s + src_arg->as_str() + ", %r12");
       src_arg++;
       for (; dest_arg != args.end(); src_arg++, dest_arg++) {
@@ -900,15 +887,39 @@ static void emit_set_return_pkru(AsmWriter &aw, uint32_t caller_pkey, Arch arch)
   }
 }
 
-static void emit_post_condition_fn_call(AsmWriter &aw, Arch arch, std::string_view target_post_condition_name) {
-  llvm::errs() << "emitting post condition call to " << target_post_condition_name << "\n";
+static void emit_save_args(AsmWriter &aw, Arch arch) {
+  if (arch == Arch::X86) {
+    // Push first 6 registers for args onto the stack
+    // so that we can store them for the pre/post condition function.
+    add_comment_line(aw, "Save param regs for post condition call");
+    for (auto &r : x86_int_param_reg_order) {
+      add_asm_line(aw, "pushq %"s + r);
+    }
+  } else if (arch == Arch::Aarch64) {
+    // TODO
+  }
+}
+
+static void emit_restore_args(AsmWriter &aw, Arch arch) {
   if (arch == Arch::X86) {
     add_comment_line(aw, "Restore param regs for post condition call");
     for (auto it = x86_int_param_reg_order.rbegin(); it != x86_int_param_reg_order.rend(); ++it) {
       auto &r = *it;
       add_asm_line(aw, "popq %"s + r);
     }
+  } else if (arch == Arch::Aarch64) {
+    // TODO
   }
+}
+
+static void emit_pre_condition_fn_call(AsmWriter &aw, Arch arch, std::string_view target_pre_condition_name) {
+  llvm::errs() << "emitting pre condition call to " << target_pre_condition_name << "\n";
+  add_comment_line(aw, "Call pre condition function");
+  emit_direct_call(aw, arch, target_pre_condition_name);
+}
+
+static void emit_post_condition_fn_call(AsmWriter &aw, Arch arch, std::string_view target_post_condition_name) {
+  llvm::errs() << "emitting post condition call to " << target_post_condition_name << "\n";
   add_comment_line(aw, "Align stack");
   add_asm_line(aw, "subq $8, %rsp");
   add_comment_line(aw, "Call post condition function");
@@ -1087,12 +1098,18 @@ std::string emit_asm_wrapper(AbiSignature sig,
     stack_alignment = (compartment_stack_space + 8) % 16;
   }
 
-  // For now, we hardcode the name of the post-condition functions
-  // as `${target_name}_post_condition`,
-  // and we do this for every function specified with `--post-condition-functions`.
+  // For now, we hardcode the name of the pre- and post-condition functions
+  // as `${target_name}_{pre,post}_condition`,
+  // and we do this for every function specified with `--{pre,post}-condition-functions`.
+  std::optional<std::string> target_pre_condition_name = std::nullopt;
   std::optional<std::string> target_post_condition_name = std::nullopt;
-  if (target_name && post_condition_functions.contains(*target_name)) {
-    target_post_condition_name = *target_name + "_post_condition";
+  if (target_name) {
+    if (pre_condition_functions.contains(*target_name)) {
+      target_pre_condition_name = *target_name + "_pre_condition";
+    }
+    if (post_condition_functions.contains(*target_name)) {
+      target_post_condition_name = *target_name + "_post_condition";
+    }
   }
 
   add_comment_line(aw, "Wrapper for "s + sig_string(sig, target_name) + ":");
@@ -1106,9 +1123,13 @@ std::string emit_asm_wrapper(AbiSignature sig,
   add_asm_line(aw, ".type "s + wrapper_name + ", @function");
   add_asm_line(aw, wrapper_name + ":");
 
-  // Note that when there's a post condition call,
-  // the prologue needs to undo the `pushq`s added in `emit_prologue` to save the register params.
-  emit_prologue(aw, caller_pkey, target_pkey, arch, target_post_condition_name.has_value());
+  emit_prologue(aw, caller_pkey, target_pkey, arch);
+  if (target_pre_condition_name) {
+    emit_pre_condition_fn_call(aw, arch, *target_pre_condition_name);
+  }
+  if (target_post_condition_name) {
+    emit_save_args(aw, arch);
+  }
 
   if (arch == Arch::X86) {
     add_raw_line(aw, llvm::formatv("ASSERT_PKRU({0:x8}) \"\\n\"", ~((0b11 << (2 * caller_pkey)) | 0b11)));
@@ -1145,6 +1166,7 @@ std::string emit_asm_wrapper(AbiSignature sig,
   // Call the post-condition function, if one was specified.
   // The call happens in the caller's compartment.
   if (target_post_condition_name) {
+    emit_restore_args(aw, arch);
     emit_post_condition_fn_call(aw, arch, *target_post_condition_name);
   }
 

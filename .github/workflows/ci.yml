@@ -85,6 +85,7 @@ jobs:
             libclang-15-dev
             zlib1g-dev
             libcapstone-dev
+            libglib2.0-dev
           version: 1.0 # version of cache to load
       - name: Check out code
         uses: actions/checkout@v4

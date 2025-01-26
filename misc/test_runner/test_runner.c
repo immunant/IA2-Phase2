@@ -84,7 +84,21 @@ int main() {
    * invocation of the Test macro
    */
   sigaction(SIGSEGV, &act, NULL);
+
+  // Reverse tests, as the `__attribute__((constructor))` approach with a linked list makes them backwards.
+  size_t i = 0;
   for (struct fake_criterion_test *test_info = fake_criterion_tests; test_info; test_info = test_info->next) {
+      i++;
+  }
+  const size_t num_tests = i;
+  struct fake_criterion_test tests[num_tests];
+  for (struct fake_criterion_test *test_info = fake_criterion_tests; test_info; test_info = test_info->next) {
+    i--;
+    tests[i] = *test_info;
+  }
+
+  for (i = 0; i < num_tests; i++) {
+    const struct fake_criterion_test *test_info = &tests[i];
     const int exit_code = test_info->exit_code;
     fprintf(stderr, "running suite '%s' test '%s', expecting exit code %d",
             test_info->suite, test_info->name, exit_code);

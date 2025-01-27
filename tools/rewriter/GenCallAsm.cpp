@@ -900,13 +900,28 @@ static void emit_save_args(AsmWriter &aw, Arch arch) {
   }
 }
 
-static void emit_restore_args(AsmWriter &aw, Arch arch) {
+/// @param pop pop values from the stack (rather than copying them)
+static void emit_restore_args(AsmWriter &aw, Arch arch, bool pop) {
   if (arch == Arch::X86) {
     add_comment_line(aw, "Restore param regs for post condition call");
     for (auto it = x86_int_param_reg_order.rbegin(); it != x86_int_param_reg_order.rend(); ++it) {
       auto &r = *it;
       add_asm_line(aw, "popq %"s + r);
     }
+    if (!pop) {
+      add_comment_line(aw, "Keep stack as is before popping");
+      add_asm_line(aw, llvm::formatv("subq ${0}, %rsp", x86_int_param_reg_order.size() * 8));
+    }
+  } else if (arch == Arch::Aarch64) {
+    // TODO
+  }
+}
+
+/// @brief Pop args, but not to anywhere.
+static void emit_pop_args(AsmWriter &aw, Arch arch) {
+  if (arch == Arch::X86) {
+    add_comment_line(aw, "Pop args from stack (to nowhere)");
+    add_asm_line(aw, llvm::formatv("subq ${0}, %rsp", x86_int_param_reg_order.size() * 8));
   } else if (arch == Arch::Aarch64) {
     // TODO
   }
@@ -920,11 +935,8 @@ static void emit_pre_condition_fn_call(AsmWriter &aw, Arch arch, std::string_vie
 
 static void emit_post_condition_fn_call(AsmWriter &aw, Arch arch, std::string_view target_post_condition_name) {
   llvm::errs() << "emitting post condition call to " << target_post_condition_name << "\n";
-  add_comment_line(aw, "Align stack");
-  add_asm_line(aw, "subq $8, %rsp");
   add_comment_line(aw, "Call post condition function");
   emit_direct_call(aw, arch, target_post_condition_name);
-  add_asm_line(aw, "addq $8, %rsp");
 }
 
 static void emit_epilogue(AsmWriter &aw, uint32_t caller_pkey, Arch arch) {
@@ -1110,18 +1122,23 @@ std::string emit_asm_wrapper(AbiSignature sig,
   add_asm_line(aw, wrapper_name + ":");
 
   emit_prologue(aw, caller_pkey, target_pkey, arch);
+
   // Call the pre-condition functions for this target function.
   // The calls happens in the caller's compartment.
   // If there are any post-condition functions, save the args for that, too.
-  bool saved_args = false;
-  if (target_name) {
+  const bool any_pre_conditions = target_name && pre_condition_funcs.count(*target_name) > 0;
+  const bool any_post_conditions = target_name && post_condition_funcs.count(*target_name) > 0;
+  if (any_pre_conditions || any_post_conditions) {
+    emit_save_args(aw, arch);
     for (auto pre_condition_name = pre_condition_funcs.find(*target_name); pre_condition_name != pre_condition_funcs.end(); pre_condition_name++) {
+      // Args are callee saved, so we need to restore them each time.
+      // We also need to save them for the next call, so don't pop them, just copy them.
+      emit_restore_args(aw, arch, /* pop */ false);
       emit_pre_condition_fn_call(aw, arch, pre_condition_name->second);
     }
-    saved_args = post_condition_funcs.count(*target_name) > 0;
-    if (saved_args) {
-      saved_args = true;
-      emit_save_args(aw, arch);
+    if (!any_post_conditions) {
+      // If there aren't any post conditions, then we do want to pop the args.
+      emit_pop_args(aw, arch);
     }
   }
 
@@ -1159,10 +1176,28 @@ std::string emit_asm_wrapper(AbiSignature sig,
 
   // Call the post-condition functions for this target function.
   // The calls happens in the caller's compartment.
-  if (saved_args) {
-    emit_restore_args(aw, arch);
+  if (any_post_conditions) {
+    add_comment_line(aw, "Align stack");
+    if (arch == Arch::X86) {
+      add_asm_line(aw, "subq $8, %rsp");
+    } else if (arch == Arch::Aarch64) {
+      // TODO
+    }
+
     for (auto post_condition_name = post_condition_funcs.find(*target_name); post_condition_name != post_condition_funcs.end(); post_condition_name++) {
+      // Args are callee saved, so we need to restore them each time.
+      // We also need to save them for the next call, so don't pop them, just copy them.
+      emit_restore_args(aw, arch, /* pop */ false);
       emit_post_condition_fn_call(aw, arch, post_condition_name->second);
+    }
+
+    emit_pop_args(aw, arch);
+
+    add_comment_line(aw, "Revert align stack");
+    if (arch == Arch::X86) {
+      add_asm_line(aw, "addq $8, %rsp");
+    } else if (arch == Arch::Aarch64) {
+      // TODO
     }
   }
 

@@ -473,11 +473,6 @@ public:
       return;
     }
 
-    // TODO: Remove debug logging.
-    llvm::StringRef original_code = clang::Lexer::getSourceText(token_range, sm, lang_opts);
-    llvm::errs() << "Replacement in " << filename << ":" << sm.getExpansionLineNumber(loc) << ": "
-                << original_code << " replaced with " << new_expr << "\n";
-
     Replacement old_r{sm, file_range, new_expr};
     Replacement r = replace_new_file(filename, old_r);
     auto err = file_replacements[filename].add(r);

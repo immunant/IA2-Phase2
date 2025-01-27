@@ -163,11 +163,11 @@ jobs:
         run: |
           ./cross-build-rtlibs.sh
           mv build-rtlibs ../
-        # move rtlibs into the git tree to where IA2 build expects them
-      - name: Move cached runtime libraries
+        # symlink rtlibs into the git tree to where IA2 build expects them
+      - name: Symlink runtime libraries for build
         working-directory: ${{ github.workspace }}/llvm-project
         run: |
-          mv ../build-rtlibs ./
+          ln -s ../build-rtlibs ./
       - name: Test ARM build
         run: |
           LLVM_DIR=`llvm-config-15 --cmakedir`

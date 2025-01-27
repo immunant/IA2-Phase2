@@ -184,14 +184,17 @@ IA2_CAST(func, ty) // Get a struct of type `ty` pointing to `func`'s wrapper
 
 ## `static` Function Pointers
 
-If a `static` function is used as an address-taken function for cross-compartment calls, then the rewriter needs to add `__attribute__((used))` to the function declaration in order for it to link correctly with the generated callgates. Normally the rewriter can achieve this, but if the `static` keyword comes from a macro the rewriter will not be able to insert the attribute. For example:
+If a `static` function is used as an address-taken function for
+cross-compartment calls, then the rewriter needs to add `__attribute__((used))`
+to the function declaration in order for it to link correctly with the generated
+callgates. Normally the rewriter can achieve this, but if the `static` keyword
+comes from a macro the rewriter will not be able to insert the attribute. For
+example:
 
 ```c
 #define local static
 local void function() {}
 ```
-
-The same issue can happen when using 
 
 If this pattern occurs in your code, you can remove the `static` modifier or add
 `__attribute__((used))` manually post-rewriter.

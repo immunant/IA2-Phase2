@@ -298,6 +298,6 @@ If you're seeing errors along the lines of:
 
 Then IA2 needs `foo` to not be marked local.
 
-Note also that an `__attribute__((visibility ("hidden")))` annotation can have
+Note also that an `__attribute__((visibility("hidden")))` annotation can have
 the same effect as hiding the symbol in a linker script. Such annotation will
-have to be removed to work in a containerized app.
+have to be removed to work in a compartmentalized app.

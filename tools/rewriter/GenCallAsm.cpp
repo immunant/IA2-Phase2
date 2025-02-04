@@ -525,7 +525,9 @@ static void x86_emit_intermediate_pkru(AsmWriter &aw, uint32_t caller_pkey, uint
 
 static void emit_copy_args(AsmWriter &aw, const std::vector<ArgLocation> &args,
                            const std::optional<std::vector<ArgLocation>> &wrapper_args,
-                           size_t stack_return_size, size_t stack_return_padding, int stack_alignment,
+                           size_t stack_return_size, size_t stack_return_padding,
+                           size_t indirect_arg_size, size_t indirect_arg_padding,
+                           int stack_alignment,
                            size_t stack_arg_size, size_t stack_arg_padding, size_t wrapper_stack_arg_size,
                            uint32_t caller_pkey, Arch arch) {
   if (arch == Arch::X86) {
@@ -607,17 +609,7 @@ static void emit_copy_args(AsmWriter &aw, const std::vector<ArgLocation> &args,
       }
     }
   } else if (arch == Arch::Aarch64) {
-    size_t indirect_arg_size = 0;
-    for (auto &arg : args) {
-      if (arg.is_indirect()) {
-        size_t align = std::max(arg.align(), (size_t)8);
-        if (stack_arg_size % align != 0) {
-          indirect_arg_size += align - (stack_arg_size % align);
-        }
-        indirect_arg_size += arg.size();
-      }
-    }
-    size_t total_stack_size = stack_return_size + stack_return_padding + indirect_arg_size + stack_arg_size + stack_arg_padding;
+    size_t total_stack_size = stack_return_size + stack_return_padding + indirect_arg_size + indirect_arg_padding + stack_arg_size + stack_arg_padding;
     if (stack_return_size > 0) {
       // Reserve space to save the original return value pointer. We only want
       // this slot if we are returning a value on the stack.
@@ -974,6 +966,21 @@ std::string emit_asm_wrapper(AbiSignature sig,
   llvm::errs() << "Generating wrapper for " << sig_string(sig, target_name) << "\n";
   auto rets = allocate_return_locations(sig, arch);
 
+  size_t indirect_arg_size = 0;
+  for (auto &arg : args) {
+    if (arg.is_indirect()) { // Only ever true on AArch64 for now.
+      size_t align = std::max(arg.align(), (size_t)8);
+      if (stack_arg_size % align != 0) {
+        indirect_arg_size += align - (stack_arg_size % align);
+      }
+      indirect_arg_size += arg.size();
+    }
+  }
+  size_t indirect_arg_padding = 0;
+  if (indirect_arg_size % 16 != 0) {
+    indirect_arg_padding = 16 - indirect_arg_size % 16;
+  }
+
   // std::stringstream ss;
   // append_arg_kinds(ss, rets);
   // llvm::errs() << "Return kinds: " << ss.str() << "\n";
@@ -1026,8 +1033,11 @@ std::string emit_asm_wrapper(AbiSignature sig,
     | top |Top of the stack (stack grows down on AArch64). This address is
     |     |aligned to 16 bytes.
     +-----+
-    |ind  |Space for arguments passed indirectly (i.e. in memory). These arguments
-    |args |will point to this region.
+    |ind  |Space for arguments passed indirectly (i.e. in memory). Indirect arguments
+    |args |are passed as pointers into this region; for access in another compartment
+    |     |we must copy its contents and translate the pointers.
+    +-----+
+    |align|Space to align the stack back to 16 bytes after indirect arguments.
     +-----+
     |     |Space for the compartment's return value if it has class MEMORY. This
     |ret  |space is only allocated if the pointer to the caller's return value
@@ -1077,7 +1087,7 @@ std::string emit_asm_wrapper(AbiSignature sig,
 
   // Count room for for the ret align padding, return value, and our ret ptr.
   size_t compartment_stack_space = start_of_ret_space + stack_return_size +
-                                   stack_return_padding + stack_arg_size + stack_arg_padding;
+                                   stack_return_padding + indirect_arg_size + indirect_arg_padding + stack_arg_size + stack_arg_padding;
   size_t stack_alignment = 0;
   if (arch == Arch::X86) {
     // Compute what the stack alignment would be before calling the wrapped
@@ -1120,7 +1130,7 @@ std::string emit_asm_wrapper(AbiSignature sig,
 
   emit_switch_stacks(aw, caller_pkey, target_pkey, arch);
 
-  emit_copy_args(aw, args, wrapper_args, stack_return_size, stack_return_padding, stack_alignment, stack_arg_size, stack_arg_padding, wrapper_stack_arg_size, caller_pkey, arch);
+  emit_copy_args(aw, args, wrapper_args, stack_return_size, stack_return_padding, indirect_arg_size, indirect_arg_padding, stack_alignment, stack_arg_size, stack_arg_padding, wrapper_stack_arg_size, caller_pkey, arch);
 
   emit_scrub_regs(aw, caller_pkey, args, kind == WrapperKind::IndirectCallsite, arch);
 

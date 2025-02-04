@@ -115,7 +115,7 @@ jobs:
           path: |
             llvm-project/build/bin
             llvm-project/build/lib/clang
-          key: ${{ runner.os }}-clang-2
+          key: ${{ runner.os }}-clang-3
       - name: Cache built runtime libraries
         id: cache-rtlibs
         uses: actions/cache@v4
@@ -137,7 +137,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: immunant/llvm-project
-          ref: fw/instrument-llvm-ir
+          ref: fw/tag-lse-ops
           path: ${{ github.workspace }}/llvm-project
       - name: Build Clang
         if: steps.cache-clang.outputs.cache-hit != 'true'

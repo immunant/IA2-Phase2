@@ -645,6 +645,7 @@ static void emit_copy_args(AsmWriter &aw, const std::vector<ArgLocation> &args,
       emit_memcpy(aw, stack_arg_size, "sp", "x12", "x9", src_offset, arch);
     }
 
+    // Copy memory region for indirect arguments to target stack, updating indirect args themselves
     size_t indirect_arg_current_offset = indirect_args_start;
     for (auto &arg : args) {
       if (arg.is_indirect()) {
@@ -653,6 +654,9 @@ static void emit_copy_args(AsmWriter &aw, const std::vector<ArgLocation> &args,
         if (indirect_arg_current_offset % arg.align() != 0) {
           indirect_arg_current_offset += arg.align() - (indirect_arg_current_offset % arg.align());
         }
+        add_comment_line(
+            aw, llvm::formatv("Copy {} bytes for indirect argument in {} and update it by {}",
+                              arg.size(), arg.as_str(), indirect_arg_current_offset));
         if (arg.is_stack()) {
           add_asm_line(aw, "ldr x10, [sp, #" + std::to_string(arg.stack_offset()) + "]");
           add_asm_line(aw, "add x9, sp, #" + std::to_string(indirect_arg_current_offset));

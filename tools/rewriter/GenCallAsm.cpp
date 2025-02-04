@@ -525,8 +525,8 @@ static void x86_emit_intermediate_pkru(AsmWriter &aw, uint32_t caller_pkey, uint
 
 static void emit_copy_args(AsmWriter &aw, const std::vector<ArgLocation> &args,
                            const std::optional<std::vector<ArgLocation>> &wrapper_args,
-                           size_t stack_return_size, size_t stack_return_padding, int stack_alignment, 
-                           size_t stack_arg_size, size_t stack_arg_padding, size_t wrapper_stack_arg_size, 
+                           size_t stack_return_size, size_t stack_return_padding, int stack_alignment,
+                           size_t stack_arg_size, size_t stack_arg_padding, size_t wrapper_stack_arg_size,
                            uint32_t caller_pkey, Arch arch) {
   if (arch == Arch::X86) {
     // When returning via memory, the address of the return value is passed in
@@ -588,7 +588,7 @@ static void emit_copy_args(AsmWriter &aw, const std::vector<ArgLocation> &args,
         src_arg++;
         dest_arg++;
       }
-      
+
       add_asm_line(aw, "movq %"s + src_arg->as_str() + ", %r12");
       src_arg++;
       for (; dest_arg != args.end(); src_arg++, dest_arg++) {

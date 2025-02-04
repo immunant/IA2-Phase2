@@ -12,12 +12,12 @@ void arg1(int x) {
 }
 
 // LINKARGS: --wrap=foo
-void foo() {
+void foo(void) {
     cr_log_info("foo");
 }
 
 // LINKARGS: --wrap=return_val
-int return_val() {
+int return_val(void) {
     cr_log_info("return_val");
     return 1;
 }

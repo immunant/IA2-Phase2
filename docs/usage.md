@@ -205,6 +205,7 @@ are also required:
 -I $IA2_PATH/runtime/libia2/include
 -I $IA2_PATH/runtime/partition-alloc/include
 -Werror=incompatible-pointer-types
+-Werror=strict-prototypes
 -Wl,--wrap=pthread_create
 -Wl,--wrap=calloc
 -Wl,--wrap=free

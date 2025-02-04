@@ -155,10 +155,10 @@ extern "C" {
 #endif
 
 /// Returns the raw PKRU register value
-uint32_t ia2_get_pkru();
+uint32_t ia2_get_pkru(void);
 
 /// Returns the current compartment pkey
-size_t ia2_get_pkey();
+size_t ia2_get_pkey(void);
 
 #ifdef __cplusplus
 }

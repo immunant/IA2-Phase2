@@ -33,7 +33,7 @@ bool register_callback(callback_t cb) {
 }
 
 // LINKARGS: --wrap=unregister_callback
-void unregister_callback() {
+void unregister_callback(void) {
     function = pick_lhs;
     if (last_result) {
         if (!clean_exit) {

@@ -30,7 +30,7 @@ static uint32_t divide(uint32_t x, uint32_t y) {
     return x / y;
 }
 
-void call_fn_ptr() {
+void call_fn_ptr(void) {
     function_t f = get_function();
     cr_log_info("Got the function %s from the library\n", f.name);
     uint32_t x = 987234;
@@ -50,7 +50,7 @@ void call_fn_ptr() {
     cr_assert_eq(res3, 6);
 }
 
-void do_test() {
+void do_test(void) {
     // Test calling a function pointer with one of the shared library's functions
     call_fn_ptr();
 

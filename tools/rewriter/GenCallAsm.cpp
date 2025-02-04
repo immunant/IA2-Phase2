@@ -237,50 +237,50 @@ static void emit_reg_pop(AsmWriter &aw, const ArgLocation &loc) {
   }
 }
 
-// Emit code to copy `byte_count` bytes from `src` to `dst` using `scratch` as a
-// temporary register.
+// Emit code to copy `byte_count` bytes from `src_offset` bytes past the address stored in the `src`
+// register to the region starting at the `dst` register using `scratch` as a temporary register.
 static void emit_memcpy(AsmWriter &aw, unsigned byte_count, const std::string &dst,
-                        const std::string &src, const std::string &scratch, size_t offset, Arch arch) {
+                        const std::string &src, const std::string &scratch, size_t src_offset, Arch arch) {
   add_comment_line(aw, "Copy " + std::to_string(byte_count) + " bytes from " + src + " to " + dst);
   if (arch == Arch::X86) {
     int i = 0;
     for (; i + 8 <= byte_count; i += 8) {
-      add_asm_line(aw, "movq "s + std::to_string(i + offset) + "(%" + src + "), %" + scratch);
+      add_asm_line(aw, "movq "s + std::to_string(i + src_offset) + "(%" + src + "), %" + scratch);
       add_asm_line(aw, "movq %" + scratch + ", "s + std::to_string(i) + "(%" + dst + ")");
     }
     if (i + 4 <= byte_count) {
-      add_asm_line(aw, "movl "s + std::to_string(i + offset) + "(%" + src + "), %" + scratch + "d");
+      add_asm_line(aw, "movl "s + std::to_string(i + src_offset) + "(%" + src + "), %" + scratch + "d");
       add_asm_line(aw, "movl %" + scratch + "d, "s + std::to_string(i) + "(%" + dst + ")");
       i += 4;
     }
     if (i + 2 <= byte_count) {
-      add_asm_line(aw, "movw "s + std::to_string(i + offset) + "(%" + src + "), %" + scratch + "w");
+      add_asm_line(aw, "movw "s + std::to_string(i + src_offset) + "(%" + src + "), %" + scratch + "w");
       add_asm_line(aw, "movw %" + scratch + "w, "s + std::to_string(i) + "(%" + dst + ")");
       i += 2;
     }
     if (i < byte_count) {
-      add_asm_line(aw, "movb "s + std::to_string(i + offset) + "(%" + src + "), %" + scratch + "b");
+      add_asm_line(aw, "movb "s + std::to_string(i + src_offset) + "(%" + src + "), %" + scratch + "b");
       add_asm_line(aw, "movb %" + scratch + "b, "s + std::to_string(i) + "(%" + dst + ")");
     }
   } else if (arch == Arch::Aarch64) {
     auto halfreg = "W"s + scratch.substr(1);
     int i = 0;
     for (; i + 8 <= byte_count; i += 8) {
-      add_asm_line(aw, "ldr "s + scratch + ", [" + src + ", #" + std::to_string(i + offset) + "]");
+      add_asm_line(aw, "ldr "s + scratch + ", [" + src + ", #" + std::to_string(i + src_offset) + "]");
       add_asm_line(aw, "str "s + scratch + ", [" + dst + ", #" + std::to_string(i) + "]");
     }
     if (i + 4 <= byte_count) {
-      add_asm_line(aw, "ldr "s + halfreg + ", [" + src + ", #" + std::to_string(i + offset) + "]");
+      add_asm_line(aw, "ldr "s + halfreg + ", [" + src + ", #" + std::to_string(i + src_offset) + "]");
       add_asm_line(aw, "str "s + halfreg + ", [" + dst + ", #" + std::to_string(i) + "]");
       i += 4;
     }
     if (i + 2 <= byte_count) {
-      add_asm_line(aw, "ldrh "s + halfreg + ", [" + src + ", #" + std::to_string(i + offset) + "]");
+      add_asm_line(aw, "ldrh "s + halfreg + ", [" + src + ", #" + std::to_string(i + src_offset) + "]");
       add_asm_line(aw, "strh "s + halfreg + ", [" + dst + ", #" + std::to_string(i) + "]");
       i += 2;
     }
     if (i < byte_count) {
-      add_asm_line(aw, "ldrb "s + halfreg + ", [" + src + ", #" + std::to_string(i + offset) + "]");
+      add_asm_line(aw, "ldrb "s + halfreg + ", [" + src + ", #" + std::to_string(i + src_offset) + "]");
       add_asm_line(aw, "strb "s + halfreg + ", [" + dst + ", #" + std::to_string(i) + "]");
     }
   }

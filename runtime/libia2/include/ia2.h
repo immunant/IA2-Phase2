@@ -36,6 +36,9 @@
 
 #define IA2_END_NO_WRAP _Pragma("clang attribute pop");
 
+#define IA2_PRE_CONDITION(target_func) __attribute__((annotate("pre_condition:" #target_func)))
+#define IA2_POST_CONDITION(target_func) __attribute__((annotate("post_condition:" #target_func)))
+
 #if !IA2_ENABLE
 #define IA2_DEFINE_WRAPPER(func)
 #define IA2_SIGHANDLER(func) func

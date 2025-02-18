@@ -902,12 +902,17 @@ static void emit_save_args(AsmWriter &aw, Arch arch) {
 }
 
 /// @brief Restore args saved on the stack to their registers.
-static void emit_restore_args(AsmWriter &aw, Arch arch) {
+/// @param pop pop values from the stack (rather than copying them).
+static void emit_restore_args(AsmWriter &aw, Arch arch, bool pop) {
   if (arch == Arch::X86) {
     add_comment_line(aw, "Restore param regs for pre/post-condition call");
     for (auto it = x86_int_param_reg_order.rbegin(); it != x86_int_param_reg_order.rend(); ++it) {
       auto &r = *it;
       add_asm_line(aw, "popq %"s + r);
+    }
+    if (!pop) {
+      add_comment_line(aw, "Keep stack as is before popping");
+      add_asm_line(aw, llvm::formatv("subq ${0}, %rsp", x86_int_param_reg_order.size() * 8));
     }
   } else if (arch == Arch::Aarch64) {
     // TODO
@@ -1104,7 +1109,7 @@ std::string emit_asm_wrapper(AbiSignature sig,
 
   emit_prologue(aw, caller_pkey, target_pkey, arch);
 
-  // Call the pre-condition function for this target function.
+  // Call the pre-condition functions for this target function.
   // The calls happens in the caller's compartment.
   // If there are any post-condition functions, save the args for that, too.
   std::vector<std::string_view> pre_conditions;
@@ -1117,18 +1122,23 @@ std::string emit_asm_wrapper(AbiSignature sig,
       post_conditions.emplace_back(post_condition->second);
     }
   }
-  assert(pre_conditions.size() <= 1);
-  assert(post_conditions.size() <= 1);
-  if (!post_conditions.empty()) {
+  if (pre_conditions.size() > 1 || !post_conditions.empty()) {
     // Args are callee saved, so we need to
-    // save them for a later post-condition function
-    // (really anything after a single pre-condition function).
+    // save them for a later condition function
+    // (anything after a single pre-condition function).
     emit_save_args(aw, arch);
   }
-  if (!pre_conditions.empty()) {
-    // For a single pre-condition function, the args are already in registers,
-    // so no restoring is necessary.
-    emit_condition_fn_call(aw, arch, pre_conditions.front(), "pre");
+  for (auto i = 0; i < pre_conditions.size(); i++) {
+    const auto pre_condition = pre_conditions[i];
+    // First call already has args in registers,
+    // but we then need to restore them for the next call.
+    // Don't pop args from the stack since we'll reuse them,
+    // unless this is the last condition.
+    const bool pop = post_conditions.empty() && i == pre_conditions.size() - 1;
+    if (i > 0) {
+      emit_restore_args(aw, arch, pop);
+    }
+    emit_condition_fn_call(aw, arch, pre_condition, "pre");
   }
 
   if (arch == Arch::X86) {
@@ -1163,12 +1173,17 @@ std::string emit_asm_wrapper(AbiSignature sig,
 
   emit_set_return_pkru(aw, caller_pkey, arch);
 
-  // Call the post-condition function for this target function.
+  // Call the post-condition functions for this target function.
   // The calls happens in the caller's compartment.
-  if (!post_conditions.empty()) {
-    // Args are callee saved, so we need to restore them.
-    emit_restore_args(aw, arch);
-
+  for (auto i = 0; i < post_conditions.size(); i++) {
+    const auto post_condition = post_conditions[i];
+    // First call already has args in registers,
+    // but we then need to restore them for the next call.
+    // Don't pop args from the stack since we'll reuse them,
+    // unless this is the last condition.
+    const bool pop = i == post_conditions.size() - 1;
+    emit_restore_args(aw, arch, pop);
+    
     add_comment_line(aw, "Align stack");
     if (arch == Arch::X86) {
       add_asm_line(aw, "subq $8, %rsp");
@@ -1176,7 +1191,7 @@ std::string emit_asm_wrapper(AbiSignature sig,
       // TODO
     }
 
-    emit_condition_fn_call(aw, arch, post_conditions.front(), "post");
+    emit_condition_fn_call(aw, arch, post_condition, "post");
 
     add_comment_line(aw, "Revert align stack");
     if (arch == Arch::X86) {

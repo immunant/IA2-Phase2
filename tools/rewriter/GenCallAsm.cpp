@@ -501,7 +501,7 @@ static void emit_prologue(AsmWriter &aw, uint32_t caller_pkey, uint32_t target_p
     }
 
     if (save_param_regs) {
-      llvm::report_fatal_error("--enable-dav1d_get_picture-post-condition is not yet supported on aarch64");
+      llvm::report_fatal_error("post conditions are not yet supported on aarch64");
     }
   }
 }
@@ -1087,12 +1087,15 @@ std::string emit_asm_wrapper(AbiSignature sig,
     stack_alignment = (compartment_stack_space + 8) % 16;
   }
 
-  // For now, we hardcode the existence and name of the post-condition function.
-  // The name is `${target_name}_post_condition`,
-  // and we only do this for `dav1d_get_picture`.
   std::optional<std::string> target_post_condition_name = std::nullopt;
-  if (enable_dav1d_get_picture_post_condition && target_name && *target_name == "dav1d_get_picture") {
-    target_post_condition_name = *target_name + "_post_condition";
+  if (target_name && arch == Arch::X86) {
+    // TODO implement on aarch64
+    assert(pre_condition_funcs.count(*target_name) == 0);  // Pre conditions not yet supported
+    assert(post_condition_funcs.count(*target_name) <= 1); // Only one post condition currently supported.
+    auto post_condition = post_condition_funcs.find(*target_name);
+    if (post_condition != post_condition_funcs.end()) {
+      target_post_condition_name = post_condition->second;
+    }
   }
 
   add_comment_line(aw, "Wrapper for "s + sig_string(sig, target_name) + ":");

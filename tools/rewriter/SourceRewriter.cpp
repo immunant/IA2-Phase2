@@ -98,17 +98,15 @@ static llvm::cl::opt<std::string>
                        llvm::cl::cat(SourceRewriterCategory),
                        llvm::cl::desc("<prefix for output files>"));
 
-static llvm::cl::opt<bool>
-    EnableDav1dGetPicturePostCondition("enable-dav1d_get_picture-post-condition",
-                                       llvm::cl::init(true),
-                                       llvm::cl::cat(SourceRewriterCategory),
-                                       llvm::cl::desc("enable calling the post condition function hardcoded for dav1d_get_picture"));
-
 static Arch Target;
 static std::string RootDirectory;
 static std::string OutputDirectory;
 static std::string OutputPrefix;
-bool enable_dav1d_get_picture_post_condition = true;
+
+// Key is target function.
+// Value is pre/post condition function name.
+std::unordered_multimap<std::string, std::string> pre_condition_funcs;
+std::unordered_multimap<std::string, std::string> post_condition_funcs;
 
 // Map each translation unit's filename to its pkey.
 static std::map<Filename, Pkey> file_pkeys;
@@ -227,6 +225,35 @@ static bool ignore_function(const clang::Decl &decl,
 static std::string append_name_if_nonempty(const std::string &new_type,
                                            const std::string &name) {
   return new_type + (name.empty() ? "" : " ") + name;
+};
+
+/// Collects in a multimap (`funcs`) all of the function names
+/// with an annotation starting with `prefix`.
+/// The annotation minus the prefix is the key,
+/// and the function name is the value.
+class AnnotationPrefixFunctions : public MatchFinder::MatchCallback {
+
+public:
+  const std::string prefix;
+  /// Key is suffix, value is function name.
+  std::unordered_multimap<std::string, std::string> funcs;
+
+  AnnotationPrefixFunctions(std::string prefix) : prefix(prefix) {}
+
+  void run(const MatchFinder::MatchResult &result) override {
+    if (const auto *func = result.Nodes.getNodeAs<clang::FunctionDecl>("annotatedFunc")) {
+      for (const auto *attr : func->attrs()) {
+        if (const auto *annotate_attr = llvm::dyn_cast<clang::AnnotateAttr>(attr)) {
+          llvm::StringRef annotation = annotate_attr->getAnnotation();
+          if (!annotation.consume_front(prefix)) {
+            continue;
+          }
+          const auto func_name = func->getNameInfo().getName().getAsString();
+          funcs.emplace(annotation, func_name);
+        }
+      }
+    }
+  }
 };
 
 /*
@@ -1138,7 +1165,6 @@ int main(int argc, const char **argv) {
   RootDirectory = RootDirectoryOption;
   OutputDirectory = OutputDirectoryOption;
   OutputPrefix = OutputPrefixOption;
-  enable_dav1d_get_picture_post_condition = EnableDav1dGetPicturePostCondition && Target == Arch::X86;
 
   RefactoringTool tool(options_parser.getCompilations(),
                        options_parser.getSourcePathList());
@@ -1232,6 +1258,22 @@ int main(int argc, const char **argv) {
     llvm::errs() << "Error opening output header file: " << EC.message()
                  << "\n";
     return EC.value();
+  }
+
+  {
+    auto annotation_matcher = functionDecl(hasAttr(clang::attr::Annotate)).bind("annotatedFunc");
+    AnnotationPrefixFunctions pre_condition("pre_condition:");
+    AnnotationPrefixFunctions post_condition("post_condition:");
+    MatchFinder annotation_finder;
+    annotation_finder.addMatcher(annotation_matcher, &pre_condition);
+    annotation_finder.addMatcher(annotation_matcher, &post_condition);
+    const auto rc = tool.run(newFrontendActionFactory(&annotation_finder).get());
+    if (rc != 0) {
+      return rc;
+    }
+
+    pre_condition_funcs = std::move(pre_condition.funcs);
+    post_condition_funcs = std::move(post_condition.funcs);
   }
 
   ASTMatchRefactorer refactorer(tool.getReplacements());

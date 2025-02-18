@@ -11,6 +11,13 @@ void f1(int a, int *b) {
   fprintf(stderr, "post:f1: a = %d, *b = %d\n", a, *b);
 }
 
+IA2_PRE_CONDITION(f1)
+void a_positive(int a, int *b) {
+  if (!(a > 0)) {
+    exit(10);
+  }
+}
+
 IA2_POST_CONDITION(f1)
 void b_eq_10(int a, int *b) {
   if (!(*b == 10)) {

@@ -9,6 +9,13 @@ void f1(int a, int *b) {
   *b = a;
 }
 
+IA2_PRE_CONDITION_FOR(f1)
+void a_positive(int a, int *b) {
+  if (!(a > 0)) {
+    exit(10);
+  }
+}
+
 IA2_POST_CONDITION_FOR(f1)
 void b_eq_10(int a, int *b) {
   if (!(*b == 10)) {

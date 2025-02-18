@@ -1122,20 +1122,28 @@ std::string emit_asm_wrapper(FnSignature sig,
   // Call the pre-condition function for this target function.
   // The calls happens in the caller's compartment.
   // If there are any post-condition functions, save the args for that, too.
-  const auto num_pre_conditions = target_name ? pre_condition_funcs.count(*target_name) : 0;
-  const auto num_post_conditions = target_name ? post_condition_funcs.count(*target_name) : 0;
-  assert(num_pre_conditions <= 1);
-  assert(num_post_conditions <= 1);
-  if (num_post_conditions > 0) {
+  std::vector<std::string_view> pre_conditions;
+  std::vector<std::string_view> post_conditions;
+  if (target_name) {
+    for (auto pre_condition = pre_condition_funcs.find(*target_name); pre_condition != pre_condition_funcs.end(); pre_condition++) {
+      pre_conditions.emplace_back(pre_condition->second);
+    }
+    for (auto post_condition = post_condition_funcs.find(*target_name); post_condition != post_condition_funcs.end(); post_condition++) {
+      post_conditions.emplace_back(post_condition->second);
+    }
+  }
+  assert(pre_conditions.size() <= 1);
+  assert(post_conditions.size() <= 1);
+  if (!post_conditions.empty()) {
     // Args are callee saved, so we need to
     // save them for a later post-condition function
     // (really anything after a single pre-condition function).
     emit_save_args(aw, arch);
   }
-  if (num_pre_conditions > 0) {
+  if (!pre_conditions.empty()) {
     // For a single pre-condition function, the args are already in registers,
     // so no restoring is necessary.
-    emit_condition_fn_call(aw, arch, pre_condition_funcs.find(*target_name)->second, "pre");
+    emit_condition_fn_call(aw, arch, pre_conditions.front(), "pre");
   }
 
   if (arch == Arch::X86) {
@@ -1172,7 +1180,7 @@ std::string emit_asm_wrapper(FnSignature sig,
 
   // Call the post-condition function for this target function.
   // The calls happens in the caller's compartment.
-  if (num_post_conditions > 0) {
+  if (!post_conditions.empty()) {
     // Args are callee saved, so we need to restore them.
     emit_restore_args(aw, arch);
 
@@ -1183,7 +1191,7 @@ std::string emit_asm_wrapper(FnSignature sig,
       // TODO
     }
 
-    emit_condition_fn_call(aw, arch, post_condition_funcs.find(*target_name)->second, "post");
+    emit_condition_fn_call(aw, arch, post_conditions.front(), "post");
 
     add_comment_line(aw, "Revert align stack");
     if (arch == Arch::X86) {

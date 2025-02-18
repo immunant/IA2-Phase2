@@ -88,7 +88,7 @@ int main() {
   // Reverse tests, as the `__attribute__((constructor))` approach with a linked list makes them backwards.
   size_t i = 0;
   for (struct fake_criterion_test *test_info = fake_criterion_tests; test_info; test_info = test_info->next) {
-      i++;
+    i++;
   }
   const size_t num_tests = i;
   struct fake_criterion_test tests[num_tests];
@@ -97,37 +97,55 @@ int main() {
     tests[i] = *test_info;
   }
 
+  // Check test values and merge them (e.x. `signal` and `exit_code`).
   for (i = 0; i < num_tests; i++) {
-    const struct fake_criterion_test *test_info = &tests[i];
-    /* Run a single test without checking exit status if IA2_TEST_NAME is set. */
-    bool single_test = getenv("IA2_TEST_NAME") != NULL;
-    if (single_test) {
-      if (strcmp(test_info->name, getenv("IA2_TEST_NAME")))
-        continue;
-      fprintf(stderr, "running single test alone (exit status will not be checked):\n");
+    struct fake_criterion_test *test = &tests[i];
+    if (test->signal != 0) {
+      // If an expected signal was set, check if it was valid.
+      assert(test->signal > 0 && test->signal < _NSIG);
+      if (test->exit_code != 0) {
+        fprintf(stderr, "can't expect both signal %d (SIG%s) and exit status %d\n",
+                test->signal, sigabbrev_np(test->signal), test->exit_code);
+      }
+      assert(test->exit_code == 0);
+      // Sometimes the signal doesn't show up with `WIFSIGNALED`,
+      // so we check the exit status as well.
+      test->exit_code = 128 + test->signal;
     }
+    if (test->exit_code > 128 && test->exit_code < 128 + _NSIG) {
+      test->signal = test->exit_code - 128;
+    }
+  }
 
-    const int exit_code = test_info->exit_code;
-    fprintf(stderr, "running suite '%s' test '%s', expecting exit code %d",
-            test_info->suite, test_info->name, exit_code);
-    if (exit_code == EXIT_SUCCESS) {
-      fprintf(stderr, " (%s)", STRINGIFY(EXIT_SUCCESS));
-    } else if (exit_code == EXIT_FAILURE) {
-      fprintf(stderr, " (%s)", STRINGIFY(EXIT_FAILURE));
-    } else if (exit_code > 128) {
-      fprintf(stderr, " (SIG%s)", sigabbrev_np(exit_code - 128));
-    } else if (test_info->signal != 0) {
-      // Sometimes the signal doesn't show up with `WIFSIGNALED`, so we check the exit status as well.
-      fprintf(stderr, " (SIG%s)", sigabbrev_np(test_info->signal));
-    }
-    if (test_info->signal != 0) {
-      fprintf(stderr, ", signal (SIG%s)", sigabbrev_np(test_info->signal));
+  // Run a single test without checking exit status if `IA2_TEST_NAME` is set.
+  const char *const single_test_name = getenv("IA2_TEST_NAME");
+
+  for (i = 0; i < num_tests; i++) {
+    const struct fake_criterion_test *test = &tests[i];
+
+    fprintf(stderr, "running suite '%s' test '%s', expecting ", test->suite, test->name);
+    if (test->signal != 0) {
+      fprintf(stderr, "signal %d (SIG%s)", test->signal, sigabbrev_np(test->signal));
+    } else {
+      fprintf(stderr, "exit status %d", test->exit_code);
+      if (test->exit_code == EXIT_SUCCESS) {
+        fprintf(stderr, " (%s)", STRINGIFY(EXIT_SUCCESS));
+      } else if (test->exit_code == EXIT_FAILURE) {
+        fprintf(stderr, " (%s)", STRINGIFY(EXIT_FAILURE));
+      }
     }
     fprintf(stderr, "...\n");
 
+    if (single_test_name) {
+      if (strcmp(test->name, single_test_name) != 0) {
+        continue;
+      }
+      fprintf(stderr, "running single test alone (exit status will not be checked):\n");
+    }
+
     /* Do not fork or check exit status if only running one test. */
     pid_t pid = 0;
-    if (!single_test) {
+    if (!single_test_name) {
       pid = fork();
     }
     bool in_child = pid == 0;
@@ -137,30 +155,50 @@ int main() {
        * not be wrapped. That means the Test macro should not expose function pointer types to
        * rewritten source files (i.e. the test sources).
        */
-      if (test_info->init) {
-        (*test_info->init)();
+      if (test->init) {
+        (*test->init)();
       }
-      (*test_info->test)();
-      return 0;
+      (*test->test)();
+      return EXIT_SUCCESS;
     }
     // otherwise, in parent
-    int stat;
-    pid_t waited_pid = waitpid(pid, &stat, 0);
+    int status;
+    pid_t waited_pid = waitpid(pid, &status, 0);
     if (waited_pid < 0) {
       perror("waitpid");
       return 2;
     }
-    if (WIFSIGNALED(stat) && WTERMSIG(stat) != test_info->signal) {
-      fprintf(stderr, "forked test child was terminated by signal %d\n", WTERMSIG(stat));
-      return 1;
+
+    assert(WIFEXITED(status) ^ WIFSIGNALED(status));
+    if (WIFSIGNALED(status)) {
+      fprintf(stderr, "killed by signal %d (SIG%s)",
+              WTERMSIG(status), sigabbrev_np(WTERMSIG(status)));
+      if (test->signal != 0 && test->signal == WTERMSIG(status)) {
+        fprintf(stderr, ", as expected\n");
+        continue;
+      }
+      if (test->signal != 0) {
+        fprintf(stderr, ", but expected signal %d (SIG%s)\n",
+                test->signal, sigabbrev_np(test->signal));
+      } else {
+        fprintf(stderr, ", but expected exit status %d\n", test->exit_code);
+      }
+      return EXIT_FAILURE;
     }
-    int exit_status = WEXITSTATUS(stat);
-    if (exit_status != test_info->exit_code ||
-        // Sometimes the signal doesn't show up with `WIFSIGNALED`, so we check the exit status as well.
-        (exit_status > 128 && exit_status - 128 == test_info->signal)) {
-      fprintf(stderr, "forked test child exited with status %d, but %d was expected\n", exit_status, test_info->exit_code);
-      return 1;
+    if (WIFEXITED(status)) {
+      fprintf(stderr, "exited with status %d", WEXITSTATUS(status));
+      if (test->exit_code == WEXITSTATUS(status)) {
+        fprintf(stderr, ", as expected\n");
+        continue;
+      }
+      fprintf(stderr, ", but expected exit status %d", test->exit_code);
+      if (test->signal != 0) {
+        fprintf(stderr, " as signal %d (SIG%s)", test->signal, sigabbrev_np(test->signal));
+      }
+      fprintf(stderr, "\n");
+      return EXIT_FAILURE;
     }
   }
-  return 0;
+
+  return EXIT_SUCCESS;
 }

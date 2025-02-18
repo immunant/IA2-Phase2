@@ -972,7 +972,7 @@ std::string emit_asm_wrapper(AbiSignature sig,
 
   size_t indirect_arg_size = 0;
   for (auto &arg : args) {
-    if (arg.is_indirect()) { // Only ever true on AArch64 for now.
+    if (arg.is_indirect()) {         // Only ever true on AArch64 for now.
       assert(arch == Arch::Aarch64); // Let's find out if this ever gets encountered on x86_64.
       size_t align = std::max(arg.align(), (size_t)8);
       if (stack_arg_size % align != 0) {

@@ -6,5 +6,5 @@
 auto determineAbiForDecl(const clang::FunctionDecl &fnDecl, Arch arch) -> AbiSignature;
 
 AbiSignature determineAbiForProtoType(const clang::FunctionProtoType &fpt,
-                                       clang::ASTContext &astContext,
-                                       Arch arch);
+                                      clang::ASTContext &astContext,
+                                      Arch arch);

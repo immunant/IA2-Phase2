@@ -22,9 +22,14 @@
 #define VERBOSE_DEBUG 0
 
 #if VERBOSE_DEBUG
-#define DEBUG(X) do { X; } while (0)
+#define DEBUG(X) \
+  do {           \
+    X;           \
+  } while (0)
 #else
-#define DEBUG(X) do { } while (0)
+#define DEBUG(X) \
+  do {           \
+  } while (0)
 #endif
 
 static ArgLocation classifyScalarType(const llvm::Type &type) {
@@ -104,7 +109,7 @@ abiSlotsForArg(const clang::QualType &qt,
     // We have a scalar type, so classify it.
     return {classifyScalarType(*Ty)};
   }
-  case Kind::Ignore:   // no ABI presence
+  case Kind::Ignore: // no ABI presence
     return {};
   case Kind::InAlloca: // via implicit pointer
     // It looks like inalloca is only valid on Win32
@@ -139,7 +144,7 @@ cgFunctionInfo(clang::CodeGen::CodeGenModule &cgm,
 }
 
 AbiSignature determineAbi(const clang::CodeGen::CGFunctionInfo &info,
-                           const clang::ASTContext &astContext, Arch arch) {
+                          const clang::ASTContext &astContext, Arch arch) {
   // get ABI for return type and each parameter
   AbiSignature sig;
   sig.variadic = info.isVariadic();
@@ -220,7 +225,7 @@ AbiSignature determineAbiForDecl(const clang::FunctionDecl &fnDecl, Arch arch) {
 }
 
 AbiSignature determineAbiForProtoType(const clang::FunctionProtoType &fpt,
-                                       clang::ASTContext &astContext, Arch arch) {
+                                      clang::ASTContext &astContext, Arch arch) {
   // FIXME: This is copied verbatim from determineAbiForDecl and could be
   // factored out. This depends on what we do with PR #78 so I'm leaving it as
   // is for now.

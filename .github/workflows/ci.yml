@@ -70,7 +70,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        build-type: [RelWithDebInfo, Debug]
+        build-type: [RelWithDebInfo]
     steps:
       - name: Install dep packages
         uses: awalsh128/cache-apt-pkgs-action@latest

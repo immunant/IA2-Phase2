@@ -110,5 +110,9 @@ public:
 struct AbiSignature {
   std::vector<ArgLocation> args;
   std::vector<ArgLocation> ret;
+};
+
+struct FnSignature {
+  AbiSignature abi;
   bool variadic;
 };

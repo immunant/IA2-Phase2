@@ -143,11 +143,10 @@ cgFunctionInfo(clang::CodeGen::CodeGenModule &cgm,
   }
 }
 
-AbiSignature determineAbi(const clang::CodeGen::CGFunctionInfo &info,
-                          const clang::ASTContext &astContext, Arch arch) {
+AbiSignature determineAbiSignature(const clang::CodeGen::CGFunctionInfo &info,
+                                   const clang::ASTContext &astContext, Arch arch) {
   // get ABI for return type and each parameter
   AbiSignature sig;
-  sig.variadic = info.isVariadic();
 
   // We want to find the layout of the parameter and return value "slots."
   // We can store a certain number of slots in registers, while the rest
@@ -178,7 +177,15 @@ AbiSignature determineAbi(const clang::CodeGen::CGFunctionInfo &info,
   return sig;
 }
 
-AbiSignature determineAbiForDecl(const clang::FunctionDecl &fnDecl, Arch arch) {
+FnSignature determineFnSignature(const clang::CodeGen::CGFunctionInfo &info,
+                                 const clang::ASTContext &astContext, Arch arch) {
+  return (FnSignature){
+      .abi = determineAbiSignature(info, astContext, arch),
+      .variadic = info.isVariadic(),
+  };
+}
+
+FnSignature determineFnSignatureForDecl(const clang::FunctionDecl &fnDecl, Arch arch) {
   clang::ASTContext &astContext = fnDecl.getASTContext();
 
   // set up context for codegen so we can ask about function ABI
@@ -209,7 +216,7 @@ AbiSignature determineAbiForDecl(const clang::FunctionDecl &fnDecl, Arch arch) {
 
   auto name = fnDecl.getNameInfo().getAsString();
   const auto &info = cgFunctionInfo(cgm, fnDecl);
-  DEBUG(llvm::dbgs() << "determineAbiForDecl: " << name << "\n");
+  DEBUG(llvm::dbgs() << "determineFnSignatureForDecl: " << name << "\n");
 
   const auto &convention = info.getEffectiveCallingConvention();
 
@@ -221,12 +228,12 @@ AbiSignature determineAbiForDecl(const clang::FunctionDecl &fnDecl, Arch arch) {
            info.getASTCallingConvention());
     abort();
   }
-  return determineAbi(info, astContext, arch);
+  return determineFnSignature(info, astContext, arch);
 }
 
-AbiSignature determineAbiForProtoType(const clang::FunctionProtoType &fpt,
-                                      clang::ASTContext &astContext, Arch arch) {
-  // FIXME: This is copied verbatim from determineAbiForDecl and could be
+FnSignature determineFnSignatureForProtoType(const clang::FunctionProtoType &fpt,
+                                             clang::ASTContext &astContext, Arch arch) {
+  // FIXME: This is copied verbatim from determineFnSignatureForDecl and could be
   // factored out. This depends on what we do with PR #78 so I'm leaving it as
   // is for now.
 #if LLVM_VERSION_MAJOR >= 15
@@ -254,5 +261,5 @@ AbiSignature determineAbiForProtoType(const clang::FunctionProtoType &fpt,
       cgm,
       fpt.getCanonicalTypeUnqualified().castAs<clang::FunctionProtoType>());
 
-  return determineAbi(info, astContext, arch);
+  return determineFnSignature(info, astContext, arch);
 }

@@ -7,8 +7,8 @@
 #include "clang/AST/AST.h"
 #pragma GCC diagnostic pop
 
-auto determineAbiForDecl(const clang::FunctionDecl &fnDecl, Arch arch) -> AbiSignature;
+FnSignature determineFnSignatureForDecl(const clang::FunctionDecl &fnDecl, Arch arch);
 
-AbiSignature determineAbiForProtoType(const clang::FunctionProtoType &fpt,
+FnSignature determineFnSignatureForProtoType(const clang::FunctionProtoType &fpt,
                                       clang::ASTContext &astContext,
                                       Arch arch);

@@ -201,3 +201,8 @@ jobs:
             -G Ninja
           ninja -v check
           popd
+      - name: Upload built tests
+        uses: actions/upload-artifact@v4
+        with:
+          name: arm-tests
+          path: tests/

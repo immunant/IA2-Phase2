@@ -958,8 +958,8 @@ static void emit_return(AsmWriter &aw) {
   add_asm_line(aw, "ret");
 }
 
-std::string emit_asm_wrapper(AbiSignature sig,
-                             std::optional<AbiSignature> wrapper_sig,
+std::string emit_asm_wrapper(FnSignature sig,
+                             std::optional<FnSignature> wrapper_sig,
                              const std::string &wrapper_name,
                              const std::optional<std::string> target_name,
                              WrapperKind kind, int caller_pkey, int target_pkey,
@@ -971,17 +971,17 @@ std::string emit_asm_wrapper(AbiSignature sig,
   AsmWriter aw = get_asmwriter(as_macro);
 
   size_t stack_arg_size = 0;
-  auto args = allocate_param_locations(sig, arch, &stack_arg_size);
+  auto args = allocate_param_locations(sig.abi, arch, &stack_arg_size);
   std::optional<std::vector<ArgLocation>> wrapper_args;
   size_t wrapper_stack_arg_size = stack_arg_size;
   if (wrapper_sig) {
-    wrapper_args = {allocate_param_locations(*wrapper_sig, arch, &wrapper_stack_arg_size)};
+    wrapper_args = {allocate_param_locations(wrapper_sig->abi, arch, &wrapper_stack_arg_size)};
   }
   size_t unaligned = stack_arg_size % 8;
   size_t stack_arg_padding = unaligned != 0 ? 8 - unaligned : 0;
 
-  llvm::errs() << "Generating wrapper for " << sig_string(sig, target_name) << "\n";
-  auto rets = allocate_return_locations(sig, arch);
+  llvm::errs() << "Generating wrapper for " << sig_string(sig.abi, target_name) << "\n";
+  auto rets = allocate_return_locations(sig.abi, arch);
 
   // std::stringstream ss;
   // append_arg_kinds(ss, rets);
@@ -1096,7 +1096,7 @@ std::string emit_asm_wrapper(AbiSignature sig,
     stack_alignment = (compartment_stack_space + 8) % 16;
   }
 
-  add_comment_line(aw, "Wrapper for "s + sig_string(sig, target_name) + ":");
+  add_comment_line(aw, "Wrapper for "s + sig_string(sig.abi, target_name) + ":");
   add_asm_line(aw, ".text");
   if (kind != WrapperKind::PointerToStatic) {
     add_asm_line(aw, ".global "s + wrapper_name);

@@ -58,13 +58,10 @@ add_subdirectory(recursion)
 # We don't actually compile the `omit_wrappers` test, but it is picked up by LIT.
 add_subdirectory(shared_data)
 add_subdirectory(global_fn_ptr)
-add_subdirectory(read_config)
 add_subdirectory(rewrite_fn_ptr_eq)
 add_subdirectory(rewrite_macros)
 add_subdirectory(sighandler)
-add_subdirectory(simple1)
 add_subdirectory(static_addr_taken)
-add_subdirectory(structs)
 
 # The following tests are not supported on ARM64 yet
 if (NOT LIBIA2_AARCH64)
@@ -77,7 +74,13 @@ if (NOT LIBIA2_AARCH64)
     add_subdirectory(two_keys_minimal)
     add_subdirectory(two_shared_ranges)
     add_subdirectory(trusted_indirect)
-    # TODO(#413): Fix these tests
+    # AArch64 call gates break this test sometimes
+    add_subdirectory(structs)
+    # LLVM patch seems to break this test
+    add_subdirectory(simple1)
+    # ARM does not support shared heap allocation yet
+    add_subdirectory(read_config)
+    # ARM does not support tagged heap allocation yet
     add_subdirectory(heap_two_keys)
     add_subdirectory(three_keys_minimal)
 

@@ -62,6 +62,7 @@ add_subdirectory(rewrite_fn_ptr_eq)
 add_subdirectory(rewrite_macros)
 add_subdirectory(sighandler)
 add_subdirectory(static_addr_taken)
+add_subdirectory(structs)
 add_subdirectory(read_config)
 add_subdirectory(heap_two_keys)
 add_subdirectory(three_keys_minimal)
@@ -77,8 +78,6 @@ if (NOT LIBIA2_AARCH64)
     add_subdirectory(two_keys_minimal)
     add_subdirectory(two_shared_ranges)
     add_subdirectory(trusted_indirect)
-    # AArch64 call gates break this test sometimes
-    add_subdirectory(structs)
     # LLVM patch seems to break this test
     add_subdirectory(simple1)
 

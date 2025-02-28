@@ -10,4 +10,4 @@ enum trace_mode {
   TRACE_MODE_PTRACE_SYSCALL,
 };
 
-bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode);
+bool track_memory_map(pid_t pid, int *wait_stawtus_out, enum trace_mode mode);

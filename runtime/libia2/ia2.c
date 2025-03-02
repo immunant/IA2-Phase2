@@ -1,6 +1,7 @@
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
+#include <libunwind.h>
 #include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
@@ -507,3 +508,27 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
   // library
   return 0;
 }
+
+#if IA2_DEBUG
+void ia2_print_backtrace(void) {
+    unw_cursor_t cursor;
+    unw_context_t uc;
+    unw_word_t pc;
+
+    unw_getcontext(&uc);
+    unw_init_local(&cursor, &uc);
+    int i = 0;
+    while (unw_step(&cursor) > 0) {
+        unw_get_reg(&cursor, UNW_REG_IP, &pc);
+        Dl_info dlinf = {0};
+        bool found = dladdr((void *)pc, &dlinf) != 0;
+        if (found) {
+            fprintf(stderr, "#%d %p in %s ()\n", i++, (void *)pc, dlinf.dli_sname);
+        } else {
+            fprintf(stderr, "#%d %p ()\n", i++, (void *)pc);
+        }
+    }
+    fflush(stderr);
+    _exit(-1);
+}
+#endif

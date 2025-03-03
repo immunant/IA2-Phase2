@@ -1,3 +1,5 @@
+#pragma once
+
 #if IA2_ENABLE
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE // for SIG* macro

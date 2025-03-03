@@ -1,3 +1,5 @@
+#pragma once
+
 #define ATTR __attribute__((hot))
 #define UNUSED __attribute__((unused))
 #define EMPTY

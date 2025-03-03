@@ -18,28 +18,46 @@ INIT_RUNTIME(1);
 
 #define EPSILON 0.0001f
 
-#define check_close_float(name, val) \
-  { cr_assert_lt(fabs(name(s) - (val)), EPSILON); }
-#define check_field_float(name, val) \
-  { cr_assert_lt(fabs(s.name - (val)), EPSILON); }
+#define check_close_float(name, val)              \
+  {                                               \
+    cr_assert_lt(fabs(name(s) - (val)), EPSILON); \
+  }
+#define check_field_float(name, val)             \
+  {                                              \
+    cr_assert_lt(fabs(s.name - (val)), EPSILON); \
+  }
 
 #define check_eq_int(name, val) \
-  { cr_assert(name(s) == val); }
+  {                             \
+    cr_assert(name(s) == val);  \
+  }
 #define check_field_int(name, val) \
-  { cr_assert(s.name == val); }
+  {                                \
+    cr_assert(s.name == val);      \
+  }
 
-#define check_eq_size(name, val) \
-  { cr_assert(name(s) == (size_t)val); }
-#define check_field_size(name, val) \
-  { cr_assert(s.name == (size_t)val); }
+#define check_eq_size(name, val)       \
+  {                                    \
+    cr_assert(name(s) == (size_t)val); \
+  }
+#define check_field_size(name, val)   \
+  {                                   \
+    cr_assert(s.name == (size_t)val); \
+  }
 
-#define check_field_ptr(name, val) \
-  { cr_assert(s.name == (void *)val); }
+#define check_field_ptr(name, val)    \
+  {                                   \
+    cr_assert(s.name == (void *)val); \
+  }
 
-#define check_eq_i128(name, val) \
-  { cr_assert(name(s) == (__int128)val); }
-#define check_field_i128(name, val) \
-  { cr_assert(s.name == (__int128)val); }
+#define check_eq_i128(name, val)         \
+  {                                      \
+    cr_assert(name(s) == (__int128)val); \
+  }
+#define check_field_i128(name, val)     \
+  {                                     \
+    cr_assert(s.name == (__int128)val); \
+  }
 
 Test(structs, main) {
   /* For each struct, test passing it to functions, returning it from functions

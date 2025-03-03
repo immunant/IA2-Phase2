@@ -10,7 +10,6 @@ RUN: sh -c 'if [ ! -s "threads_call_gates_0.ld" ]; then echo "No link args as ex
 #include <string.h>
 #include <sys/wait.h>
 
-
 #include <unistd.h>
 
 INIT_RUNTIME(1);
@@ -57,7 +56,7 @@ void *access_ptr_thread_fn(void *ptr) {
   int *x = (int *)ptr;
   cr_log_info("c1t3 accessing c1t1 thread-local: %d\n", *x);
   cr_log_info("c2t3 accessing c1t1 thread-local: %d\n",
-         CHECK_VIOLATION(library_access_int_ptr(x)));
+              CHECK_VIOLATION(library_access_int_ptr(x)));
   return NULL;
 }
 

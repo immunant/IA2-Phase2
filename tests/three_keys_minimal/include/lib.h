@@ -1,3 +1,5 @@
+#pragma once
+
 #define DECLARE_LIB(lib_num, other_lib)                    \
     void lib_##lib_num##_noop(void);                       \
     void lib_##lib_num##_call_lib_##other_lib(void);       \

@@ -1,3 +1,5 @@
+#pragma once
+
 #include "clang/AST/AST.h"
 #include <string>
 

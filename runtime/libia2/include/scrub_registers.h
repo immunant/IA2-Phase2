@@ -1,3 +1,5 @@
+#pragma once
+
 #if defined(__x86_64__)
 // This file defines the feature specific scrub routines.
 //

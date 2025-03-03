@@ -110,5 +110,22 @@ public:
 struct AbiSignature {
   std::vector<ArgLocation> args;
   std::vector<ArgLocation> ret;
+};
+
+struct Param {
+  std::string name;
+  std::string type_name;
+  std::string canonical_type_name;
+  uint32_t type_id;
+};
+
+struct ApiSignature {
+  std::vector<Param> args;
+  Param ret;
+};
+
+struct FnSignature {
+  AbiSignature abi;
+  ApiSignature api;
   bool variadic;
 };

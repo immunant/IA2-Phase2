@@ -3,11 +3,9 @@ RUN: sh -c 'if [ ! -s "ro_sharing_call_gates_0.ld" ]; then echo "No link args as
 */
 #include <ia2_test_runner.h>
 
-#include <plugin.h>
 #include <ia2.h>
+#include <plugin.h>
 #include <stdio.h>
-
-
 
 // This test checks that all RO data mapped in from executable files is shared.
 // This is needed so that the dynamic linker can read ELF metadata. Read-only

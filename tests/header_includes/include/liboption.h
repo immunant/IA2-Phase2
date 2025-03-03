@@ -1,6 +1,6 @@
 #pragma once
-#include "types.h"
 #include "impl.h"
+#include "types.h"
 
 Option Some(int x);
 

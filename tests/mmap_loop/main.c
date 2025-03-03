@@ -4,12 +4,9 @@ RUN: sh -c 'if [ ! -s "mmap_loop_call_gates_0.ld" ]; then echo "No link args as 
 #include "mmap_loop.h"
 #include <assert.h>
 #include <ia2.h>
+#include <ia2_test_runner.h>
 #include <math.h>
 #include <stdio.h>
-#include <ia2_test_runner.h>
-
-
-
 
 /*
     This program tests that mmap and heap allocations are handled properly.

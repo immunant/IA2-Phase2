@@ -29,7 +29,16 @@ target_link_options(libia2
         "-Wl,-z,relro"
 )
 
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+set(CARGO_PROFILE "dev")
+set(CARGO_PROFILE_DIR "debug")
+else()
+set(CARGO_PROFILE "release")
+set(CARGO_PROFILE_DIR "release")
+endif()
+
 target_link_libraries(libia2 PRIVATE dl)
+target_link_libraries(libia2 PRIVATE type-registry)
 
 target_include_directories(libia2 PUBLIC include)
 target_compile_definitions(libia2 PUBLIC _GNU_SOURCE)

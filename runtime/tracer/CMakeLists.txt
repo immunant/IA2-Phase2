@@ -9,15 +9,23 @@ set(CARGO_TARGET_FLAG "")
 set(CARGO_ARCH_SUFFIX "")
 endif()
 
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+set(CARGO_PROFILE "dev")
+set(CARGO_PROFILE_DIR "debug")
+else()
+set(CARGO_PROFILE "release")
+set(CARGO_PROFILE_DIR "release")
+endif()
+
 add_custom_command(
-  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${CARGO_ARCH_SUFFIX}/release/libmemory_map.so
-  COMMAND CARGO_TARGET_DIR=${CMAKE_CURRENT_BINARY_DIR} cargo build ${CARGO_TARGET_FLAG} --manifest-path ${CMAKE_CURRENT_SOURCE_DIR}/memory-map/Cargo.toml --release
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${CARGO_ARCH_SUFFIX}/${CARGO_PROFILE_DIR}/libmemory_map.so
+  COMMAND CARGO_TARGET_DIR=${CMAKE_CURRENT_BINARY_DIR} cargo build ${CARGO_TARGET_FLAG} --manifest-path ${CMAKE_CURRENT_SOURCE_DIR}/memory-map/Cargo.toml --profile ${CARGO_PROFILE}
   DEPENDS memory-map/Cargo.toml memory-map/src/lib.rs
 )
 
 add_library(memory-map STATIC IMPORTED)
-set_property(TARGET memory-map PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_BINARY_DIR}/${CARGO_ARCH_SUFFIX}/release/libmemory_map.so)
-add_custom_target(memory-map-tgt DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${CARGO_ARCH_SUFFIX}/release/libmemory_map.so)
+set_property(TARGET memory-map PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_BINARY_DIR}/${CARGO_ARCH_SUFFIX}/${CARGO_PROFILE_DIR}/libmemory_map.so)
+add_custom_target(memory-map-tgt DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${CARGO_ARCH_SUFFIX}/${CARGO_PROFILE_DIR}/libmemory_map.so)
 add_dependencies(memory-map memory-map-tgt)
 
 if(LIBIA2_X86_64)

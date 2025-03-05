@@ -292,19 +292,19 @@ function(add_ia2_call_gates NAME)
     set(ARCH_FLAG "--arch=aarch64")
   else()
     set(SYSROOT_FLAG
-        --extra-arg=-isystem "--extra-arg=${CLANG_HEADERS_INCLUDE}"
-        --extra-arg=-isystem "--extra-arg=${CLANG_HEADERS_INCLUDE_FIXED}")
+      --extra-arg -isystem --extra-arg "${CLANG_HEADERS_INCLUDE}"
+      --extra-arg -isystem --extra-arg "${CLANG_HEADERS_INCLUDE_FIXED}")
   endif()
   add_custom_command(
     OUTPUT ${CALL_GATE_SRC} ${CALL_GATE_HDR}
            ${LD_ARGS_FILES} ${OBJCOPY_ARGS_FILES} ${REWRITTEN_SOURCES}
     COMMAND ${CMAKE_BINARY_DIR}/tools/rewriter/ia2-rewriter
-        --output-prefix=${REWRITER_OUTPUT_PREFIX}
-        --root-directory=${CMAKE_CURRENT_SOURCE_DIR}
-        --output-directory=${CMAKE_CURRENT_BINARY_DIR}
+        --output-prefix ${REWRITER_OUTPUT_PREFIX}
+        --root-directory ${CMAKE_CURRENT_SOURCE_DIR}
+        --output-directory ${CMAKE_CURRENT_BINARY_DIR}
         ${ARCH_FLAG}
         # Set the build path so the rewriter can find the compile_commands JSON
-        -p=${CMAKE_BINARY_DIR}
+        -p ${CMAKE_BINARY_DIR}
         ${SYSROOT_FLAG}
         ${ARG_EXTRA_REWRITER_ARGS}
         ${SOURCES}

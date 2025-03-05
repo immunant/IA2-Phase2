@@ -1202,6 +1202,8 @@ int main(int argc, const char **argv) {
   auto get_commands = [&](std::string &s) -> std::optional<std::vector<CompileCommand>> {
     // getCompileCommands returns bogus results instead of nothing for files not
     // present in the compile_commands.json, so filter them out explicitly
+    // See JSONCompilationDatabasePlugin which is documented in LLVM as "also infers
+    // compile commands for files not present in the database"
     if (!all_files_set.contains(s)) {
       return std::nullopt;
     }

@@ -20,6 +20,8 @@ jobs:
         ia2-debug: [ON, OFF]
         ia2-tracer: [ON, OFF]
     steps:
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
       - name: Check out code
         uses: actions/checkout@v4
       - name: Build
@@ -72,6 +74,10 @@ jobs:
       matrix:
         build-type: [RelWithDebInfo]
     steps:
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          target: aarch64-unknown-linux-gnu
       - name: Install dep packages
         uses: awalsh128/cache-apt-pkgs-action@latest
         with:

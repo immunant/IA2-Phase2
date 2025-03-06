@@ -30,7 +30,7 @@ impl Debug for PtrAddr {
 /// This can be anything, as long as it's unique for a type in a program.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(transparent)]
-pub struct TypeId(usize);
+pub struct TypeId(u32);
 
 impl Display for TypeId {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
@@ -47,19 +47,19 @@ impl Debug for TypeId {
 static GLOBAL_TYPE_REGISTRY: LazyLock<TypeRegistry> = LazyLock::new(TypeRegistry::default);
 
 /// See [`TypeRegistry::construct`].
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C-unwind" fn ia2_type_registry_construct(ptr: Ptr, type_id: TypeId) {
     GLOBAL_TYPE_REGISTRY.construct(ptr, type_id);
 }
 
 /// See [`TypeRegistry::destruct`].
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C-unwind" fn ia2_type_registry_destruct(ptr: Ptr, expected_type_id: TypeId) {
     GLOBAL_TYPE_REGISTRY.destruct(ptr, expected_type_id);
 }
 
 /// See [`TypeRegistry::check`].
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C-unwind" fn ia2_type_registry_check(ptr: Ptr, expected_type_id: TypeId) {
     GLOBAL_TYPE_REGISTRY.check(ptr, expected_type_id);
 }
@@ -75,6 +75,7 @@ impl TypeRegistry {
     /// Panics if `ptr` is already constructed.
     #[track_caller]
     pub fn construct(&self, ptr: Ptr, type_id: TypeId) {
+        eprintln!("construct({ptr:?}, {type_id}): {:?}", self.map.read().unwrap());
         let ptr = PtrAddr(ptr.addr());
         let guard = &mut *self.map.write().unwrap();
         let prev_type_id = guard.insert(ptr, type_id);
@@ -86,6 +87,7 @@ impl TypeRegistry {
     /// Panics if `ptr` has a different type.
     #[track_caller]
     pub fn destruct(&self, ptr: Ptr, expected_type_id: TypeId) {
+        eprintln!("destruct({ptr:?}, {expected_type_id}): {:?}", self.map.read().unwrap());
         let ptr = PtrAddr(ptr.addr());
         let guard = &mut *self.map.write().unwrap();
         let type_id = guard.remove(&ptr);
@@ -97,6 +99,7 @@ impl TypeRegistry {
     /// Panics if `ptr` is not registered or has a different type.
     #[track_caller]
     pub fn check(&self, ptr: Ptr, expected_type_id: TypeId) {
+        eprintln!("check({ptr:?}, {expected_type_id}): {:?}", self.map.read().unwrap());
         let ptr = PtrAddr(ptr.addr());
         let guard = &*self.map.read().unwrap();
         let type_id = guard.get(&ptr).copied();

@@ -177,7 +177,7 @@ AbiSignature determineAbiSignature(const clang::CodeGen::CGFunctionInfo &info,
   return sig;
 }
 
-AbiSignature determineAbiSignatureForDecl(const clang::FunctionDecl &fnDecl, Arch arch) {
+AbiSignature determineAbiSignatureForDecl(Context& ctx, const clang::FunctionDecl &fnDecl, Arch arch) {
   clang::ASTContext &astContext = fnDecl.getASTContext();
 
   // set up context for codegen so we can ask about function ABI
@@ -223,7 +223,7 @@ AbiSignature determineAbiSignatureForDecl(const clang::FunctionDecl &fnDecl, Arc
   return determineAbiSignature(info, astContext, arch);
 }
 
-AbiSignature determineAbiSignatureForProtoType(const clang::FunctionProtoType &fpt,
+AbiSignature determineAbiSignatureForProtoType(Context& ctx, const clang::FunctionProtoType &fpt,
                                                clang::ASTContext &astContext, Arch arch) {
   // FIXME: This is copied verbatim from determineAbiSignatureForDecl and could be
   // factored out. This depends on what we do with PR #78 so I'm leaving it as
@@ -256,70 +256,62 @@ AbiSignature determineAbiSignatureForProtoType(const clang::FunctionProtoType &f
   return determineAbiSignature(info, astContext, arch);
 }
 
-// Not thread safe.
-std::unordered_map<std::string, uint32_t> type_ids;
-
-uint32_t get_type_id(clang::QualType type) {
-  auto canonical_name = type.getCanonicalType().getAsString();
-  // Constructs the default value, 0, if the key doesn't exist yet.
-  auto type_id = type_ids[canonical_name];
-  if (type_id == 0) {
-    type_id = type_ids.size() + 1;
-    type_ids[canonical_name] = type_id;
+ApiSignature determineApiSignatureForDecl(Context& ctx, const clang::FunctionDecl &fn_decl) {
+  std::vector<Param> args;
+  for (auto param_ptr : fn_decl.parameters()) {
+    auto &param = *param_ptr;
+    args.emplace_back((Param){
+        .name = param.getNameAsString(),
+        .type = ctx.types.intern(param.getOriginalType()),
+    });
   }
-  return type_id;
-}
 
-Param determineParam(std::string name, clang::QualType type) {
-  return (Param) {
-      .name = name,
-      .type_name = type.getAsString(),
-      .canonical_type_name = type.getCanonicalType().getAsString(),
-      .type_id = get_type_id(type),
+  const auto ret = (Param){
+      .name = "return",
+      .type = ctx.types.intern(fn_decl.getReturnType()),
+  };
+
+  return (ApiSignature){
+      .args = args,
+      .ret = ret,
   };
 }
 
-ApiSignature determineApiSignatureForDecl(const clang::FunctionDecl &fn_decl) {
-  ApiSignature api;
-
-  for (auto param_ptr : fn_decl.parameters()) {
-    auto &param = *param_ptr;
-    api.args.emplace_back(determineParam(param.getNameAsString(), param.getOriginalType()));
-  }
-
-  auto ret = fn_decl.getReturnType();
-  api.ret = determineParam("return", fn_decl.getReturnType());
-
-  return api;
-}
-
-ApiSignature determineApiSignatureForProtoType(const clang::FunctionProtoType &fpt,
+ApiSignature determineApiSignatureForProtoType(Context& ctx, const clang::FunctionProtoType &fpt,
                                                clang::ASTContext &astContext) {
-  ApiSignature api;
-
+  std::vector<Param> args;
   auto i = 0;
   for (auto param_type : fpt.param_types()) {
     auto name = "arg_" + std::to_string(i++);
-    api.args.emplace_back(determineParam(name, param_type));
+    args.emplace_back((Param){
+        .name = name,
+        .type = ctx.types.intern(param_type),
+    });
   }
-  api.ret = determineParam("return", fpt.getReturnType());
+  const auto ret = (Param){
+      .name = "return",
+      .type = ctx.types.intern(fpt.getReturnType()),
+  };
 
-  return api;
+  return (ApiSignature) {
+    .args = args,
+    .ret = ret,
+  };
 }
 
-FnSignature determineFnSignatureForDecl(const clang::FunctionDecl &fnDecl, Arch arch) {
+FnSignature determineFnSignatureForDecl(Context& ctx, const clang::FunctionDecl &fnDecl, Arch arch) {
   return (FnSignature){
-      .abi = determineAbiSignatureForDecl(fnDecl, arch),
-      .api = determineApiSignatureForDecl(fnDecl),
+      .abi = determineAbiSignatureForDecl(ctx, fnDecl, arch),
+      .api = determineApiSignatureForDecl(ctx, fnDecl),
       .variadic = fnDecl.isVariadic(),
   };
 }
 
-FnSignature determineFnSignatureForProtoType(const clang::FunctionProtoType &fpt,
+FnSignature determineFnSignatureForProtoType(Context& ctx, const clang::FunctionProtoType &fpt,
                                              clang::ASTContext &astContext, Arch arch) {
   return (FnSignature){
-      .abi = determineAbiSignatureForProtoType(fpt, astContext, arch),
-      .api = determineApiSignatureForProtoType(fpt, astContext),
+      .abi = determineAbiSignatureForProtoType(ctx, fpt, astContext, arch),
+      .api = determineApiSignatureForProtoType(ctx, fpt, astContext),
       .variadic = fpt.isVariadic(),
   };
 }

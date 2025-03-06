@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+#include "TypeOps.h"
+
 class ArgLocation {
 public:
   enum class Kind {
@@ -114,9 +116,7 @@ struct AbiSignature {
 
 struct Param {
   std::string name;
-  std::string type_name;
-  std::string canonical_type_name;
-  uint32_t type_id;
+  TypeId type;
 };
 
 struct ApiSignature {

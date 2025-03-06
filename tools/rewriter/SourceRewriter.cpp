@@ -1,3 +1,4 @@
+#include "Context.h"
 #include "DetermineAbi.h"
 #include "GenCallAsm.h"
 #include "TypeOps.h"
@@ -102,11 +103,6 @@ static Arch Target;
 static std::string RootDirectory;
 static std::string OutputDirectory;
 static std::string OutputPrefix;
-
-// Key is target function.
-// Value is pre/post condition function name.
-std::unordered_multimap<std::string, std::string> pre_condition_funcs;
-std::unordered_multimap<std::string, std::string> post_condition_funcs;
 
 // Map each translation unit's filename to its pkey.
 static std::map<Filename, Pkey> file_pkeys;
@@ -250,6 +246,53 @@ public:
           }
           const auto func_name = func->getNameInfo().getName().getAsString();
           funcs.emplace(annotation, func_name);
+        }
+      }
+    }
+  }
+};
+
+/// Finds all constructors (`IA2_CONSTRUCTOR`) and destructors (`IA2_DESTRUCTOR`),
+/// checks that the signature matches `void f(T*)`,
+/// interns the type `T`, and sets its {con,de}structor.
+class Structors : public MatchFinder::MatchCallback {
+
+private:
+  TypeInfoInterner &types;
+
+public:
+  Structors(TypeInfoInterner &types) : types(types) {}
+
+  void run(const MatchFinder::MatchResult &result) override {
+    if (const auto *func = result.Nodes.getNodeAs<clang::FunctionDecl>("annotatedFunc")) {
+      for (const auto *attr : func->attrs()) {
+        if (const auto *annotate_attr = llvm::dyn_cast<clang::AnnotateAttr>(attr)) {
+          llvm::StringRef annotation = annotate_attr->getAnnotation();
+          const auto is_constructor = annotation == "constructor";
+          const auto is_destructor = annotation == "destructor";
+          assert(!(is_constructor && is_destructor)); // TODO better error message
+          if (!(is_constructor || is_destructor)) {
+            continue;
+          }
+          const auto func_name = func->getNameInfo().getName().getAsString();
+          const auto &params = func->parameters();
+          if (is_constructor) {
+            assert(params.size() >= 1); // TODO better error message
+          }
+          if (is_destructor) {
+            assert(params.size() == 1); // TODO better error message
+          }
+          // Should be `T*`.
+          const auto type = params[0]->getOriginalType();
+          assert(type.getTypePtr()->isPointerType());
+          auto &info = types.get(types.intern(type));
+          llvm::errs() << "fn " << func_name << "\n";
+          if (is_constructor) {
+            info.set_constructor(func_name);
+          }
+          if (is_destructor) {
+            info.set_destructor(func_name);
+          }
         }
       }
     }
@@ -502,9 +545,9 @@ private:
  */
 class FnPtrCall : public RefactoringCallback {
 public:
-  FnPtrCall(ASTMatchRefactorer &refactorer,
+  FnPtrCall(Context &ctx, ASTMatchRefactorer &refactorer,
             std::map<std::string, Replacements> &file_replacements)
-      : file_replacements(file_replacements) {
+      : ctx(ctx), file_replacements(file_replacements) {
     // Initialize the function pointer signature ID counter
     id_counter = 0;
 
@@ -520,6 +563,7 @@ public:
 
     refactorer.addMatcher(fn_ptr_call, this);
   }
+
   virtual void run(const MatchFinder::MatchResult &result) {
     auto *fn_ptr_expr = result.Nodes.getNodeAs<clang::Expr>("fnPtrExpr");
     assert(fn_ptr_expr != nullptr);
@@ -567,8 +611,8 @@ public:
 
       auto expr_ty_str = wrap_fn_ptr_ty.getAsString();
 
-      auto sig = determineFnSignatureForProtoType(*dest_fn_ty, ctxt, Target);
-      auto wrapper_sig = determineFnSignatureForProtoType(*wrap_fn_prototype, ctxt, Target);
+      auto sig = determineFnSignatureForProtoType(ctx, *dest_fn_ty, ctxt, Target);
+      auto wrapper_sig = determineFnSignatureForProtoType(ctx, *wrap_fn_prototype, ctxt, Target);
 
       auto res = fn_ptr_info.emplace(mangled_ty, FnPtrInfo({expr_ty_str, sig, wrapper_sig}));
       info = res.first;
@@ -635,6 +679,8 @@ public:
   std::map<OpaqueStruct, FnPtrInfo> fn_ptr_info;
 
 private:
+  Context &ctx;
+
   std::map<std::string, Replacements> &file_replacements;
   int id_counter;
 };
@@ -914,8 +960,8 @@ private:
  */
 class FnDecl : public RefactoringCallback {
 public:
-  FnDecl(ASTMatchRefactorer &refactorer,
-         std::map<std::string, Replacements> &replacements) {
+  FnDecl(Context &ctx, ASTMatchRefactorer &refactorer,
+         std::map<std::string, Replacements> &replacements) : ctx(ctx) {
     DeclarationMatcher fn_def_matcher =
         functionDecl(isDefinition()).bind("DefinedFunction");
     DeclarationMatcher fn_decl_matcher =
@@ -969,8 +1015,8 @@ public:
       return;
     }
 
-    FnSignature fn_sig = determineFnSignatureForDecl(*fn_node, Target);
-    fn_signatures[fn_name] = fn_sig;
+    FnSignature fn_sig = determineFnSignatureForDecl(ctx, *fn_node, Target);
+    fn_signatures.insert({fn_name, fn_sig});
 
     // Get the translation unit's filename to figure out the pkey
     Pkey pkey = get_file_pkey(sm);
@@ -985,6 +1031,8 @@ public:
       declared_fns[pkey].insert(fn_name);
     }
   }
+
+  Context &ctx;
 
   std::set<Function> defined_fns[MAX_PKEYS];
   std::set<Function> declared_fns[MAX_PKEYS];
@@ -1260,27 +1308,39 @@ int main(int argc, const char **argv) {
     return EC.value();
   }
 
+  Context ctx;
+
   {
     auto annotation_matcher = functionDecl(hasAttr(clang::attr::Annotate)).bind("annotatedFunc");
     AnnotationPrefixFunctions pre_condition("pre_condition:");
     AnnotationPrefixFunctions post_condition("post_condition:");
+    Structors structors(ctx.types);
     MatchFinder annotation_finder;
     annotation_finder.addMatcher(annotation_matcher, &pre_condition);
     annotation_finder.addMatcher(annotation_matcher, &post_condition);
+    annotation_finder.addMatcher(annotation_matcher, &structors);
     const auto rc = tool.run(newFrontendActionFactory(&annotation_finder).get());
     if (rc != 0) {
       return rc;
     }
 
-    pre_condition_funcs = std::move(pre_condition.funcs);
-    post_condition_funcs = std::move(post_condition.funcs);
+    ctx.pre_condition_funcs = std::move(pre_condition.funcs);
+    ctx.post_condition_funcs = std::move(post_condition.funcs);
+    ctx.types.check();
+    for (const auto& type : ctx.types) {
+      if (!type.has_structors()) {
+        continue;
+      }
+      ctx.constructors[*type.constructor] = type.id;
+      ctx.destructors[*type.destructor] = type.id;
+    }
   }
 
   ASTMatchRefactorer refactorer(tool.getReplacements());
-  FnDecl fn_decl_pass(refactorer, tool.getReplacements());
+  FnDecl fn_decl_pass(ctx, refactorer, tool.getReplacements());
   FnPtrTypes ptr_types_pass(refactorer, tool.getReplacements());
   FnPtrExpr ptr_expr_pass(refactorer, tool.getReplacements());
-  FnPtrCall ptr_call_pass(refactorer, tool.getReplacements());
+  FnPtrCall ptr_call_pass(ctx, refactorer, tool.getReplacements());
   FnPtrNull null_ptr_pass(refactorer, tool.getReplacements());
   FnPtrEq eq_ptr_pass(refactorer, tool.getReplacements());
 
@@ -1314,7 +1374,7 @@ int main(int argc, const char **argv) {
                                  std::to_string(caller_pkey);
 
       std::string asm_wrapper =
-          emit_asm_wrapper(info.sig, {info.wrapper_sig}, wrapper_name, std::nullopt,
+          emit_asm_wrapper(ctx, info.sig, {info.wrapper_sig}, wrapper_name, std::nullopt,
                            WrapperKind::IndirectCallsite, caller_pkey, 0, Target);
       wrapper_out << asm_wrapper;
 
@@ -1405,13 +1465,14 @@ int main(int argc, const char **argv) {
       // original entries in these maps for the renamed symbols. While we could
       // avoid this duplication if necessary, this simplifies the call gate
       // generation.
-      FnSignature fn_sig;
-      try {
-        fn_sig = fn_decl_pass.fn_signatures.at(fn_name);
-      } catch (std::out_of_range const &exc) {
-        llvm::errs() << "ABI signature not known for function " << fn_name << "\n";
-        abort();
-      }
+      FnSignature fn_sig = [&]() {
+        try {
+          return fn_decl_pass.fn_signatures.at(fn_name);
+        } catch (std::out_of_range const &exc) {
+          llvm::errs() << "ABI signature not known for function " << fn_name << "\n";
+          abort();
+        }
+      }();
       fn_decl_pass.fn_signatures.insert({new_fn_name, fn_sig});
 
       Pkey pkey;
@@ -1433,14 +1494,15 @@ int main(int argc, const char **argv) {
   // At this point direct_call_wrappers has both single-caller and multicaller
   // functions so we just need to generate the callgates
   for (const auto &[fn_name, caller_pkey] : direct_call_wrappers) {
-    FnSignature fn_sig;
-    try {
-      fn_sig = fn_decl_pass.fn_signatures.at(fn_name);
-    } catch (std::out_of_range const &exc) {
-      llvm::errs() << "C ABI signature for function " << fn_name.c_str()
-                   << " not found by FnDecl pass\n";
-      abort();
-    }
+    FnSignature fn_sig = [&]() {
+      try {
+        return fn_decl_pass.fn_signatures.at(fn_name);
+      } catch (std::out_of_range const &exc) {
+        llvm::errs() << "C ABI signature for function " << fn_name.c_str()
+                     << " not found by FnDecl pass\n";
+        abort();
+      }
+    }();
     std::string wrapper_name = "__wrap_"s + fn_name;
     // The target function just matches the callgate name without the leading
     // __wrap_ unless it's a multicaller function in which case we check the
@@ -1459,7 +1521,7 @@ int main(int argc, const char **argv) {
       continue;
     }
     std::string asm_wrapper =
-        emit_asm_wrapper(fn_sig, std::nullopt, wrapper_name, target_fn,
+        emit_asm_wrapper(ctx, fn_sig, std::nullopt, wrapper_name, target_fn,
                          WrapperKind::Direct, caller_pkey, target_pkey, Target);
     wrapper_out << asm_wrapper;
 
@@ -1469,17 +1531,18 @@ int main(int argc, const char **argv) {
   // Create wrapper for compartment destructor
   for (int compartment_pkey = 1; compartment_pkey < num_pkeys; compartment_pkey++) {
     std::string fn_name = "ia2_compartment_destructor_" + std::to_string(compartment_pkey);
-    FnSignature fn_sig;
-    try {
-      fn_sig = fn_decl_pass.fn_signatures.at(fn_name);
-    } catch (std::out_of_range const &exc) {
-      llvm::errs() << "Could not find ia2_compartment_destructor_" << compartment_pkey << '\n'
-                   << "Make sure to #include ia2_compartment_init.inc for this compartment\n";
-      abort();
-    }
+    FnSignature fn_sig = [&]() {
+      try {
+        return fn_decl_pass.fn_signatures.at(fn_name);
+      } catch (std::out_of_range const &exc) {
+        llvm::errs() << "Could not find ia2_compartment_destructor_" << compartment_pkey << '\n'
+                     << "Make sure to #include ia2_compartment_init.inc for this compartment\n";
+        abort();
+      }
+    }();
     std::string wrapper_name = "__wrap_"s + fn_name;
     std::string asm_wrapper =
-        emit_asm_wrapper(fn_sig, std::nullopt, wrapper_name, fn_name, WrapperKind::Direct,
+        emit_asm_wrapper(ctx, fn_sig, std::nullopt, wrapper_name, fn_name, WrapperKind::Direct,
                          0, compartment_pkey, Target);
     wrapper_out << asm_wrapper;
 
@@ -1514,9 +1577,9 @@ int main(int argc, const char **argv) {
 
     Pkey target_pkey = fn_decl_pass.fn_pkeys[fn_name];
     if (target_pkey != 0) {
-      FnSignature fn_sig = fn_decl_pass.fn_signatures[fn_name];
+      FnSignature fn_sig = fn_decl_pass.fn_signatures.at(fn_name);
       std::string asm_wrapper =
-          emit_asm_wrapper(fn_sig, std::nullopt, wrapper_name, fn_name,
+          emit_asm_wrapper(ctx, fn_sig, std::nullopt, wrapper_name, fn_name,
                            WrapperKind::Pointer, 0, target_pkey, Target,
                            true /* as_macro */);
       macros_defining_wrappers += "#define IA2_DEFINE_WRAPPER_"s + fn_name + " \\\n";
@@ -1555,10 +1618,10 @@ int main(int argc, const char **argv) {
       // also has pkey 0 then it just needs call the original function
       Pkey target_pkey = fn_decl_pass.fn_pkeys[fn_name];
       if (target_pkey != 0) {
-        FnSignature fn_sig = fn_decl_pass.fn_signatures[fn_name];
+        FnSignature fn_sig = fn_decl_pass.fn_signatures.at(fn_name);
 
         std::string asm_wrapper = emit_asm_wrapper(
-            fn_sig, std::nullopt, wrapper_name, fn_name, WrapperKind::PointerToStatic, 0,
+            ctx, fn_sig, std::nullopt, wrapper_name, fn_name, WrapperKind::PointerToStatic, 0,
             target_pkey, Target, true /* as_macro */);
         macros_defining_wrappers += "#define IA2_DEFINE_WRAPPER_"s + fn_name + " \\\n";
         macros_defining_wrappers += asm_wrapper;

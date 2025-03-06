@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "CAbi.h"
+#include "Context.h"
 #include "GenCallAsm.h"
 
 using namespace std::string_literals;
@@ -958,12 +959,13 @@ static void emit_return(AsmWriter &aw) {
   add_asm_line(aw, "ret");
 }
 
-std::string emit_asm_wrapper(FnSignature sig,
-                             std::optional<FnSignature> wrapper_sig,
-                             const std::string &wrapper_name,
-                             const std::optional<std::string> target_name,
-                             WrapperKind kind, int caller_pkey, int target_pkey,
-                             Arch arch, bool as_macro) {
+std::string emit_asm_wrapper(
+    Context &ctx, FnSignature sig,
+    std::optional<FnSignature> wrapper_sig,
+    const std::string &wrapper_name,
+    const std::optional<std::string> target_name,
+    WrapperKind kind, int caller_pkey, int target_pkey,
+    Arch arch, bool as_macro) {
 
   // Small sanity check
   assert(caller_pkey != target_pkey);
@@ -1109,16 +1111,70 @@ std::string emit_asm_wrapper(FnSignature sig,
 
   emit_prologue(aw, caller_pkey, target_pkey, arch);
 
+  // Check types that have (both) {con,de}structors.
+  // Check types in the type registry.
+  // If the function is itself a constructor or destructor,
+  // call `ia2_type_registry_{con,de}struct`.
+  // Otherwise, go through all of the args,
+  // and if they have (both) {con,de}structors
+  // and are one of the 6 x86 register args,
+  // call `ia2_type_registry_check`.
+  // TODO make x86 only
+  std::string_view ia2_type_registry_fn_kind;
+  std::string ia2_type_registry_fn_name;
+  std::vector<size_t> arg_indices_to_check;
+  if (target_name) {
+    if (ctx.constructors.find(*target_name) != ctx.constructors.end()) {
+      ia2_type_registry_fn_kind = "construct";
+      arg_indices_to_check.emplace_back(0);
+    } else if (ctx.destructors.find(*target_name) != ctx.destructors.end()) {
+      ia2_type_registry_fn_kind = "destruct";
+      arg_indices_to_check.emplace_back(0);
+    } else {
+      ia2_type_registry_fn_kind = "check";
+      for (auto i = 0; i < sig.api.args.size(); i++) {
+        const auto &arg = sig.api.args[i];
+        const auto &type = ctx.types.get(arg.type);
+        if (!type.has_structors()) {
+          continue;
+        }
+        if (i >= x86_int_param_reg_order.size()) {
+          llvm::errs() << "skipping checking type " << type.canonical_name << " type ID " << type.id << " for arg #" << i << " of function " << *target_name << "\n";
+          continue;
+        }
+        arg_indices_to_check.emplace_back(i);
+      }
+    }
+    ia2_type_registry_fn_name = llvm::formatv("ia2_type_registry_{0}", ia2_type_registry_fn_kind);
+  }
+
+  if (!arg_indices_to_check.empty()) {
+    emit_save_args(aw, arch);
+    add_asm_line(aw, "subq $8, %rsp"); // Align stack
+    for (const auto i : arg_indices_to_check) {
+      const auto &arg = sig.api.args[i];
+      const auto &type = ctx.types.get(arg.type);
+      add_comment_line(aw, llvm::formatv("{0}ing type {1}, type ID {2}, arg #{3}", ia2_type_registry_fn_kind, type.canonical_name, type.id, i));
+      // `ia2_type_registry_*` arg 0 is a ptr of type `T*` from arg i.
+      add_asm_line(aw, llvm::formatv("movq {0}(%rsp), %{1}", 8 + 8 * (x86_int_param_reg_order.size() - 1 - i), x86_int_param_reg_order[0]));
+      // `ia2_type_registry_*` arg 1 is the `TypeId`.
+      add_asm_line(aw, llvm::formatv("movq ${0}, %{1}", type.id, x86_int_param_reg_order[1]));
+      emit_direct_call(aw, arch, ia2_type_registry_fn_name);
+    }
+    add_asm_line(aw, "addq $8, %rsp"); // Unalign stack
+    emit_restore_args(aw, arch, /* pop */ true);
+  }
+
   // Call the pre-condition functions for this target function.
   // The calls happens in the caller's compartment.
   // If there are any post-condition functions, save the args for that, too.
   std::vector<std::string_view> pre_conditions;
   std::vector<std::string_view> post_conditions;
   if (target_name) {
-    for (auto pre_condition = pre_condition_funcs.find(*target_name); pre_condition != pre_condition_funcs.end(); pre_condition++) {
+    for (auto pre_condition = ctx.pre_condition_funcs.find(*target_name); pre_condition != ctx.pre_condition_funcs.end(); pre_condition++) {
       pre_conditions.emplace_back(pre_condition->second);
     }
-    for (auto post_condition = post_condition_funcs.find(*target_name); post_condition != post_condition_funcs.end(); post_condition++) {
+    for (auto post_condition = ctx.post_condition_funcs.find(*target_name); post_condition != ctx.post_condition_funcs.end(); post_condition++) {
       post_conditions.emplace_back(post_condition->second);
     }
   }
@@ -1128,6 +1184,7 @@ std::string emit_asm_wrapper(FnSignature sig,
     // (anything after a single pre-condition function).
     emit_save_args(aw, arch);
   }
+
   for (auto i = 0; i < pre_conditions.size(); i++) {
     const auto pre_condition = pre_conditions[i];
     // First call already has args in registers,
@@ -1183,7 +1240,6 @@ std::string emit_asm_wrapper(FnSignature sig,
     // unless this is the last condition.
     const bool pop = i == post_conditions.size() - 1;
     emit_restore_args(aw, arch, pop);
-    
     add_comment_line(aw, "Align stack");
     if (arch == Arch::X86) {
       add_asm_line(aw, "subq $8, %rsp");

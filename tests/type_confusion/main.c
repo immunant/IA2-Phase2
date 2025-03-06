@@ -14,22 +14,32 @@ INIT_RUNTIME(2);
 #define IA2_COMPARTMENT 1
 #include <ia2_compartment_init.inc>
 
-Dav1dContext *c IA2_SHARED_DATA;
+Dav1dContext c IA2_SHARED_DATA;
 Dav1dSettings settings IA2_SHARED_DATA;
 Dav1dPicture pic IA2_SHARED_DATA;
 Dav1dContext c2 IA2_SHARED_DATA;
 
 Test(type_confusion, normal) {
+  fprintf(stderr, "&c = %p\n", &c);
+  fprintf(stderr, "&settings = %p\n", &settings);
+  fprintf(stderr, "&pic = %p\n", &pic);
   dav1d_open(&c, &settings);
-  dav1d_get_picture(c, &pic);
+  dav1d_get_picture(&c, &pic);
   dav1d_close(&c);
 }
 
 Test(type_confusion, type_confusion,
-     //  .signal = SIGABRT, // TODO turn on once type confusion checking is working
-) {
+     .signal = SIGABRT, ) {
   dav1d_open(&c, &settings);
   // Try to use another `Dav1dContext` that hasn't been constructed/opened yet.
   dav1d_get_picture(&c2, &pic);
+  dav1d_close(&c);
+}
+
+Test(type_confusion, type_confusion_2,
+     .signal = SIGABRT, ) {
+  dav1d_open(&c, &settings);
+  // Try to use another `Dav1dContext` that hasn't been constructed/opened yet.
+  dav1d_get_picture((Dav1dContext *)&pic, &pic);
   dav1d_close(&c);
 }

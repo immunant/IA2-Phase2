@@ -9,7 +9,7 @@
 
 struct video_decoder;
 
-typedef void (*video_decoder_frame_callback_t)(AVFrame*, void*);
+typedef void (*video_decoder_frame_callback_t)(AVFrame *, void *);
 
 struct video_decoder *video_decoder_init(const char *file_data,
                                          size_t file_size);

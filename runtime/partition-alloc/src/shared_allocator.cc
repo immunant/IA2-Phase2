@@ -27,8 +27,8 @@ SHIM_ALWAYS_EXPORT void *shared_calloc(size_t n, size_t size) __THROW {
   const size_t total =
       partition_alloc::internal::base::CheckMul(n, size).ValueOrDie();
   return allocator_shim::internal::PartitionAllocMalloc::SharedAllocator()
-      ->AllocInline<partition_alloc::AllocFlags::kZeroFill |
-                    partition_alloc::AllocFlags::kNoHooks>(total);
+                 ->AllocInline < partition_alloc::AllocFlags::kZeroFill |
+         partition_alloc::AllocFlags::kNoHooks > (total);
 }
 
 SHIM_ALWAYS_EXPORT void *shared_memalign(size_t alignment, size_t size) __THROW {
@@ -56,7 +56,7 @@ SHIM_ALWAYS_EXPORT void *shared_memalign(size_t alignment, size_t size) __THROW 
     // TODO(bartekn): See if the compiler optimizes branches down the stack on
     // Mac, where PartitionPageSize() isn't constexpr.
     return allocator_shim::internal::PartitionAllocMalloc::SharedAllocator()
-      ->AllocInline<partition_alloc::AllocFlags::kNoHooks>(size);
+        ->AllocInline<partition_alloc::AllocFlags::kNoHooks>(size);
   }
 
   return allocator_shim::internal::PartitionAllocMalloc::SharedAllocator()

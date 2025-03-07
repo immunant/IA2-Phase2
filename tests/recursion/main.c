@@ -8,8 +8,6 @@ RUN: cat recursion_call_gates_2.ld | FileCheck --check-prefix=LINKARGS %s
 #include <ia2.h>
 #include <stdio.h>
 
-
-
 INIT_RUNTIME(2);
 #define IA2_COMPARTMENT 1
 #include <ia2_compartment_init.inc>

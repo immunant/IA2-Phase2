@@ -88,7 +88,7 @@ int main() {
   // Reverse tests, as the `__attribute__((constructor))` approach with a linked list makes them backwards.
   size_t i = 0;
   for (struct fake_criterion_test *test_info = fake_criterion_tests; test_info; test_info = test_info->next) {
-      i++;
+    i++;
   }
   const size_t num_tests = i;
   struct fake_criterion_test tests[num_tests];

@@ -143,11 +143,10 @@ cgFunctionInfo(clang::CodeGen::CodeGenModule &cgm,
   }
 }
 
-AbiSignature determineAbi(const clang::CodeGen::CGFunctionInfo &info,
-                          const clang::ASTContext &astContext, Arch arch) {
+AbiSignature determineAbiSignature(const clang::CodeGen::CGFunctionInfo &info,
+                                   const clang::ASTContext &astContext, Arch arch) {
   // get ABI for return type and each parameter
   AbiSignature sig;
-  sig.variadic = info.isVariadic();
 
   // We want to find the layout of the parameter and return value "slots."
   // We can store a certain number of slots in registers, while the rest
@@ -178,7 +177,7 @@ AbiSignature determineAbi(const clang::CodeGen::CGFunctionInfo &info,
   return sig;
 }
 
-AbiSignature determineAbiForDecl(const clang::FunctionDecl &fnDecl, Arch arch) {
+AbiSignature determineAbiSignatureForDecl(const clang::FunctionDecl &fnDecl, Arch arch) {
   clang::ASTContext &astContext = fnDecl.getASTContext();
 
   // set up context for codegen so we can ask about function ABI
@@ -209,7 +208,7 @@ AbiSignature determineAbiForDecl(const clang::FunctionDecl &fnDecl, Arch arch) {
 
   auto name = fnDecl.getNameInfo().getAsString();
   const auto &info = cgFunctionInfo(cgm, fnDecl);
-  DEBUG(llvm::dbgs() << "determineAbiForDecl: " << name << "\n");
+  DEBUG(llvm::dbgs() << "determineAbiSignatureForDecl: " << name << "\n");
 
   const auto &convention = info.getEffectiveCallingConvention();
 
@@ -221,12 +220,12 @@ AbiSignature determineAbiForDecl(const clang::FunctionDecl &fnDecl, Arch arch) {
            info.getASTCallingConvention());
     abort();
   }
-  return determineAbi(info, astContext, arch);
+  return determineAbiSignature(info, astContext, arch);
 }
 
-AbiSignature determineAbiForProtoType(const clang::FunctionProtoType &fpt,
-                                      clang::ASTContext &astContext, Arch arch) {
-  // FIXME: This is copied verbatim from determineAbiForDecl and could be
+AbiSignature determineAbiSignatureForProtoType(const clang::FunctionProtoType &fpt,
+                                               clang::ASTContext &astContext, Arch arch) {
+  // FIXME: This is copied verbatim from determineAbiSignatureForDecl and could be
   // factored out. This depends on what we do with PR #78 so I'm leaving it as
   // is for now.
 #if LLVM_VERSION_MAJOR >= 15
@@ -254,5 +253,73 @@ AbiSignature determineAbiForProtoType(const clang::FunctionProtoType &fpt,
       cgm,
       fpt.getCanonicalTypeUnqualified().castAs<clang::FunctionProtoType>());
 
-  return determineAbi(info, astContext, arch);
+  return determineAbiSignature(info, astContext, arch);
+}
+
+// Not thread safe.
+std::unordered_map<std::string, uint32_t> type_ids;
+
+uint32_t get_type_id(clang::QualType type) {
+  auto canonical_name = type.getCanonicalType().getAsString();
+  // Constructs the default value, 0, if the key doesn't exist yet.
+  auto type_id = type_ids[canonical_name];
+  if (type_id == 0) {
+    type_id = type_ids.size() + 1;
+    type_ids[canonical_name] = type_id;
+  }
+  return type_id;
+}
+
+Param determineParam(std::string name, clang::QualType type) {
+  return (Param) {
+      .name = name,
+      .type_name = type.getAsString(),
+      .canonical_type_name = type.getCanonicalType().getAsString(),
+      .type_id = get_type_id(type),
+  };
+}
+
+ApiSignature determineApiSignatureForDecl(const clang::FunctionDecl &fn_decl) {
+  ApiSignature api;
+
+  for (auto param_ptr : fn_decl.parameters()) {
+    auto &param = *param_ptr;
+    api.args.emplace_back(determineParam(param.getNameAsString(), param.getOriginalType()));
+  }
+
+  auto ret = fn_decl.getReturnType();
+  api.ret = determineParam("return", fn_decl.getReturnType());
+
+  return api;
+}
+
+ApiSignature determineApiSignatureForProtoType(const clang::FunctionProtoType &fpt,
+                                               clang::ASTContext &astContext) {
+  ApiSignature api;
+
+  auto i = 0;
+  for (auto param_type : fpt.param_types()) {
+    auto name = "arg_" + std::to_string(i++);
+    api.args.emplace_back(determineParam(name, param_type));
+  }
+  api.ret = determineParam("return", fpt.getReturnType());
+
+  return api;
+}
+
+FnSignature determineFnSignatureForDecl(const clang::FunctionDecl &fnDecl, Arch arch) {
+  return (FnSignature){
+      .abi = determineAbiSignatureForDecl(fnDecl, arch),
+      .api = determineApiSignatureForDecl(fnDecl),
+      .variadic = fnDecl.isVariadic(),
+  };
+}
+
+FnSignature determineFnSignatureForProtoType(const clang::FunctionProtoType &fpt,
+                                             clang::ASTContext &astContext, Arch arch) {
+  return (FnSignature){
+      .abi = determineAbiSignatureForProtoType(fpt, astContext, arch),
+      .api = determineApiSignatureForProtoType(fpt, astContext),
+      .variadic = fpt.isVariadic(),
+  };
 }

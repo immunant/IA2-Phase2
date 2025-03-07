@@ -256,7 +256,6 @@ asm(".macro movz_shifted_tag_x18 tag\n"
         : "rax"(stack)                                                         \
         : "rdi", "rcx", "rdx", "r10", "r11", "r12");                           \
   }
-/* clang-format on */
 #elif defined(__aarch64__)
 #warning "ALLOCATE_COMPARTMENT_STACK_AND_SETUP_TLS does not do stackptr reinit checking"
 #define ALLOCATE_COMPARTMENT_STACK_AND_SETUP_TLS(i)                            \
@@ -322,6 +321,7 @@ asm(".macro movz_shifted_tag_x18 tag\n"
     return out;                                                                \
   }
 #endif
+/* clang-format on */
 
 #define declare_init_tls_fn(n) __attribute__((visibility("default"))) void init_tls_##n(void);
 #define setup_destructors_for_compartment(n)                                   \

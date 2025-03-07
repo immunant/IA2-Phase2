@@ -32,7 +32,14 @@
 
 #define IA2_END_NO_WRAP _Pragma("clang attribute pop");
 
+/// Mark the annotated function as a pre-condition function for `target_func`.
+///
+/// It will be called with the first 6 arguments of `target_func` before `target_func` is called.
 #define IA2_PRE_CONDITION(target_func) __attribute__((annotate("pre_condition:" #target_func)))
+
+/// Mark the annotated function as a post-condition function for `target_func`.
+///
+/// It will be called with the first 6 arguments of `target_func` after `target_func` is called.
 #define IA2_POST_CONDITION(target_func) __attribute__((annotate("post_condition:" #target_func)))
 
 #if !IA2_ENABLE

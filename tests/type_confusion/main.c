@@ -25,11 +25,38 @@ Test(type_confusion, normal) {
   dav1d_close(&c);
 }
 
-Test(type_confusion, type_confusion,
+Test(type_confusion, uninitialized,
      //  .signal = SIGABRT, // TODO turn on once type confusion checking is working
 ) {
   dav1d_open(&c, &settings);
   // Try to use another `Dav1dContext` that hasn't been constructed/opened yet.
   dav1d_get_picture(&c2, &pic);
   dav1d_close(&c);
+}
+
+Test(type_confusion, wrong_type,
+     //  .signal = SIGABRT, // TODO turn on once type confusion checking is working
+) {
+  dav1d_open(&c, &settings);
+  // Try to use another type (`Dav1dPicture`) instead.
+  dav1d_get_picture((Dav1dContext *)&pic, &pic);
+  dav1d_close(&c);
+}
+
+Test(type_confusion, null,
+     //  .signal = SIGABRT, // TODO turn on once type confusion checking is working
+) {
+  dav1d_open(&c, &settings);
+  // Try to `NULL`.
+  dav1d_get_picture(NULL, &pic);
+  dav1d_close(&c);
+}
+
+Test(type_confusion, use_after_free,
+     //  .signal = SIGABRT, // TODO turn on once type confusion checking is working
+) {
+  dav1d_open(&c, &settings);
+  dav1d_close(&c);
+  // Try to use an already destructed `Dav1dContext`.
+  dav1d_get_picture(c, &pic);
 }

@@ -97,4 +97,5 @@ if (NOT LIBIA2_AARCH64)
 
     add_subdirectory(post_condition)
     add_subdirectory(type_confusion)
+    add_subdirectory(pre_post_condition)
 endif()

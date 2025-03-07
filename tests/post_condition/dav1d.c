@@ -20,7 +20,7 @@ int dav1d_get_picture(Dav1dContext *const c, Dav1dPicture *const out) {
   return 0;
 }
 
-IA2_POST_CONDITION(dav1d_get_picture)
+IA2_POST_CONDITION_FOR(dav1d_get_picture)
 void dav1d_get_picture_post_condition(Dav1dContext *const c, Dav1dPicture *const out) {
   cr_log_info("dav1d_get_picture post condition ran");
   if (out->stride[0] < 0) {

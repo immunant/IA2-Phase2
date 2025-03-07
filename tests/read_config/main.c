@@ -15,8 +15,6 @@ RUN: cat main.c | FileCheck --match-full-lines --check-prefix=REWRITER %s
 // including plugin.h (which does include the output header) before core.h.
 #include "core.h"
 
-
-
 /*
     This test is modeled after nginx's function pointer usage. In this test,
     plugins define a list of options that may appear in its section of the

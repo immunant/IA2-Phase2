@@ -1,17 +1,14 @@
 #include "ia2_internal.h"
 #include "lib_1/lib_1.h"
 #include "lib_2/lib_2.h"
-#include <ia2_test_runner.h>
 #include <ia2.h>
+#include <ia2_test_runner.h>
 
 INIT_RUNTIME(3);
 #define IA2_COMPARTMENT 1
 #include <ia2_allocator.h>
 #include <ia2_compartment_init.inc>
 #include <threads.h>
-
-
-
 
 void main_noop(void) {
 }

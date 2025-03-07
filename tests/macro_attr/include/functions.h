@@ -16,6 +16,8 @@ void h(CB cb);
 
 EMPTY void i();
 
-EMPTY_FNLIKE(0) void j();
+EMPTY_FNLIKE(0)
+void j();
 
-EMPTY_VARIADIC_FNLIKE(1, 2) void k();
+EMPTY_VARIADIC_FNLIKE(1, 2)
+void k();

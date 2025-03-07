@@ -34,8 +34,8 @@ struct dl_phdr_info;
 /* Supress unused warning */
 #define __IA2_UNUSED __attribute__((__unused__))
 
-#define __IA2_CALL(opaque, id, pkey, ...)                                      \
-  ({                                                                           \
+#define __IA2_CALL(opaque, id, pkey, ...)                                                      \
+  ({                                                                                           \
     ((IA2_TYPE_##id) & __ia2_indirect_callgate_##id##_pkey_##pkey)(opaque.ptr, ##__VA_ARGS__); \
   })
 #define _IA2_CALL(opaque, id, pkey, ...) __IA2_CALL(opaque, id, pkey, ##__VA_ARGS__)
@@ -75,8 +75,8 @@ struct dl_phdr_info;
 #define REPEATB15(fn, basefn, ...) fn(15, ##__VA_ARGS__) REPEATB14(fn, basefn, ##__VA_ARGS__)
 /* clang-format on */
 
-/* 
- * REPEATB(n, fn, basefn, ...) 
+/*
+ * REPEATB(n, fn, basefn, ...)
  * REPEATB_REV(n, basefn, fn, ...)
  *
  * Macro to repeatedly apply a function or function-like macro `fn` a given
@@ -198,7 +198,7 @@ asm(".macro movz_shifted_tag_x18 tag\n"
 #define PTRS_PER_PAGE (PAGE_SIZE / sizeof(void *))
 #define IA2_MAX_THREADS (PTRS_PER_PAGE)
 
-#define IA2_ROUND_DOWN(x, y) ((x) & ~((y)-1))
+#define IA2_ROUND_DOWN(x, y) ((x) & ~((y) - 1))
 
 #if defined(__x86_64__)
 /* clang-format can't handle inline asm in macros */
@@ -251,7 +251,6 @@ asm(".macro movz_shifted_tag_x18 tag\n"
         : "rax"(stack)                                                         \
         : "rdi", "rcx", "rdx", "r10", "r11", "r12");                           \
   }
-/* clang-format on */
 #elif defined(__aarch64__)
 #warning "ALLOCATE_COMPARTMENT_STACK_AND_SETUP_TLS does not do stackptr reinit checking"
 #define ALLOCATE_COMPARTMENT_STACK_AND_SETUP_TLS(i)                            \
@@ -289,18 +288,19 @@ asm(".macro movz_shifted_tag_x18 tag\n"
     );                                                                         \
   }
 #endif
+/* clang-format on */
 
 #if defined(__x86_64__)
-#define return_stackptr_if_compartment(compartment)                            \
-  if (pkru == PKRU(compartment)) {                                             \
-    register void *out asm("rax");                                             \
-    __asm__ volatile(                                                          \
-        "mov %%fs:(0), %%rax\n"                                                \
-        "addq ia2_stackptr_" #compartment "@GOTTPOFF(%%rip), %%rax\n"          \
-        : "=a"(out)                                                            \
-        :                                                                      \
-        :);                                                                    \
-    return out;                                                                \
+#define return_stackptr_if_compartment(compartment)                   \
+  if (pkru == PKRU(compartment)) {                                    \
+    register void *out asm("rax");                                    \
+    __asm__ volatile(                                                 \
+        "mov %%fs:(0), %%rax\n"                                       \
+        "addq ia2_stackptr_" #compartment "@GOTTPOFF(%%rip), %%rax\n" \
+        : "=a"(out)                                                   \
+        :                                                             \
+        :);                                                           \
+    return out;                                                       \
   }
 #elif defined(__aarch64__)
 #warning "libia2 does not implement return_stackptr_if_compartment yet"
@@ -316,7 +316,7 @@ works as a reasonable signpost no-op. */
 
 #define declare_init_tls_fn(n) __attribute__((visibility("default"))) void init_tls_##n(void);
 #define setup_destructors_for_compartment(n)                                   \
-  __attribute__((visibility("default"))) void ia2_setup_destructors_##n(void);                                        \
+  __attribute__((visibility("default"))) void ia2_setup_destructors_##n(void); \
   ia2_setup_destructors_##n();
 
 #if defined(__aarch64__)
@@ -408,32 +408,32 @@ __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
 #endif
 /* clang-format on */
 
-#define _IA2_INIT_RUNTIME(n)                                                   \
-  __attribute__((visibility("default"))) int ia2_n_pkeys_to_alloc = n;                                                \
-  __attribute__((visibility("default"))) __thread void *ia2_stackptr_0[PAGE_SIZE / sizeof(void *)]                    \
-      __attribute__((aligned(4096)));                                          \
-                                                                               \
-  REPEATB(n, declare_init_tls_fn, nop_macro);                                  \
-                                                                               \
-  /* Returns `&ia2_stackptr_N` given a pkru value for the Nth compartment. */  \
-  __attribute__((visibility("default"))) void **ia2_stackptr_for_pkru(uint32_t pkru) {                                \
-    REPEATB(n, return_stackptr_if_compartment,                                 \
-            return_stackptr_if_compartment);                                   \
-    return NULL;                                                               \
-  }                                                                            \
-                                                                               \
-  __attribute__((visibility("default"))) __attribute__((weak)) void init_stacks_and_setup_tls(void) {                 \
-    verify_tls_padding();                                                      \
+#define _IA2_INIT_RUNTIME(n)                                                                          \
+  __attribute__((visibility("default"))) int ia2_n_pkeys_to_alloc = n;                                \
+  __attribute__((visibility("default"))) __thread void *ia2_stackptr_0[PAGE_SIZE / sizeof(void *)]    \
+      __attribute__((aligned(4096)));                                                                 \
+                                                                                                      \
+  REPEATB(n, declare_init_tls_fn, nop_macro);                                                         \
+                                                                                                      \
+  /* Returns `&ia2_stackptr_N` given a pkru value for the Nth compartment. */                         \
+  __attribute__((visibility("default"))) void **ia2_stackptr_for_pkru(uint32_t pkru) {                \
+    REPEATB(n, return_stackptr_if_compartment,                                                        \
+            return_stackptr_if_compartment);                                                          \
+    return NULL;                                                                                      \
+  }                                                                                                   \
+                                                                                                      \
+  __attribute__((visibility("default"))) __attribute__((weak)) void init_stacks_and_setup_tls(void) { \
+    verify_tls_padding();                                                                             \
     COMPARTMENT_SAVE_AND_RESTORE(REPEATB(n, ALLOCATE_COMPARTMENT_STACK_AND_SETUP_TLS, nop_macro), n); \
-    /* allocate an unprotected stack for the untrusted compartment */          \
-    allocate_stack_0();                                     \
-  }                                                                            \
-                                                                               \
-  __attribute__((constructor)) static void ia2_init(void) {                    \
-    /* Set up global resources. */                                             \
-    ia2_set_up_tags(&ia2_n_pkeys_to_alloc);                                    \
-    /* Initialize stacks for the main thread/ */                               \
-    init_stacks_and_setup_tls();                                               \
-    REPEATB##n(setup_destructors_for_compartment, nop_macro);                  \
-    mark_init_finished();                                                      \
+    /* allocate an unprotected stack for the untrusted compartment */                                 \
+    allocate_stack_0();                                                                               \
+  }                                                                                                   \
+                                                                                                      \
+  __attribute__((constructor)) static void ia2_init(void) {                                           \
+    /* Set up global resources. */                                                                    \
+    ia2_set_up_tags(&ia2_n_pkeys_to_alloc);                                                           \
+    /* Initialize stacks for the main thread/ */                                                      \
+    init_stacks_and_setup_tls();                                                                      \
+    REPEATB##n(setup_destructors_for_compartment, nop_macro);                                         \
+    mark_init_finished();                                                                             \
   }

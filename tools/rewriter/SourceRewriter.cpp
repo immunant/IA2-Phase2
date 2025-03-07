@@ -571,16 +571,16 @@ public:
 
     std::string new_expr =
         "IA2_CALL("s + old_callee.str() + ", " + mangled_ty;
-    
+
     for (auto const &arg : fn_ptr_call->arguments()) {
       new_expr += ", " + clang::Lexer::getSourceText(
-          clang::CharSourceRange::getTokenRange(arg->getSourceRange()), sm,
-          ctxt.getLangOpts())
-                     .str();
+                             clang::CharSourceRange::getTokenRange(arg->getSourceRange()), sm,
+                             ctxt.getLangOpts())
+                             .str();
     }
     new_expr += ")";
 
-    auto char_range = 
+    auto char_range =
         clang::CharSourceRange::getTokenRange(fn_ptr_call->getSourceRange());
 
     if (in_macro_expansion(char_range.getBegin(), sm)) {

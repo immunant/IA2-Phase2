@@ -342,9 +342,10 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
       uint64_t after_untrusted_region_start = untrusted_stackptr_addr + 0x1000;
       uint64_t after_untrusted_region_len = end - after_untrusted_region_start;
       if (after_untrusted_region_len > 0) {
-        int mprotect_err = ia2_mprotect_with_tag((void *)after_untrusted_region_start,
-                                                 after_untrusted_region_len,
-                                                 PROT_READ | PROT_WRITE, pkey);
+        int mprotect_err = ia2_mprotect_with_tag(
+          (void *)after_untrusted_region_start,
+          after_untrusted_region_len,
+          PROT_READ | PROT_WRITE, pkey);
         if (mprotect_err != 0) {
           printf("ia2_mprotect_with_tag failed: %s\n", strerror(errno));
           exit(-1);
@@ -357,8 +358,9 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
       }
     } else {
       int mprotect_err =
-          ia2_mprotect_with_tag((void *)start_round_down, len_round_up,
-                                PROT_READ | PROT_WRITE, pkey);
+          ia2_mprotect_with_tag(
+            (void *)start_round_down, len_round_up,
+            PROT_READ | PROT_WRITE, pkey);
       if (mprotect_err != 0) {
         printf("ia2_mprotect_with_tag failed: %s\n", strerror(errno));
         exit(-1);
@@ -512,8 +514,9 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
         }
         // TODO: Inline ia2_mprotect_with_tag call and make sure the pkey is in a
         // register here so we can disallow calls to the libc function
-        int mprotect_err = ia2_mprotect_with_tag((void *)start, cur_end - start,
-                                         access_flags, (int)search_args->pkey);
+        int mprotect_err = ia2_mprotect_with_tag(
+          (void *)start, cur_end - start,
+          access_flags, (int)search_args->pkey);
         if (mprotect_err != 0) {
           printf("ia2_mprotect_with_tag failed: %s\n", strerror(errno));
           exit(-1);

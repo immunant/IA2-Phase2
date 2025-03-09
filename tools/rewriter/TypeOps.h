@@ -12,3 +12,5 @@ std::string replace_type_placeholder(std::string s, const std::string &with);
 
 std::string mangle_type(clang::ASTContext &ctx, const clang::QualType &ty);
 std::string mangle_name(const clang::FunctionDecl *decl);
+
+typedef uint32_t TypeId;

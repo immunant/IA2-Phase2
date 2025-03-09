@@ -1,5 +1,7 @@
 #pragma once
 
+#include "TypeOps.h"
+
 #include <string>
 #include <unordered_map>
 
@@ -12,5 +14,5 @@ public:
 
   /// Key is canonical type name.
   /// Value is type ID.
-  std::unordered_map<std::string, uint32_t> type_ids;
+  std::unordered_map<std::string, TypeId> type_ids;
 };

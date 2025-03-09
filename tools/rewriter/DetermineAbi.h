@@ -7,8 +7,12 @@
 #include "clang/AST/AST.h"
 #pragma GCC diagnostic pop
 
-FnSignature determineFnSignatureForDecl(const clang::FunctionDecl &fnDecl, Arch arch);
+FnSignature determineFnSignatureForDecl(
+    Context &ctx, const clang::FunctionDecl &fnDecl,
+    Arch arch);
 
-FnSignature determineFnSignatureForProtoType(const clang::FunctionProtoType &fpt,
-                                      clang::ASTContext &astContext,
-                                      Arch arch);
+FnSignature determineFnSignatureForProtoType(
+    Context &ctx,
+    const clang::FunctionProtoType &fpt,
+    clang::ASTContext &astContext,
+    Arch arch);

@@ -11,11 +11,12 @@ list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
 include(AddLLVM)
 
 add_executable(ia2-rewriter
+    Context.cpp
     DetermineAbi.cpp
     GenCallAsm.cpp
     SourceRewriter.cpp
     TypeOps.cpp
-    )
+)
 
 set_target_properties(ia2-rewriter PROPERTIES
     CXX_STANDARD 20

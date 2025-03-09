@@ -265,26 +265,23 @@ AbiSignature determineAbiSignatureForProtoType(
   return determineAbiSignature(ctx, info, astContext, arch);
 }
 
-// Not thread safe.
-std::unordered_map<std::string, uint32_t> type_ids;
-
-uint32_t get_type_id(clang::QualType type) {
+uint32_t get_type_id(Context& ctx, clang::QualType type) {
   auto canonical_name = type.getCanonicalType().getAsString();
   // Constructs the default value, 0, if the key doesn't exist yet.
-  auto type_id = type_ids[canonical_name];
+  auto type_id = ctx.type_ids[canonical_name];
   if (type_id == 0) {
-    type_id = type_ids.size() + 1;
-    type_ids[canonical_name] = type_id;
+    type_id = ctx.type_ids.size() + 1;
+    ctx.type_ids[canonical_name] = type_id;
   }
   return type_id;
 }
 
-Param determineParam(std::string name, clang::QualType type) {
+Param determineParam(Context& ctx, std::string name, clang::QualType type) {
   return (Param){
       .name = name,
       .type_name = type.getAsString(),
       .canonical_type_name = type.getCanonicalType().getAsString(),
-      .type_id = get_type_id(type),
+      .type_id = get_type_id(ctx, type),
   };
 }
 
@@ -295,10 +292,10 @@ ApiSignature determineApiSignatureForDecl(
 
   for (auto param_ptr : fn_decl.parameters()) {
     auto &param = *param_ptr;
-    api.args.emplace_back(determineParam(param.getNameAsString(), param.getOriginalType()));
+    api.args.emplace_back(determineParam(ctx, param.getNameAsString(), param.getOriginalType()));
   }
 
-  api.ret = determineParam("return", fn_decl.getReturnType());
+  api.ret = determineParam(ctx, "return", fn_decl.getReturnType());
 
   return api;
 }
@@ -312,9 +309,9 @@ ApiSignature determineApiSignatureForProtoType(
   auto i = 0;
   for (auto param_type : fpt.param_types()) {
     auto name = "arg_" + std::to_string(i++);
-    api.args.emplace_back(determineParam(name, param_type));
+    api.args.emplace_back(determineParam(ctx, name, param_type));
   }
-  api.ret = determineParam("return", fpt.getReturnType());
+  api.ret = determineParam(ctx, "return", fpt.getReturnType());
 
   return api;
 }

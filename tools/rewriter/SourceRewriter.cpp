@@ -104,11 +104,6 @@ static std::string RootDirectory;
 static std::string OutputDirectory;
 static std::string OutputPrefix;
 
-// Key is target function.
-// Value is pre/post condition function name.
-std::unordered_multimap<std::string, std::string> pre_condition_funcs;
-std::unordered_multimap<std::string, std::string> post_condition_funcs;
-
 // Map each translation unit's filename to its pkey.
 static std::map<Filename, Pkey> file_pkeys;
 
@@ -1286,8 +1281,8 @@ int main(int argc, const char **argv) {
       return rc;
     }
 
-    pre_condition_funcs = std::move(pre_condition.funcs);
-    post_condition_funcs = std::move(post_condition.funcs);
+    ctx.pre_condition_funcs = std::move(pre_condition.funcs);
+    ctx.post_condition_funcs = std::move(post_condition.funcs);
   }
 
   ASTMatchRefactorer refactorer(tool.getReplacements());

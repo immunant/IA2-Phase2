@@ -116,9 +116,7 @@ struct AbiSignature {
 
 struct Param {
   std::string name;
-  std::string type_name;
-  std::string canonical_type_name;
-  TypeId type_id;
+  TypeId type;
 };
 
 struct ApiSignature {

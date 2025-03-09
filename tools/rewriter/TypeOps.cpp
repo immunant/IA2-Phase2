@@ -3,6 +3,7 @@
 #include "clang/AST/GlobalDecl.h"
 #include "clang/AST/Mangle.h"
 #include "clang/Basic/Version.h"
+#include "llvm/Support/FormatVariadic.h"
 
 // For types that have both a left and right side, this is what
 // we emit for the name between the two sides, e.g.,
@@ -68,6 +69,41 @@ std::string mangle_name(const clang::FunctionDecl *decl) {
   return os;
 }
 
+void TypeInfo::set_constructor(std::string constructor_name) {
+  if (constructor) {
+    llvm::report_fatal_error(llvm::formatv(
+        "type {0} aka {1} already has constructor {2}, but trying to set it as {3}",
+        name, canonical_name, *constructor, constructor_name));
+  }
+  constructor = constructor_name;
+}
+
+void TypeInfo::set_destructor(std::string destructor_name) {
+  if (destructor) {
+    llvm::report_fatal_error(llvm::formatv(
+        "type {0} aka {1} already has destructor {2}, but trying to set it as {3}",
+        name, canonical_name, *constructor, destructor_name));
+  }
+  destructor = destructor_name;
+}
+
+bool TypeInfo::has_structors() const {
+  return constructor && destructor;
+}
+
+void TypeInfo::check() const {
+  if (constructor && !destructor) {
+    llvm::report_fatal_error(llvm::formatv(
+        "type {0} aka {1} has a constructor {2} but no destructor",
+        name, canonical_name, *constructor));
+  }
+  if (!constructor && destructor) {
+    llvm::report_fatal_error(llvm::formatv(
+        "type {0} aka {1} has a destructor {2} but no constructor",
+        name, canonical_name, *destructor));
+  }
+}
+
 std::vector<TypeInfo>::const_iterator TypeInfoInterner::begin() const {
   return infos.begin();
 }
@@ -101,4 +137,10 @@ const TypeInfo &TypeInfoInterner::get(TypeId index) const {
 
 TypeInfo &TypeInfoInterner::get(TypeId index) {
   return infos[index];
+}
+
+void TypeInfoInterner::check() const {
+  for (const auto &info : infos) {
+    info.check();
+  }
 }

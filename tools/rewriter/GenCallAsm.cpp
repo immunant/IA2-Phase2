@@ -958,12 +958,17 @@ static void emit_return(AsmWriter &aw) {
   add_asm_line(aw, "ret");
 }
 
-std::string emit_asm_wrapper(FnSignature sig,
-                             std::optional<FnSignature> wrapper_sig,
-                             const std::string &wrapper_name,
-                             const std::optional<std::string> target_name,
-                             WrapperKind kind, int caller_pkey, int target_pkey,
-                             Arch arch, bool as_macro) {
+std::string emit_asm_wrapper(
+    Context &ctx,
+    FnSignature sig,
+    std::optional<FnSignature> wrapper_sig,
+    const std::string &wrapper_name,
+    const std::optional<std::string> target_name,
+    WrapperKind kind,
+    int caller_pkey,
+    int target_pkey,
+    Arch arch,
+    bool as_macro) {
 
   // Small sanity check
   assert(caller_pkey != target_pkey);
@@ -1183,7 +1188,7 @@ std::string emit_asm_wrapper(FnSignature sig,
     // unless this is the last condition.
     const bool pop = i == post_conditions.size() - 1;
     emit_restore_args(aw, arch, pop);
-    
+
     add_comment_line(aw, "Align stack");
     if (arch == Arch::X86) {
       add_asm_line(aw, "subq $8, %rsp");

@@ -14,14 +14,14 @@ INIT_RUNTIME(2);
 #define IA2_COMPARTMENT 1
 #include <ia2_compartment_init.inc>
 
-Dav1dContext *c IA2_SHARED_DATA;
+Dav1dContext c IA2_SHARED_DATA;
 Dav1dSettings settings IA2_SHARED_DATA;
 Dav1dPicture pic IA2_SHARED_DATA;
 Dav1dContext c2 IA2_SHARED_DATA;
 
 Test(type_confusion, normal) {
   dav1d_open(&c, &settings);
-  dav1d_get_picture(c, &pic);
+  dav1d_get_picture(&c, &pic);
   dav1d_close(&c);
 }
 
@@ -58,5 +58,5 @@ Test(type_confusion, use_after_free,
   dav1d_open(&c, &settings);
   dav1d_close(&c);
   // Try to use an already destructed `Dav1dContext`.
-  dav1d_get_picture(c, &pic);
+  dav1d_get_picture(&c, &pic);
 }

@@ -40,8 +40,8 @@ using namespace clang::tooling;
 using namespace std::string_literals;
 
 static constexpr llvm::StringLiteral SKIP_WRAP_ATTR("ia2_skip_wrap");
-static constexpr llvm::StringLiteral PRE_CONDITION_ATTR_PREFIX("pre_condition:");
-static constexpr llvm::StringLiteral POST_CONDITION_ATTR_PREFIX("post_condition:");
+static constexpr llvm::StringLiteral PRE_CONDITION_ATTR_PREFIX("ia2_pre_condition:");
+static constexpr llvm::StringLiteral POST_CONDITION_ATTR_PREFIX("ia2_post_condition:");
 
 typedef std::string Function;
 typedef std::string Filename;

@@ -24,11 +24,6 @@ enum class Arch {
   X86
 };
 
-// Key is target function.
-// Value is pre/post condition function name.
-extern std::unordered_multimap<std::string, std::string> pre_condition_funcs;
-extern std::unordered_multimap<std::string, std::string> post_condition_funcs;
-
 // Generates a wrapper for a function named \p name with the signature \p sig.
 // The WrapperKind parameter \p kind determines the type of call which may
 // affect the order of operations and the layout of the wrapper stack frame.

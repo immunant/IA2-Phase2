@@ -44,7 +44,6 @@ static constexpr llvm::StringLiteral SKIP_WRAP_ATTR("ia2_skip_wrap");
 static constexpr llvm::StringLiteral PRE_CONDITION_ATTR_PREFIX("ia2_pre_condition:");
 static constexpr llvm::StringLiteral POST_CONDITION_ATTR_PREFIX("ia2_post_condition:");
 
-typedef std::string Function;
 typedef std::string Filename;
 typedef int Pkey;
 typedef std::string OpaqueStruct;
@@ -53,11 +52,6 @@ static Arch Target = Arch::X86;
 static std::string RootDirectory;
 static std::string OutputDirectory;
 static std::string OutputPrefix;
-
-// Key is target function.
-// Value is pre/post condition function name.
-std::unordered_multimap<Function, Function> pre_condition_funcs;
-std::unordered_multimap<Function, Function> post_condition_funcs;
 
 // Map each translation unit's filename to its pkey.
 static std::map<Filename, Pkey> file_pkeys;
@@ -1337,8 +1331,8 @@ int main(int argc, const char **argv) {
       return rc;
     }
 
-    pre_condition_funcs = std::move(pre_condition.funcs);
-    post_condition_funcs = std::move(post_condition.funcs);
+    ctx.pre_condition_funcs = std::move(pre_condition.funcs);
+    ctx.post_condition_funcs = std::move(post_condition.funcs);
   }
 
   ASTMatchRefactorer refactorer(tool.getReplacements());

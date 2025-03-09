@@ -1,5 +1,7 @@
 #include "CAbi.h"
 #include "GenCallAsm.h"
+#include "TypeOps.h"
+
 #include "clang/AST/AST.h"
 #include "clang/AST/RecordLayout.h"
 #include "clang/Basic/CodeGenOptions.h"
@@ -15,6 +17,7 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
+
 #include <cstddef>
 #include <optional>
 #include <vector>
@@ -265,7 +268,7 @@ AbiSignature determineAbiSignatureForProtoType(
   return determineAbiSignature(ctx, info, astContext, arch);
 }
 
-uint32_t get_type_id(Context& ctx, clang::QualType type) {
+TypeId get_type_id(Context &ctx, clang::QualType type) {
   auto canonical_name = type.getCanonicalType().getAsString();
   // Constructs the default value, 0, if the key doesn't exist yet.
   auto type_id = ctx.type_ids[canonical_name];
@@ -276,7 +279,7 @@ uint32_t get_type_id(Context& ctx, clang::QualType type) {
   return type_id;
 }
 
-Param determineParam(Context& ctx, std::string name, clang::QualType type) {
+Param determineParam(Context &ctx, std::string name, clang::QualType type) {
   return (Param){
       .name = name,
       .type_name = type.getAsString(),

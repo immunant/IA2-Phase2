@@ -1135,10 +1135,10 @@ std::string emit_asm_wrapper(
   std::vector<std::string_view> pre_conditions;
   std::vector<std::string_view> post_conditions;
   if (target_name) {
-    for (auto pre_condition = pre_condition_funcs.find(*target_name); pre_condition != pre_condition_funcs.end(); pre_condition++) {
+    for (auto pre_condition = ctx.pre_condition_funcs.find(*target_name); pre_condition != ctx.pre_condition_funcs.end(); pre_condition++) {
       pre_conditions.emplace_back(pre_condition->second);
     }
-    for (auto post_condition = post_condition_funcs.find(*target_name); post_condition != post_condition_funcs.end(); post_condition++) {
+    for (auto post_condition = ctx.post_condition_funcs.find(*target_name); post_condition != ctx.post_condition_funcs.end(); post_condition++) {
       post_conditions.emplace_back(post_condition->second);
     }
   }

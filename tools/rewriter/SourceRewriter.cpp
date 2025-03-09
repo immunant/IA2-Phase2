@@ -42,6 +42,8 @@ using namespace std::string_literals;
 static constexpr llvm::StringLiteral SKIP_WRAP_ATTR("ia2_skip_wrap");
 static constexpr llvm::StringLiteral PRE_CONDITION_ATTR_PREFIX("ia2_pre_condition:");
 static constexpr llvm::StringLiteral POST_CONDITION_ATTR_PREFIX("ia2_post_condition:");
+static constexpr llvm::StringLiteral CONSTRUCTOR_ATTR("ia2_constructor");
+static constexpr llvm::StringLiteral DESTRUCTOR_ATTR("ia2_destructor");
 
 typedef std::string Function;
 typedef std::string Filename;
@@ -248,6 +250,54 @@ public:
           }
           const auto func_name = func->getNameInfo().getName().getAsString();
           funcs.emplace(annotation, func_name);
+        }
+      }
+    }
+  }
+};
+
+/// Finds all constructors (`IA2_CONSTRUCTOR`) and destructors (`IA2_DESTRUCTOR`),
+/// checks that the signature matches `void f(T*)`,
+/// interns the type `T`, and sets its {con,de}structor.
+class Structors : public MatchFinder::MatchCallback {
+
+private:
+  TypeInfoInterner &types;
+
+public:
+  Structors(TypeInfoInterner &types) : types(types) {}
+
+  void run(const MatchFinder::MatchResult &result) override {
+    if (const auto *func = result.Nodes.getNodeAs<clang::FunctionDecl>("annotatedFunc")) {
+      for (const auto *attr : func->attrs()) {
+        if (const auto *annotate_attr = llvm::dyn_cast<clang::AnnotateAttr>(attr)) {
+          const llvm::StringRef annotation = annotate_attr->getAnnotation();
+          const auto is_constructor = annotation == CONSTRUCTOR_ATTR;
+          const auto is_destructor = annotation == DESTRUCTOR_ATTR;
+          assert(!(is_constructor && is_destructor)); // TODO better error message
+          if (!(is_constructor || is_destructor)) {
+            continue;
+          }
+          const auto func_name = func->getNameInfo().getName().getAsString();
+          const auto &params = func->parameters();
+          if (is_constructor) {
+            assert(params.size() >= 1); // TODO better error message
+          }
+          if (is_destructor) {
+            assert(params.size() == 1); // TODO better error message
+          }
+          // Should be `T*`.
+          const auto type = params[0]->getOriginalType();
+          assert(type.getTypePtr()->isPointerType());
+          // Intern the `T*` ptr type, not `T` itself.
+          // This makes it simpler to re-look it up.
+          auto &info = types.get(types.intern(type));
+          if (is_constructor) {
+            info.set_constructor(func_name);
+          }
+          if (is_destructor) {
+            info.set_destructor(func_name);
+          }
         }
       }
     }
@@ -1275,9 +1325,11 @@ int main(int argc, const char **argv) {
     auto annotation_matcher = functionDecl(hasAttr(clang::attr::Annotate)).bind("annotatedFunc");
     AnnotationPrefixFunctions pre_condition(PRE_CONDITION_ATTR_PREFIX);
     AnnotationPrefixFunctions post_condition(POST_CONDITION_ATTR_PREFIX);
+    Structors structors(ctx.types);
     MatchFinder annotation_finder;
     annotation_finder.addMatcher(annotation_matcher, &pre_condition);
     annotation_finder.addMatcher(annotation_matcher, &post_condition);
+    annotation_finder.addMatcher(annotation_matcher, &structors);
     const auto rc = tool.run(newFrontendActionFactory(&annotation_finder).get());
     if (rc != 0) {
       return rc;
@@ -1285,6 +1337,15 @@ int main(int argc, const char **argv) {
 
     ctx.pre_condition_funcs = std::move(pre_condition.funcs);
     ctx.post_condition_funcs = std::move(post_condition.funcs);
+    ctx.types.check();
+    for (const auto &type : ctx.types) {
+      if (!type.has_structors()) {
+        continue;
+      }
+      // Let us look them up by function name, too.
+      ctx.constructors[*type.constructor] = type.id;
+      ctx.destructors[*type.destructor] = type.id;
+    }
   }
 
   ASTMatchRefactorer refactorer(tool.getReplacements());

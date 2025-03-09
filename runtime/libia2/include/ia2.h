@@ -42,6 +42,20 @@
 /// It will be called with the first 6 arguments of `target_func` after `target_func` is called.
 #define IA2_POST_CONDITION_FOR(target_func) __attribute__((annotate("ia2_post_condition:" #target_func)))
 
+/// Mark the annotated function as a constructor for the type `T`,
+/// where the function has the signature `R f(T*, ...)`.
+/// The `...` aren't varargs here; it just means that
+/// there can be any number of extra args after the `T*`.
+///
+/// Note that this is not the same as `__attribute__((constructor))`.
+#define IA2_CONSTRUCTOR __attribute__((annotate("ia2_constructor")))
+
+/// Mark the annotated function as a destructor for the type `T`,
+/// where the function has the signature `void f(T*)`.
+///
+/// Note that this is not the same as `__attribute__((destructor))`.
+#define IA2_DESTRUCTOR __attribute__((annotate("ia2_destructor")))
+
 #if !IA2_ENABLE
 #define IA2_DEFINE_WRAPPER(func)
 #define IA2_SIGHANDLER(func) func

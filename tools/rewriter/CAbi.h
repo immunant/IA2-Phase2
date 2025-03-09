@@ -1,5 +1,7 @@
 #pragma once
 
+#include "TypeOps.h"
+
 #include <cassert>
 #include <cstdint>
 #include <string>
@@ -116,7 +118,7 @@ struct Param {
   std::string name;
   std::string type_name;
   std::string canonical_type_name;
-  uint32_t type_id;
+  TypeId type_id;
 };
 
 struct ApiSignature {

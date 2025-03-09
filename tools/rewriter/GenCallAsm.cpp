@@ -919,6 +919,24 @@ static void emit_restore_args(AsmWriter &aw, Arch arch, bool pop) {
   }
 }
 
+static void emit_align_stack(AsmWriter &aw, Arch arch) {
+  add_comment_line(aw, "Align stack");
+  if (arch == Arch::X86) {
+    add_asm_line(aw, "subq $8, %rsp");
+  } else if (arch == Arch::Aarch64) {
+    // TODO
+  }
+}
+
+static void emit_revert_align_stack(AsmWriter &aw, Arch arch) {
+  add_comment_line(aw, "Revert align stack");
+  if (arch == Arch::X86) {
+    add_asm_line(aw, "addq $8, %rsp");
+  } else if (arch == Arch::Aarch64) {
+    // TODO
+  }
+}
+
 static void emit_condition_fn_call(AsmWriter &aw, Arch arch, std::string_view target_condition_name, std::string_view condition_type) {
   llvm::errs() << "emitting " << condition_type << "-condition call to " << target_condition_name << "\n";
   add_comment_line(aw, llvm::formatv("Call {}-condition function", condition_type));
@@ -1188,22 +1206,9 @@ std::string emit_asm_wrapper(
     // unless this is the last condition.
     const bool pop = i == post_conditions.size() - 1;
     emit_restore_args(aw, arch, pop);
-
-    add_comment_line(aw, "Align stack");
-    if (arch == Arch::X86) {
-      add_asm_line(aw, "subq $8, %rsp");
-    } else if (arch == Arch::Aarch64) {
-      // TODO
-    }
-
+    emit_align_stack(aw, arch);
     emit_condition_fn_call(aw, arch, post_condition, "post");
-
-    add_comment_line(aw, "Revert align stack");
-    if (arch == Arch::X86) {
-      add_asm_line(aw, "addq $8, %rsp");
-    } else if (arch == Arch::Aarch64) {
-      // TODO
-    }
+    emit_revert_align_stack(aw, arch);
   }
 
   emit_epilogue(aw, caller_pkey, arch);

@@ -40,6 +40,8 @@ using namespace clang::tooling;
 using namespace std::string_literals;
 
 static constexpr llvm::StringLiteral SKIP_WRAP_ATTR("ia2_skip_wrap");
+static constexpr llvm::StringLiteral PRE_CONDITION_ATTR_PREFIX("pre_condition:");
+static constexpr llvm::StringLiteral POST_CONDITION_ATTR_PREFIX("post_condition:");
 
 typedef std::string Function;
 typedef std::string Filename;
@@ -230,11 +232,11 @@ static std::string append_name_if_nonempty(const std::string &new_type,
 class AnnotationPrefixFunctions : public MatchFinder::MatchCallback {
 
 public:
-  const std::string prefix;
+  const std::string_view prefix;
   /// Key is suffix, value is function name.
   std::unordered_multimap<std::string, std::string> funcs;
 
-  AnnotationPrefixFunctions(std::string prefix) : prefix(prefix) {}
+  AnnotationPrefixFunctions(std::string_view prefix) : prefix(prefix) {}
 
   void run(const MatchFinder::MatchResult &result) override {
     if (const auto *func = result.Nodes.getNodeAs<clang::FunctionDecl>("annotatedFunc")) {
@@ -1271,8 +1273,8 @@ int main(int argc, const char **argv) {
 
   {
     auto annotation_matcher = functionDecl(hasAttr(clang::attr::Annotate)).bind("annotatedFunc");
-    AnnotationPrefixFunctions pre_condition("pre_condition:");
-    AnnotationPrefixFunctions post_condition("post_condition:");
+    AnnotationPrefixFunctions pre_condition(PRE_CONDITION_ATTR_PREFIX);
+    AnnotationPrefixFunctions post_condition(POST_CONDITION_ATTR_PREFIX);
     MatchFinder annotation_finder;
     annotation_finder.addMatcher(annotation_matcher, &pre_condition);
     annotation_finder.addMatcher(annotation_matcher, &post_condition);

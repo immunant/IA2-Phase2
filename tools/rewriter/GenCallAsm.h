@@ -1,9 +1,11 @@
 #pragma once
+
 #include <optional>
 #include <string>
 #include <unordered_map>
 
 #include "CAbi.h"
+#include "Context.h"
 
 /* The kind of call to generate a wrapper for */
 enum class WrapperKind {
@@ -38,9 +40,14 @@ extern std::unordered_multimap<std::string, std::string> post_condition_funcs;
 // which must be valid to pass to the `PKRU` macro in ia2.h.
 // \p as_macro determines if the wrappers for direct calls is emitted as a
 // macro. Indirect calls are unconditionally emitted as macros.
-std::string emit_asm_wrapper(FnSignature sig,
-                             std::optional<FnSignature> wrapper_sig,
-                             const std::string &wrapper_name,
-                             const std::optional<std::string> target_name,
-                             WrapperKind kind, int caller_pkey, int target_pkey,
-                             Arch arch, bool as_macro = false);
+std::string emit_asm_wrapper(
+    Context &ctx,
+    FnSignature sig,
+    std::optional<FnSignature> wrapper_sig,
+    const std::string &wrapper_name,
+    const std::optional<std::string> target_name,
+    WrapperKind kind,
+    int caller_pkey,
+    int target_pkey,
+    Arch arch,
+    bool as_macro = false);

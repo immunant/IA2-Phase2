@@ -14,8 +14,8 @@ typedef struct {
   ptrdiff_t stride[2];
 } Dav1dPicture;
 
-int dav1d_open(Dav1dContext **const c_out, const Dav1dSettings *const s);
+int dav1d_open(Dav1dContext *c, const Dav1dSettings *s);
 
-void dav1d_close(Dav1dContext **const c_out);
+void dav1d_close(Dav1dContext *c);
 
 int dav1d_get_picture(Dav1dContext *c, Dav1dPicture *out);

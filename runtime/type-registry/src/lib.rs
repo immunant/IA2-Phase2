@@ -30,7 +30,7 @@ impl Debug for PtrAddr {
 /// This can be anything, as long as it's unique for a type in a program.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(transparent)]
-pub struct TypeId(usize);
+pub struct TypeId(u32);
 
 impl Display for TypeId {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {

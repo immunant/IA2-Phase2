@@ -8,13 +8,13 @@ RUN: cat dav1d_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 #define IA2_COMPARTMENT 2
 #include <ia2_compartment_init.inc>
 
-IA2_CONSTRUCTOR
+IA2_CONSTRUCTOR // Registers that ptr `this` has type `Dav1dContext` now.
 int dav1d_open(Dav1dContext *const this, const Dav1dSettings *const s) {
   // Initialize `this`; implementation omitted.
   return 0;
 }
 
-IA2_DESTRUCTOR
+IA2_DESTRUCTOR // Registers that ptr `this` no longer has type `Dav1dContext`.
 void dav1d_close(Dav1dContext *const this) {
   // Uninitialize `this`; implementation omitted.
 }

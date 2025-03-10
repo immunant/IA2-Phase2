@@ -15,7 +15,7 @@ pub struct PtrAddr(usize);
 
 impl Display for PtrAddr {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "{:?}", ptr::without_provenance::<()>(self.0))
+        write!(f, "ptr {:?}", ptr::without_provenance::<()>(self.0))
     }
 }
 
@@ -34,7 +34,7 @@ pub struct TypeId(u32);
 
 impl Display for TypeId {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "Type{}", self.0)
+        write!(f, "type {}", self.0)
     }
 }
 

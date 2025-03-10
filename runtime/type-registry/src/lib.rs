@@ -47,19 +47,19 @@ impl Debug for TypeId {
 static GLOBAL_TYPE_REGISTRY: LazyLock<TypeRegistry> = LazyLock::new(TypeRegistry::default);
 
 /// See [`TypeRegistry::construct`].
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C-unwind" fn ia2_type_registry_construct(ptr: Ptr, type_id: TypeId) {
     GLOBAL_TYPE_REGISTRY.construct(ptr, type_id);
 }
 
 /// See [`TypeRegistry::destruct`].
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C-unwind" fn ia2_type_registry_destruct(ptr: Ptr, expected_type_id: TypeId) {
     GLOBAL_TYPE_REGISTRY.destruct(ptr, expected_type_id);
 }
 
 /// See [`TypeRegistry::check`].
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C-unwind" fn ia2_type_registry_check(ptr: Ptr, expected_type_id: TypeId) {
     GLOBAL_TYPE_REGISTRY.check(ptr, expected_type_id);
 }

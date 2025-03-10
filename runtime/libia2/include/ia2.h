@@ -43,15 +43,23 @@
 #define IA2_POST_CONDITION_FOR(target_func) __attribute__((annotate("ia2_post_condition:" #target_func)))
 
 /// Mark the annotated function as a constructor for the type `T`,
-/// where the function has the signature `R f(T*, ...)`.
+/// where the function has the signature `R f(T* this, ...)`.
 /// The `...` aren't varargs here; it just means that
 /// there can be any number of extra args after the `T*`.
+///
+/// This function should initialize the `T*`
+/// and marks the start of its lifetime as a
+/// registered and valid ptr of type `T`.
 ///
 /// Note that this is not the same as `__attribute__((constructor))`.
 #define IA2_CONSTRUCTOR __attribute__((annotate("ia2_constructor")))
 
 /// Mark the annotated function as a destructor for the type `T`,
-/// where the function has the signature `void f(T*)`.
+/// where the function has the signature `void f(T* this)`.
+///
+/// This function should unitialize the `T*`
+/// and marks the end of its lifetime as a
+/// registered and valid ptr of type `T`.
 ///
 /// Note that this is not the same as `__attribute__((destructor))`.
 #define IA2_DESTRUCTOR __attribute__((annotate("ia2_destructor")))

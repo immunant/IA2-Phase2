@@ -10,19 +10,21 @@ RUN: cat dav1d_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 
 IA2_CONSTRUCTOR
 int dav1d_open(Dav1dContext *const this, const Dav1dSettings *const s) {
+  // Initialize `this`; implementation omitted.
   return 0;
 }
 
 IA2_DESTRUCTOR
 void dav1d_close(Dav1dContext *const this) {
-  return;
+  // Uninitialize `this`; implementation omitted.
 }
 
 int dav1d_get_picture(Dav1dContext *const c, Dav1dPicture *const out) {
+  // Implementation omitted.
   return 0;
 }
 
 IA2_POST_CONDITION_FOR(dav1d_get_picture)
 void dav1d_get_picture_post_condition(Dav1dContext *const c, Dav1dPicture *const out) {
-  return;
+  assert(out->stride > 0);
 }

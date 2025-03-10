@@ -9,12 +9,12 @@ RUN: cat dav1d_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 #include <ia2_compartment_init.inc>
 
 IA2_CONSTRUCTOR
-int dav1d_open(Dav1dContext *const c, const Dav1dSettings *const s) {
+int dav1d_open(Dav1dContext *const this, const Dav1dSettings *const s) {
   return 0;
 }
 
 IA2_DESTRUCTOR
-void dav1d_close(Dav1dContext *const c) {
+void dav1d_close(Dav1dContext *const this) {
   return;
 }
 

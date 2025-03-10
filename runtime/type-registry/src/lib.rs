@@ -76,8 +76,11 @@ impl TypeRegistry {
     #[track_caller]
     pub fn construct(&self, ptr: Ptr, type_id: TypeId) {
         let ptr = PtrAddr(ptr.addr());
-        let guard = &mut *self.map.write().unwrap();
-        let prev_type_id = guard.insert(ptr, type_id);
+        let map = &mut *self.map.write().unwrap();
+        if cfg!(debug_assertions) {
+            eprintln!("construct({ptr}, {type_id}): {map:?}");
+        }
+        let prev_type_id = map.insert(ptr, type_id);
         assert_eq!(prev_type_id, None);
     }
 
@@ -87,8 +90,11 @@ impl TypeRegistry {
     #[track_caller]
     pub fn destruct(&self, ptr: Ptr, expected_type_id: TypeId) {
         let ptr = PtrAddr(ptr.addr());
-        let guard = &mut *self.map.write().unwrap();
-        let type_id = guard.remove(&ptr);
+        let map = &mut *self.map.write().unwrap();
+        if cfg!(debug_assertions) {
+            eprintln!("destruct({ptr}, {expected_type_id}): {map:?}");
+        }
+        let type_id = map.remove(&ptr);
         assert_eq!(type_id, Some(expected_type_id));
     }
 
@@ -98,8 +104,11 @@ impl TypeRegistry {
     #[track_caller]
     pub fn check(&self, ptr: Ptr, expected_type_id: TypeId) {
         let ptr = PtrAddr(ptr.addr());
-        let guard = &*self.map.read().unwrap();
-        let type_id = guard.get(&ptr).copied();
+        let map = &*self.map.read().unwrap();
+        if cfg!(debug_assertions) {
+            eprintln!("check({ptr}, {expected_type_id}): {map:?}");
+        }
+        let type_id = map.get(&ptr).copied();
         assert_eq!(type_id, Some(expected_type_id));
     }
 }

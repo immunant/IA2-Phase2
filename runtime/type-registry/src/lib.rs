@@ -81,7 +81,9 @@ impl TypeRegistry {
             eprintln!("construct({ptr}, {type_id}): {map:?}");
         }
         let prev_type_id = map.insert(ptr, type_id);
-        assert_eq!(prev_type_id, None);
+        if let Some(prev_type_id) = prev_type_id {
+            panic!("trying to construct {type_id} at {ptr}, but {ptr} is already {prev_type_id}");
+        }
     }
 
     /// Called after an object is destructured to unregister it and its type.
@@ -95,7 +97,11 @@ impl TypeRegistry {
             eprintln!("destruct({ptr}, {expected_type_id}): {map:?}");
         }
         let type_id = map.remove(&ptr);
-        assert_eq!(type_id, Some(expected_type_id));
+        if type_id.is_none() {
+            panic!(
+                "trying to destruct {expected_type_id} at {ptr}, but {ptr} has no type currently"
+            );
+        }
     }
 
     /// Called to check a pointer has the expected type.
@@ -109,7 +115,15 @@ impl TypeRegistry {
             eprintln!("check({ptr}, {expected_type_id}): {map:?}");
         }
         let type_id = map.get(&ptr).copied();
-        assert_eq!(type_id, Some(expected_type_id));
+        match type_id {
+            None => {
+                panic!("{ptr} should have {expected_type_id}, but has no type currently");
+            }
+            Some(type_id) if type_id != expected_type_id => {
+                panic!("{ptr} should have {expected_type_id}, but has {type_id} instead");
+            }
+            Some(_) => {}
+        }
     }
 }
 

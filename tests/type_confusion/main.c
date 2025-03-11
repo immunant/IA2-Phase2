@@ -15,7 +15,8 @@ INIT_RUNTIME(2);
 #include <ia2_compartment_init.inc>
 
 Test(type_confusion, normal) {
-  Dav1dContext *c = dav1d_alloc(sizeof(Dav1dContext));
+  // `Dav1dContext` is opaque.
+  Dav1dContext *c = dav1d_alloc(DAV1D_CONTEXT_SIZE);
   Dav1dSettings *settings = dav1d_alloc(sizeof(Dav1dSettings));
   Dav1dPicture *pic = dav1d_alloc(sizeof(Dav1dPicture));
 
@@ -29,8 +30,8 @@ Test(type_confusion, normal) {
 }
 
 Test(type_confusion, uninitialized, .signal = SIGABRT) {
-  Dav1dContext *c = dav1d_alloc(sizeof(Dav1dContext));
-  Dav1dContext *c2 = dav1d_alloc(sizeof(Dav1dContext));
+  Dav1dContext *c = dav1d_alloc(DAV1D_CONTEXT_SIZE);
+  Dav1dContext *c2 = dav1d_alloc(DAV1D_CONTEXT_SIZE);
   Dav1dSettings *settings = dav1d_alloc(sizeof(Dav1dSettings));
   Dav1dPicture *pic = dav1d_alloc(sizeof(Dav1dPicture));
 
@@ -46,7 +47,7 @@ Test(type_confusion, uninitialized, .signal = SIGABRT) {
 }
 
 Test(type_confusion, wrong_type, .signal = SIGABRT) {
-  Dav1dContext *c = dav1d_alloc(sizeof(Dav1dContext));
+  Dav1dContext *c = dav1d_alloc(DAV1D_CONTEXT_SIZE);
   Dav1dSettings *settings = dav1d_alloc(sizeof(Dav1dSettings));
   Dav1dPicture *pic = dav1d_alloc(sizeof(Dav1dPicture));
 
@@ -61,7 +62,7 @@ Test(type_confusion, wrong_type, .signal = SIGABRT) {
 }
 
 Test(type_confusion, null, .signal = SIGABRT) {
-  Dav1dContext *c = dav1d_alloc(sizeof(Dav1dContext));
+  Dav1dContext *c = dav1d_alloc(DAV1D_CONTEXT_SIZE);
   Dav1dSettings *settings = dav1d_alloc(sizeof(Dav1dSettings));
   Dav1dPicture *pic = dav1d_alloc(sizeof(Dav1dPicture));
 
@@ -76,7 +77,7 @@ Test(type_confusion, null, .signal = SIGABRT) {
 }
 
 Test(type_confusion, use_after_free, .signal = SIGABRT) {
-  Dav1dContext *c = dav1d_alloc(sizeof(Dav1dContext));
+  Dav1dContext *c = dav1d_alloc(DAV1D_CONTEXT_SIZE);
   Dav1dSettings *settings = dav1d_alloc(sizeof(Dav1dSettings));
   Dav1dPicture *pic = dav1d_alloc(sizeof(Dav1dPicture));
 

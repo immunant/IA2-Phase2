@@ -25,7 +25,7 @@
  * Section 13.1).
  */
 #define XFEATURE_PKRU 9
-#define XFEATURE_MASK_PKRU		(1 << XFEATURE_PKRU)
+#define XFEATURE_MASK_PKRU (1 << XFEATURE_PKRU)
 
 /*
  * Offset of the XSAVE header in bytes from the XSAVE area base (Intel SDM
@@ -355,7 +355,7 @@ void print_address(FILE *log, char *identifier, void *addr) {
               addr);
     }
   } else {
-      fprintf(log, "%s: %p, ", identifier, addr);
+    fprintf(log, "%s: %p, ", identifier, addr);
   }
 }
 

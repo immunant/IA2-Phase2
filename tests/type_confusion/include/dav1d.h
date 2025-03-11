@@ -2,9 +2,9 @@
 
 #include <stddef.h>
 
-typedef struct {
-  int field;
-} Dav1dContext;
+typedef struct Dav1dContext Dav1dContext;
+
+extern const size_t DAV1D_CONTEXT_SIZE;
 
 typedef struct Dav1dSettings {
   int field;

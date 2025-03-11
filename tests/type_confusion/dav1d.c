@@ -8,6 +8,15 @@ RUN: cat dav1d_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 #define IA2_COMPARTMENT 2
 #include <ia2_compartment_init.inc>
 
+/// Allocate memory in dav1d's compartment 2.
+void* dav1d_alloc(const size_t size) {
+  return malloc(size);
+}
+
+void dav1d_free(void* const memory) {
+  free(memory);
+}
+
 IA2_CONSTRUCTOR // Registers that ptr `this` has type `Dav1dContext` now.
 int dav1d_open(Dav1dContext *const this, const Dav1dSettings *const s) {
   // Initialize `this`; implementation omitted.

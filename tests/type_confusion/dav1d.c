@@ -8,6 +8,12 @@ RUN: cat dav1d_call_gates_1.ld | FileCheck --check-prefix=LINKARGS %s
 #define IA2_COMPARTMENT 2
 #include <ia2_compartment_init.inc>
 
+struct Dav1dContext {
+  int field;
+};
+
+const size_t DAV1D_CONTEXT_SIZE = sizeof(Dav1dContext);
+
 /// Allocate memory in dav1d's compartment 2.
 void* dav1d_alloc(const size_t size) {
   return malloc(size);

@@ -958,12 +958,17 @@ static void emit_return(AsmWriter &aw) {
   add_asm_line(aw, "ret");
 }
 
-std::string emit_asm_wrapper(FnSignature sig,
-                             std::optional<FnSignature> wrapper_sig,
-                             const std::string &wrapper_name,
-                             const std::optional<std::string> target_name,
-                             WrapperKind kind, int caller_pkey, int target_pkey,
-                             Arch arch, bool as_macro) {
+std::string emit_asm_wrapper(
+    Context &ctx,
+    FnSignature sig,
+    std::optional<FnSignature> wrapper_sig,
+    const std::string &wrapper_name,
+    const std::optional<std::string> target_name,
+    WrapperKind kind,
+    int caller_pkey,
+    int target_pkey,
+    Arch arch,
+    bool as_macro) {
 
   // Small sanity check
   assert(caller_pkey != target_pkey);
@@ -1115,10 +1120,10 @@ std::string emit_asm_wrapper(FnSignature sig,
   std::vector<std::string_view> pre_conditions;
   std::vector<std::string_view> post_conditions;
   if (target_name) {
-    for (auto pre_condition = pre_condition_funcs.find(*target_name); pre_condition != pre_condition_funcs.end(); pre_condition++) {
+    for (auto pre_condition = ctx.pre_condition_funcs.find(*target_name); pre_condition != ctx.pre_condition_funcs.end(); pre_condition++) {
       pre_conditions.emplace_back(pre_condition->second);
     }
-    for (auto post_condition = post_condition_funcs.find(*target_name); post_condition != post_condition_funcs.end(); post_condition++) {
+    for (auto post_condition = ctx.post_condition_funcs.find(*target_name); post_condition != ctx.post_condition_funcs.end(); post_condition++) {
       post_conditions.emplace_back(post_condition->second);
     }
   }
@@ -1183,7 +1188,7 @@ std::string emit_asm_wrapper(FnSignature sig,
     // unless this is the last condition.
     const bool pop = i == post_conditions.size() - 1;
     emit_restore_args(aw, arch, pop);
-    
+
     add_comment_line(aw, "Align stack");
     if (arch == Arch::X86) {
       add_asm_line(aw, "subq $8, %rsp");

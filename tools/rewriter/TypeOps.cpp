@@ -1,4 +1,5 @@
 #include "TypeOps.h"
+
 #include "clang/AST/GlobalDecl.h"
 #include "clang/AST/Mangle.h"
 #include "clang/Basic/Version.h"
@@ -65,4 +66,39 @@ std::string mangle_name(const clang::FunctionDecl *decl) {
   mctx->mangleName(clang::GlobalDecl(decl), out);
 #endif
   return os;
+}
+
+std::vector<TypeInfo>::const_iterator TypeInfoInterner::begin() const {
+  return infos.begin();
+}
+
+std::vector<TypeInfo>::const_iterator TypeInfoInterner::end() const {
+  return infos.end();
+}
+
+TypeId TypeInfoInterner::intern(clang::QualType type) {
+  const auto canonical_name = type.getUnqualifiedType().getCanonicalType().getAsString();
+  auto iter = ids.find(canonical_name);
+  if (iter != ids.end()) {
+    const TypeId id = iter->second;
+    return id;
+  }
+
+  const auto id = static_cast<TypeId>(infos.size());
+  const auto name = type.getAsString();
+  ids[canonical_name] = id;
+  infos.emplace_back((TypeInfo){
+      .id = id,
+      .name = name,
+      .canonical_name = canonical_name,
+  });
+  return id;
+}
+
+const TypeInfo &TypeInfoInterner::get(TypeId index) const {
+  return infos[index];
+}
+
+TypeInfo &TypeInfoInterner::get(TypeId index) {
+  return infos[index];
 }

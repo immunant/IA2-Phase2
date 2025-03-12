@@ -78,7 +78,7 @@ impl TypeRegistry {
         let ptr = PtrAddr(ptr.addr());
         let map = &mut *self.map.write().unwrap();
         if cfg!(debug_assertions) {
-            eprintln!("construct({ptr}, {type_id}): {map:?}");
+            eprintln!("construct({ptr}, {type_id}): {map:#?}");
         }
         let prev_type_id = map.insert(ptr, type_id);
         if let Some(prev_type_id) = prev_type_id {
@@ -94,7 +94,7 @@ impl TypeRegistry {
         let ptr = PtrAddr(ptr.addr());
         let map = &mut *self.map.write().unwrap();
         if cfg!(debug_assertions) {
-            eprintln!("destruct({ptr}, {expected_type_id}): {map:?}");
+            eprintln!("destruct({ptr}, {expected_type_id}): {map:#?}");
         }
         let type_id = map.remove(&ptr);
         if type_id.is_none() {
@@ -112,7 +112,7 @@ impl TypeRegistry {
         let ptr = PtrAddr(ptr.addr());
         let map = &*self.map.read().unwrap();
         if cfg!(debug_assertions) {
-            eprintln!("check({ptr}, {expected_type_id}): {map:?}");
+            eprintln!("check({ptr}, {expected_type_id}): {map:#?}");
         }
         let type_id = map.get(&ptr).copied();
         match type_id {
@@ -132,7 +132,7 @@ impl Drop for TypeRegistry {
         match self.map.get_mut() {
             Ok(map) => {
                 if !map.is_empty() {
-                    eprintln!("warning: leak: {map:?}");
+                    eprintln!("warning: leak: {map:#?}");
                 }
             }
             Err(e) => {

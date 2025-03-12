@@ -14,49 +14,41 @@ INIT_RUNTIME(2);
 #define IA2_COMPARTMENT 1
 #include <ia2_compartment_init.inc>
 
-Dav1dContext *c IA2_SHARED_DATA;
+Dav1dContext c IA2_SHARED_DATA;
 Dav1dSettings settings IA2_SHARED_DATA;
 Dav1dPicture pic IA2_SHARED_DATA;
 Dav1dContext c2 IA2_SHARED_DATA;
 
 Test(type_confusion, normal) {
   dav1d_open(&c, &settings);
-  dav1d_get_picture(c, &pic);
+  dav1d_get_picture(&c, &pic);
   dav1d_close(&c);
 }
 
-Test(type_confusion, uninitialized,
-     //  .signal = SIGABRT, // TODO turn on once type confusion checking is working
-) {
+Test(type_confusion, uninitialized, .signal = SIGABRT) {
   dav1d_open(&c, &settings);
   // Try to use another `Dav1dContext` that hasn't been constructed/opened yet.
   dav1d_get_picture(&c2, &pic);
   dav1d_close(&c);
 }
 
-Test(type_confusion, wrong_type,
-     //  .signal = SIGABRT, // TODO turn on once type confusion checking is working
-) {
+Test(type_confusion, wrong_type, .signal = SIGABRT) {
   dav1d_open(&c, &settings);
   // Try to use another type (`Dav1dPicture`) instead.
   dav1d_get_picture((Dav1dContext *)&pic, &pic);
   dav1d_close(&c);
 }
 
-Test(type_confusion, null,
-     //  .signal = SIGABRT, // TODO turn on once type confusion checking is working
-) {
+Test(type_confusion, null, .signal = SIGABRT) {
   dav1d_open(&c, &settings);
   // Try to `NULL`.
   dav1d_get_picture(NULL, &pic);
   dav1d_close(&c);
 }
 
-Test(type_confusion, use_after_free,
-     //  .signal = SIGABRT, // TODO turn on once type confusion checking is working
-) {
+Test(type_confusion, use_after_free, .signal = SIGABRT) {
   dav1d_open(&c, &settings);
   dav1d_close(&c);
   // Try to use an already destructed `Dav1dContext`.
-  dav1d_get_picture(c, &pic);
+  dav1d_get_picture(&c, &pic);
 }

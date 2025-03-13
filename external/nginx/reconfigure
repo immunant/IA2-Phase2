@@ -62,6 +62,7 @@ pushd $BUILD_DIR
 $SRC_REWRITER --output-prefix=wrapper \
     --root-directory=$EXTERNAL_ROOT \
     --output-directory=$BUILD_DIR \
+    -p compile_commands.json \
     $NGINX_ROOT/src/core/ngx_palloc.c \
     $NGINX_ROOT/src/core/ngx_log.c \
     $NGINX_ROOT/src/core/ngx_array.c \

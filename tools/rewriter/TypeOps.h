@@ -1,6 +1,7 @@
 #pragma once
 
 #include "clang/AST/AST.h"
+#include <optional>
 #include <string>
 
 extern const std::string kTypePlaceHolder;

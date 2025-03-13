@@ -927,6 +927,18 @@ static void write_to_file(llvm::raw_fd_ostream *file[MAX_PKEYS], int i,
   *file[i] << contents;
 }
 
+static std::string file_contents(const std::string &path) {
+  llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> fileOrError = llvm::MemoryBuffer::getFile(path);
+  if (!fileOrError) {
+    llvm::errs() << "Error reading file: " << fileOrError.getError().message();
+    abort();
+  }
+
+  llvm::MemoryBuffer *buffer = fileOrError->get();
+  llvm::StringRef fileContents = buffer->getBuffer();
+  return fileContents.str();
+}
+
 /* Copy files to the output directory.
  * Populates `rel_path_to_full` which is used by `get_expansion_filename` and
  * `get_filename`.
@@ -1156,18 +1168,10 @@ int main(int argc, const char **argv) {
 
   CLI11_PARSE(app, argc, argv);
 
-  llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> fileOrError = llvm::MemoryBuffer::getFile(CompilationDbPath);
-  if (!fileOrError) {
-    llvm::errs() << "Error reading file: " << fileOrError.getError().message();
-    abort();
-  }
-
-  llvm::MemoryBuffer *buffer = fileOrError->get();
-  llvm::StringRef fileContents = buffer->getBuffer();
-  std::string CcDbJson = fileContents.str();
-  auto MaybeCmds = cc_db_from_json(CcDbJson);
+  auto MaybeCmds = cc_db_from_json(file_contents(CompilationDbPath));
   if (!MaybeCmds) {
-    abort();
+    llvm::errs() << "Could not parse compilation database from JSON.";
+    return -1;
   }
   CompilationDatabase &comp_db = *MaybeCmds;
 

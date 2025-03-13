@@ -138,6 +138,10 @@ static bool should_not_modify_file(const Filename &filename) {
     return false;
   }
 
+  if (filename.find("include/fmt") != std::string::npos) {
+    return true;
+  }
+
   // We shouldn't query if we should modify files in the root directory. But if
   // the output directory itself is inside the root directory, this will
   // (benignly) happen, and isn't actually a case of trying to modify files not
@@ -481,10 +485,23 @@ public:
     if (info == fn_ptr_info.end()) {
       // Add the hidden pointer argument to the function pointer arguments
       auto fn_ptr_ty = expr_ty->getAs<clang::PointerType>();
-      assert(fn_ptr_ty);
+      if(!fn_ptr_ty) {
+          llvm::errs() << "no fn ptr type for " << expr_ty.getAsString() << " " << clang::Lexer::getSourceText(
+          clang::CharSourceRange::getTokenRange(fn_ptr_call->getSourceRange()), sm,
+          ctxt.getLangOpts())
+                     .str() << "\n";
+          return;
+      }
+
       auto dest_fn_ty = fn_ptr_ty->getPointeeType()->getAs<clang::FunctionProtoType>();
       assert(dest_fn_ty);
       std::vector<clang::QualType> args = {dest_fn_ty->param_type_begin(), dest_fn_ty->param_type_end()};
+      for (const auto& i : args) {
+        if (i.getTypePtr() && i.getTypePtr()->isTemplateTypeParmType()) {
+          llvm::errs() << "argument is template param\n";
+          return;
+        }
+      }
       args.insert(args.begin(), ctxt.VoidPtrTy);
       auto wrap_fn_ty = ctxt.getFunctionType(dest_fn_ty->getReturnType(), args, dest_fn_ty->getExtProtoInfo());
       auto wrap_fn_ptr_ty = ctxt.getPointerType(wrap_fn_ty);
@@ -891,6 +908,26 @@ public:
       return;
     }
 
+    // Skip uninstantiated templates
+    if(fn_node->getTemplatedKind() == clang::FunctionDecl::TK_FunctionTemplate)
+      return;
+    if(fn_node->getTemplatedKind() == clang::FunctionDecl::TK_MemberSpecialization)
+      return;
+
+    if(fn_node->isOverloadedOperator())
+      return;
+    if(fn_name == "operator\"\"_ns")
+      return;
+
+      // skip ones that break shit
+    if(fn_name == "ToString") {
+      return;
+    }
+
+    // ignore methods
+    if(dyn_cast<const clang::CXXMethodDecl>(fn_node))
+      return;
+
     AbiSignature fn_sig = determineAbiForDecl(*fn_node, Target);
     abi_signatures[fn_name] = fn_sig;
 
@@ -1280,6 +1317,7 @@ int main(int argc, const char **argv) {
       pkey = pkey_from_commands(get_commands, s);
     }
     if (!pkey) {
+      llvm::errs() << "Fatal pkey error\n";
       return -1;
     }
 
@@ -1342,6 +1380,7 @@ int main(int argc, const char **argv) {
 
   auto rc = tool.runAndSave(newFrontendActionFactory(&refactorer).get());
   if (rc != 0) {
+    llvm::errs() << "Rewriting completed with errors\n";
     return rc;
   }
 

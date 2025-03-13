@@ -232,7 +232,7 @@ public:
                    result.Nodes.getNodeAs<clang::TypeAliasDecl>(
                        "fnPtrTypedef")) {
       old_decl = llvm::cast<clang::Decl>(type_alias_decl);
-      old_type = typedef_decl->getUnderlyingType();
+      old_type = type_alias_decl->getUnderlyingType();
       generate_decl = [](const auto &new_type, const auto &name) {
         return "using "s + name + " = " + new_type;
       };

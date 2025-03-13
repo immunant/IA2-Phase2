@@ -1125,7 +1125,7 @@ auto ValidateDirectory = CLI::Validator(
       if (ec) {
         return ec.message();
       }
-      input = std::string(real_path);
+      input = std::string(real_path) + "/";
       return ""s;
     },
     "Directory", "path of a directory");

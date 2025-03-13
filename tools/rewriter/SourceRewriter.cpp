@@ -1196,6 +1196,28 @@ int main(int argc, const char **argv) {
   }
   CompilationDatabase &comp_db = *MaybeCmds;
 
+  // Library-only mode file groups
+  llvm::SmallVector<llvm::StringRef> LibraryFiles;
+  llvm::SmallVector<llvm::StringRef> RewriteFiles;
+
+  // Read library and rewrite filenames from input files for library-only mode
+  if (LibraryOnlyMode) {
+    assert(SourceFiles.empty());
+
+    auto LibraryFilesStr = file_contents(LibraryFilesFile);
+    llvm::StringRef(LibraryFilesStr).split(LibraryFiles, '\n');
+
+    auto RewriteFilesStr = file_contents(RewriteFilesFile);
+    llvm::StringRef(RewriteFilesStr).split(RewriteFiles, '\n');
+
+    for (auto &i : LibraryFiles) {
+      SourceFiles.push_back(i.str());
+    }
+    for (auto &i : RewriteFiles) {
+      SourceFiles.push_back(i.str());
+    }
+  }
+
   // Ensure that all files to process are in the compilation db; if not, we don't know how to process them!
   auto all_files = comp_db.getAllFiles();
   auto all_files_set = std::set(all_files.begin(), all_files.end());

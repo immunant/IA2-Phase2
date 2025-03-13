@@ -432,11 +432,15 @@ public:
     // This matches expressions that reference declared functions and we use
     // this to filter out direct calls in the following matcher
     auto declared_function = declRefExpr(hasDeclaration(functionDecl()));
+    // Also match declared C++ methods
+    auto declared_method = declRefExpr(hasDeclaration(cxxMethodDecl()));
+
+    auto declared = anyOf(ignoringImplicit(declared_function), ignoringImplicit(declared_method));
 
     // Matches function calls excluding direct calls. Only the callee nodes are
     // bound to "fnPtrCall"
     StatementMatcher fn_ptr_call = callExpr(callee(
-                                                expr(unless(ignoringImplicit(declared_function))).bind("fnPtrExpr")))
+                                                expr(unless(declared)).bind("fnPtrExpr")))
                                        .bind("fnPtrCall");
 
     refactorer.addMatcher(fn_ptr_call, this);

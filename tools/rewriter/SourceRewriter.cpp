@@ -58,6 +58,9 @@ static std::string OutputPrefix;
 std::unordered_multimap<Function, Function> pre_condition_funcs;
 std::unordered_multimap<Function, Function> post_condition_funcs;
 
+bool use_default_pkey = false;
+Pkey default_pkey = 1;
+
 // Map each translation unit's filename to its pkey.
 static std::map<Filename, Pkey> file_pkeys;
 
@@ -124,6 +127,9 @@ static Pkey get_file_pkey(const clang::SourceManager &sm) {
   try {
     return file_pkeys.at(filename);
   } catch (std::out_of_range const &exc) {
+    if (use_default_pkey) {
+      return default_pkey;
+    }
     llvm::errs() << "Source file " << filename.c_str()
                  << " has no entry with -DPKEY in compile_commands.json\n";
     abort();

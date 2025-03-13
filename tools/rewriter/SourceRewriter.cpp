@@ -1302,8 +1302,14 @@ int main(int argc, const char **argv) {
 
   // Collect mapping of filenames to pkeys and used pkeys
   std::set<Pkey> pkeys_used;
+  std::set<std::string> LibraryFilesSet(LibraryFiles.begin(), LibraryFiles.end());
   for (auto s : SourceFiles) {
-    auto pkey = pkey_from_commands(get_commands, s);
+    std::optional<Pkey> pkey;
+    if (LibraryOnlyMode) {
+      pkey = LibraryFilesSet.contains(s) ? 0 : 1;
+    } else {
+      pkey = pkey_from_commands(get_commands, s);
+    }
     if (!pkey) {
       return -1;
     }

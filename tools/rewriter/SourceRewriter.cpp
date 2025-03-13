@@ -1175,6 +1175,16 @@ int main(int argc, const char **argv) {
   }
   CompilationDatabase &comp_db = *MaybeCmds;
 
+  // Ensure that all files to process are in the compilation db; if not, we don't know how to process them!
+  auto all_files = comp_db.getAllFiles();
+  auto all_files_set = std::set(all_files.begin(), all_files.end());
+  for (auto &s : SourceFiles) {
+    if (!all_files_set.contains(s)) {
+      llvm::errs() << "File to process not present in compilation DB: " << s << "\n";
+      return -1;
+    }
+  }
+
   RefactoringTool tool(comp_db, SourceFiles);
 
   // Ensure that exactly one -DIA2_ENABLE is present, defined to zero, so we do
@@ -1201,8 +1211,6 @@ int main(int argc, const char **argv) {
   tool.buildASTs(asts);
   auto copied_files = copy_files(asts, comp_db, RootDirectory, OutputDirectory);
 
-  auto all_files = comp_db.getAllFiles();
-  auto all_files_set = std::set(all_files.begin(), all_files.end());
   auto get_commands = [&](std::string &s) -> std::optional<std::vector<CompileCommand>> {
     // getCompileCommands returns bogus results instead of nothing for files not
     // present in the compile_commands.json, so filter them out explicitly

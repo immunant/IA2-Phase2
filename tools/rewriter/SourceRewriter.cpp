@@ -1136,11 +1136,29 @@ auto ValidateDirectory = CLI::Validator(
 const std::map<std::string, int> arch_map{{"x86", (int)Arch::X86}, {"aarch64", (int)Arch::Aarch64}};
 
 std::string CompilationDbPath;
+std::string LibraryFilesFile;
+std::string RewriteFilesFile;
 std::vector<std::string> SourceFiles;
 std::vector<std::string> ExtraArgs;
+bool LibraryOnlyMode = false;
+
+auto LibOnlyGroup = "Library-only mode";
 
 int main(int argc, const char **argv) {
   CLI::App app{"IA2 Source Rewriter"};
+  auto LibFilesOpt =
+      app.add_option("--library-files", LibraryFilesFile, "Path to file listing untrusted library sources")
+          ->group(LibOnlyGroup)
+          ->option_text("FILE")
+          ->check(CLI::ExistingFile);
+  auto RwFilesOpt =
+      app.add_option("--rewrite-files", RewriteFilesFile, "Path to file listing application sources to rewrite")
+          ->group(LibOnlyGroup)
+          ->option_text("FILE")
+          ->check(CLI::ExistingFile);
+  app.add_flag("--library-only-mode", LibraryOnlyMode, "Compartmentalize one untrusted library inside a trusted application")
+      ->needs(LibFilesOpt)
+      ->needs(RwFilesOpt);
   app.add_option("--arch", Target, "Target architecture (x86 or aarch64), x86 by default")
       ->option_text("x86|aarch64")
       ->transform(CLI::Transformer(arch_map));

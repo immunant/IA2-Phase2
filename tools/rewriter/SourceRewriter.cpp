@@ -1,3 +1,4 @@
+#include "CLI11.hpp"
 #include "DetermineAbi.h"
 #include "GenCallAsm.h"
 #include "TypeOps.h"
@@ -45,66 +46,7 @@ typedef std::string Filename;
 typedef int Pkey;
 typedef std::string OpaqueStruct;
 
-// Apply a custom category to all command-line options so that they are the
-// only ones displayed.
-static llvm::cl::OptionCategory
-    SourceRewriterCategory("Source rewriter options");
-
-static llvm::cl::opt<Arch>
-    TargetOption("arch",
-                 llvm::cl::init(Arch::X86),
-                 llvm::cl::Optional,
-                 llvm::cl::cat(SourceRewriterCategory),
-                 llvm::cl::desc("<aarch64 or x86>"),
-                 llvm::cl::values(
-                     clEnumValN(Arch::X86, "x86", "Generate code for compartmentalization on x86 using MPK"),
-                     clEnumValN(Arch::Aarch64, "aarch64", "Generate code for compartmentalization on Aarch64 using MTE")));
-
-struct DirectoryParser : public llvm::cl::parser<std::string> {
-  DirectoryParser(llvm::cl::Option &O) : llvm::cl::parser<std::string>(O) {}
-
-  bool parse(llvm::cl::Option &O, llvm::StringRef ArgName, const llvm::StringRef &ArgValue,
-             std::string &Value) {
-    llvm::cl::parser<std::string>::parse(O, ArgName, ArgValue, Value);
-    llvm::SmallString<PATH_MAX> dir{llvm::StringRef(Value)};
-    bool exists = llvm::sys::fs::is_directory(dir);
-    if (!exists) {
-      llvm::errs() << "error: directory does not exist: " << dir << "\n";
-      return true; // true on error
-    }
-    llvm::SmallString<PATH_MAX> real_path;
-    auto ec = llvm::sys::fs::real_path(dir, real_path);
-    if (ec) {
-      llvm::errs() << ec.message() << '\n';
-      return true;
-    }
-    Value = std::string(real_path);
-    return false;
-  }
-};
-
-static llvm::cl::opt<std::string, false, DirectoryParser>
-    RootDirectoryOption("root-directory", llvm::cl::Required,
-                        llvm::cl::cat(SourceRewriterCategory),
-                        llvm::cl::desc("<root directory for input files>"));
-
-static llvm::cl::opt<std::string, false, DirectoryParser>
-    OutputDirectoryOption("output-directory", llvm::cl::Required,
-                          llvm::cl::cat(SourceRewriterCategory),
-                          llvm::cl::desc("<root directory for output files>"));
-
-static llvm::cl::opt<std::string>
-    OutputPrefixOption("output-prefix", llvm::cl::Required,
-                       llvm::cl::cat(SourceRewriterCategory),
-                       llvm::cl::desc("<prefix for output files>"));
-
-static llvm::cl::opt<bool>
-    EnableDav1dGetPicturePostCondition("enable-dav1d_get_picture-post-condition",
-                                       llvm::cl::init(true),
-                                       llvm::cl::cat(SourceRewriterCategory),
-                                       llvm::cl::desc("enable calling the post condition function hardcoded for dav1d_get_picture"));
-
-static Arch Target;
+static Arch Target = Arch::X86;
 static std::string RootDirectory;
 static std::string OutputDirectory;
 static std::string OutputPrefix;
@@ -1117,31 +1059,119 @@ std::optional<Pkey> pkey_from_commands(std::function<std::optional<std::vector<C
   return pkey;
 }
 
-int main(int argc, const char **argv) {
-#if LLVM_VERSION_MAJOR >= 13
-  auto parser_ptr =
-      CommonOptionsParser::create(argc, argv, SourceRewriterCategory);
-  if (!parser_ptr) {
-    auto error = parser_ptr.takeError();
-    llvm::errs() << error;
-    return 1;
+// There's no way to create a CompilationDatabase from JSON in-memory or even from a file path.
+// Instead, write the JSON to a correctly-named file in a temp directory and load from there.
+std::unique_ptr<CompilationDatabase> cc_db_from_json(const std::string &json) {
+  using namespace llvm::sys::fs;
+  llvm::SmallVector<char> unique_dir;
+  auto err = createUniqueDirectory("ia2-rewriter-temp-%%%%%%%", unique_dir);
+  if (err) {
+    llvm::errs() << "Could not create unique directory for temporary compile_commands.json";
+    abort();
   }
-  CommonOptionsParser &options_parser = *parser_ptr;
-#else
-  CommonOptionsParser options_parser(argc, argv, SourceRewriterCategory);
-#endif
-  // Copy tool options into values. This is not necessary to access their values
-  // directly, but copying them like this means our pervasive global accesses
-  // don't have to go through LLVM's types, which are effectively impossible to
-  // print in gdb.
-  Target = TargetOption;
-  RootDirectory = RootDirectoryOption;
-  OutputDirectory = OutputDirectoryOption;
-  OutputPrefix = OutputPrefixOption;
-  enable_dav1d_get_picture_post_condition = EnableDav1dGetPicturePostCondition && Target == Arch::X86;
+  int fd = -1;
+  err = openFileForWrite(unique_dir + "/compile_commands.json", fd, CD_CreateAlways, OF_None);
+  if (err) {
+    llvm::errs() << "Could not open temporary compile_commands.json file for write";
+    abort();
+  }
+  llvm::raw_fd_ostream ostream(fd, true);
+  ostream << json;
+  ostream.flush();
+  ostream.close();
+  std::string error;
+  auto db = CompilationDatabase::loadFromDirectory(llvm::Twine(unique_dir).getSingleStringRef(), error);
+  if (!error.empty()) {
+    llvm::errs() << error;
+  }
+  err = remove_directories(unique_dir);
+  return db;
+}
 
-  RefactoringTool tool(options_parser.getCompilations(),
-                       options_parser.getSourcePathList());
+auto ValidateCcDbPathOrDirectory = CLI::Validator(
+    [](std::string &input) {
+      if (CLI::ExistingDirectory(input) == ""s) {
+        input += "/compile_commands.json";
+        llvm::errs() << "warning: Accepting directory containing compile_commands.json. Please pass the path to the JSON directly.\n";
+        return ""s;
+      } else if (CLI::ExistingFile(input) == ""s) {
+        return ""s;
+      } else {
+        return "Argument should be a path to an existing compiler_commands.json compilation database: "s + input;
+      }
+    },
+    "COMPILE_COMMANDS database", "compile_commands.json or containing dir");
+
+auto ValidateDirectory = CLI::Validator(
+    [](std::string &input) {
+      auto e = CLI::ExistingDirectory(input);
+      if (e != "") {
+        return e;
+      }
+      llvm::SmallString<PATH_MAX> real_path;
+      auto ec = llvm::sys::fs::real_path(input, real_path);
+      if (ec) {
+        return ec.message();
+      }
+      input = std::string(real_path);
+      return ""s;
+    },
+    "Directory", "path of a directory");
+
+const std::map<std::string, int> arch_map{{"x86", (int)Arch::X86}, {"aarch64", (int)Arch::Aarch64}};
+
+std::string CompilationDbPath;
+std::vector<std::string> SourceFiles;
+std::vector<std::string> ExtraArgs;
+
+int main(int argc, const char **argv) {
+  CLI::App app{"IA2 Source Rewriter"};
+  app.add_option("--arch", Target, "Target architecture (x86 or aarch64), x86 by default")
+      ->option_text("x86|aarch64")
+      ->transform(CLI::Transformer(arch_map));
+  app.add_option("--enable-dav1d_get_picture-post-condition", enable_dav1d_get_picture_post_condition,
+                 "enable calling the post condition function hardcoded for dav1d_get_picture")
+      ->group("Dav1d-specific");
+  app.add_option("--output-directory", OutputDirectory, "Root directory for output files")
+      ->option_text("<DIR> (REQUIRED)")
+      ->transform(ValidateDirectory)
+      ->required();
+  app.add_option("--root-directory", RootDirectory, "Root directory for input files")
+      ->option_text("<DIR> (REQUIRED)")
+      ->transform(ValidateDirectory)
+      ->required();
+  app.add_option("--output-prefix", OutputPrefix, "Path prefix for output files")
+      ->option_text("<FILENAME-PREFIX> (REQUIRED)")
+      ->required();
+  app.add_option("-p,--cc-db", CompilationDbPath, "Path to compile_commands.json")
+      ->option_text("compile_commands.json (REQUIRED)")
+      ->required()
+      ->transform(ValidateCcDbPathOrDirectory);
+  app.add_option("--extra-arg", ExtraArgs, "Arguments to add to compilation of each source file")
+      ->option_text("<CFLAG>")
+      ->allow_extra_args(false); // Do not consume positional args
+  app.add_option("source-files", SourceFiles, "List of source files to process")
+      ->option_text("<FILES>")
+      ->check(CLI::ExistingFile);
+
+  CLI11_PARSE(app, argc, argv);
+
+  llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> fileOrError = llvm::MemoryBuffer::getFile(CompilationDbPath);
+  if (!fileOrError) {
+    llvm::errs() << "Error reading file: " << fileOrError.getError().message();
+    abort();
+  }
+
+  llvm::MemoryBuffer *buffer = fileOrError->get();
+  llvm::StringRef fileContents = buffer->getBuffer();
+  std::string CcDbJson = fileContents.str();
+  auto MaybeCmds = cc_db_from_json(CcDbJson);
+  if (!MaybeCmds) {
+    abort();
+  }
+  CompilationDatabase &comp_db = *MaybeCmds;
+
+  RefactoringTool tool(comp_db, SourceFiles);
 
   // Ensure that exactly one -DIA2_ENABLE is present, defined to zero, so we do
   // not try to rewrite our own implementation details
@@ -1157,9 +1187,10 @@ int main(int argc, const char **argv) {
     if (Target == Arch::Aarch64) {
       new_args.insert(double_hyphen_pos, "--target=aarch64-linux-gnu"s);
     }
+    // Insert extra args from command line
+    new_args.insert(double_hyphen_pos, ExtraArgs.begin(), ExtraArgs.end());
     return new_args;
   });
-  CompilationDatabase &comp_db = options_parser.getCompilations();
 
   // Copy files to output directory before modifying them in place
   auto asts = std::vector<std::unique_ptr<clang::ASTUnit>>();
@@ -1179,7 +1210,7 @@ int main(int argc, const char **argv) {
 
   // Collect mapping of filenames to pkeys and used pkeys
   std::set<Pkey> pkeys_used;
-  for (auto s : options_parser.getSourcePathList()) {
+  for (auto s : SourceFiles) {
     auto pkey = pkey_from_commands(get_commands, s);
     if (!pkey) {
       return -1;

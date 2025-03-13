@@ -21,7 +21,7 @@ jobs:
         ia2-tracer: [ON, OFF]
     steps:
       - name: Setup Rust
-        uses: actions-rust-lang/setup-rust-toolchain@v1
+        run: rustup toolchain install stable-x86_64-unknown-linux-gnu
       - name: Check out code
         uses: actions/checkout@v4
       - name: Build

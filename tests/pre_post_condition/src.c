@@ -16,6 +16,30 @@ void a_positive(int a, int *b) {
   }
 }
 
+IA2_PRE_CONDITION_FOR(f1)
+void b_non_null(int a, int *b) {
+  if (!b) {
+    exit(11);
+  }
+}
+
+IA2_PRE_CONDITION_FOR(f1)
+void b_eq_0(int a, int *b) {
+  if (!b) {
+    return;
+  }
+  if (!(*b == 0)) {
+    exit(13);
+  }
+}
+
+IA2_POST_CONDITION_FOR(f1)
+void a_eq_b(int a, int *b) {
+  if (!(a == *b)) {
+    exit(20);
+  }
+}
+
 IA2_POST_CONDITION_FOR(f1)
 void b_eq_10(int a, int *b) {
   if (!(*b == 10)) {

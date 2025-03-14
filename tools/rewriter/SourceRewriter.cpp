@@ -232,7 +232,7 @@ public:
                    result.Nodes.getNodeAs<clang::TypeAliasDecl>(
                        "fnPtrTypedef")) {
       old_decl = llvm::cast<clang::Decl>(type_alias_decl);
-      old_type = typedef_decl->getUnderlyingType();
+      old_type = type_alias_decl->getUnderlyingType();
       generate_decl = [](const auto &new_type, const auto &name) {
         return "using "s + name + " = " + new_type;
       };
@@ -513,16 +513,14 @@ public:
 
     std::string new_expr =
         "IA2_CALL("s + old_callee.str() + ", " + mangled_ty;
-    
+
     for (auto const &arg : fn_ptr_call->arguments()) {
-      new_expr += ", " + clang::Lexer::getSourceText(
-          clang::CharSourceRange::getTokenRange(arg->getSourceRange()), sm,
-          ctxt.getLangOpts())
-                     .str();
+      auto char_range = clang::CharSourceRange::getTokenRange(arg->getSourceRange());
+      new_expr += ", " + clang::Lexer::getSourceText(char_range, sm, ctxt.getLangOpts()).str();
     }
     new_expr += ")";
 
-    auto char_range = 
+    auto char_range =
         clang::CharSourceRange::getTokenRange(fn_ptr_call->getSourceRange());
 
     if (in_macro_expansion(char_range.getBegin(), sm)) {
@@ -597,7 +595,6 @@ public:
     auto *fn_ptr_expr = result.Nodes.getNodeAs<clang::DeclRefExpr>("fnPtrExpr");
     assert(fn_ptr_expr != nullptr);
 
-    auto annotation = fn_ptr_expr->getDecl()->getAttr<clang::AnnotateAttr>();
     assert(result.SourceManager != nullptr);
     auto &sm = *result.SourceManager;
 

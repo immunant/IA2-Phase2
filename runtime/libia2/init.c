@@ -32,8 +32,12 @@ char *allocate_stack(int i) {
   /* Tag the allocated stack pointer so it is accessed with the right pkey */
   stack = (char *)((uint64_t)stack | (uint64_t)i << 56);
 #endif
+#ifdef __aarch64__
+  return stack + STACK_SIZE - 16;
+#elif defined(__x86_64__)
   /* Each stack frame start + 8 is initially 16-byte aligned. */
   return stack + STACK_SIZE - 8;
+#endif
 }
 
 void allocate_stack_0() {

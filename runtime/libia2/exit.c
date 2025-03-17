@@ -1,8 +1,7 @@
 #include "ia2.h"
 #include <dlfcn.h>
 
-__attribute__((used))
-static void call_libc_exit(int status) {
+__attribute__((used)) static void call_libc_exit(int status) {
   void (*exit_ptr)(int) = dlsym(RTLD_NEXT, "exit");
   if (!exit_ptr) {
     printf("Could not find exit(3) in the next DSO\n");

@@ -13,13 +13,13 @@ void arg1(int x) {
 
 // LINKARGS: --wrap=foo
 void foo() {
-    cr_log_info("foo");
+  cr_log_info("foo");
 }
 
 // LINKARGS: --wrap=return_val
 int return_val() {
-    cr_log_info("return_val");
-    return 1;
+  cr_log_info("return_val");
+  return 1;
 }
 
 void arg2(int x, int y) {

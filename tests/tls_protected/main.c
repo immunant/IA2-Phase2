@@ -6,7 +6,6 @@
 #include <stdint.h>
 #include <unistd.h>
 
-
 #include <threads.h>
 
 INIT_RUNTIME(2);

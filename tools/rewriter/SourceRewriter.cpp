@@ -475,11 +475,17 @@ public:
 
     auto declared = anyOf(ignoringImplicit(declared_function), ignoringImplicit(declared_method));
 
-    // Matches function calls excluding direct calls. Only the callee nodes are
-    // bound to "fnPtrCall"
-    StatementMatcher fn_ptr_call = callExpr(callee(
-                                                expr(unless(declared)).bind("fnPtrExpr")))
-                                       .bind("fnPtrCall");
+    // Matches function calls excluding direct calls and calls from C++ code.
+    // Only the callee nodes are bound to "fnPtrCall"
+    StatementMatcher fn_ptr_call =
+        callExpr(
+            callee(expr(unless(declared)).bind("fnPtrExpr")),
+            unless(anyOf(
+                hasAncestor(cxxMethodDecl()),
+                hasAncestor(cxxRecordDecl()),
+                hasAncestor(classTemplateDecl())
+            ))
+        ).bind("fnPtrCall");
 
     refactorer.addMatcher(fn_ptr_call, this);
   }

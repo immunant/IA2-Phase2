@@ -1033,6 +1033,15 @@ public:
       return;
     }
 
+    // HACK: Breaking because the source files that defines each of these
+    // (jdarith.c and jcarith.c) are not included in the build for some reason.
+    //
+    // TODO: Come up with a more robust way to ignore functions that are
+    // declared in headers but never defined/called.
+    if (fn_name == "jinit_arith_decoder" || fn_name == "jinit_arith_encoder") {
+      return;
+    }
+
     // ignore methods
     if (dyn_cast<const clang::CXXMethodDecl>(fn_node))
       return;

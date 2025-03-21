@@ -7,7 +7,13 @@ import tempfile
 
 from typing import List, Any, Set
 
-repo_path = "/home/fwings/firefox-tree/mozilla-unified/"
+# TODO: Make into CLI args.
+repo_path = "/home/legare/mozilla-unified"
+cc_path = "/home/legare/mozilla-unified/obj-x86_64-pc-linux-gnu/compile_commands.json"
+ia2_path = "/home/legare/IA2-Phase2"
+
+# Path within an IA2 checkout where the built rewriter can be found.
+DEFAULT_REWRITER_PATH = "build/tools/rewriter/ia2-rewriter"
 
 def sanitize_cc_cmds(cmds: List[Any]):
 	for entry in cmds:
@@ -17,7 +23,7 @@ def sanitize_cc_cmds(cmds: List[Any]):
 			entry['command'] = entry['command'] + ' -std=gnu++17'
 
 def load_cc_cmds() -> List[Any]:
-	return json.load(open("compile_commands.json", "r"))
+	return json.load(open(cc_path, "r"))
 
 cc_cmds = load_cc_cmds()
 sanitize_cc_cmds(cc_cmds)
@@ -70,10 +76,11 @@ def rewriter(cc_cmds: List[Any], compartment_files: List[str], files_to_rewrite:
 
 	out_dir = "ff-rewritten"
 	wrapper_prefix = out_dir + "/wrapper"
+	rewriter_path = f"{ia2_path}/{DEFAULT_REWRITER_PATH}"
 
 	p = subprocess.Popen([
 		'gdb', '-ex', 'run', '--args',
-		'./ia2-rewriter',
+		rewriter_path,
 		'--library-only-mode',
 		'--cc-db',
 		compile_commands_file.name,

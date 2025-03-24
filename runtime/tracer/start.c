@@ -2,6 +2,7 @@
 #include "seccomp_filter.h"
 #include "track_memory_map.h"
 
+#include <assert.h>
 #include <libgen.h>
 #include <signal.h>
 #include <stdbool.h>
@@ -114,14 +115,20 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
-  int exit_status = 0;
-  bool success = track_memory_map(pid, &exit_status, TRACE_MODE_SECCOMP);
+  int wait_status = 0;
+  bool success = track_memory_map(pid, &wait_status, TRACE_MODE_SECCOMP);
   /* ensure the child is dead */
   kill(pid, SIGKILL);
 
-  if (success)
-    exit(exit_status);
-  else {
+  if (success) {
+    if (WIFEXITED(wait_status)) {
+      return WEXITSTATUS(wait_status);
+    }
+    if (WIFSIGNALED(wait_status)) {
+      return 0;
+    }
+    assert(false);
+  } else {
     fprintf(stderr, "error tracing sandboxed child!\n");
     return 1;
   }

@@ -1241,13 +1241,15 @@ int main(int argc, const char **argv) {
   }
   CompilationDatabase &comp_db = *MaybeCmds;
 
-  // Library-only mode file groups
-  llvm::SmallVector<llvm::StringRef> LibraryFiles;
-  llvm::SmallVector<llvm::StringRef> RewriteFiles;
+  std::set<std::string> LibraryFilesSet;
 
   // Read library and rewrite filenames from input files for library-only mode
   if (LibraryOnlyMode) {
     assert(SourceFiles.empty());
+
+    // Library-only mode file groups
+    llvm::SmallVector<llvm::StringRef> LibraryFiles;
+    llvm::SmallVector<llvm::StringRef> RewriteFiles;
 
     auto LibraryFilesStr = file_contents(LibraryFilesFile);
     llvm::StringRef(LibraryFilesStr).split(LibraryFiles, '\n');
@@ -1261,6 +1263,8 @@ int main(int argc, const char **argv) {
     for (auto &i : RewriteFiles) {
       SourceFiles.push_back(i.str());
     }
+
+    LibraryFilesSet.insert(LibraryFiles.begin(), LibraryFiles.end());
   }
 
   // Ensure that all files to process are in the compilation db; if not, we don't know how to process them!
@@ -1312,7 +1316,6 @@ int main(int argc, const char **argv) {
 
   // Collect mapping of filenames to pkeys and used pkeys
   std::set<Pkey> pkeys_used;
-  std::set<std::string> LibraryFilesSet(LibraryFiles.begin(), LibraryFiles.end());
   for (auto s : SourceFiles) {
     std::optional<Pkey> pkey;
     if (LibraryOnlyMode) {

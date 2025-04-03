@@ -703,6 +703,12 @@ private:
   std::map<std::string, Replacements> &file_replacements;
 };
 
+struct DefinitionSite {
+    std::string filename;
+    uint32_t line;
+    uint32_t column;
+};
+
 class FnPtrEq : public RefactoringCallback {
 public:
   FnPtrEq(ASTMatchRefactorer &refactorer,
@@ -892,7 +898,11 @@ public:
       defined_fns[pkey].insert(fn_name);
       fn_pkeys[fn_name] = pkey;
       Filename filename = get_expansion_filename(fn_node->getLocation(), sm);
-      fn_definitions[fn_name] = filename;
+      fn_definitions[fn_name] = {
+          filename,
+          sm.getSpellingLineNumber(fn_node->getLocation()),
+          sm.getSpellingColumnNumber(fn_node->getLocation())
+      };
     } else {
       declared_fns[pkey].insert(fn_name);
     }
@@ -902,7 +912,7 @@ public:
   std::set<Function> declared_fns[MAX_PKEYS];
   std::map<Function, AbiSignature> abi_signatures;
   std::map<Function, Pkey> fn_pkeys;
-  std::map<Function, Filename> fn_definitions;
+  std::map<Function, DefinitionSite> fn_definitions;
 };
 
 static void create_file(llvm::raw_fd_ostream *file[MAX_PKEYS], int i, const char *extension) {
@@ -1461,6 +1471,8 @@ int main(int argc, const char **argv) {
     std::string asm_wrapper =
         emit_asm_wrapper(c_abi_sig, std::nullopt, wrapper_name, target_fn,
                          WrapperKind::Direct, caller_pkey, target_pkey, Target);
+    auto& defn = fn_decl_pass.fn_definitions[fn_name];
+    wrapper_out << "// wrapper for " << fn_name << " from " << defn.filename << ":" << defn.line << ":" << defn.column << ":\n";
     wrapper_out << asm_wrapper;
 
     write_to_file(ld_args_out, caller_pkey, "--wrap="s + fn_name + '\n', ".ld");
@@ -1527,7 +1539,7 @@ int main(int argc, const char **argv) {
        * target function. This expands to the IA2_DEFINE_WRAPPER_* macro we just
        * defined
        */
-      auto filename = fn_decl_pass.fn_definitions[fn_name];
+      auto& filename = fn_decl_pass.fn_definitions[fn_name].filename;
       std::ofstream source_file(filename, std::ios::app);
       source_file << "IA2_DEFINE_WRAPPER(" << fn_name << ")\n";
 

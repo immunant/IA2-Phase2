@@ -74,7 +74,7 @@ if (LIBIA2_AARCH64)
                 # This is only for the heap tunable
                 "--enable-memory-tagging"
             BUILD_COMMAND make -j8
-            INSTALL_COMMAND make install
+            INSTALL_COMMAND cmake -E echo "skip install"
             USES_TERMINAL_CONFIGURE TRUE
             USES_TERMINAL_BUILD TRUE
             USES_TERMINAL_INSTALL TRUE

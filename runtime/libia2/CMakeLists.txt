@@ -61,9 +61,9 @@ if (LIBIA2_AARCH64)
             BINARY_DIR ${CMAKE_BINARY_DIR}/external/glibc
             CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env
                 # ffixed-x18 has to be set here instead of CFLAGS for it to apply to all files
-                "CC=aarch64-linux-gnu-gcc -ffixed-x18"
+                "CC=${CMAKE_C_COMPILER} -target aarch64-linux-gnu -ffixed-x18 -march=armv8.5-a+memtag --rtlib=compiler-rt -O3"
                 # this is needed for some test files built by the build system
-                "CXX=aarch64-linux-gnu-g++ -ffixed-x18"
+                "CXX=${CMAKE_CXX_COMPILER} -target aarch64-linux-gnu -ffixed-x18 -march=armv8.5-a+memtag --rtlib=compiler-rt -O3"
                 ${CMAKE_SOURCE_DIR}/external/glibc/configure
                 "--build=aarch64-linux-gnu"
                 "--target=aarch64-linux-gnu"

@@ -95,7 +95,7 @@ struct dl_phdr_info;
 // TODO: Do we want to use sysconf(3) here?
 #define PAGE_SIZE 4096
 
-#define STACK_SIZE (4 * 1024 * 1024)
+#define STACK_SIZE (16 * 1024 * 1024)
 
 /* clang-format can't handle inline asm in macros */
 /* clang-format off */
@@ -103,6 +103,7 @@ struct dl_phdr_info;
 #define _IA2_DEFINE_SIGNAL_HANDLER(function, pkey)    \
     __asm__(".global ia2_sighandler_" #function "\n"  \
             "ia2_sighandler_" #function ":\n"         \
+            "ud2\n"                                   \
             "movq %rcx, %r10\n"                       \
             "movq %rdx, %r11\n"                       \
             "movq %rax, %r12\n"                       \
@@ -293,7 +294,7 @@ asm(".macro movz_shifted_tag_x18 tag\n"
 #if defined(__x86_64__)
 #define return_stackptr_if_compartment(compartment)                            \
   if (pkru == PKRU(compartment)) {                                             \
-    register void *out asm("rax");                                             \
+    register void **out asm("rax");                                             \
     __asm__ volatile(                                                          \
         "mov %%fs:(0), %%rax\n"                                                \
         "addq ia2_stackptr_" #compartment "@GOTTPOFF(%%rip), %%rax\n"          \
@@ -323,8 +324,10 @@ works as a reasonable signpost no-op. */
 int ia2_mprotect_with_tag(void *addr, size_t len, int prot, int tag);
 #elif defined(__x86_64__)
 #if IA2_DEBUG_LOG
+int pkey_mprotect(void* addr, size_t size, int prot, int pkey);
 static int ia2_mprotect_with_tag(void *addr, size_t len, int prot, int tag) {
   printf("ia2_mprotect_with_tag(addr=%p, len=%zu, prot=%d, tag=%d)\n", addr, len, prot, tag);
+  return 0;
   return pkey_mprotect(addr, len, prot, tag);
 }
 #else
@@ -335,7 +338,7 @@ static int ia2_mprotect_with_tag(void *addr, size_t len, int prot, int tag) {
 char *allocate_stack(int i);
 void allocate_stack_0();
 void verify_tls_padding(void);
-void ia2_set_up_tags(int *n_to_alloc);
+extern "C" void ia2_set_up_tags(int *n_to_alloc);
 __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
 
 /* clang-format can't handle inline asm in macros */

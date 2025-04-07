@@ -96,6 +96,7 @@
 #elif defined(__x86_64__)
 /* clang-format off */
 #define ASSERT_PKRU(pkru)                       \
+  "ud2\n"                                       \
   "movq %rcx, %r10\n"                           \
   "movq %rdx, %r11\n"                           \
   "xorl %ecx, %ecx\n"                           \
@@ -132,7 +133,7 @@
 
 /// Get an IA2 opaque function pointer for the wrapped version of `func`
 #define IA2_FN(func)                                                           \
-  (typeof(__ia2_##func)) { (void *)&__ia2_##func }
+  reinterpret_cast<typeof &func>((void *)(__ia2_##func).ptr)
 
 /// Call an IA2 opaque function pointer, which should be in target compartment
 /// `id`

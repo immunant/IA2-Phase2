@@ -55,10 +55,21 @@ bool enable_dav1d_get_picture_post_condition = true;
 bool use_default_pkey = false;
 Pkey default_pkey = 1;
 
+bool LibraryOnlyMode = false;
+std::set<std::string> RewriteFilesSet;
+
 // Map each translation unit's filename to its pkey.
 static std::map<Filename, Pkey> file_pkeys;
 
 static std::map<Filename, Filename> rel_path_to_full;
+
+/* Converts a path in the input directory to the equivalent path in the
+ * output directory.
+ */
+static Filename replace_prefix(llvm::SmallString<256> path) {
+  llvm::sys::path::replace_path_prefix(path, RootDirectory, OutputDirectory);
+  return path.str().str();
+}
 
 static Filename get_expansion_filename(const clang::SourceLocation loc,
                                        const clang::SourceManager &sm) {
@@ -151,7 +162,15 @@ static bool should_not_modify_file(const Filename &filename) {
     exit(1);
   }
 
-  return !filename.starts_with(OutputDirectory);
+  if (!filename.starts_with(OutputDirectory)) {
+    return true;
+  }
+
+  if (LibraryOnlyMode && !RewriteFilesSet.contains(filename)) {
+    return true;
+  }
+
+  return false;
 }
 
 static bool ignore_function(const clang::Decl &decl,
@@ -287,9 +306,6 @@ public:
 
     auto loc = old_decl->getLocation();
     auto filename = get_filename(loc, sm);
-    if (ignore_function(*old_decl, loc, sm)) {
-      return;
-    }
 
     auto *fpt = old_type->castAs<clang::PointerType>()
                     ->getPointeeType()
@@ -313,6 +329,10 @@ public:
     std::string new_decl = generate_decl(new_type, name);
 
     fn_ptr_types.insert(new_type);
+
+    if (ignore_function(*old_decl, loc, sm)) {
+      return;
+    }
 
     // This check must come after inserting new_type into fn_ptr_types but
     // before the Replacement is added
@@ -1196,7 +1216,6 @@ std::string LibraryFilesFile;
 std::string RewriteFilesFile;
 std::vector<std::string> SourceFiles;
 std::vector<std::string> ExtraArgs;
-bool LibraryOnlyMode = false;
 
 auto LibOnlyGroup = "Library-only mode";
 
@@ -1276,6 +1295,11 @@ int main(int argc, const char **argv) {
     }
 
     LibraryFilesSet.insert(LibraryFiles.begin(), LibraryFiles.end());
+    // RewriteFilesSet.insert(RewriteFiles.begin(), RewriteFiles.end());
+
+    for (auto &file : RewriteFiles) {
+      RewriteFilesSet.insert(replace_prefix(file));
+    }
   }
 
   // Ensure that all files to process are in the compilation db; if not, we don't know how to process them!

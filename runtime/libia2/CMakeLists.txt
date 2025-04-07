@@ -74,6 +74,7 @@ if (LIBIA2_AARCH64)
                 # This is only for the heap tunable
                 "--enable-memory-tagging"
             BUILD_COMMAND make -j8
+            # places the built libc.so and ld.so at the locations expected by QEMU's LD_LIBPRARY_PATH
             INSTALL_COMMAND make install
             USES_TERMINAL_CONFIGURE TRUE
             USES_TERMINAL_BUILD TRUE

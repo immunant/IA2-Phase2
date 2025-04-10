@@ -81,7 +81,7 @@ __attribute__((constructor)) static void COMPARTMENT_IDENT(init_pkey)() {
       /* Set PKRU to fully untrusted (no access) */
       "xorl %%ecx, %%ecx\n"
       "xorl %%edx, %%edx\n"
-      "xorl %%eax, %%eax\n"
+      "mov_pkru_eax 0\n"
       "wrpkru\n"
       :
       :

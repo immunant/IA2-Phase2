@@ -66,6 +66,14 @@ static std::map<Filename, Pkey> file_pkeys;
 
 static std::map<Filename, Filename> rel_path_to_full;
 
+/* Converts a path in the input directory to the equivalent path in the
+ * output directory.
+ */
+static Filename root_path_to_output_path(llvm::SmallString<256> path) {
+  llvm::sys::path::replace_path_prefix(path, RootDirectory, OutputDirectory);
+  return path.str().str();
+}
+
 static Filename get_expansion_filename(const clang::SourceLocation loc,
                                        const clang::SourceManager &sm) {
   llvm::SmallString<256> s(sm.getFilename(sm.getExpansionLoc(loc)));
@@ -1249,6 +1257,7 @@ int main(int argc, const char **argv) {
   CompilationDatabase &comp_db = *MaybeCmds;
 
   std::set<std::string> LibraryFilesSet;
+  std::set<std::string> RewriteFilesSet;
 
   // Read library and rewrite filenames from input files for library-only mode
   if (LibraryOnlyMode) {
@@ -1272,6 +1281,10 @@ int main(int argc, const char **argv) {
     }
 
     LibraryFilesSet.insert(LibraryFiles.begin(), LibraryFiles.end());
+
+    for (auto &file : RewriteFiles) {
+      RewriteFilesSet.insert(root_path_to_output_path(file));
+    }
   }
 
   // Ensure that all files to process are in the compilation db; if not, we don't know how to process them!
@@ -1668,6 +1681,11 @@ int main(int argc, const char **argv) {
   // IA2_FN)
   for (const auto &[filename, addr_taken_fns] :
        ptr_expr_pass.internal_addr_taken_fns) {
+
+    // In library only mode we only want to rewrite files in the rewrite set.
+    if (LibraryOnlyMode && !RewriteFilesSet.contains(filename)) {
+      continue;
+    }
 
     // Open each file that took the address of a static function
     std::ofstream source_file(filename, std::ios::app);

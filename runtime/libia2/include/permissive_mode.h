@@ -248,7 +248,7 @@ int elfaddr(const void *addr, Dl_info *info) {
     int fd;
     char *strtab;
 
-    fp = calloc(1, sizeof(*fp));
+    fp = (struct f *)calloc(1, sizeof(*fp));
     if (fp == NULL) {
       printf("Failed to allocate memory\n");
       return 0;
@@ -263,7 +263,7 @@ int elfaddr(const void *addr, Dl_info *info) {
       printf("Failed to open file %s\n", path);
       return 0;
     }
-    header = mmap(NULL, sizeof(*header), PROT_READ, MAP_PRIVATE, fd, 0);
+    header = (Elf64_Ehdr *)mmap(NULL, sizeof(*header), PROT_READ, MAP_PRIVATE, fd, 0);
     if (header == MAP_FAILED || memcmp(header->e_ident, ELFMAG, SELFMAG) != 0 ||
         header->e_ident[EI_CLASS] != ELFCLASS64) {
       printf("Bad ELF magic or class\n");
@@ -278,14 +278,14 @@ int elfaddr(const void *addr, Dl_info *info) {
     }
     off_t off = (header->e_shoff) - (header->e_shoff % 4096);
     len += (header->e_shoff % 4096);
-    char *sections_tmp = mmap(NULL, len, PROT_READ, MAP_PRIVATE, fd, off);
+    char *sections_tmp = (char *)mmap(NULL, len, PROT_READ, MAP_PRIVATE, fd, off);
     if (sections_tmp == MAP_FAILED) {
       printf("Failed to mmap ELF section header %s %zu %ld\n", strerror(errno),
              len, off);
       return 0;
     }
     sections_tmp += header->e_shoff % 4096;
-    sections = (void *)sections_tmp;
+    sections = (Elf64_Shdr *)sections_tmp;
 
     // Find and read the .symtab section.
     for (i = 0; i < header->e_shnum; i++) {
@@ -298,17 +298,17 @@ int elfaddr(const void *addr, Dl_info *info) {
     }
     off = sections[i].sh_offset - (sections[i].sh_offset % 4096);
     len = sections[i].sh_size + (sections[i].sh_offset % 4096);
-    char *symtab_tmp = mmap(NULL, len, PROT_READ, MAP_PRIVATE, fd, off);
+    char *symtab_tmp = (char *)mmap(NULL, len, PROT_READ, MAP_PRIVATE, fd, off);
     if (symtab_tmp == MAP_FAILED) {
       printf("Failed to find ELF .symtab section in %s\n", path);
       return 0;
     }
-    symtab = (void *)(symtab_tmp + sections[i].sh_offset % 4096);
+    symtab = (Elf64_Sym *)(symtab_tmp + sections[i].sh_offset % 4096);
     symcnt = sections[i].sh_size / sizeof(symtab[0]);
 
     // Find and read the .strtab section.
     i = sections[i].sh_link;
-    strtab = mmap(NULL, sections[i].sh_size, PROT_READ, MAP_PRIVATE, fd,
+    strtab = (char *)mmap(NULL, sections[i].sh_size, PROT_READ, MAP_PRIVATE, fd,
                   sections[i].sh_offset);
     if (strtab == MAP_FAILED)
       return 0;
@@ -338,7 +338,7 @@ int elfaddr(const void *addr, Dl_info *info) {
 
 // Print an address, including relative offset if loaded from disk and symbol
 // name if available.
-void print_address(FILE *log, char *identifier, void *addr) {
+void print_address(FILE *log, const char *identifier, void *addr) {
   Dl_info dlinf = {0};
   bool found = dladdr(addr, &dlinf) != 0;
 

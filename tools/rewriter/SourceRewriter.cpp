@@ -743,10 +743,10 @@ public:
         llvm::cast<clang::NamedDecl>(fn_ptr_expr->getReferencedDeclOfCallee());
     assert(fn_decl != nullptr);
 
-    auto *param_decl = result.Nodes.getNodeAs<clang::ParmVarDecl>("fnPtrParamDecl");
-    if (param_decl && should_not_rewrite_decl(*param_decl, {}, sm)) {
-      return;
-    }
+    // auto *param_decl = result.Nodes.getNodeAs<clang::ParmVarDecl>("fnPtrParamDecl");
+    // if (param_decl && should_not_rewrite_decl(*param_decl, {}, sm)) {
+    //   return;
+    // }
 
     Function fn_name = fn_decl->getName().str();
 

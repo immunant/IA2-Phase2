@@ -24,6 +24,12 @@ struct dl_phdr_info;
 #include <sys/mman.h>
 #include <unistd.h>
 
+#if __cplusplus
+#define IA2_EXTERN_C extern "C"
+#else
+#define IA2_EXTERN_C
+#endif
+
 #define IA2_CONCAT_(x, y) x##y
 #define IA2_CONCAT(x, y) IA2_CONCAT_(x, y)
 
@@ -136,8 +142,8 @@ struct dl_phdr_info;
 /// Iterates over shared objects until an object containing the address \p
 /// data->address is found. Protect the pages in that object according to the
 /// information in the search arguments.
-int protect_pages(struct dl_phdr_info *info, size_t size, void *data);
-int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data);
+IA2_EXTERN_C int protect_pages(struct dl_phdr_info *info, size_t size, void *data);
+IA2_EXTERN_C int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data);
 
 struct IA2SharedSection {
   const void *start;
@@ -332,10 +338,10 @@ static int ia2_mprotect_with_tag(void *addr, size_t len, int prot, int tag) {
 #define ia2_mprotect_with_tag pkey_mprotect
 #endif
 #endif
-char *allocate_stack(int i);
-void allocate_stack_0();
-void verify_tls_padding(void);
-void ia2_set_up_tags(int *n_to_alloc);
+IA2_EXTERN_C char *allocate_stack(int i);
+IA2_EXTERN_C void allocate_stack_0();
+IA2_EXTERN_C void verify_tls_padding(void);
+IA2_EXTERN_C void ia2_set_up_tags(int *n_to_alloc);
 __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
 
 /* clang-format can't handle inline asm in macros */

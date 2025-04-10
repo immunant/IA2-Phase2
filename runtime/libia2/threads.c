@@ -1,6 +1,7 @@
 #include <pthread.h>
 #include <signal.h>
 #include <sys/mman.h>
+#include <dlfcn.h>
 
 #include "ia2.h"
 
@@ -94,5 +95,8 @@ int __wrap_pthread_create(pthread_t *restrict thread,
   struct ia2_thread_thunk *thread_thunk = (struct ia2_thread_thunk *)mmap_res;
   thread_thunk->fn = fn;
   thread_thunk->data = data;
-  return __real_pthread_create(thread, attr, ia2_thread_begin, thread_thunk);
+  void *glibc_pthread_create = dlsym(RTLD_DEFAULT, "pthread_create");
+  assert(glibc_pthread_create);
+  return ((typeof(&__real_pthread_create))glibc_pthread_create)(thread, attr, ia2_thread_begin, thread_thunk);
+  //return __real_pthread_create(thread, attr, ia2_thread_begin, thread_thunk);
 }

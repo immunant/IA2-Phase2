@@ -419,7 +419,7 @@ __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
   __attribute__((visibility("default"))) void **ia2_stackptr_for_pkru(uint32_t pkru) {                                \
     REPEATB(n, return_stackptr_if_compartment,                                 \
             return_stackptr_if_compartment);                                   \
-    return NULL;                                                               \
+    abort();                                                                   \
   }                                                                            \
                                                                                \
   __attribute__((visibility("default"))) __attribute__((weak)) void init_stacks_and_setup_tls(void) {                 \

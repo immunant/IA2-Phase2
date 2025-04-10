@@ -190,6 +190,48 @@ static bool should_not_rewrite_decl(const clang::Decl &decl,
   return false;
 }
 
+static bool should_not_analyze_decl(const clang::Decl &decl,
+                            const std::optional<clang::SourceLocation> &loc,
+                            const clang::SourceManager &sm) {
+  if (const auto *named_decl = dyn_cast<clang::NamedDecl>(&decl)) {
+    if (named_decl->getNameAsString().starts_with(
+            "ia2_compartment_destructor")) {
+      return false;
+    }
+  }
+
+  auto annotation = decl.getAttr<clang::AnnotateAttr>();
+  if (annotation && annotation->getAnnotation() == SKIP_WRAP_ATTR) {
+    return true;
+  }
+
+  Filename filename = get_filename(*loc, sm);
+
+  bool is_empty = filename.empty();
+  if (is_empty) {
+    return true;
+  }
+
+  // if (filename.find("include/fmt") != std::string::npos) {
+  //   return true;
+  // }
+
+  // We shouldn't query if we should modify files in the root directory. But if
+  // the output directory itself is inside the root directory, this will
+  // (benignly) happen, and isn't actually a case of trying to modify files not
+  // inside the output directory.
+  if (filename.starts_with(RootDirectory) && !filename.starts_with(OutputDirectory)) {
+    llvm::errs() << "internal error: querying if we should modify file under root directory (this should not happen): " << filename << "\n";
+    exit(1);
+  }
+
+  if (!filename.starts_with(OutputDirectory)) {
+    return true;
+  }
+
+  return false;
+}
+
 static std::string append_name_if_nonempty(const std::string &new_type,
                                            const std::string &name) {
   return new_type + (name.empty() ? "" : " ") + name;
@@ -333,9 +375,6 @@ public:
 
     auto loc = old_decl->getLocation();
     auto filename = get_filename(loc, sm);
-    if (ignore_function(*old_decl, loc, sm)) {
-      return;
-    }
 
     auto *fpt = old_type->castAs<clang::PointerType>()
                     ->getPointeeType()
@@ -359,6 +398,12 @@ public:
     std::string new_decl = generate_decl(new_type, name);
 
     fn_ptr_types.insert(new_type);
+
+    // If we should not rewrite this decl, bail out here. We already added its
+    // type info to `fn_ptr_types`.
+    if (should_not_rewrite_decl(*old_decl, loc, sm)) {
+      return;
+    }
 
     // This check must come after inserting new_type into fn_ptr_types but
     // before the Replacement is added
@@ -525,7 +570,7 @@ public:
     }
 
     auto callee_decl = fn_ptr_call->getCalleeDecl();
-    if (callee_decl && ignore_function(*callee_decl, {}, sm)) {
+    if (callee_decl && should_not_rewrite_decl(*callee_decl, {}, sm)) {
       return;
     }
 
@@ -677,12 +722,8 @@ public:
         llvm::cast<clang::NamedDecl>(fn_ptr_expr->getReferencedDeclOfCallee());
     assert(fn_decl != nullptr);
 
-    if (ignore_function(*fn_decl, loc, sm)) {
-      return;
-    }
-
     auto *param_decl = result.Nodes.getNodeAs<clang::ParmVarDecl>("fnPtrParamDecl");
-    if (param_decl && ignore_function(*param_decl, {}, sm)) {
+    if (param_decl && should_not_rewrite_decl(*param_decl, {}, sm)) {
       return;
     }
 
@@ -709,10 +750,18 @@ public:
     auto linkage = fn_decl->getFormalLinkage();
     if (clang::isExternallyVisible(linkage)) {
       addr_taken_fns[fn_name] = new_type;
+
+      if (should_not_rewrite_decl(*fn_decl, loc, sm) || get_file_pkey(sm) == 0) {
+        return;
+      }
     } else {
 
       auto [it, new_fn] = internal_addr_taken_fns[filename].insert(
           std::make_pair(fn_name, new_type));
+
+      if (should_not_rewrite_decl(*fn_decl, loc, sm) || get_file_pkey(sm) == 0) {
+        return;
+      }
 
       // TODO: Note that this only checks if a function is added to the
       // internal_addr_taken_fns map. To make the rewriter idempotent we should
@@ -923,7 +972,7 @@ public:
     Function fn_name = fn_node->getNameAsString();
 
     // Ignore declarations in libc and libia2 headers
-    if (ignore_function(*fn_node, fn_node->getLocation(), sm)) {
+    if (should_not_analyze_decl(*fn_node, fn_node->getLocation(), sm)) {
       return;
     }
 

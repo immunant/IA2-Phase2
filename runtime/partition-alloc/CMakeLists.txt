@@ -76,6 +76,7 @@ pad_tls_library(partition-alloc_unpadded partition-alloc)
 
 target_link_libraries(partition-alloc_unpadded PRIVATE
     stdc++
+    libia2
 )
 
 target_include_directories(partition-alloc BEFORE

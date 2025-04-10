@@ -37,6 +37,9 @@
 
 using allocator_shim::AllocatorDispatch;
 
+extern int ia2_n_pkeys_to_alloc;
+extern "C" void ia2_set_up_tags(int *n_to_alloc);
+
 namespace {
 
 class SimpleScopedSpinLocker {
@@ -141,10 +144,18 @@ T* LeakySingleton<T, Constructor>::GetSlowPath() {
   return instance;
 }
 
+static void init_pkeys() {
+  static std::atomic<bool> s_init;
+  if (!s_init.exchange(true)) {
+    ia2_set_up_tags(&ia2_n_pkeys_to_alloc);
+  }
+}
+
 class MainPartitionConstructor {
  public:
   static partition_alloc::PartitionRoot* New(void* buffer) {
     size_t pkey = ::ia2_get_pkey();
+    init_pkeys();
     auto *new_root = new (buffer)
         partition_alloc::PartitionRoot(partition_alloc::PartitionOptions{
             .aligned_alloc = partition_alloc::PartitionOptions::kAllowed,
@@ -164,6 +175,7 @@ LeakySingleton<partition_alloc::PartitionRoot, MainPartitionConstructor>
 class SharedPartitionConstructor {
  public:
   static partition_alloc::PartitionRoot* New(void* buffer) {
+    init_pkeys();
     auto *new_root = new (buffer)
         partition_alloc::PartitionRoot(partition_alloc::PartitionOptions{
             .aligned_alloc =

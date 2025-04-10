@@ -55,6 +55,9 @@ bool enable_dav1d_get_picture_post_condition = true;
 bool use_default_pkey = false;
 Pkey default_pkey = 1;
 
+bool LibraryOnlyMode = false;
+std::set<std::string> RewriteFilesSet;
+
 // Map each translation unit's filename to its pkey.
 static std::map<Filename, Pkey> file_pkeys;
 
@@ -160,6 +163,10 @@ static bool should_not_modify_file(const Filename &filename) {
   }
 
   if (!filename.starts_with(OutputDirectory)) {
+    return true;
+  }
+
+  if (LibraryOnlyMode && !RewriteFilesSet.contains(filename)) {
     return true;
   }
 
@@ -1264,7 +1271,6 @@ std::string LibraryFilesFile;
 std::string RewriteFilesFile;
 std::vector<std::string> SourceFiles;
 std::vector<std::string> ExtraArgs;
-bool LibraryOnlyMode = false;
 
 auto LibOnlyGroup = "Library-only mode";
 
@@ -1321,7 +1327,6 @@ int main(int argc, const char **argv) {
   CompilationDatabase &comp_db = *MaybeCmds;
 
   std::set<std::string> LibraryFilesSet;
-  std::set<std::string> RewriteFilesSet;
 
   // Read library and rewrite filenames from input files for library-only mode
   if (LibraryOnlyMode) {

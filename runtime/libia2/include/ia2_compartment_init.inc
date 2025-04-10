@@ -31,7 +31,7 @@ __attribute__((used)) __attribute__((visibility("default"))) void COMPARTMENT_ID
 
 #else
 
-__attribute__((visibility("default"))) __thread void *COMPARTMENT_IDENT(ia2_stackptr) __attribute__((used));
+__attribute__((visibility("default"))) __attribute__((tls_model("global-dynamic"))) __thread void *COMPARTMENT_IDENT(ia2_stackptr) __attribute__((used));
 
 /*
 ** Initializes a compartment with protection key `n`. Called automatically as a

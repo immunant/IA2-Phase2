@@ -1730,7 +1730,11 @@ int main(int argc, const char **argv) {
 
     } else {
       header_out << "asm(\n";
-      header_out << "  \".set " << wrapper_name << ", __real_" << fn_name << "\\n\"\n";
+      if (!LibraryOnlyMode) {
+        header_out << "  \".set " << wrapper_name << ", __real_" << fn_name << "\\n\"\n";
+      } else {
+        header_out << "  \".set " << wrapper_name << ", " << fn_name << "\\n\"\n";
+      }
       header_out << ");\n";
     }
   }

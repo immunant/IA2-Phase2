@@ -768,6 +768,10 @@ public:
         mangle_type(ctxt, old_type->getCanonicalTypeInternal());
     OpaqueStruct new_type = kFnPtrTypePrefix + mangled_type;
 
+    if (fn_name.starts_with("jpeg")) {
+      llvm::errs() << filename << " has pkey " << get_file_pkey(sm) << " when we see fn " << fn_name << "\n";
+    }
+
     auto linkage = fn_decl->getFormalLinkage();
     if (clang::isExternallyVisible(linkage)) {
       addr_taken_fns[fn_name] = new_type;
@@ -1736,6 +1740,8 @@ int main(int argc, const char **argv) {
   std::set<Function> generated_wrappers = {};
   // Define wrappers for function pointers (i.e. those referenced by IA2_FN)
   for (const auto &[fn_name, opaque] : ptr_expr_pass.addr_taken_fns) {
+    llvm::errs() << fn_name << " has global linkage" << "\n";
+
     if (generated_wrappers.contains(fn_name)) {
       continue;
     }
@@ -1794,6 +1800,8 @@ int main(int argc, const char **argv) {
     // For each static function, define a macro to define the wrapper in the
     // output header and invoke it in the source file
     for (const auto [fn_name, opaque] : addr_taken_fns) {
+      llvm::errs() << fn_name << "\n";
+
       std::string wrapper_name = "__ia2_"s + fn_name;
       // TODO: These wrapper go from pkey 0 to the target pkey so if the target
       // also has pkey 0 then it just needs call the original function

@@ -7,7 +7,9 @@ import tempfile
 
 from typing import List, Any, Set
 
-repo_path = "/home/fwings/firefox-tree/mozilla-unified/"
+repo_path = "/home/fwings/firefox-tree/mozilla-unified"
+ia2_path = "/home/fwings/IA2-Phase2"
+ia2_build_path = ia2_path + "/build-repro"
 
 def sanitize_cc_cmds(cmds: List[Any]):
 	for entry in cmds:
@@ -62,18 +64,22 @@ def mktemp(contents: str) -> tempfile._TemporaryFileWrapper:
 	file.write(contents.encode())
 	file.flush()
 	return file
+	
+CALL_GATES_FILENAME = "call_gates"
 
-def rewriter(cc_cmds: List[Any], compartment_files: List[str], files_to_rewrite: List[str]):
+out_dir = "ff-rewritten"
+
+def rewriter(cc_cmds: List[Any], compartment_files: List[str], files_to_rewrite: List[str], out_dir: str):
+	rewriter_path = ia2_build_path + '/tools/rewriter/ia2-rewriter'
 	compile_commands_file = mktemp(json.dumps(cc_cmds))
 	compartment_files_file = mktemp('\n'.join(compartment_files))
 	files_to_rewrite_file = mktemp('\n'.join(files_to_rewrite))
 
-	out_dir = "ff-rewritten"
-	wrapper_prefix = out_dir + "/wrapper"
+	wrapper_prefix = out_dir + "/" + CALL_GATES_FILENAME
 
 	p = subprocess.Popen([
 		'gdb', '-ex', 'run', '--args',
-		'./ia2-rewriter',
+		rewriter_path,
 		'--library-only-mode',
 		'--cc-db',
 		compile_commands_file.name,
@@ -91,26 +97,76 @@ def rewriter(cc_cmds: List[Any], compartment_files: List[str], files_to_rewrite:
 	p.wait()
 	print("exit: {}", p.returncode)
 	assert(p.returncode == 0)
-	return [], [wrapper_prefix + ".c", wrapper_prefix + ".h"]
 
-modified_files, wrapper = rewriter(filtered_cc_cmds, compartment_files, files_to_rewrite)
+	# todo: get modified files from rewriter
+	modified_files = files_to_rewrite
+
+	ld_args_file = wrapper_prefix + "_1.ld"
+	wrapper_c = wrapper_prefix + ".c"
+	wrapper_h = wrapper_prefix + ".h"
+	return modified_files, wrapper_c, wrapper_h, ld_args_file
+
+modified_files, wrapper_c, wrapper_h, ld_args_file = rewriter(filtered_cc_cmds, compartment_files, files_to_rewrite, out_dir)
 
 # stop here for now
 os._exit(0)
 
+def build_wrapper_lib(wrapper_c: str) -> str:
+    # build wrapper lib
+    wrapper_lib_filename = f"lib{CALL_GATES_FILENAME}.so"
+    
+    # run compiler <flags> -fPIC -shared wrapper.c -o libwrapper.so -L/path/to/orig -lorig
+    wrapper_cmd = f"cc -fPIC -shared -Wl,-z,now {wrapper_c} -I {ia2_path}/runtime/libia2/include -o {wrapper_lib_filename}" #-L/path/to/orig -lorig"
+    os.system(wrapper_cmd)
+    return wrapper_lib_filename
+
+build_wrapper_lib(wrapper_c)
+
+def add_cflags(cc_cmd: str, cflags: List[str]) -> str:
+    before, after = cc_cmd.split(' ', 1)
+    return ' '.join([before] + cflags + [after])
+
+def add_ia2_includes(wrapper_h, modified_files: List[str], cc_cmds: List[Any]) -> List[Any]:
+    new_cmds = cc_cmds.copy()
+    ia2_include = ["-I{ia2_path}/libia2/include"]
+    wrapper_include = ["-include", wrapper_h]
+    for entry in new_cmds:
+        if entry["filename"] in modified_files:
+            entry["command"] = add_cflags(entry["command"], ia2_include)
+    return cc_cmds
+
+cc_cmds_with_ia2_includes = add_ia2_includes(filtered_cc_cmds)
+
 def load_link_cmds() -> List[Any]:
 	return json.load(open("link_commands.json", "r"))
 
-
+def add_ia2_libs(link_cmds):
+	for entry in link_cmds:
+	    # add --wrap=... flags via ld_args_file
+	    # -L ia2_build_dir/runtime/libia2/
+		# -llibia2
+		entry['command'] = entry['command']
 
 link_cmds = load_link_cmds()
 #add ia2 lib and flags to link commands
 link_cmds = add_ia2(link_cmds)
 
-compile(original_files + modified_files + wrapper, ia2_lib)
+# def compile(files, cmds):
+#     entry_for_file = {}
+#     for entry in cmds:
+#         entry_for_file[entry['filename']] = entry
+#     for filename in files:
+#         command = entry_for_file[filename]['command']
+#         #os.system(command)
+#         print(f"should run {command}")
+        
+#ia2_lib
+#compile(original_files + modified_files + wrapper, )
 
-def run(cmds):
+def run(cmds, files=[]):
 	for entry in cmds:
+	    # if entry['filename'] not in files:
+		#    continue
 		os.chdir(entry['directory'])
 		system(entry['command'])
 

@@ -109,6 +109,7 @@ struct dl_phdr_info;
 #define _IA2_DEFINE_SIGNAL_HANDLER(function, pkey)    \
     __asm__(".global ia2_sighandler_" #function "\n"  \
             "ia2_sighandler_" #function ":\n"         \
+            "ud2\n"                                   \
             "movq %rcx, %r10\n"                       \
             "movq %rdx, %r11\n"                       \
             "movq %rax, %r12\n"                       \

@@ -14,7 +14,7 @@ add_subdirectory(runtime)
 add_subdirectory(benchmarks)
 
 if (NOT LIBIA2_AARCH64)
-  add_subdirectory(examples)
+    add_subdirectory(examples)
 endif()
 add_subdirectory(misc)
 

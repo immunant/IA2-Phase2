@@ -400,6 +400,8 @@ void PartitionFreeDefiniteSize(const AllocatorDispatch*,
 size_t PartitionGetSizeEstimate(const AllocatorDispatch*,
                                 void* address,
                                 void* context) {
+  return 1;
+
   // This is used to implement malloc_usable_size(3). Per its man page, "if ptr
   // is NULL, 0 is returned".
   if (!address) {

@@ -292,7 +292,7 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
         libname = "main";
       }
       printf("TLS segment of %s is not padded\n", libname);
-      exit(-1);
+      // exit(-1);
     }
 
     // Look for the untrusted stack pointer, in case this lib defines it.

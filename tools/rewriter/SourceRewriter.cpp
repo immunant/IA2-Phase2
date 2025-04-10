@@ -159,10 +159,14 @@ static bool should_not_modify_file(const Filename &filename) {
     exit(1);
   }
 
-  return !filename.starts_with(OutputDirectory);
+  if (!filename.starts_with(OutputDirectory)) {
+    return true;
+  }
+
+  return false;
 }
 
-static bool ignore_function(const clang::Decl &decl,
+static bool should_not_rewrite_decl(const clang::Decl &decl,
                             const std::optional<clang::SourceLocation> &loc,
                             const clang::SourceManager &sm) {
   if (const auto *named_decl = dyn_cast<clang::NamedDecl>(&decl)) {

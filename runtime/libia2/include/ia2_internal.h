@@ -101,7 +101,7 @@ struct dl_phdr_info;
 // TODO: Do we want to use sysconf(3) here?
 #define PAGE_SIZE 4096
 
-#define STACK_SIZE (4 * 1024 * 1024)
+#define STACK_SIZE (16 * 1024 * 1024)
 
 /* clang-format can't handle inline asm in macros */
 /* clang-format off */

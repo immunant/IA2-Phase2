@@ -129,7 +129,7 @@ struct FinalizerInfo {
 static volatile struct FinalizerInfo finalizers
     __attribute__((__section__(".data.rel.ro.1"))) = {0};
 
-extern void COMPARTMENT_IDENT(__wrap_ia2_compartment_destructor)(void);
+extern __attribute__((visibility ("default"))) void COMPARTMENT_IDENT(__wrap_ia2_compartment_destructor)(void);
 
 __attribute__((visibility("default"))) __attribute__((no_sanitize("undefined"))) __attribute__((used)) void
 COMPARTMENT_IDENT(ia2_compartment_destructor)(void) {

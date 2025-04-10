@@ -1045,7 +1045,14 @@ std::set<llvm::SmallString<256>> copy_files(std::vector<std::unique_ptr<clang::A
         using llvm::sys::fs::perms;
         llvm::sys::fs::create_directories(llvm::sys::path::parent_path(output_file), ignore_existing, perms::all_all & ~perms::group_exe & ~perms::others_exe);
 
-        llvm::sys::fs::copy_file(input_file, output_file);
+        // Only copy file if it's different than the target file to avoid
+        // touching files that haven't changed. This can help speed up builds in
+        // some build systems.
+        auto input_md5 = llvm::sys::fs::md5_contents(input_file);
+        auto output_md5 = llvm::sys::fs::md5_contents(output_file);
+        if (input_md5 && output_md5 && input_md5.get() != output_md5.get()) {
+          llvm::sys::fs::copy_file(input_file, output_file);
+        }
       }
     }
   }

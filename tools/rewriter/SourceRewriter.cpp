@@ -1175,7 +1175,7 @@ auto ValidateDirectory = CLI::Validator(
     },
     "Directory", "path of a directory");
 
-const std::map<std::string, int> arch_map{{"x86", (int)Arch::X86}, {"aarch64", (int)Arch::Aarch64}};
+const std::map<std::string, Arch> arch_map{{"x86", Arch::X86}, {"aarch64", Arch::Aarch64}};
 
 std::string CompilationDbPath;
 std::string LibraryFilesFile;

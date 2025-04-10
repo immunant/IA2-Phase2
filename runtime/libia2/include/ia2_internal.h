@@ -21,6 +21,7 @@ struct dl_phdr_info;
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/cdefs.h>
 #include <sys/mman.h>
 #include <unistd.h>
 
@@ -335,11 +336,14 @@ static int ia2_mprotect_with_tag(void *addr, size_t len, int prot, int tag) {
 #define ia2_mprotect_with_tag pkey_mprotect
 #endif
 #endif
+
+__BEGIN_DECLS
 char *allocate_stack(int i);
 void allocate_stack_0();
 void verify_tls_padding(void);
-extern "C" void ia2_set_up_tags(int *n_to_alloc);
+void ia2_set_up_tags(int *n_to_alloc);
 __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
+__END_DECLS
 
 /* clang-format can't handle inline asm in macros */
 /* clang-format off */

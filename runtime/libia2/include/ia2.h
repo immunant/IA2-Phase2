@@ -131,9 +131,14 @@
 /// cannot be used on the lhs.
 #define IA2_AS_PTR(opaque) (opaque).ptr
 
+#ifdef __cplusplus
 /// Get an IA2 opaque function pointer for the wrapped version of `func`
 #define IA2_FN(func)                                                           \
   reinterpret_cast<typeof &func>((void *)(__ia2_##func).ptr)
+#else
+#define IA2_FN(func)                                                           \
+  (typeof(__ia2_##func)) { (void *)&__ia2_##func }
+#endif
 
 /// Call an IA2 opaque function pointer, which should be in target compartment
 /// `id`

@@ -333,6 +333,7 @@ int ia2_mprotect_with_tag(void *addr, size_t len, int prot, int tag);
 int pkey_mprotect(void* addr, size_t size, int prot, int pkey);
 static int ia2_mprotect_with_tag(void *addr, size_t len, int prot, int tag) {
   printf("ia2_mprotect_with_tag(addr=%p, len=%zu, prot=%d, tag=%d)\n", addr, len, prot, tag);
+  return 0;
   return pkey_mprotect(addr, len, prot, tag);
 }
 #else

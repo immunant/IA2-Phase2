@@ -329,6 +329,7 @@ works as a reasonable signpost no-op. */
 int ia2_mprotect_with_tag(void *addr, size_t len, int prot, int tag);
 #elif defined(__x86_64__)
 #if IA2_DEBUG_LOG
+int pkey_mprotect(void* addr, size_t size, int prot, int pkey);
 static int ia2_mprotect_with_tag(void *addr, size_t len, int prot, int tag) {
   printf("ia2_mprotect_with_tag(addr=%p, len=%zu, prot=%d, tag=%d)\n", addr, len, prot, tag);
   return pkey_mprotect(addr, len, prot, tag);

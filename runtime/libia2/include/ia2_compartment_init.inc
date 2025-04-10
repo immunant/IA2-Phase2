@@ -26,8 +26,8 @@
  * them no-ops with the same function signatures as the real versions when
  * compartments are disabled.
  */
-__attribute__((used)) void COMPARTMENT_IDENT(ia2_setup_destructors)(void) { }
-__attribute__((used)) void COMPARTMENT_IDENT(ia2_compartment_destructor)(void) { }
+__attribute__((used)) __attribute__((visibility("default"))) void COMPARTMENT_IDENT(ia2_setup_destructors)(void) { }
+__attribute__((used)) __attribute__((visibility("default"))) void COMPARTMENT_IDENT(ia2_compartment_destructor)(void) { }
 
 #else
 

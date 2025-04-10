@@ -299,7 +299,7 @@ asm(".macro movz_shifted_tag_x18 tag\n"
 #if defined(__x86_64__)
 #define return_stackptr_if_compartment(compartment)                            \
   if (pkru == PKRU(compartment)) {                                             \
-    register void *out asm("rax");                                             \
+    register void **out asm("rax");                                             \
     __asm__ volatile(                                                          \
         "mov %%fs:(0), %%rax\n"                                                \
         "addq ia2_stackptr_" #compartment "@GOTTPOFF(%%rip), %%rax\n"          \

@@ -54,7 +54,7 @@ __attribute__((constructor)) static void COMPARTMENT_IDENT(init_pkey)() {
                                                 {NULL, NULL}};
   struct PhdrSearchArgs args = {
       .pkey = IA2_COMPARTMENT,
-      .address = &COMPARTMENT_IDENT(init_pkey),
+      .address = (const void *)&COMPARTMENT_IDENT(init_pkey),
       .extra_libraries = IA2_COMPARTMENT_LIBRARIES,
       .found_library_count = 0,
       .shared_sections = shared_sections,
@@ -110,7 +110,7 @@ __attribute__((constructor)) static void COMPARTMENT_IDENT(init_pkey)() {
 __attribute__((visibility("default"))) void COMPARTMENT_IDENT(init_tls)(void) {
   struct PhdrSearchArgs args = {
       .pkey = IA2_COMPARTMENT,
-      .address = &COMPARTMENT_IDENT(init_tls),
+      .address = (const void *)&COMPARTMENT_IDENT(init_tls),
   };
   dl_iterate_phdr(protect_tls_pages, &args);
 }

@@ -183,15 +183,24 @@ file(GLOB PAD_TLS_SRCS ${CMAKE_SOURCE_DIR}/tools/pad-tls/*.c)
 # This cannot be in the tools directory CMakeLists.txt because the target is for
 # the top-level CMake project
 add_custom_target(rewriter
+    DEPENDS ${CMAKE_BINARY_DIR}/tools/rewriter/ia2-rewriter ${REWRITER_SRCS})
+add_custom_command(
+    OUTPUT ${CMAKE_BINARY_DIR}/tools/rewriter/ia2-rewriter
     COMMAND ${CMAKE_COMMAND} --build . -t ia2-rewriter
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/tools
     # tools dependency is for the CMake config step
-    DEPENDS tools ${REWRITER_SRCS})
+    DEPENDS tools ${REWRITER_SRCS}
+  )
 
 add_custom_target(pad-tls
+    DEPENDS ${CMAKE_BINARY_DIR}/tools/pad-tls/pad-tls ${PAD_TLS_SRCS})
+add_custom_command(
+    OUTPUT ${CMAKE_BINARY_DIR}/tools/pad-tls/pad-tls
     COMMAND ${CMAKE_COMMAND} --build . -t pad-tls
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/tools
-    DEPENDS tools ${PAD_TLS_SRCS})
+    # tools dependency is for the CMake config step
+    DEPENDS tools ${PAD_TLS_SRCS}
+  )
 
 # Create call gates for a target
 #

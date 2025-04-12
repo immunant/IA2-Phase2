@@ -24,3 +24,17 @@ add_ia2_compartment(microbenchmark_indirect EXECUTABLE
   LIBRARIES b63 m microbench_indirect microbench_indirect2
   PKEY 1
 )
+
+add_custom_target(run-microbenchmark
+    echo Running direct call microbenchmark
+    COMMAND ${QEMU_COMMAND} ${CMAKE_CURRENT_BINARY_DIR}/microbenchmark
+    DEPENDS microbenchmark
+)
+add_dependencies(bench run-microbenchmark)
+
+add_custom_target(run-microbenchmark_indirect
+    echo Running indirect call microbenchmark
+    COMMAND ${QEMU_COMMAND} ${CMAKE_CURRENT_BINARY_DIR}/microbenchmark_indirect
+    DEPENDS microbenchmark_indirect
+)
+add_dependencies(bench run-microbenchmark_indirect)

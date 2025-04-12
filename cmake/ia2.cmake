@@ -243,7 +243,12 @@ function(add_ia2_call_gates NAME)
       list(APPEND LD_ARGS_FILES "${target_ld_args_file}")
 
       set(target_objcopy_args_file "${REWRITER_OUTPUT_PREFIX}_${target_pkey}.objcopy")
-      set(OBJCOPY_GLUE ${CMAKE_OBJCOPY} "--redefine-syms=${target_objcopy_args_file}")
+      # FIXME: running objcopy in-place like this causes the .o file to have a newer mtime than its
+      # `-M -D` depsfile; this means ninja will always see it as dirty. for now, we avoid running
+      # objcopy unless the args file is nonempty, but we should really objcopy into new .o files and
+      # link the target out of those.
+      set(OBJCOPY_GLUE test ! -s "${target_objcopy_args_file}" ||
+        ${CMAKE_OBJCOPY} "--redefine-syms=${target_objcopy_args_file}")
       set(OBJCOPY_CMD ${OBJCOPY_GLUE} $<JOIN:$<TARGET_OBJECTS:${target}>, \\\; && ${OBJCOPY_GLUE} >)
       set_target_properties(${target} PROPERTIES LINK_DEPENDS ${target_objcopy_args_file})
       add_custom_command(TARGET ${target} PRE_LINK

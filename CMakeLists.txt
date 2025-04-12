@@ -5,6 +5,7 @@ include(ExternalProject)
 find_package(PkgConfig REQUIRED)
 
 include(cmake/ia2.cmake)
+include(cmake/qemu-command.cmake)
 
 set(EXTERNAL_DIR ${PROJECT_SOURCE_DIR}/external)
 

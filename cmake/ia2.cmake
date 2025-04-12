@@ -178,7 +178,7 @@ execute_process(COMMAND ${CLANG_EXE} -print-file-name=include-fixed
   OUTPUT_STRIP_TRAILING_WHITESPACE)
 message(STATUS "Found Clang fixed headers: ${CLANG_HEADERS_INCLUDE_FIXED}")
 
-file(GLOB REWRITER_SRCS ${CMAKE_SOURCE_DIR}/tools/rewriter/*.cpp)
+file(GLOB REWRITER_SRCS ${CMAKE_SOURCE_DIR}/tools/rewriter/*.cpp ${CMAKE_SOURCE_DIR}/tools/rewriter/*.hpp ${CMAKE_SOURCE_DIR}/tools/rewriter/*.h)
 file(GLOB PAD_TLS_SRCS ${CMAKE_SOURCE_DIR}/tools/pad-tls/*.c)
 # This cannot be in the tools directory CMakeLists.txt because the target is for
 # the top-level CMake project

@@ -75,6 +75,7 @@ jobs:
     strategy:
       matrix:
         build-type: [RelWithDebInfo]
+        rebuild-glibc: [ON, OFF]
     steps:
       - name: Setup Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
@@ -181,6 +182,9 @@ jobs:
         working-directory: ${{ github.workspace }}/llvm-project
         run: |
           ln -s ../build-rtlibs ./
+      - name: Init glibc submodule if rebuilding glibc
+        if: matrix.rebuild-glibc == 'ON'
+        run: git submodule update --init external/glibc
       - name: Test ARM build (${{ matrix.build-type }})
         run: |
           LLVM_DIR=`llvm-config-15 --cmakedir`
@@ -195,6 +199,7 @@ jobs:
           -I${rtlibs_dir}/include/c++/v1"
           export LDFLAGS="-L/usr/aarch64-linux-gnu/lib"
           cmake .. \
+            -DLIBIA2_REBUILD_GLIBC=${{ matrix.rebuild-glibc }} \
             -DCMAKE_BUILD_TYPE=${{ matrix.build-type }} \
             -DCMAKE_CROSSCOMPILING_EMULATOR=${{ github.workspace }}/qemu/build/qemu-aarch64 \
             -DCMAKE_TOOLCHAIN_FILE=../cmake/aarch64-toolchain.cmake \
@@ -209,5 +214,7 @@ jobs:
             -DCLANG_EXE=`which clang-15`                            \
             -DLLVM_DIR=$LLVM_DIR                                    \
             -G Ninja
+          # glibc Makefile picks up compiler-rt via LLVM_BUILD_DIR
+          export LLVM_BUILD_DIR="$(pwd)/../llvm-project"
           ninja -v check
           popd

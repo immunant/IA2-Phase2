@@ -82,7 +82,7 @@ if (LIBIA2_AARCH64)
         )
     else()
         set(SYSROOT_SRC_DIR ${CMAKE_SOURCE_DIR}/external/glibc_sysroot)
-        set(SYSROOT_BIN_DIR ${CMAKE_BINARY_DIR}/external/glibc/sysroot/usr)
+        set(SYSROOT_BIN_DIR ${CMAKE_BINARY_DIR}/external/glibc/sysroot)
         file(GLOB SYSROOT_HEADERS_SRC
             ${SYSROOT_SRC_DIR}/include/*.h
             ${SYSROOT_SRC_DIR}/include/*/*.h
@@ -95,7 +95,7 @@ if (LIBIA2_AARCH64)
                 ${SYSROOT_HEADERS}
             COMMAND ${CMAKE_COMMAND} -E copy ${SYSROOT_SRC_DIR}/lib/libc.so.6 ${SYSROOT_BIN_DIR}/lib/
             COMMAND ${CMAKE_COMMAND} -E copy ${SYSROOT_SRC_DIR}/lib/ld-linux-aarch64.so.1 ${SYSROOT_BIN_DIR}/lib/
-            COMMAND ${CMAKE_COMMAND} -E copy_directory ${SYSROOT_SRC_DIR}/include ${SYSROOT_BIN_DIR}/include
+            COMMAND ${CMAKE_COMMAND} -E copy_directory ${SYSROOT_SRC_DIR}/include ${SYSROOT_BIN_DIR}/usr/include
             COMMENT "Copying glibc prebuilts to sysroot"
         )
         add_custom_target(glibc

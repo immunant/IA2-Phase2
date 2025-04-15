@@ -133,7 +133,24 @@ add_custom_command(
     COMMENT "Padding TLS segment of libc"
 )
 
-add_custom_target(libc-ia2 DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/libc.so.6")
+# Explicitly depend on ld.so because we must use one built with our toolchain
+if(LIBIA2_AARCH64)
+    if(NOT DEFINED LD_LINUX_PATH)
+        message(FATAL_ERROR "Could not find ld-linux-aarch64.so.1 in: ${LIBC_PATHS}\n")
+    endif()
+
+    add_custom_command(
+        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ld-linux-aarch64.so.1
+        COMMAND ${CMAKE_COMMAND} -E copy ${LD_LINUX_PATH} ${CMAKE_CURRENT_BINARY_DIR}/ld-linux-aarch64.so.1
+        DEPENDS ${LD_LINUX_PATH}
+        COMMENT "Copying ld-linux-aarch64.so.1"
+    )
+    target_link_libraries(libia2 PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/ld-linux-aarch64.so.1")
+    add_custom_target(libc-ia2 DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/libc.so.6" DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/ld-linux-aarch64.so.1")
+else()
+    add_custom_target(libc-ia2 DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/libc.so.6")
+endif()
+
 
 if (LIBIA2_AARCH64)
     add_dependencies(libc-ia2 glibc)

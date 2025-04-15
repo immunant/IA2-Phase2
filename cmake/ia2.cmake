@@ -114,6 +114,8 @@ function(pad_tls_library INPUT OUTPUT)
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/unpadded"
     OUTPUT_NAME "${OUTPUT}"
   )
+  # copy interface link libs from unpadded target to padded one
+  target_link_libraries(${OUTPUT} INTERFACE $<TARGET_PROPERTY:${INPUT},INTERFACE_LINK_LIBRARIES>)
   target_link_options(${OUTPUT} INTERFACE $<TARGET_PROPERTY:${INPUT},INTERFACE_LINK_OPTIONS>)
 endfunction()
 

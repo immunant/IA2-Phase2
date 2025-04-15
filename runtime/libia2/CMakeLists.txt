@@ -55,6 +55,9 @@ target_link_options(libia2 INTERFACE
 set_property(TARGET libia2 PROPERTY INTERFACE_LINK_DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/padding.ld ${CMAKE_CURRENT_BINARY_DIR}/dynsym.syms)
 
 if (LIBIA2_AARCH64)
+    set(SYSROOT_BIN_DIR ${CMAKE_BINARY_DIR}/external/glibc/sysroot)
+    set(LIBC_PATH ${SYSROOT_BIN_DIR}/lib/libc.so.6)
+    set(LD_LINUX_PATH ${SYSROOT_BIN_DIR}/lib/ld-linux-aarch64.so.1)
     if (LIBIA2_REBUILD_GLIBC)
         ExternalProject_Add(glibc
             SOURCE_DIR ${CMAKE_SOURCE_DIR}/external/glibc
@@ -79,10 +82,10 @@ if (LIBIA2_AARCH64)
             USES_TERMINAL_CONFIGURE TRUE
             USES_TERMINAL_BUILD TRUE
             USES_TERMINAL_INSTALL TRUE
+            BUILD_BYPRODUCTS ${LIBC_PATH} ${LD_LINUX_PATH}
         )
     else()
         set(SYSROOT_SRC_DIR ${CMAKE_SOURCE_DIR}/external/glibc_sysroot)
-        set(SYSROOT_BIN_DIR ${CMAKE_BINARY_DIR}/external/glibc/sysroot)
         file(GLOB SYSROOT_HEADERS_SRC
             ${SYSROOT_SRC_DIR}/include/*.h
             ${SYSROOT_SRC_DIR}/include/*/*.h
@@ -102,7 +105,6 @@ if (LIBIA2_AARCH64)
             DEPENDS ${SYSROOT_BIN_DIR}/lib/libc.so.6 ${SYSROOT_BIN_DIR}/lib/ld-linux-aarch64.so.1 ${SYSROOT_HEADERS}
         )
     endif()
-    set(LIBC_PATH ${SYSROOT_BIN_DIR}/lib/libc.so.6)
 else()
     # Find libc. We cannot simply do `find_library(LIBC c REQUIRED)` because
     # `libc.so` itself is a linker script with glibc, while we need the path of

@@ -67,6 +67,8 @@ add_subdirectory(read_config)
 add_subdirectory(heap_two_keys)
 add_subdirectory(three_keys_minimal)
 
+add_subdirectory(tls_protected)
+
 # The following tests are not supported on ARM64 yet
 if (NOT LIBIA2_AARCH64)
     # Expected to have compartment violations, but we aren't enforcing yet:
@@ -83,7 +85,6 @@ if (NOT LIBIA2_AARCH64)
 
     # test calls PKRU-specific functions
     add_subdirectory(mmap_loop)
-    add_subdirectory(tls_protected)
 
     # ARM does not support threads yet
     add_subdirectory(threads)

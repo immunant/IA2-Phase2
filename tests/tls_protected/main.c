@@ -6,7 +6,6 @@
 #include <stdint.h>
 #include <unistd.h>
 
-
 #include <threads.h>
 
 INIT_RUNTIME(2);
@@ -24,19 +23,27 @@ volatile void *addr;
 // CHECK_VIOLATION prints a different message.
 void run_test(bool access_lib_secret) {
   errno = 5;
+#ifdef __x86_64__
   cr_log_info("errno=%d, pkru=%08x\n", errno, ia2_get_pkru());
+#endif
 
   lib_print_lib_secret();
 
   // Access to thread-local from the same compartment should work.
   cr_log_info("main: main secret is %x\n", main_secret);
+#ifdef __x86_64__
   cr_log_info("errno=%d, pkru=%08x\n", errno, ia2_get_pkru());
+#endif
   lib_print_lib_secret();
 
+#ifdef __x86_64__
   cr_log_info("errno=%d, pkru=%08x\n", errno, ia2_get_pkru());
+#endif
 
   errno = 5;
+#ifdef __x86_64__
   cr_log_info("pkru=%08x\n", ia2_get_pkru());
+#endif
   cr_log_info("errno=%d\n", errno);
 
   // Perform forbidden access.

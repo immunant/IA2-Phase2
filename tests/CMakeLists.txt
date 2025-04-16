@@ -66,6 +66,7 @@ add_subdirectory(structs)
 add_subdirectory(read_config)
 add_subdirectory(heap_two_keys)
 add_subdirectory(three_keys_minimal)
+add_subdirectory(simple1)
 
 add_subdirectory(tls_protected)
 
@@ -80,8 +81,6 @@ if (NOT LIBIA2_AARCH64)
     add_subdirectory(two_keys_minimal)
     add_subdirectory(two_shared_ranges)
     add_subdirectory(trusted_indirect)
-    # LLVM patch seems to break this test
-    add_subdirectory(simple1)
 
     # test calls PKRU-specific functions
     add_subdirectory(mmap_loop)

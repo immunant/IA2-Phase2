@@ -1,6 +1,6 @@
 [submodule "external/glibc"]
 	path = external/glibc
-	url = https://www.sourceware.org/git/glibc.git
+	url = https://github.com/immunant/IA2-glibc.git
 [submodule "external/b63"]
 	path = external/b63
 	url = https://github.com/okuvshynov/b63.git

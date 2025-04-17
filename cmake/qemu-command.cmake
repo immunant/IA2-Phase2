@@ -12,7 +12,7 @@ else()
   endif()
   set(QEMU_COMMAND ${CMAKE_CROSSCOMPILING_EMULATOR}
     "-one-insn-per-tb"
-    "-L" "${CMAKE_BINARY_DIR}/external/glibc/sysroot/usr/"
-    "-E" "LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/external/glibc/sysroot/usr/lib:/usr/aarch64-linux-gnu/lib:/usr/aarch64-linux-gnu/lib64"
+    "-L" "${CMAKE_BINARY_DIR}/external/glibc/sysroot/"
+    "-E" "LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/external/glibc/sysroot/lib:/usr/aarch64-linux-gnu/lib:/usr/aarch64-linux-gnu/lib64"
   )
 endif()

@@ -74,9 +74,16 @@ add_library(partition-alloc_unpadded SHARED
 
 pad_tls_library(partition-alloc_unpadded partition-alloc)
 
-target_link_libraries(partition-alloc_unpadded PRIVATE
+if(LIBIA2_AARCH64)
+  target_link_libraries(partition-alloc_unpadded PUBLIC
+    c++
+    m # libstdc++ implicitly depends on libm, but libc++ doesn't
+  )
+else()
+  target_link_libraries(partition-alloc_unpadded PRIVATE
     stdc++
-)
+  )
+endif()
 
 target_include_directories(partition-alloc BEFORE
 	INTERFACE

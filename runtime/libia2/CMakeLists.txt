@@ -55,15 +55,18 @@ target_link_options(libia2 INTERFACE
 set_property(TARGET libia2 PROPERTY INTERFACE_LINK_DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/padding.ld ${CMAKE_CURRENT_BINARY_DIR}/dynsym.syms)
 
 if (LIBIA2_AARCH64)
+    set(SYSROOT_BIN_DIR ${CMAKE_BINARY_DIR}/external/glibc/sysroot)
+    set(LIBC_PATH ${SYSROOT_BIN_DIR}/lib/libc.so.6)
+    set(LD_LINUX_PATH ${SYSROOT_BIN_DIR}/lib/ld-linux-aarch64.so.1)
     if (LIBIA2_REBUILD_GLIBC)
         ExternalProject_Add(glibc
             SOURCE_DIR ${CMAKE_SOURCE_DIR}/external/glibc
             BINARY_DIR ${CMAKE_BINARY_DIR}/external/glibc
             CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env
                 # ffixed-x18 has to be set here instead of CFLAGS for it to apply to all files
-                "CC=aarch64-linux-gnu-gcc -ffixed-x18"
+                "CC=${CMAKE_C_COMPILER} -target aarch64-linux-gnu -ffixed-x18 -march=armv8.5-a+memtag --rtlib=compiler-rt -O3"
                 # this is needed for some test files built by the build system
-                "CXX=aarch64-linux-gnu-g++ -ffixed-x18"
+                "CXX=${CMAKE_CXX_COMPILER} -target aarch64-linux-gnu -ffixed-x18 -march=armv8.5-a+memtag --rtlib=compiler-rt -O3"
                 ${CMAKE_SOURCE_DIR}/external/glibc/configure
                 "--build=aarch64-linux-gnu"
                 "--target=aarch64-linux-gnu"
@@ -74,14 +77,15 @@ if (LIBIA2_AARCH64)
                 # This is only for the heap tunable
                 "--enable-memory-tagging"
             BUILD_COMMAND make -j8
+            # places the built libc.so and ld.so at the locations expected by QEMU's LD_LIBPRARY_PATH
             INSTALL_COMMAND make install
             USES_TERMINAL_CONFIGURE TRUE
             USES_TERMINAL_BUILD TRUE
             USES_TERMINAL_INSTALL TRUE
+            BUILD_BYPRODUCTS ${LIBC_PATH} ${LD_LINUX_PATH}
         )
     else()
         set(SYSROOT_SRC_DIR ${CMAKE_SOURCE_DIR}/external/glibc_sysroot)
-        set(SYSROOT_BIN_DIR ${CMAKE_BINARY_DIR}/external/glibc/sysroot/usr)
         file(GLOB SYSROOT_HEADERS_SRC
             ${SYSROOT_SRC_DIR}/include/*.h
             ${SYSROOT_SRC_DIR}/include/*/*.h
@@ -94,14 +98,13 @@ if (LIBIA2_AARCH64)
                 ${SYSROOT_HEADERS}
             COMMAND ${CMAKE_COMMAND} -E copy ${SYSROOT_SRC_DIR}/lib/libc.so.6 ${SYSROOT_BIN_DIR}/lib/
             COMMAND ${CMAKE_COMMAND} -E copy ${SYSROOT_SRC_DIR}/lib/ld-linux-aarch64.so.1 ${SYSROOT_BIN_DIR}/lib/
-            COMMAND ${CMAKE_COMMAND} -E copy_directory ${SYSROOT_SRC_DIR}/include ${SYSROOT_BIN_DIR}/include
+            COMMAND ${CMAKE_COMMAND} -E copy_directory ${SYSROOT_SRC_DIR}/include ${SYSROOT_BIN_DIR}/usr/include
             COMMENT "Copying glibc prebuilts to sysroot"
         )
         add_custom_target(glibc
             DEPENDS ${SYSROOT_BIN_DIR}/lib/libc.so.6 ${SYSROOT_BIN_DIR}/lib/ld-linux-aarch64.so.1 ${SYSROOT_HEADERS}
         )
     endif()
-    set(LIBC_PATH ${SYSROOT_BIN_DIR}/lib/libc.so.6)
 else()
     # Find libc. We cannot simply do `find_library(LIBC c REQUIRED)` because
     # `libc.so` itself is a linker script with glibc, while we need the path of
@@ -130,7 +133,29 @@ add_custom_command(
     COMMENT "Padding TLS segment of libc"
 )
 
-add_custom_target(libc-ia2 DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/libc.so.6")
+# Explicitly depend on ld.so because we must use one built with our toolchain
+if(LIBIA2_AARCH64)
+    if(NOT DEFINED LD_LINUX_PATH)
+        message(FATAL_ERROR "Could not find ld-linux-aarch64.so.1 in: ${LIBC_PATHS}\n")
+    endif()
+
+    add_custom_command(
+        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ld-linux-aarch64.so.1
+        COMMAND ${CMAKE_COMMAND} -E copy ${LD_LINUX_PATH} ${CMAKE_CURRENT_BINARY_DIR}/ld-linux-aarch64.so.1
+        DEPENDS ${LD_LINUX_PATH}
+        COMMENT "Copying ld-linux-aarch64.so.1"
+    )
+    add_library(libc SHARED IMPORTED)
+    set_property(TARGET libc PROPERTY IMPORTED_LOCATION "${CMAKE_CURRENT_BINARY_DIR}/libc.so.6")
+    target_link_libraries(libia2 PUBLIC libc)
+    add_library(ld-linux SHARED IMPORTED)
+    set_property(TARGET ld-linux PROPERTY IMPORTED_LOCATION "${CMAKE_CURRENT_BINARY_DIR}/ld-linux-aarch64.so.1")
+    target_link_libraries(libia2 PUBLIC ld-linux)
+    add_custom_target(libc-ia2 DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/libc.so.6" "${CMAKE_CURRENT_BINARY_DIR}/ld-linux-aarch64.so.1")
+else()
+    add_custom_target(libc-ia2 DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/libc.so.6")
+endif()
+
 
 if (LIBIA2_AARCH64)
     add_dependencies(libc-ia2 glibc)

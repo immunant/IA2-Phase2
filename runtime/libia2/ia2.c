@@ -374,7 +374,7 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
 
   struct PhdrSearchArgs *search_args = (struct PhdrSearchArgs *)data;
 
-  size_t cur_pkey = ia2_get_tag();
+  size_t cur_pkey = ia2_get_compartment();
   if (cur_pkey != search_args->pkey) {
     fprintf(stderr, "Invalid pkey, expected %" PRId32 ", found %zu\n",
             search_args->pkey, cur_pkey);

@@ -292,8 +292,13 @@ function(add_ia2_call_gates NAME)
     set(ARCH_FLAG "--arch=aarch64")
   else()
     set(SYSROOT_FLAG
-      --extra-arg -isystem --extra-arg "${CLANG_HEADERS_INCLUDE}"
-      --extra-arg -isystem --extra-arg "${CLANG_HEADERS_INCLUDE_FIXED}")
+      --extra-arg -isystem --extra-arg "${CLANG_HEADERS_INCLUDE}")
+
+    if (NOT "${CLANG_HEADERS_INCLUDE_FIXED}" STREQUAL "include-fixed")
+        set(SYSROOT_FLAG ${SYSROOT_FLAG}
+            --extra-arg -isystem
+            --extra-arg "${CLANG_HEADERS_INCLUDE_FIXED}")
+    endif()
   endif()
   add_custom_command(
     OUTPUT ${CALL_GATE_SRC} ${CALL_GATE_HDR}

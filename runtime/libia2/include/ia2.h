@@ -134,7 +134,7 @@
 #ifdef __cplusplus
 #define IA2_FN(func) reinterpret_cast<typeof &func>((void *)&((__ia2_##func).ptr))
 #else
-#define IA2_FN(func) (typeof(__ia2_##func)) { (void *)&__ia2_##func }
+#define IA2_FN(func) (typeof(&func)) { (void *)&__ia2_##func }
 #endif
 
 /// Call an IA2 opaque function pointer, which should be in target compartment

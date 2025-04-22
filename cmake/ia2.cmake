@@ -21,7 +21,7 @@ endif()
 # ENABLE_UBSAN - If present, enable UBSAN for this executable.
 function(add_ia2_compartment NAME TYPE)
   # Parse options
-  set(options ENABLE_UBSAN)
+  set(options ENABLE_UBSAN LIBRARY_ONLY_MODE)
   set(oneValueArgs PKEY)
   set(multiValueArgs LIBRARIES SOURCES INCLUDE_DIRECTORIES)
   cmake_parse_arguments(ARG "${options}" "${oneValueArgs}"
@@ -69,15 +69,25 @@ function(add_ia2_compartment NAME TYPE)
 
   target_link_libraries(${NAME} PRIVATE ${ARG_LIBRARIES})
 
-  create_compile_commands(${NAME} ${TYPE}
-    PKEY ${ARG_PKEY}
-    SOURCES ${ARG_SOURCES}
-    INCLUDE_DIRECTORIES ${ARG_INCLUDE_DIRECTORIES}
-  )
+  if (ARG_LIBRARY_ONLY_MODE)
+    set(LIBRARY_ONLY_MODE "LIBRARY_ONLY_MODE")
+    target_compile_definitions(${NAME} PRIVATE IA2_LIBRARY_ONLY_MODE=1)
+  else()
+    set(LIBRARY_ONLY_MODE "")
+
+    # Only create compile_commands during the regular mode
+    # to avoid duplicate entries in the compilation db
+    create_compile_commands(${NAME} ${TYPE}
+      PKEY ${ARG_PKEY}
+      SOURCES ${ARG_SOURCES}
+      INCLUDE_DIRECTORIES ${ARG_INCLUDE_DIRECTORIES}
+    )
+  endif()
+
 
   if("${TYPE}" STREQUAL "EXECUTABLE")
     # Create and link call gates
-    add_ia2_call_gates(${NAME} LIBRARIES ${ARG_LIBRARIES})
+    add_ia2_call_gates(${NAME} ${LIBRARY_ONLY_MODE} LIBRARIES ${ARG_LIBRARIES})
   endif()
 endfunction()
 
@@ -205,7 +215,7 @@ add_custom_target(pad-tls
 # ORIGINAL_INCLUDE_DIRECTORIES being set for any compartmentalized targets.
 function(add_ia2_call_gates NAME)
   # Parse options
-  set(options "")
+  set(options LIBRARY_ONLY_MODE)
   set(oneValueArgs "")
   set(multiValueArgs LIBRARIES EXTRA_REWRITER_ARGS)
   cmake_parse_arguments(ARG "${options}" "${oneValueArgs}"
@@ -214,13 +224,15 @@ function(add_ia2_call_gates NAME)
   get_target_property(PKEY ${NAME} PKEY)
 
   set(CALL_GATE_TARGET ${NAME}_call_gates)
-  set(CALL_GATE_SRC ${CMAKE_CURRENT_BINARY_DIR}/${NAME}_call_gates.c)
-  set(CALL_GATE_HDR ${CMAKE_CURRENT_BINARY_DIR}/${NAME}_call_gates.h)
+  set(LIBRARY_SOURCES "")
+  set(REWRITE_SOURCES "")
 
   foreach(target ${NAME} ${ARG_LIBRARIES})
     set(target_pkey_set FALSE)
+    set(target_type_set FALSE)
     if(TARGET ${target})
       get_property(target_pkey_set TARGET ${target} PROPERTY PKEY SET)
+      get_property(target_type_set TARGET ${target} PROPERTY TYPE SET)
     endif()
     if(NOT ${target_pkey_set})
       if(TARGET ${target}_unpadded)
@@ -231,11 +243,36 @@ function(add_ia2_call_gates NAME)
       endif()
     endif()
 
-    set(REWRITER_OUTPUT_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/${NAME}_call_gates")
+    if (ARG_LIBRARY_ONLY_MODE)
+      if(NOT ${target_type_set})
+        continue()
+      endif()
+      get_target_property(target_type ${target} TYPE)
+      if (NOT ${target_type} STREQUAL "EXECUTABLE")
+        if (${target_type} STREQUAL "SHARED_LIBRARY")
+          get_target_property(target_srcs ${target} SOURCES)
+          relative_to_absolute(target_original_srcs ${target_source_dir} ${target_srcs})
+          list(APPEND LIBRARY_SOURCES ${target_original_srcs})
+        endif()
+
+        message("Skipping dependency ${target} in library-only mode")
+        continue()
+      endif()
+
+      set(library_only_subdir "/libonly")
+    else()
+      set(library_only_subdir "")
+    endif()
+
+    set(CALL_GATE_SRC ${CMAKE_CURRENT_BINARY_DIR}${library_only_subdir}/${NAME}_call_gates.c)
+    set(CALL_GATE_HDR ${CMAKE_CURRENT_BINARY_DIR}${library_only_subdir}/${NAME}_call_gates.h)
+    set(REWRITER_OUTPUT_PREFIX
+        "${CMAKE_CURRENT_BINARY_DIR}${library_only_subdir}/${NAME}_call_gates")
 
     if(${target_pkey_set})
       get_target_property(target_source_dir ${target} SOURCE_DIR)
       get_target_property(target_binary_dir ${target} BINARY_DIR)
+      set(target_binary_dir "${target_binary_dir}${library_only_subdir}")
 
       get_target_property(target_pkey ${target} PKEY)
       set(target_ld_args_file "${REWRITER_OUTPUT_PREFIX}_${target_pkey}.ld")
@@ -259,13 +296,17 @@ function(add_ia2_call_gates NAME)
       list(APPEND REWRITTEN_SOURCES ${target_rewritten_srcs})
       target_sources(${target} PRIVATE ${target_rewritten_srcs})
 
+      if (ARG_LIBRARY_ONLY_MODE)
+        list(APPEND REWRITE_SOURCES ${target_original_srcs})
+      endif()
+
       get_target_property(target_include_dirs ${target} ORIGINAL_INCLUDE_DIRECTORIES)
       if(target_include_dirs)
         relative_to_absolute(target_original_include_dirs ${target_source_dir} ${target_include_dirs})
         list(APPEND INCLUDE_DIRECTORIES ${target_original_include_dirs})
         relative_to_absolute(target_rewritten_include_dirs ${target_binary_dir} ${target_include_dirs})
         list(APPEND REWRITTEN_INCLUDE_DIRECTORIES ${target_rewritten_include_dirs})
-        if("${target_pkey}" GREATER "0")
+        if("${target_pkey}" GREATER "0" AND NOT ARG_LIBRARY_ONLY_MODE)
           target_include_directories(${target} PRIVATE ${target_rewritten_include_dirs})
         else()
           target_include_directories(${target} PRIVATE ${target_original_include_dirs})
@@ -288,6 +329,25 @@ function(add_ia2_call_gates NAME)
     endif()
   endforeach()
 
+  if (ARG_LIBRARY_ONLY_MODE)
+    set(library_file ${CMAKE_CURRENT_BINARY_DIR}/libonly_library_files.txt)
+    set(rewrite_file ${CMAKE_CURRENT_BINARY_DIR}/libonly_rewrite_files.txt)
+
+    file(GENERATE OUTPUT ${library_file} CONTENT ${LIBRARY_SOURCES})
+    file(GENERATE OUTPUT ${rewrite_file} CONTENT ${REWRITE_SOURCES})
+
+    set(LIBRARY_ONLY_FLAGS
+      --library-only-mode
+      --library-files ${library_file}
+      --rewrite-files ${rewrite_file}
+      )
+    set(LIBRARY_ONLY_DEPS ${SOURCES} ${library_file} ${rewrite_file})
+    set(SOURCES "")
+  else()
+    set(LIBRARY_ONLY_FLAGS "")
+    set(LIBRARY_ONLY_DEPS "")
+  endif()
+
   if (LIBIA2_AARCH64)
     set(ARCH_FLAG "--arch=aarch64")
   else()
@@ -306,7 +366,8 @@ function(add_ia2_call_gates NAME)
     COMMAND ${CMAKE_BINARY_DIR}/tools/rewriter/ia2-rewriter
         --output-prefix ${REWRITER_OUTPUT_PREFIX}
         --root-directory ${CMAKE_CURRENT_SOURCE_DIR}
-        --output-directory ${CMAKE_CURRENT_BINARY_DIR}
+        --output-directory ${CMAKE_CURRENT_BINARY_DIR}${library_only_subdir}
+        ${LIBRARY_ONLY_FLAGS}
         ${ARCH_FLAG}
         # Set the build path so the rewriter can find the compile_commands JSON
         -p ${CMAKE_BINARY_DIR}/compile_commands.json
@@ -318,7 +379,7 @@ function(add_ia2_call_gates NAME)
     # command so we need to add a dependency on the rewriter's sources. We still
     # need the dependency on the custom rewriter target to make sure it gets
     # built the first time.
-    DEPENDS ${SOURCES} ${REWRITER_SRCS} rewriter
+    DEPENDS ${SOURCES} ${REWRITER_SRCS} rewriter ${LIBRARY_ONLY_DEPS}
     VERBATIM
   )
 

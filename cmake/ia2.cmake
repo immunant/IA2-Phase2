@@ -309,7 +309,7 @@ function(add_ia2_call_gates NAME)
         --output-directory ${CMAKE_CURRENT_BINARY_DIR}
         ${ARCH_FLAG}
         # Set the build path so the rewriter can find the compile_commands JSON
-        -p ${CMAKE_BINARY_DIR}
+        -p ${CMAKE_BINARY_DIR}/compile_commands.json
         ${SYSROOT_FLAG}
         ${ARG_EXTRA_REWRITER_ARGS}
         ${SOURCES}

@@ -15,7 +15,11 @@
 #include <unistd.h>
 #include <video_decoder.h>
 
+#if IA2_LIBRARY_ONLY_MODE
+INIT_RUNTIME(1);
+#else
 INIT_RUNTIME(2);
+#endif
 #define IA2_COMPARTMENT 1
 #define IA2_COMPARTMENT_LIBRARIES "libSDL2-2.0.so;libswscale.so"
 #include <ia2_compartment_init.inc>

@@ -322,24 +322,10 @@ static void emit_mixed_wrpkru(AsmWriter &aw, int pkey0, int pkey1) {
 //   movq %rsp, %{retval}
 static std::string emit_load_sp_offset(AsmWriter &aw, int pkey,
                                        const std::string &fs_offset_reg) {
-  if (pkey == 0) {
-    add_asm_line(
-        aw, llvm::formatv("mov ia2_stackptr_{0}@GOTTPOFF(%rip), %{1}",
-                          pkey, fs_offset_reg));
-    return "fs:(%"s + fs_offset_reg + ")"s;
-  } else {
-    // TODO: Maybe make this only for library-only mode.
-    add_asm_line(aw, "push %rdi");
-    add_asm_line(aw, "push %rax");
-    add_asm_line(aw, llvm::formatv("data16	leaq	ia2_stackptr_{0}@tlsgd(%rip), %rdi", pkey));
-    add_asm_line(aw, ".value	0x6666");
-    add_asm_line(aw, "rex64");
-    add_asm_line(aw, "call	__tls_get_addr@PLT");
-    add_asm_line(aw, llvm::formatv("movq	(%rax), %{0}", fs_offset_reg));
-    add_asm_line(aw, "pop %rax");
-    add_asm_line(aw, "pop %rdi");
-    return fs_offset_reg;
-  }
+  add_asm_line(
+      aw, llvm::formatv("mov ia2_stackptr_{0}@GOTTPOFF(%rip), %{1}",
+                        pkey, fs_offset_reg));
+  return "fs:(%"s + fs_offset_reg + ")"s;
 }
 
 // Emit code to switch stacks, using ia2_stackptr_##{old,new}_pkey as storage

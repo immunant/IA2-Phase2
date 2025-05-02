@@ -49,7 +49,8 @@ def select_files(exclude_files: List[str]) -> Set[str]:
 		'-g', '*.cpp',
 		# not part of build
 		'-g' '!jpeg_frame_writer.cc',
-		repo_path
+		'-g', '!nsBrowserApp.cpp',
+		repo_path,
 	], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 	stdout, stderr = p.communicate()
 	found_files = stdout.decode().strip('\n').split('\n')

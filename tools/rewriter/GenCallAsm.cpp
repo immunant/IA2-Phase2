@@ -322,10 +322,36 @@ static void emit_mixed_wrpkru(AsmWriter &aw, int pkey0, int pkey1) {
 //   movq %rsp, %{retval}
 static std::string emit_load_sp_offset(AsmWriter &aw, int pkey,
                                        const std::string &fs_offset_reg) {
-  add_asm_line(
-      aw, llvm::formatv("mov ia2_stackptr_{0}@GOTTPOFF(%rip), %{1}",
-                        pkey, fs_offset_reg));
-  return "fs:(%"s + fs_offset_reg + ")"s;
+  if (pkey == 0) {
+    add_asm_line(
+        aw, llvm::formatv("mov ia2_stackptr_{0}@GOTTPOFF(%rip), %{1}",
+                          pkey, fs_offset_reg));
+    return "%fs:(%"s + fs_offset_reg + ")"s;
+  } else {
+    // TODO: Maybe make this only for library-only mode.
+    add_asm_line(aw, "push %rdi");
+    add_asm_line(aw, "push %rax");
+    add_asm_line(aw, "push %rsi");
+    add_asm_line(aw, "push %rdx");
+    add_asm_line(aw, "push %rcx");
+    add_asm_line(aw, "push %r8");
+    add_asm_line(aw, "push %r9");
+    add_asm_line(aw, "push %r10");
+    add_asm_line(aw, llvm::formatv("data16	leaq	ia2_stackptr_{0}@tlsgd(%rip), %rdi", pkey));
+    add_asm_line(aw, ".value	0x6666");
+    add_asm_line(aw, "rex64");
+    add_asm_line(aw, "call	__tls_get_addr@PLT");
+    add_asm_line(aw, llvm::formatv("movq	(%rax), %{0}", fs_offset_reg));
+    add_asm_line(aw, "pop %r10");
+    add_asm_line(aw, "pop %r9");
+    add_asm_line(aw, "pop %r8");
+    add_asm_line(aw, "pop %rcx");
+    add_asm_line(aw, "pop %rdx");
+    add_asm_line(aw, "pop %rsi");
+    add_asm_line(aw, "pop %rax");
+    add_asm_line(aw, "pop %rdi");
+    return "(%" + fs_offset_reg + ")";
+  }
 }
 
 // Emit code to switch stacks, using ia2_stackptr_##{old,new}_pkey as storage
@@ -344,7 +370,7 @@ static void emit_switch_stacks(AsmWriter &aw, int old_pkey, int new_pkey, Arch a
                       compartment_offset_reg));
     std::string expr = emit_load_sp_offset(aw, old_pkey, compartment_offset_reg);
     add_comment_line(aw, "Write the old stack pointer to memory");
-    add_asm_line(aw, llvm::formatv("movq %rsp, %{0}", expr));
+    add_asm_line(aw, llvm::formatv("movq %rsp, {0}", expr));
 
     // After saving the old sp, we switch stacks by loading the new one
     add_comment_line(
@@ -353,7 +379,7 @@ static void emit_switch_stacks(AsmWriter &aw, int old_pkey, int new_pkey, Arch a
                       compartment_offset_reg));
     expr = emit_load_sp_offset(aw, new_pkey, compartment_offset_reg);
     add_comment_line(aw, "Read the new stack pointer from memory");
-    add_asm_line(aw, llvm::formatv("movq %{0}, %rsp", expr));
+    add_asm_line(aw, llvm::formatv("movq {0}, %rsp", expr));
   } else if (arch == Arch::Aarch64) {
     add_comment_line(aw, "Compute location to save old stack pointer in x10");
     add_asm_line(aw, "mrs x9, tpidr_el0");
@@ -565,7 +591,7 @@ static void emit_copy_args(AsmWriter &aw, const std::vector<ArgLocation> &args,
           aw, "Copy stack arguments from the caller's stack to the compartment");
       // Load addr of top of caller compartment's stack into rax, clobbering r12
       std::string expr = emit_load_sp_offset(aw, caller_pkey, "r12"s);
-      add_asm_line(aw, "movq %" + expr + ", %rax");
+      add_asm_line(aw, "movq " + expr + ", %rax");
       // We must take the preserved registers we pushed on the caller's stack
       // into account (including rbp) when determining the location of the stack
       // args

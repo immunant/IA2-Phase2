@@ -1,6 +1,7 @@
 #include <pthread.h>
 #include <signal.h>
 #include <sys/mman.h>
+#include <dlfcn.h>
 
 #include "ia2.h"
 
@@ -14,10 +15,12 @@ struct ia2_thread_thunk {
 
 /* __thread char ia2_signal_stack[STACK_SIZE]; */
 
+__attribute__((visibility("default"))) extern __thread void *ia2_thread_init_stackptr;
+
 void *ia2_thread_begin(void *arg) {
   struct ia2_thread_thunk *thunk = (struct ia2_thread_thunk *)arg;
-  void *(*fn)(void *) = thunk->fn;
-  void *data = thunk->data;
+  register void *(*fn)(void *) asm ("r12") = thunk->fn;
+  register void *data asm ("r13") = thunk->data;
   /* stack_t alt_stack = { */
   /*     .ss_sp = ia2_signal_stack, .ss_flags = 0, .ss_size = STACK_SIZE}; */
 
@@ -39,6 +42,10 @@ void *ia2_thread_begin(void *arg) {
       /* clang-format on */
       : "=a"(pkru)::"ecx", "edx");
   void **new_sp_addr = ia2_stackptr_for_pkru(pkru);
+
+  if (pkru == PKRU(1)) {
+    ia2_thread_init_stackptr = *new_sp_addr;
+  }
 
   /* Switch to the stack for this compartment, then call `fn(data)`. */
   void *result;
@@ -79,7 +86,7 @@ int __real_pthread_create(pthread_t *restrict thread,
                           const pthread_attr_t *restrict attr, void *(*fn)(),
                           void *data);
 
-int __wrap_pthread_create(pthread_t *restrict thread,
+int ia2_pthread_create(pthread_t *restrict thread,
                           const pthread_attr_t *restrict attr, void *(*fn)(),
                           void *data) {
   /* Allocate a thunk for the thread to call `ia2_thread_begin` before the
@@ -94,5 +101,7 @@ int __wrap_pthread_create(pthread_t *restrict thread,
   struct ia2_thread_thunk *thread_thunk = (struct ia2_thread_thunk *)mmap_res;
   thread_thunk->fn = fn;
   thread_thunk->data = data;
-  return __real_pthread_create(thread, attr, ia2_thread_begin, thread_thunk);
+  void *glibc_pthread_create = dlsym(RTLD_NEXT, "pthread_create");
+  assert(glibc_pthread_create);
+  return ((typeof(&__real_pthread_create))glibc_pthread_create)(thread, attr, ia2_thread_begin, thread_thunk);
 }

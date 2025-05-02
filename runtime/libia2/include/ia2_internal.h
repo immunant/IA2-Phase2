@@ -95,7 +95,7 @@ struct dl_phdr_info;
 // TODO: Do we want to use sysconf(3) here?
 #define PAGE_SIZE 4096
 
-#define STACK_SIZE (4 * 1024 * 1024)
+#define STACK_SIZE (16 * 1024 * 1024)
 
 /* clang-format can't handle inline asm in macros */
 /* clang-format off */
@@ -136,7 +136,14 @@ struct dl_phdr_info;
 /// Iterates over shared objects until an object containing the address \p
 /// data->address is found. Protect the pages in that object according to the
 /// information in the search arguments.
+#if __cplusplus
+extern "C"
+#endif
 int protect_pages(struct dl_phdr_info *info, size_t size, void *data);
+
+#if __cplusplus
+extern "C"
+#endif
 int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data);
 
 struct IA2SharedSection {
@@ -293,7 +300,7 @@ asm(".macro movz_shifted_tag_x18 tag\n"
 #if defined(__x86_64__)
 #define return_stackptr_if_compartment(compartment)                            \
   if (pkru == PKRU(compartment)) {                                             \
-    register void *out asm("rax");                                             \
+    register void **out asm("rax");                                             \
     __asm__ volatile(                                                          \
         "mov %%fs:(0), %%rax\n"                                                \
         "addq ia2_stackptr_" #compartment "@GOTTPOFF(%%rip), %%rax\n"          \
@@ -323,8 +330,10 @@ works as a reasonable signpost no-op. */
 int ia2_mprotect_with_tag(void *addr, size_t len, int prot, int tag);
 #elif defined(__x86_64__)
 #if IA2_DEBUG_LOG
+int pkey_mprotect(void* addr, size_t size, int prot, int pkey);
 static int ia2_mprotect_with_tag(void *addr, size_t len, int prot, int tag) {
   printf("ia2_mprotect_with_tag(addr=%p, len=%zu, prot=%d, tag=%d)\n", addr, len, prot, tag);
+  return 0;
   return pkey_mprotect(addr, len, prot, tag);
 }
 #else
@@ -332,10 +341,27 @@ static int ia2_mprotect_with_tag(void *addr, size_t len, int prot, int tag) {
 #define ia2_mprotect_with_tag pkey_mprotect
 #endif
 #endif
+
+#if __cplusplus
+extern "C"
+#endif
 char *allocate_stack(int i);
+
+#if __cplusplus
+extern "C"
+#endif
 void allocate_stack_0();
+
+#if __cplusplus
+extern "C"
+#endif
 void verify_tls_padding(void);
+
+#if __cplusplus
+extern "C"
+#endif
 void ia2_set_up_tags(int *n_to_alloc);
+
 __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
 
 /* clang-format can't handle inline asm in macros */
@@ -408,9 +434,10 @@ __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
 #endif
 /* clang-format on */
 
+#ifdef IA2_NO_DEFS
 #define _IA2_INIT_RUNTIME(n)                                                   \
-  __attribute__((visibility("default"))) int ia2_n_pkeys_to_alloc = n;                                                \
-  __attribute__((visibility("default"))) __thread void *ia2_stackptr_0[PAGE_SIZE / sizeof(void *)]                    \
+  __attribute__((visibility("default"))) extern int ia2_n_pkeys_to_alloc;                                                \
+  __attribute__((visibility("default"))) extern __thread void *ia2_stackptr_0[]                    \
       __attribute__((aligned(4096)));                                          \
                                                                                \
   REPEATB(n, declare_init_tls_fn, nop_macro);                                  \
@@ -437,3 +464,34 @@ __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
     REPEATB##n(setup_destructors_for_compartment, nop_macro);                  \
     mark_init_finished();                                                      \
   }
+#else
+#define _IA2_INIT_RUNTIME(n)                                                   \
+  __attribute__((visibility("default"))) int ia2_n_pkeys_to_alloc = n;                                                \
+  __attribute__((visibility("default"))) extern __thread void *ia2_stackptr_0[]                    \
+      __attribute__((aligned(4096)));                                          \
+                                                                               \
+  REPEATB(n, declare_init_tls_fn, nop_macro);                                  \
+                                                                               \
+  /* Returns `&ia2_stackptr_N` given a pkru value for the Nth compartment. */  \
+  __attribute__((visibility("default"))) void **ia2_stackptr_for_pkru(uint32_t pkru) {                                \
+    REPEATB(n, return_stackptr_if_compartment,                                 \
+            return_stackptr_if_compartment);                                   \
+    return NULL;                                                               \
+  }                                                                            \
+                                                                               \
+  __attribute__((visibility("default"))) __attribute__((weak)) void init_stacks_and_setup_tls(void) {                 \
+    verify_tls_padding();                                                      \
+    COMPARTMENT_SAVE_AND_RESTORE(REPEATB(n, ALLOCATE_COMPARTMENT_STACK_AND_SETUP_TLS, nop_macro), n); \
+    /* allocate an unprotected stack for the untrusted compartment */          \
+    allocate_stack_0();                                     \
+  }                                                                            \
+                                                                               \
+  __attribute__((constructor)) static void ia2_init(void) {                    \
+    /* Set up global resources. */                                             \
+    ia2_set_up_tags(&ia2_n_pkeys_to_alloc);                                    \
+    /* Initialize stacks for the main thread/ */                               \
+    init_stacks_and_setup_tls();                                               \
+    REPEATB##n(setup_destructors_for_compartment, nop_macro);                  \
+    mark_init_finished();                                                      \
+  }
+#endif

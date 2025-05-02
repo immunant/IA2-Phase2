@@ -132,7 +132,7 @@
 
 /// Get an IA2 opaque function pointer for the wrapped version of `func`
 #define IA2_FN(func)                                                           \
-  (typeof(__ia2_##func)) { (void *)&__ia2_##func }
+  reinterpret_cast<typeof &func>((void *)&((__ia2_##func).ptr))
 
 /// Call an IA2 opaque function pointer, which should be in target compartment
 /// `id`

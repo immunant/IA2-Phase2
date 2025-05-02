@@ -26,12 +26,12 @@
  * them no-ops with the same function signatures as the real versions when
  * compartments are disabled.
  */
-__attribute__((used)) void COMPARTMENT_IDENT(ia2_setup_destructors)(void) { }
-__attribute__((used)) void COMPARTMENT_IDENT(ia2_compartment_destructor)(void) { }
+__attribute__((used)) __attribute__((visibility("default"))) void COMPARTMENT_IDENT(ia2_setup_destructors)(void) { }
+__attribute__((used)) __attribute__((visibility("default"))) void COMPARTMENT_IDENT(ia2_compartment_destructor)(void) { }
 
 #else
 
-__attribute__((visibility("default"))) __thread void *COMPARTMENT_IDENT(ia2_stackptr) __attribute__((used));
+__attribute__((visibility("default"))) __attribute__((tls_model("global-dynamic"))) __thread void *COMPARTMENT_IDENT(ia2_stackptr) __attribute__((used));
 
 /*
 ** Initializes a compartment with protection key `n`. Called automatically as a
@@ -44,6 +44,9 @@ extern int ia2_n_pkeys_to_alloc;
 extern char __start_ia2_shared_data __attribute__((visibility("hidden"))),
     __stop_ia2_shared_data __attribute__((visibility("hidden")));
 
+#if __cplusplus
+extern "C"
+#endif
 void ia2_set_up_tags(int *n_to_alloc);
 __attribute__((constructor)) static void COMPARTMENT_IDENT(init_pkey)() {
   ia2_set_up_tags(&ia2_n_pkeys_to_alloc);
@@ -54,7 +57,7 @@ __attribute__((constructor)) static void COMPARTMENT_IDENT(init_pkey)() {
                                                 {NULL, NULL}};
   struct PhdrSearchArgs args = {
       .pkey = IA2_COMPARTMENT,
-      .address = &COMPARTMENT_IDENT(init_pkey),
+      .address = (const void *)&COMPARTMENT_IDENT(init_pkey),
       .extra_libraries = IA2_COMPARTMENT_LIBRARIES,
       .found_library_count = 0,
       .shared_sections = shared_sections,
@@ -81,7 +84,7 @@ __attribute__((constructor)) static void COMPARTMENT_IDENT(init_pkey)() {
       /* Set PKRU to fully untrusted (no access) */
       "xorl %%ecx, %%ecx\n"
       "xorl %%edx, %%edx\n"
-      "xorl %%eax, %%eax\n"
+      "mov_pkru_eax 0\n"
       "wrpkru\n"
       :
       :
@@ -110,7 +113,7 @@ __attribute__((constructor)) static void COMPARTMENT_IDENT(init_pkey)() {
 __attribute__((visibility("default"))) void COMPARTMENT_IDENT(init_tls)(void) {
   struct PhdrSearchArgs args = {
       .pkey = IA2_COMPARTMENT,
-      .address = &COMPARTMENT_IDENT(init_tls),
+      .address = (const void *)&COMPARTMENT_IDENT(init_tls),
   };
   dl_iterate_phdr(protect_tls_pages, &args);
 }
@@ -129,7 +132,7 @@ struct FinalizerInfo {
 static volatile struct FinalizerInfo finalizers
     __attribute__((__section__(".data.rel.ro.1"))) = {0};
 
-extern void COMPARTMENT_IDENT(__wrap_ia2_compartment_destructor)(void);
+extern __attribute__((visibility ("default"))) void COMPARTMENT_IDENT(__wrap_ia2_compartment_destructor)(void);
 
 __attribute__((visibility("default"))) __attribute__((no_sanitize("undefined"))) __attribute__((used)) void
 COMPARTMENT_IDENT(ia2_compartment_destructor)(void) {

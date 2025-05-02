@@ -1,4 +1,5 @@
 {
     __start_ia2_shared_data;
     __stop_ia2_shared_data;
+    ia2_stackptr_0;
 };

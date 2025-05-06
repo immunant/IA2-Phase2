@@ -1,3 +1,4 @@
+#include "ia2.h"
 #include "ia2_internal.h"
 #include <sys/auxv.h>
 #include <sys/prctl.h>
@@ -12,7 +13,8 @@
 extern __thread void *ia2_stackptr_0[PAGE_SIZE / sizeof(void *)]
     __attribute__((aligned(4096)));
 
-char *ia2_stacks[16] = {0};
+char *ia2_stacks[16] IA2_SHARED_DATA = {0};
+
 /* Allocate a fixed-size stack and protect it with the ith pkey. */
 /* Returns the top of the stack, not the base address of the allocation. */
 char *allocate_stack(int i) {

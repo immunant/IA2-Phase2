@@ -465,6 +465,8 @@ __attribute__((constructor)) void permissive_mode_init(void) {
   install_permissive_mode_handler();
 }
 
+void __real_free(void *ptr);
+
 extern uintptr_t ia2_stacks[16];
 extern uintptr_t tls_addr[16][2];
 
@@ -526,7 +528,7 @@ void log_memory_map(void) {
   }
 
 cleanup:
-  // free(line);
+  __real_free(line);
   fclose(log);
   fclose(maps);
 }

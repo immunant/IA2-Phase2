@@ -13,7 +13,7 @@
 extern __thread void *ia2_stackptr_0[PAGE_SIZE / sizeof(void *)]
     __attribute__((aligned(4096)));
 
-char *ia2_stacks[16] IA2_SHARED_DATA = {0};
+uintptr_t ia2_stacks[16] IA2_SHARED_DATA = {0};
 
 /* Allocate a fixed-size stack and protect it with the ith pkey. */
 /* Returns the top of the stack, not the base address of the allocation. */
@@ -35,7 +35,7 @@ char *allocate_stack(int i) {
   /* Tag the allocated stack pointer so it is accessed with the right pkey */
   stack = (char *)((uint64_t)stack | (uint64_t)i << 56);
 #endif
-  ia2_stacks[i] = stack;
+  ia2_stacks[i] = (uintptr_t) stack;
 #ifdef __aarch64__
   return stack + STACK_SIZE - 16;
 #elif defined(__x86_64__)

@@ -246,6 +246,8 @@ static int segment_flags_to_access_flags(Elf64_Word flags) {
       ((flags & PF_R) != 0 ? PROT_READ : 0);
 }
 
+uintptr_t tls_addr[16][2] IA2_SHARED_DATA = {0};
+
 int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
   if (!data || !info) {
     printf("Passed invalid args to dl_iterate_phdr callback\n");
@@ -258,6 +260,7 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
     // Continue iterating to check the next object
     return 0;
   }
+  const int pkey = search_args->pkey;
 
   // Protect TLS segment.
   for (size_t i = 0; i < info->dlpi_phnum; i++) {
@@ -305,31 +308,34 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
       if (untrusted_stackptr_addr > start_round_down) {
         int mprotect_err = ia2_mprotect_with_tag(
             (void *)start_round_down, untrusted_stackptr_addr - start_round_down,
-            PROT_READ | PROT_WRITE, search_args->pkey);
+            PROT_READ | PROT_WRITE, pkey);
         if (mprotect_err != 0) {
           printf("ia2_mprotect_with_tag failed: %s\n", strerror(errno));
           exit(-1);
         }
+        tls_addr[pkey][0] = start_round_down;
       }
       uint64_t after_untrusted_region_start = untrusted_stackptr_addr + 0x1000;
       uint64_t after_untrusted_region_len = end - after_untrusted_region_start;
       if (after_untrusted_region_len > 0) {
         int mprotect_err = ia2_mprotect_with_tag((void *)after_untrusted_region_start,
                                          after_untrusted_region_len,
-                                         PROT_READ | PROT_WRITE, search_args->pkey);
+                                         PROT_READ | PROT_WRITE, pkey);
         if (mprotect_err != 0) {
           printf("ia2_mprotect_with_tag failed: %s\n", strerror(errno));
           exit(-1);
         }
+        tls_addr[pkey][1] = (uintptr_t) after_untrusted_region_start;
       }
     } else {
       int mprotect_err =
           ia2_mprotect_with_tag((void *)start_round_down, len_round_up,
-                        PROT_READ | PROT_WRITE, search_args->pkey);
+                        PROT_READ | PROT_WRITE, pkey);
       if (mprotect_err != 0) {
         printf("ia2_mprotect_with_tag failed: %s\n", strerror(errno));
         exit(-1);
       }
+      tls_addr[pkey][0] = (uintptr_t) start_round_down;
     }
   }
 

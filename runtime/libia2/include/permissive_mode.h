@@ -465,7 +465,72 @@ __attribute__((constructor)) void permissive_mode_init(void) {
   install_permissive_mode_handler();
 }
 
-extern char *ia2_stacks[16];
+extern uintptr_t ia2_stacks[16];
+extern uintptr_t tls_addr[16][2];
+
+void log_memory_map(void) {
+  FILE *log = fopen(log_name, "a");
+  assert(log);
+  FILE *maps = fopen("/proc/self/maps", "r");
+  assert(maps);
+
+  // Skip dev and inode.
+  fprintf(log, "\n  start addr-end addr     perms offset  path\n");
+
+  char *line = NULL;
+  size_t line_cap = 0;
+  while (true) {
+    const ssize_t line_len = getline(&line, &line_cap, maps);
+    if (line_len == -1) {
+      break;
+    }
+
+    // Remove trailing newline.
+    if (line_len > 0 && line[line_len - 1] == '\n') {
+      line[line_len - 1] = 0;
+    }
+
+    // Parse `/proc/self/maps` line.
+    uintptr_t start_addr = 0;
+    uintptr_t end_addr = 0;
+    char perms[4] = {0};
+    uintptr_t offset = 0;
+    unsigned int dev_major = 0;
+    unsigned int dev_minor = 0;
+    ino_t inode = 0;
+    int path_index = 0;
+    sscanf(line, "%lx-%lx %4c %lx %x:%x %lu %n", &start_addr, &end_addr, perms, &offset, &dev_major, &dev_minor, &inode, &path_index);
+    const char *path = line + path_index;
+
+    // Skip dev and inode.
+    fprintf(log, "%08lx-%08lx %.4s %08lx ", start_addr, end_addr, perms, offset);
+
+    const size_t path_len = strlen(path);
+    if (strlen(path) == 0) {
+      // No path, try to identify it.
+      for (size_t i = 0; i < 16; i++) {
+        if (start_addr == ia2_stacks[i]) {
+          fprintf(log, "[stack:tid ?:compartment %zu]", i);
+          break;
+        }
+        if (start_addr == tls_addr[i][0] || start_addr == tls_addr[i][1]) {
+          fprintf(log, "[tls:tid ?:compartment %zu]", i);
+          break;
+        }
+      }
+    } else {
+      fprintf(log, "%s", path); // path includes trailing "\n" already
+    }
+
+    fprintf(log, "\n");
+  }
+
+cleanup:
+  // free(line);
+  fclose(log);
+  fclose(maps);
+}
+
 /*
  * Constructor to wait for the logging thread to finish and log the memory map.
  * If a process forks and execve's this function will not be called.
@@ -473,36 +538,6 @@ extern char *ia2_stacks[16];
 __attribute((destructor)) void wait_logging_thread(void) {
   exiting = true;
   pthread_join(logging_thread, NULL);
-  FILE *log = fopen(log_name, "a");
-  assert(log);
-  FILE *maps = fopen("/proc/self/maps", "r");
-  assert(maps);
-  char tmp[256] = {0};
-  while (fgets(tmp, sizeof(tmp), maps)) {
-    bool identified = false;
-    uintptr_t start, end, offset;
-    int name_pos;
-    char prot[5] = {0};
-    sscanf(tmp, "%lx-%lx %4c %lx %*lx:%*lx %*lu %n", &start, &end, prot, &offset, &name_pos);
-    fprintf(log, "%08lx-%08lx %s %08lx ", start, end, prot, offset);
-    if (name_pos != strlen(tmp)) {
-        fprintf(log, "%s", tmp + name_pos);
-        identified = true;
-    } else {
-        for (int i = 0; i < 16; i++) {
-            if (start == ia2_stacks[i]) {
-                fprintf(log, "[stack:tid ?:compartment %d]\n", i);
-                identified = true;
-                break;
-            }
-        }
-    }
-    if (!identified) {
-        fprintf(log, "TODO: identify this segment\n");
-    }
-    memset(tmp, 0, sizeof(tmp));
-  }
-  fclose(log);
-  fclose(maps);
+  log_memory_map();
 }
 #endif // IA2_ENABLE

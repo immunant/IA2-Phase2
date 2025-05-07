@@ -106,8 +106,8 @@ int main() {
       if (test->exit_code != 0) {
         fprintf(stderr, "can't expect both signal %d (SIG%s) and exit status %d\n",
                 test->signal, sigabbrev_np(test->signal), test->exit_code);
+        return EXIT_FAILURE;
       }
-      assert(test->exit_code == 0);
       // Sometimes the signal doesn't show up with `WIFSIGNALED`,
       // so we check the exit status as well.
       test->exit_code = 128 + test->signal;

@@ -76,11 +76,11 @@ void *ia2_thread_begin(void *arg) {
 }
 
 int __real_pthread_create(pthread_t *restrict thread,
-                          const pthread_attr_t *restrict attr, void *(*fn)(),
+                          const pthread_attr_t *restrict attr, void *(*fn)(void *),
                           void *data);
 
 int __wrap_pthread_create(pthread_t *restrict thread,
-                          const pthread_attr_t *restrict attr, void *(*fn)(),
+                          const pthread_attr_t *restrict attr, void *(*fn)(void *),
                           void *data) {
   /* Allocate a thunk for the thread to call `ia2_thread_begin` before the
   provided thread body function. We cannot use malloc()/free() here because the

@@ -465,16 +465,28 @@ __attribute__((constructor)) void permissive_mode_init(void) {
   install_permissive_mode_handler();
 }
 
+// `getline` calls `malloc` inside of `libc`,
+// but we wrap `malloc` with `__wrap_malloc`,
+// so we need to free what `getline` allocated with `__real_free`.
+void __real_free(void *ptr);
+
 void log_memory_map(void) {
   FILE *log = fopen(log_name, "a");
   assert(log);
   FILE *maps = fopen("/proc/self/maps", "r");
   assert(maps);
-  char tmp[256] = {0};
-  while (fgets(tmp, sizeof(tmp), maps)) {
-    fprintf(log, "%s", tmp);
-    memset(tmp, 0, sizeof(tmp));
+
+  char *line = NULL;
+  size_t line_cap = 0;
+  while (true) {
+    const ssize_t line_len = getline(&line, &line_cap, maps);
+    if (line_len == -1) {
+      break;
+    }
+    fprintf(log, "%s", line);
   }
+
+  __real_free(line);
   fclose(log);
   fclose(maps);
 }

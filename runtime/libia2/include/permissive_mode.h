@@ -483,7 +483,28 @@ void log_memory_map(void) {
     if (line_len == -1) {
       break;
     }
-    fprintf(log, "%s", line);
+
+    // Remove trailing newline.
+    if (line_len > 0 && line[line_len - 1] == '\n') {
+      line[line_len - 1] = 0;
+    }
+
+    // Parse `/proc/self/maps` line.
+    uintptr_t start_addr = 0;
+    uintptr_t end_addr = 0;
+    char perms[4] = {0};
+    uintptr_t offset = 0;
+    unsigned int dev_major = 0;
+    unsigned int dev_minor = 0;
+    ino_t inode = 0;
+    int path_index = 0;
+    sscanf(line, "%lx-%lx %4c %lx %x:%x %lu %n", &start_addr, &end_addr, perms, &offset, &dev_major, &dev_minor, &inode, &path_index);
+    const char *path = line + path_index;
+
+    // Skip dev and inode.
+    fprintf(log, "%08lx-%08lx %.4s %08lx ", start_addr, end_addr, perms, offset);
+    fprintf(log, "%s", path);
+    fprintf(log, "\n");
   }
 
   __real_free(line);

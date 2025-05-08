@@ -465,13 +465,7 @@ __attribute__((constructor)) void permissive_mode_init(void) {
   install_permissive_mode_handler();
 }
 
-/*
- * Constructor to wait for the logging thread to finish and log the memory map.
- * If a process forks and execve's this function will not be called.
- */
-__attribute((destructor)) void wait_logging_thread(void) {
-  exiting = true;
-  pthread_join(logging_thread, NULL);
+void log_memory_map(void) {
   FILE *log = fopen(log_name, "a");
   assert(log);
   FILE *maps = fopen("/proc/self/maps", "r");
@@ -483,5 +477,15 @@ __attribute((destructor)) void wait_logging_thread(void) {
   }
   fclose(log);
   fclose(maps);
+}
+
+/*
+ * Constructor to wait for the logging thread to finish and log the memory map.
+ * If a process forks and execve's this function will not be called.
+ */
+__attribute((destructor)) void wait_logging_thread(void) {
+  exiting = true;
+  pthread_join(logging_thread, NULL);
+  log_memory_map();
 }
 #endif // IA2_ENABLE

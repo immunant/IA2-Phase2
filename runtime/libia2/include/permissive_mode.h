@@ -470,6 +470,8 @@ __attribute__((constructor)) void permissive_mode_init(void) {
 // so we need to free what `getline` allocated with `__real_free`.
 void __real_free(void *ptr);
 
+extern uintptr_t ia2_stack_addrs[IA2_MAX_COMPARTMENTS];
+
 void log_memory_map(void) {
   FILE *log = fopen(log_name, "a");
   assert(log);
@@ -506,7 +508,20 @@ void log_memory_map(void) {
 
     // Skip dev and inode.
     fprintf(log, "%08lx-%08lx %.4s %08lx ", start_addr, end_addr, perms, offset);
-    fprintf(log, "%s", path);
+
+    const size_t path_len = (size_t)line_len - path_index - 1;
+    if (path_len != 0) {
+      fprintf(log, "%s", path);
+    } else {
+      // No path, try to identify it.
+      for (size_t pkey = 0; pkey < IA2_MAX_COMPARTMENTS; pkey++) {
+        if (start_addr == ia2_stack_addrs[pkey]) {
+          fprintf(log, "[stack:tid ?:compartment %zu]", pkey);
+          break;
+        }
+      }
+    }
+
     fprintf(log, "\n");
   }
 

@@ -1,3 +1,4 @@
+#include "ia2.h"
 #include "ia2_internal.h"
 #include <sys/auxv.h>
 #include <sys/prctl.h>
@@ -11,6 +12,8 @@
 /* ia2_mprotect_with_taged by the next compartment depending on sizes/alignment. */
 extern __thread void *ia2_stackptr_0[PAGE_SIZE / sizeof(void *)]
     __attribute__((aligned(4096)));
+
+uintptr_t ia2_stack_addrs[IA2_MAX_COMPARTMENTS] IA2_SHARED_DATA = {0};
 
 /* Allocate a fixed-size stack and protect it with the ith pkey. */
 /* Returns the top of the stack, not the base address of the allocation. */
@@ -32,6 +35,7 @@ char *allocate_stack(int i) {
   /* Tag the allocated stack pointer so it is accessed with the right pkey */
   stack = (char *)((uint64_t)stack | (uint64_t)i << 56);
 #endif
+  ia2_stack_addrs[i] = (uintptr_t)stack;
 #ifdef __aarch64__
   return stack + STACK_SIZE - 16;
 #elif defined(__x86_64__)

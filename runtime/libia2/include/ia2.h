@@ -161,6 +161,8 @@
 #define IA2_CAST(func, ty) (ty) { (void *)IA2_FN_ADDR(func) }
 #endif // !IA2_ENABLE
 
+#define IA2_MAX_COMPARTMENTS 16
+
 /// Convert a compartment pkey to a PKRU register value
 #define PKRU(pkey) (~((3U << (2 * pkey)) | 3))
 

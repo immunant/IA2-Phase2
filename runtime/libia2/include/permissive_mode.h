@@ -384,7 +384,7 @@ void *log_mpk_violations(void *arg) {
   assert(log);
   while (1) {
     // We don't want this thread to just spin if nothing is happening
-    sleep(1);
+    usleep(10000);
 
     flush_queue(log);
 

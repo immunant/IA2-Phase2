@@ -476,6 +476,9 @@ void log_memory_map(void) {
   FILE *maps = fopen("/proc/self/maps", "r");
   assert(maps);
 
+  // Skip dev and inode.
+  fprintf(log, "  start addr-end addr     perms offset  path\n");
+
   char *line = NULL;
   size_t line_cap = 0;
   while (true) {

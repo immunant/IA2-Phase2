@@ -179,6 +179,9 @@ static std::string append_name_if_nonempty(const std::string &new_type,
 /// with an annotation starting with `prefix`.
 /// The annotation minus the prefix is the key,
 /// and the function name is the value.
+///
+/// This is, for example, used for
+/// pre- and post-condition function annotations.
 class AnnotationPrefixFunctions : public MatchFinder::MatchCallback {
 
 public:

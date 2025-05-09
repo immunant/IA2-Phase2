@@ -123,6 +123,13 @@ int main() {
   for (i = 0; i < num_tests; i++) {
     const struct fake_criterion_test *test = &tests[i];
 
+    if (single_test_name) {
+      if (strcmp(test->name, single_test_name) != 0) {
+        continue;
+      }
+      fprintf(stderr, "running single test alone (exit status will not be checked):\n");
+    }
+
     fprintf(stderr, "running suite '%s' test '%s', expecting ", test->suite, test->name);
     if (test->signal != 0) {
       fprintf(stderr, "signal %d (SIG%s)", test->signal, sigabbrev_np(test->signal));
@@ -135,13 +142,6 @@ int main() {
       }
     }
     fprintf(stderr, "...\n");
-
-    if (single_test_name) {
-      if (strcmp(test->name, single_test_name) != 0) {
-        continue;
-      }
-      fprintf(stderr, "running single test alone (exit status will not be checked):\n");
-    }
 
     /* Do not fork or check exit status if only running one test. */
     pid_t pid = 0;

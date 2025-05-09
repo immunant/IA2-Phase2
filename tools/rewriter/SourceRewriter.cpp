@@ -53,8 +53,8 @@ static std::string OutputPrefix;
 
 // Key is target function.
 // Value is pre/post condition function name.
-std::unordered_multimap<std::string, std::string> pre_condition_funcs;
-std::unordered_multimap<std::string, std::string> post_condition_funcs;
+std::unordered_multimap<Function, Function> pre_condition_funcs;
+std::unordered_multimap<Function, Function> post_condition_funcs;
 
 // Map each translation unit's filename to its pkey.
 static std::map<Filename, Pkey> file_pkeys;
@@ -184,7 +184,7 @@ class AnnotationPrefixFunctions : public MatchFinder::MatchCallback {
 public:
   const std::string prefix;
   /// Key is suffix, value is function name.
-  std::unordered_multimap<std::string, std::string> funcs;
+  std::unordered_multimap<std::string, Function> funcs;
 
   AnnotationPrefixFunctions(std::string prefix) : prefix(prefix) {}
 

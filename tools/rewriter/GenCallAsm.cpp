@@ -912,7 +912,7 @@ static void emit_restore_args(AsmWriter &aw, Arch arch) {
 
 static void emit_condition_fn_call(AsmWriter &aw, Arch arch, std::string_view target_condition_name, std::string_view condition_type) {
   llvm::errs() << "emitting " << condition_type << "-condition call to " << target_condition_name << "\n";
-  add_comment_line(aw, llvm::formatv("Call {}-condition function", condition_type));
+  add_comment_line(aw, llvm::formatv("Call {0}-condition function", condition_type));
   emit_direct_call(aw, arch, target_condition_name);
 }
 

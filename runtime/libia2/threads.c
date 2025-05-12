@@ -67,6 +67,8 @@ void *ia2_thread_begin(void *arg) {
       : "rdi");
 #elif defined(__aarch64__)
   __asm__ volatile(
+        // Load argument
+        "ldr x0, [%[data]]\n"
         // Copy stack pointer to x10
         "mov x10, sp\n"
         // Load the stack pointer for this compartment's stack
@@ -82,16 +84,14 @@ void *ia2_thread_begin(void *arg) {
         // Prologue
         "str x29, [sp, #-8]!\n"
         "mov x29, sp\n"
-        // Load argument
-        "ldr x0, [%[data]]\n"
         // Call fn(data)
         "blr %[fn]\n"
-        // x0 now contains ret value
-        "mov %[result], x0\n"
         // Pop the old stack pointer
         "ldr x10, [sp], #8\n"
         // Switch stacks back
         "mov sp, x10\n"
+        // x0 now contains ret value
+        "mov %[result], x0\n"
       : [result] "=r"(result)
       : [fn] "r"(fn), [data] "r"(&data), [new_sp_addr] "r"(new_sp_addr)
       : "x0", "x10", "x11");

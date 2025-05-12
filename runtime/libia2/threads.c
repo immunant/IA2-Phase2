@@ -102,7 +102,7 @@ void *ia2_thread_begin(void *arg) {
         // x0 now contains ret value
         "mov %[result], x0\n"
       : [result] "=r"(result)
-      : [fn] "r"(fn), [data] "r"(&data), [new_sp_addr] "r"(new_sp_addr)
+      : [fn] "r"(fn), [data] "r"(data), [new_sp_addr] "r"(new_sp_addr)
       : "x0", "x10", "x11");
 #else
 #error "unknown architecture"

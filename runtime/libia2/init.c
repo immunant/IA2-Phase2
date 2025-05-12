@@ -1,10 +1,11 @@
 #define _GNU_SOURCE
 #include <dlfcn.h>
+#include "ia2.h"
 #include "ia2_internal.h"
 #include <sys/auxv.h>
 #include <sys/prctl.h>
 
-void ia2_protect_memory(const char *libs, int compartment) {
+void ia2_protect_memory(const char *libs, int compartment, const char *extra_libraries) {
     printf("%s: protecting %s with pkey %d\n", __func__, libs, compartment);
 
     // TODO: split up libs by whitespace
@@ -44,9 +45,26 @@ void ia2_protect_memory(const char *libs, int compartment) {
     struct PhdrSearchArgs args = {
         .pkey = compartment,
         .address = dso_addr,
+        .extra_libraries = extra_libraries,
+        .found_library_count = 0,
         .shared_sections = shared_sections,
     };
     dl_iterate_phdr(protect_pages, &args);
+    /* Check that we found all extra libraries */
+    const char *cur_pos = args.extra_libraries;
+    int extra_library_count = 0;
+    while (cur_pos) {
+      extra_library_count++;
+      cur_pos = strchr(cur_pos, ';');
+      if (cur_pos) {
+        cur_pos++;
+      }
+    }
+    if (extra_library_count != args.found_library_count) {
+      fprintf(
+          stderr,
+          "WARNING: Not all libraries in IA2_COMPARTMENT_LIBRARIES were found.\n");
+    }
 }
 
 /* The 0th compartment is unprivileged and does not protect its memory, */

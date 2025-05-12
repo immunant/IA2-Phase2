@@ -20,8 +20,8 @@ INIT_RUNTIME(2);
 #include <ia2_compartment_init.inc>
 
 void ia2_start(void) {
-    ia2_protect_memory("main", 1);
-    ia2_protect_memory("libtwo_keys_minimal_lib.so", 2);
+    ia2_protect_memory("main", 1, NULL);
+    ia2_protect_memory("libtwo_keys_minimal_lib.so", 2, NULL);
 }
 
 uint32_t secret = 0x09431233;

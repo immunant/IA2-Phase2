@@ -174,7 +174,9 @@ uint32_t ia2_get_pkru();
 /// Returns the current compartment pkey
 size_t ia2_get_pkey();
 
-void ia2_protect_memory(const char *libs, int compartment);
+/// lib must be a single DSO or "main" for the executable
+/// extra_libraries must be a semicolon-separated list of libraries
+void ia2_protect_memory(const char *lib, int compartment, const char *extra_libraries);
 
 #ifdef __cplusplus
 }

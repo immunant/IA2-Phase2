@@ -81,6 +81,10 @@ PA_NOINLINE void HandlePoolAllocFailure() {
 
 PartitionAddressSpace::PoolSetup PartitionAddressSpace::setup_;
 
+extern "C" {
+  uintptr_t (*partition_alloc_thread_isolated_pool_base_address)[kNumCompartments] = NULL;
+}
+
 #if PA_CONFIG(ENABLE_SHADOW_METADATA)
 std::ptrdiff_t PartitionAddressSpace::regular_pool_shadow_offset_ = 0;
 std::ptrdiff_t PartitionAddressSpace::brp_pool_shadow_offset_ = 0;
@@ -339,6 +343,7 @@ void PartitionAddressSpace::InitThreadIsolatedPool(
   if (!setup_.thread_isolated_pool_base_address_[compartment]) {
     HandlePoolAllocFailure();
   }
+  partition_alloc_thread_isolated_pool_base_address = &setup_.thread_isolated_pool_base_address_;
 
   PA_DCHECK(!(setup_.thread_isolated_pool_base_address_[compartment] & (pool_size - 1)));
   setup_.thread_isolation_[compartment] = thread_isolation;

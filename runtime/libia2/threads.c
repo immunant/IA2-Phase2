@@ -1,8 +1,8 @@
+#include "ia2_threads.h"
+
 #include <pthread.h>
 #include <signal.h>
 #include <sys/mman.h>
-
-#include "ia2.h"
 
 __attribute__((visibility("default"))) void init_stacks_and_setup_tls(void);
 __attribute__((visibility("default"))) void **ia2_stackptr_for_pkru(uint32_t pkey);
@@ -93,4 +93,88 @@ int __wrap_pthread_create(pthread_t *restrict thread,
   thread_thunk->fn = fn;
   thread_thunk->data = data;
   return __real_pthread_create(thread, attr, ia2_thread_begin, thread_thunk);
+}
+
+// It's much simpler to only support a static number of created threads,
+// especially because we want to have very few dependencies.
+// If a program needs more threads, you can just increase this number.
+#define MAX_THREADS_SUPPORTED 4096
+
+struct ia2_all_threads_data {
+  pthread_mutex_t lock;
+  size_t num_threads;
+  pid_t tids[MAX_THREADS_SUPPORTED];
+  struct ia2_thread_data ia2_thread_data[MAX_THREADS_SUPPORTED];
+};
+
+#define array_len(a) (sizeof(a) / sizeof(*(a)))
+
+struct ia2_thread_data *ia2_all_threads_data_lookup(struct ia2_all_threads_data *const this, const pid_t tid) {
+  struct ia2_thread_data *data = NULL;
+  if (pthread_mutex_lock(&this->lock) == -1) {
+    goto ret;
+  }
+  for (size_t i = 0; i < this->num_threads; i++) {
+    if (this->tids[i] == tid) {
+      data = &this->ia2_thread_data[i];
+      goto unlock;
+    }
+  }
+  if (this->num_threads >= array_len(this->ia2_thread_data)) {
+    fprintf(stderr, "created %zu threads, but can't store them all, but you can increase MAX_THREADS_SUPPORTED\n", this->num_threads);
+    goto unlock;
+  }
+  data = &this->ia2_thread_data[this->num_threads];
+  this->tids[this->num_threads] = tid;
+  this->num_threads++;
+  goto unlock;
+
+unlock:
+  pthread_mutex_unlock(&this->lock);
+ret:
+  return data;
+}
+
+struct ia2_addr_location ia2_all_threads_data_find_addr(struct ia2_all_threads_data *const this, const uintptr_t addr) {
+  struct ia2_addr_location location = {
+      .name = NULL,
+      .tid = -1,
+      .compartment = -1,
+  };
+  if (pthread_mutex_lock(&this->lock) == -1) {
+    goto ret;
+  }
+  for (size_t thread = 0; thread < this->num_threads; thread++) {
+    const pid_t tid = this->tids[thread];
+    for (int compartment = 0; compartment < IA2_MAX_COMPARTMENTS; compartment++) {
+      const struct ia2_thread_data *const thread_data = &this->ia2_thread_data[thread];
+      if (addr == thread_data->stack_addrs[compartment]) {
+        location.name = "stack";
+        location.tid = tid;
+        location.compartment = compartment;
+        goto unlock;
+      }
+    }
+  }
+  goto unlock;
+
+unlock:
+  pthread_mutex_unlock(&this->lock);
+ret:
+  return location;
+}
+
+// All zeroed, so this should go in `.bss` and only have pages lazily allocated.
+static struct ia2_all_threads_data IA2_SHARED_DATA threads = {
+    .lock = PTHREAD_MUTEX_INITIALIZER,
+    .num_threads = 0,
+    .ia2_thread_data = {0},
+};
+
+struct ia2_thread_data *ia2_thread_data_get_current_thread(void) {
+  return ia2_all_threads_data_lookup(&threads, gettid());
+}
+
+struct ia2_addr_location ia2_addr_location_find(const uintptr_t addr) {
+  return ia2_all_threads_data_find_addr(&threads, addr);
 }

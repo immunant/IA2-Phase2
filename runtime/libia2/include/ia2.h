@@ -174,6 +174,8 @@ uint32_t ia2_get_pkru();
 /// Returns the current compartment pkey
 size_t ia2_get_pkey();
 
+void ia2_protect_memory(const char *libs, int compartment);
+
 #ifdef __cplusplus
 }
 #endif

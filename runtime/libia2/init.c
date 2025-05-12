@@ -1,6 +1,53 @@
+#define _GNU_SOURCE
+#include <dlfcn.h>
 #include "ia2_internal.h"
 #include <sys/auxv.h>
 #include <sys/prctl.h>
+
+void ia2_protect_memory(const char *libs, int compartment) {
+    printf("%s: protecting %s with pkey %d\n", __func__, libs, compartment);
+
+    // TODO: split up libs by whitespace
+
+    void *dso_addr = NULL;
+    void *dso_shared_start = NULL;
+    void *dso_shared_stop = NULL;
+
+    if (!strcmp(libs, "main")) {
+        dso_addr = dlsym(RTLD_DEFAULT, "main");
+        dso_shared_start = dlsym(RTLD_DEFAULT, "__start_ia2_shared_data");
+        dso_shared_stop = dlsym(RTLD_DEFAULT, "__stop_ia2_shared_data");
+    } else {
+        void *handle = dlopen(libs, RTLD_GLOBAL | RTLD_NOW);
+        if (!handle) {
+            printf("%s: failed to dlopen %s for compartment %d\n", __func__, libs, compartment);
+            // TODO: use actual error codes
+            exit(-1);
+        }
+        // TODO: use a symbol that will always be defined. This is specific to tests/two_keys_minimal/plugin.c
+        dso_addr = dlsym(handle, "start_plugin");
+        dso_shared_start = dlsym(handle, "__start_ia2_shared_data");
+        dso_shared_stop = dlsym(handle, "__stop_ia2_shared_data");
+    }
+    if (!dso_addr) {
+        printf("%s: failed to dlsym symbol 'foo' in %s for compartment %d\n", __func__, libs, compartment);
+        exit(-2);
+    }
+    if (!dso_shared_stop != !dso_shared_start) {
+        // We should not have one be null without the other
+        exit(-3);
+    }
+    struct IA2SharedSection shared_sections[2] = {
+        { dso_shared_start, dso_shared_stop },
+        {NULL, NULL},
+    };
+    struct PhdrSearchArgs args = {
+        .pkey = compartment,
+        .address = dso_addr,
+        .shared_sections = shared_sections,
+    };
+    dl_iterate_phdr(protect_pages, &args);
+}
 
 /* The 0th compartment is unprivileged and does not protect its memory, */
 /* so declare its stack pointer in the shared object that sets up the */

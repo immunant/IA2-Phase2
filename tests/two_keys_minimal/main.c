@@ -19,7 +19,7 @@ INIT_RUNTIME(2);
 #define IA2_COMPARTMENT 1
 #include <ia2_compartment_init.inc>
 
-void ia2_start(void) {
+void ia2_main(void) {
     ia2_protect_memory("main", 1, NULL);
     ia2_protect_memory("libtwo_keys_minimal_lib.so", 2, NULL);
 }

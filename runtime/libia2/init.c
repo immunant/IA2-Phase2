@@ -5,6 +5,11 @@
 #include <sys/auxv.h>
 #include <sys/prctl.h>
 
+void ia2_start(void) {
+    ia2_set_up_tags();
+    ia2_main();
+}
+
 void ia2_protect_memory(const char *libs, int compartment, const char *extra_libraries) {
     printf("%s: protecting %s with pkey %d\n", __func__, libs, compartment);
 
@@ -123,10 +128,10 @@ void verify_tls_padding(void) {
 }
 
 /* Allocates the required pkeys on x86 or enables MTE on aarch64 */
-void ia2_set_up_tags(int *n_to_alloc) {
+void ia2_set_up_tags(void) {
 #if defined(__x86_64__)
-  if (*n_to_alloc != 0) {
-    for (int pkey = 1; pkey <= *n_to_alloc; pkey++) {
+    // TODO: Add a macro for this
+    for (int pkey = 1; pkey <= 15; pkey++) {
       int allocated = pkey_alloc(0, 0);
       if (allocated < 0) {
         printf("Failed to allocate protection key %d (%s)\n", pkey,
@@ -139,8 +144,6 @@ void ia2_set_up_tags(int *n_to_alloc) {
         exit(-1);
       }
     }
-    *n_to_alloc = 0;
-  }
 #elif defined(__aarch64__)
   if (!(getauxval(AT_HWCAP2) & HWCAP2_MTE)) {
     printf("MTE is not supported\n");

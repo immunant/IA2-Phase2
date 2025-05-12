@@ -19,6 +19,9 @@ void *ia2_thread_begin(void *arg) {
   struct ia2_thread_thunk *thunk = (struct ia2_thread_thunk *)arg;
   void *(*fn)(void *) = thunk->fn;
   void *data = thunk->data;
+#if IA2_DEBUG_LOG
+  printf("%s: creating thread with function at %p and argument %p\n", fn, data);
+#endif
   /* stack_t alt_stack = { */
   /*     .ss_sp = ia2_signal_stack, .ss_flags = 0, .ss_size = STACK_SIZE}; */
 

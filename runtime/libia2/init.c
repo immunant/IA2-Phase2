@@ -5,6 +5,9 @@
 #include <sys/auxv.h>
 #include <sys/prctl.h>
 
+/* Pass to mmap to signal end of program init */
+#define IA2_FINISH_INIT_MAGIC 0x1a21face1a21faceULL
+
 // TODO: make this static
 static void ia2_set_up_tags(void);
 
@@ -12,6 +15,10 @@ void ia2_start(void) {
     ia2_set_up_tags();
     init_stacks_and_setup_tls();
     ia2_main();
+    /* Tell the syscall filter to forbid init-only operations. This mmap() will
+    always fail because it maps a non-page-aligned addr with MAP_FIXED, so it
+    works as a reasonable signpost no-op. */
+    mmap((void *)IA2_FINISH_INIT_MAGIC, 0, 0, MAP_FIXED, -1, 0);
 }
 
 void ia2_protect_memory(const char *libs, int compartment, const char *extra_libraries) {

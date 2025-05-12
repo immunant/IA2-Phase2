@@ -1135,11 +1135,17 @@ std::string emit_asm_wrapper(
   std::vector<std::string_view> pre_conditions;
   std::vector<std::string_view> post_conditions;
   if (target_name) {
-    for (auto pre_condition = ctx.pre_condition_funcs.find(*target_name); pre_condition != ctx.pre_condition_funcs.end(); pre_condition++) {
-      pre_conditions.emplace_back(pre_condition->second);
+    {
+      auto [begin, end] = ctx.pre_condition_funcs.equal_range(*target_name);
+      for (auto it = begin; it != end; ++it) {
+        pre_conditions.emplace_back(it->second);
+      }
     }
-    for (auto post_condition = ctx.post_condition_funcs.find(*target_name); post_condition != ctx.post_condition_funcs.end(); post_condition++) {
-      post_conditions.emplace_back(post_condition->second);
+    {
+      auto [begin, end] = ctx.post_condition_funcs.equal_range(*target_name);
+      for (auto it = begin; it != end; ++it) {
+        post_conditions.emplace_back(it->second);
+      }
     }
   }
   if (pre_conditions.size() > 1 || !post_conditions.empty()) {

@@ -1,12 +1,21 @@
 #include "src.h"
 #include <ia2_test_runner.h>
 #include <signal.h>
+#include <stdio.h>
 
 #define IA2_COMPARTMENT 2
 #include <ia2_compartment_init.inc>
 
+void f1(int a) {
+  printf("%d\n", a);
+}
+
 void f2(int a, int *b) {
   *b = a;
+}
+
+void f3(int *a, int b, int c) {
+  *a = b + c;
 }
 
 IA2_PRE_CONDITION_FOR(f2)
@@ -55,4 +64,29 @@ void exit_30(void) {
 IA2_POST_CONDITION_FOR(f0)
 void exit_31(void) {
   exit(31);
+}
+
+IA2_PRE_CONDITION_FOR(f1)
+IA2_POST_CONDITION_FOR(f1)
+void a_eq_11(int a) {
+  if (!(a == 11)) {
+    exit(40);
+  }
+}
+
+IA2_PRE_CONDITION_FOR(f3)
+void b_c_eq_11_22(int *a, int b, int c) {
+  if (!(b == 11)) {
+    exit(50);
+  }
+  if (!(c == 22)) {
+    exit(51);
+  }
+}
+
+IA2_POST_CONDITION_FOR(f3)
+void a_eq_33(int *a, int b, int c) {
+  if (!(*a == 33)) {
+    exit(52);
+  }
 }

@@ -45,6 +45,8 @@ extern char __start_ia2_shared_data __attribute__((visibility("hidden"))),
     __stop_ia2_shared_data __attribute__((visibility("hidden")));
 
 IA2_EXTERN_C void ia2_set_up_tags(int *n_to_alloc);
+
+#if 0
 __attribute__((constructor)) static void COMPARTMENT_IDENT(init_pkey)() {
   ia2_set_up_tags(&ia2_n_pkeys_to_alloc);
   struct IA2SharedSection shared_sections[2] = {{
@@ -106,6 +108,7 @@ __attribute__((constructor)) static void COMPARTMENT_IDENT(init_pkey)() {
         "WARNING: Not all libraries in IA2_COMPARTMENT_LIBRARIES were found.\n");
   }
 }
+#endif
 
 __attribute__((visibility("default"))) void COMPARTMENT_IDENT(init_tls)(void) {
   struct PhdrSearchArgs args = {

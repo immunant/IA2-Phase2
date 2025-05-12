@@ -37,3 +37,4 @@ include/pkey_init.h
 libia2/pkey_init.h
 
 .gdb_history
+.swp

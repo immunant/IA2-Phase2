@@ -14,6 +14,18 @@ __asm__(
 #if defined(__x86_64__)
     "pushq %rbp\n"
     "movq %rsp, %rbp\n"
+
+    // Call ia2_start making sure to preserve/restore the original arguments to main
+    "pushq %rdi\n"
+    "pushq %rsi\n"
+    "pushq %rdx\n"
+    "subq $8, %rsp\n"
+    "callq ia2_start\n"
+    "addq $8, %rsp\n"
+    "popq %rdx\n"
+    "popq %rsi\n"
+    "popq %rdi\n"
+
     // Switch pkey to the appropriate compartment.
     "xor %ecx,%ecx\n"
     "mov %ecx,%edx\n"

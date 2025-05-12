@@ -108,3 +108,6 @@ __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i) {
          i, gettid());
   exit(1);
 }
+
+void ia2_start(void) {
+}

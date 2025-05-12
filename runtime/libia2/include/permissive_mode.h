@@ -476,6 +476,8 @@ extern uintptr_t ia2_tls_addr_compartment1_first;
 extern uintptr_t ia2_tls_addr_compartment1_second;
 extern uintptr_t ia2_tls_addrs[IA2_MAX_COMPARTMENTS];
 
+extern uintptr_t (*partition_alloc_thread_isolated_pool_base_address)[IA2_MAX_COMPARTMENTS];
+
 void log_memory_map(void) {
   FILE *log = fopen(log_name, "a");
   assert(log);
@@ -529,6 +531,9 @@ void log_memory_map(void) {
         if (start_addr == ia2_tls_addrs[pkey]) {
           fprintf(log, "[tls:tid ?:compartment %zu]", pkey);
           break;
+        }
+        if (partition_alloc_thread_isolated_pool_base_address && start_addr == (*partition_alloc_thread_isolated_pool_base_address)[pkey]) {
+          fprintf(log, "[heap:compartment %zu]", pkey);
         }
       }
     }

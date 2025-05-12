@@ -26,3 +26,8 @@ Test(permissive_mode, main) {
 
     cr_assert(ia2_get_pkru() == 0xFFFFFFF0);
 }
+
+Test(permissive_mode, alloc) {
+    // Alloc and free so that partition-alloc allocates its compartment heaps.
+    free(malloc(1024));
+}

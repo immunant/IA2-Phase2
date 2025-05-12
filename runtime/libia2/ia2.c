@@ -246,6 +246,12 @@ static int segment_flags_to_access_flags(Elf64_Word flags) {
       ((flags & PF_R) != 0 ? PROT_READ : 0);
 }
 
+/// The TLS region is split only for the first compartment,
+/// so we need two addresses for just that one.
+uintptr_t ia2_tls_addr_compartment1_first IA2_SHARED_DATA = 0;
+uintptr_t ia2_tls_addr_compartment1_second IA2_SHARED_DATA = 0;
+uintptr_t ia2_tls_addrs[IA2_MAX_COMPARTMENTS] IA2_SHARED_DATA = {0};
+
 int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
   if (!data || !info) {
     printf("Passed invalid args to dl_iterate_phdr callback\n");
@@ -303,6 +309,9 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
     // it is followed by padding that ensures nothing else occupies the rest of
     // its page.
     if (untrusted_stackptr_addr >= start && untrusted_stackptr_addr < end) {
+      // The TLS region should only be split for compartment 1.
+      assert(pkey == 1);
+
       // Protect TLS region start to the beginning of the untrusted region.
       if (untrusted_stackptr_addr > start_round_down) {
         int mprotect_err = ia2_mprotect_with_tag(
@@ -312,6 +321,7 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
           printf("ia2_mprotect_with_tag failed: %s\n", strerror(errno));
           exit(-1);
         }
+        ia2_tls_addr_compartment1_first = (uintptr_t)start_round_down;
       }
       uint64_t after_untrusted_region_start = untrusted_stackptr_addr + 0x1000;
       uint64_t after_untrusted_region_len = end - after_untrusted_region_start;
@@ -323,6 +333,7 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
           printf("ia2_mprotect_with_tag failed: %s\n", strerror(errno));
           exit(-1);
         }
+        ia2_tls_addr_compartment1_second = (uintptr_t)after_untrusted_region_start;
       }
     } else {
       int mprotect_err =
@@ -332,6 +343,7 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
         printf("ia2_mprotect_with_tag failed: %s\n", strerror(errno));
         exit(-1);
       }
+      ia2_tls_addrs[pkey] = (uintptr_t)start_round_down;
     }
   }
 

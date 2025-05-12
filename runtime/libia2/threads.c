@@ -22,7 +22,7 @@ void *ia2_thread_begin(void *arg) {
   void *(*fn)(void *) = thunk->fn;
   void *data = thunk->data;
 #if IA2_DEBUG_LOG
-  printf("%s: creating thread with function at %p and argument %p\n", fn, data);
+  printf("%s: creating thread with function at %p and argument %p\n", __func__, fn, data);
 #endif
   /* stack_t alt_stack = { */
   /*     .ss_sp = ia2_signal_stack, .ss_flags = 0, .ss_size = STACK_SIZE}; */
@@ -103,7 +103,7 @@ void *ia2_thread_begin(void *arg) {
         "mov sp, x10\n"
       : [result] "=r"(result)
       : [fn] "r"(fn), [data] "r"(&data), [new_sp_addr] "r"(new_sp_addr)
-      : "x0", "x10");
+      : "x0", "x10", "x11");
 #else
 #error "unknown architecture"
 #endif

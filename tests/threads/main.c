@@ -58,6 +58,7 @@ void create_threads(void) {
 __thread int thread_local_var = 50;
 
 void *access_ptr_thread_fn(void *ptr) {
+  cr_log_info("accessing pointer %p from access_ptr_thread_fn\n", ptr);
   int *x = (int *)ptr;
   cr_log_info("c1t3 accessing c1t1 thread-local: %d\n", *x);
   cr_log_info("c2t3 accessing c1t1 thread-local: %d\n",
@@ -88,6 +89,7 @@ Test(threads, main) {
 
   pthread_t fault_thread;
 #if IA2_ENABLE
+  cr_log_info("passing pointer %p to access_ptr_thread_fn\n", (void *)&thread_local_var);
   int thread_create_ret = pthread_create(
       &fault_thread, NULL, access_ptr_thread_fn, (void *)&thread_local_var);
 #endif

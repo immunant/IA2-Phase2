@@ -31,3 +31,12 @@ Test(pre_post_condition, success) {
   b = 0;
   f2(10, &b);
 }
+
+Test(pre_post_condition, odd_num_args_1) {
+  f1(11);
+}
+
+Test(pre_post_condition, odd_num_args_3) {
+  b = 0;
+  f3(&b, 11, 22);
+}

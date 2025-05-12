@@ -472,6 +472,10 @@ void __real_free(void *ptr);
 
 extern uintptr_t ia2_stack_addrs[IA2_MAX_COMPARTMENTS];
 
+extern uintptr_t ia2_tls_addr_compartment1_first;
+extern uintptr_t ia2_tls_addr_compartment1_second;
+extern uintptr_t ia2_tls_addrs[IA2_MAX_COMPARTMENTS];
+
 void log_memory_map(void) {
   FILE *log = fopen(log_name, "a");
   assert(log);
@@ -514,9 +518,16 @@ void log_memory_map(void) {
       fprintf(log, "%s", path);
     } else {
       // No path, try to identify it.
+      if (start_addr == ia2_tls_addr_compartment1_first || start_addr == ia2_tls_addr_compartment1_second) {
+        fprintf(log, "[tls:tid ?:compartment 1]");
+      }
       for (size_t pkey = 0; pkey < IA2_MAX_COMPARTMENTS; pkey++) {
         if (start_addr == ia2_stack_addrs[pkey]) {
           fprintf(log, "[stack:tid ?:compartment %zu]", pkey);
+          break;
+        }
+        if (start_addr == ia2_tls_addrs[pkey]) {
+          fprintf(log, "[tls:tid ?:compartment %zu]", pkey);
           break;
         }
       }

@@ -5,8 +5,12 @@
 #include <sys/auxv.h>
 #include <sys/prctl.h>
 
+// TODO: make this static
+static void ia2_set_up_tags(void);
+
 void ia2_start(void) {
     ia2_set_up_tags();
+    init_stacks_and_setup_tls();
     ia2_main();
 }
 
@@ -128,7 +132,7 @@ void verify_tls_padding(void) {
 }
 
 /* Allocates the required pkeys on x86 or enables MTE on aarch64 */
-void ia2_set_up_tags(void) {
+static void ia2_set_up_tags(void) {
 #if defined(__x86_64__)
     // TODO: Add a macro for this
     for (int pkey = 1; pkey <= 15; pkey++) {

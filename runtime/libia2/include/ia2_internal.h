@@ -183,6 +183,9 @@ struct FinalizerInfo {
   uint64_t fini_array_size;
 };
 
+void ia2_setup_destructors(const Elf64_Ehdr *ehdr, int pkey, void *wrap_ia2_compartment_destructor_arg, void *compartment_destructor_ptr_arg, struct FinalizerInfo *finalizers);
+
+
 
 // The two following assembler macros are used because it's difficult to go from
 // PKEYs/tags to PKRU/shifted tags in the preprocessor so we instead have the

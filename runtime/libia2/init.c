@@ -1,5 +1,8 @@
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 #include <dlfcn.h>
+#include <elf.h>
 #include "ia2.h"
 #include "ia2_internal.h"
 #include <sys/auxv.h>
@@ -12,12 +15,17 @@ static void ia2_set_up_tags(void);
 static void verify_tls_padding(void);
 static void allocate_stack_0();
 
+/* The 0th compartment is unprivileged and does not protect its memory, */
+/* so declare its stack pointer in the shared object that sets up the */
+/* runtime. */
+/* Ensure that ia2_stackptr_0 is at least a page long to ensure that the */
+/* last page of the TLS segment of compartment 0 does not contain any */
+/* variables that will be used, because the last page-1 bytes may be */
+/* ia2_mprotect_with_taged by the next compartment depending on sizes/alignment. */
 // TODO: this may need to move depending on how we intend to link in this .o
 __attribute__((visibility("default"))) __thread void *ia2_stackptr_0[PAGE_SIZE / sizeof(void *)] __attribute__((aligned(4096)));
 
-// TODO: Add a proper header once ia2_setup_destructors moves out of ia2_compartment_init.inc
-struct FinalizerInfo;
-void ia2_setup_destructors(void *ehdr, int pkey, void *wrap_ia2_compartment_destructor_arg, void *compartment_destructor_ptr_arg, struct FinalizerInfo *finalizers);
+void ia2_setup_destructors(const Elf64_Ehdr *ehdr, int pkey, void *wrap_ia2_compartment_destructor_arg, void *compartment_destructor_ptr_arg, struct FinalizerInfo *finalizers);
 
 void ia2_start(void) {
     ia2_set_up_tags();
@@ -118,16 +126,6 @@ void ia2_protect_memory(const char *libs, int compartment, const char *extra_lib
           "WARNING: Not all libraries in IA2_COMPARTMENT_LIBRARIES were found.\n");
     }
 }
-
-/* The 0th compartment is unprivileged and does not protect its memory, */
-/* so declare its stack pointer in the shared object that sets up the */
-/* runtime. */
-/* Ensure that ia2_stackptr_0 is at least a page long to ensure that the */
-/* last page of the TLS segment of compartment 0 does not contain any */
-/* variables that will be used, because the last page-1 bytes may be */
-/* ia2_mprotect_with_taged by the next compartment depending on sizes/alignment. */
-extern __thread void *ia2_stackptr_0[PAGE_SIZE / sizeof(void *)]
-    __attribute__((aligned(4096)));
 
 /* Allocate a fixed-size stack and protect it with the ith pkey. */
 /* Returns the top of the stack, not the base address of the allocation. */

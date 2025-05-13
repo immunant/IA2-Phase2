@@ -11,7 +11,8 @@ static uint32_t ubsan_access_phdr_type(Elf64_Phdr *phdr, int i) {
     return phdr[i].p_type;
 }
 
-__attribute__((visibility("default"))) void ia2_setup_destructors(Elf64_Ehdr *ehdr, int pkey, void *wrap_ia2_compartment_destructor_arg, void *compartment_destructor_ptr_arg, struct FinalizerInfo *finalizers) {
+// TODO: visibility may not be necessary anymore since this is only called from libia2.a
+__attribute__((visibility("default"))) void ia2_setup_destructors(const Elf64_Ehdr *ehdr, int pkey, void *wrap_ia2_compartment_destructor_arg, void *compartment_destructor_ptr_arg, struct FinalizerInfo *finalizers) {
   int res = 0;
   Elf64_Phdr *phdr = (Elf64_Phdr *)((uint8_t *)ehdr + ehdr->e_phoff);
   assert(sizeof(Elf64_Phdr) == ehdr->e_phentsize);

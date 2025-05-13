@@ -178,6 +178,9 @@ size_t ia2_get_pkey();
 /// extra_libraries must be a semicolon-separated list of libraries
 void ia2_protect_memory(const char *lib, int compartment, const char *extra_libraries);
 
+// just to make sure the user and this library agree on the declaration
+extern void ia2_main(void);
+
 #ifdef __cplusplus
 }
 #endif

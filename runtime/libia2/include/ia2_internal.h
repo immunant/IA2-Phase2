@@ -174,6 +174,7 @@ struct PhdrSearchArgs {
   // IA2_MAX_SHARED_SECTION_COUNT elements (not including NULL terminating
   // pair). Pointer may be NULL if no shared ranges are used.
   const struct IA2SharedSection *shared_sections;
+  const void *ehdr;
 };
 
 // The two following assembler macros are used because it's difficult to go from
@@ -416,9 +417,4 @@ __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
     REPEATB(n, return_stackptr_if_compartment,                                 \
             return_stackptr_if_compartment);                                   \
     abort();                                                                   \
-  }                                                                            \
-                                                                               \
-  __attribute__((constructor)) static void ia2_init(void) {                    \
-    /* Initialize stacks for the main thread/ */                               \
-    REPEATB##n(setup_destructors_for_compartment, nop_macro);                  \
   }

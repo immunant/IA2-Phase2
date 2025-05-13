@@ -13,6 +13,8 @@ static void ia2_set_up_tags(void);
 static void verify_tls_padding(void);
 static void allocate_stack_0();
 
+struct FinalizerInfo;
+void ia2_setup_destructors(void *ehdr, int pkey, void *wrap_ia2_compartment_destructor_arg, void *compartment_destructor_ptr_arg, struct FinalizerInfo *finalizers);
 
 void ia2_start(void) {
     ia2_set_up_tags();
@@ -27,10 +29,10 @@ void ia2_start(void) {
 
 void ia2_protect_memory(const char *libs, int compartment, const char *extra_libraries) {
     void *initial_sp = allocate_stack(compartment);
-  // TODO: this approach won't work so we may need to define a function in each compartment to get
-  // the current thread's stack pointer
-  extern __thread void *ia2_stackptr_1;
-  extern __thread void *ia2_stackptr_2;
+    // TODO: this approach won't work so we may need to define a function in each compartment to get
+    // the current thread's stack pointer
+    extern __thread void *ia2_stackptr_1;
+    extern __thread void *ia2_stackptr_2;
     if (compartment == 1) {
         ia2_stackptr_1 = initial_sp;
     } else if (compartment == 2) {
@@ -43,11 +45,19 @@ void ia2_protect_memory(const char *libs, int compartment, const char *extra_lib
     void *dso_addr = NULL;
     void *dso_shared_start = NULL;
     void *dso_shared_stop = NULL;
+    // Get the address of things defined by ia2_compartment_init.inc.
+    // TODO: it may be possible to reduce the number of variables we have to look up by consolidating some of these definitions.
+    void *x = NULL;
+    void *y = NULL;
+    void *z = NULL;
 
     if (!strcmp(libs, "main")) {
         dso_addr = dlsym(RTLD_DEFAULT, "main");
         dso_shared_start = dlsym(RTLD_DEFAULT, "__start_ia2_shared_data");
         dso_shared_stop = dlsym(RTLD_DEFAULT, "__stop_ia2_shared_data");
+        x = dlsym(RTLD_DEFAULT, "__wrap_ia2_compartment_destructor_1");
+        y = dlsym(RTLD_DEFAULT, "compartment_destructor_ptr_1");
+        z = dlsym(RTLD_DEFAULT, "finalizers_1");
     } else {
         void *handle = dlopen(libs, RTLD_GLOBAL | RTLD_NOW);
         if (!handle) {
@@ -59,6 +69,9 @@ void ia2_protect_memory(const char *libs, int compartment, const char *extra_lib
         dso_addr = dlsym(handle, "start_plugin");
         dso_shared_start = dlsym(handle, "__start_ia2_shared_data");
         dso_shared_stop = dlsym(handle, "__stop_ia2_shared_data");
+        x = dlsym(handle, "__wrap_ia2_compartment_destructor_2");
+        y = dlsym(handle, "compartment_destructor_ptr_2");
+        z = dlsym(handle, "finalizers_2");
     }
     if (!dso_addr) {
         printf("%s: failed to dlsym symbol 'foo' in %s for compartment %d\n", __func__, libs, compartment);
@@ -68,6 +81,9 @@ void ia2_protect_memory(const char *libs, int compartment, const char *extra_lib
         // We should not have one be null without the other
         exit(-3);
     }
+    assert(x);
+    assert(y);
+    assert(z);
     struct IA2SharedSection shared_sections[2] = {
         { dso_shared_start, dso_shared_stop },
         {NULL, NULL},
@@ -78,9 +94,11 @@ void ia2_protect_memory(const char *libs, int compartment, const char *extra_lib
         .extra_libraries = extra_libraries,
         .found_library_count = 0,
         .shared_sections = shared_sections,
+        .ehdr = NULL,
     };
     dl_iterate_phdr(protect_pages, &args);
     dl_iterate_phdr(protect_tls_pages, &args);
+    ia2_setup_destructors(args.ehdr, compartment, x, y, z);
     /* Check that we found all extra libraries */
     const char *cur_pos = args.extra_libraries;
     int extra_library_count = 0;

@@ -26,7 +26,6 @@
  * them no-ops with the same function signatures as the real versions when
  * compartments are disabled.
  */
-__attribute__((used)) void COMPARTMENT_IDENT(ia2_setup_destructors)(void) { }
 __attribute__((used)) void COMPARTMENT_IDENT(ia2_compartment_destructor)(void) { }
 
 #else
@@ -126,7 +125,7 @@ struct FinalizerInfo {
 
 /* Filled in by runtime initialization with contents of  .fini_array and
  * .fini */
-static volatile struct FinalizerInfo finalizers
+volatile struct FinalizerInfo COMPARTMENT_IDENT(finalizers)
     __attribute__((__section__(".data.rel.ro.1"))) = {0};
 
 extern void COMPARTMENT_IDENT(__wrap_ia2_compartment_destructor)(void);
@@ -139,13 +138,13 @@ COMPARTMENT_IDENT(ia2_compartment_destructor)(void) {
   assert(&__ehdr_start);
 
   void (**fini_array)(void) = (void (**)(void))(((uint8_t *)&__ehdr_start) +
-                                                finalizers.fini_array_offset);
-  for (size_t i = 0; i < (finalizers.fini_array_size / sizeof(void *)); i++) {
+                                                COMPARTMENT_IDENT(finalizers).fini_array_offset);
+  for (size_t i = 0; i < (COMPARTMENT_IDENT(finalizers).fini_array_size / sizeof(void *)); i++) {
     fini_array[i]();
   }
-  if (finalizers.fini_offset) {
+  if (COMPARTMENT_IDENT(finalizers).fini_offset) {
     void (*fini)(void) =
-        (void (*)(void))(((uint8_t *)&__ehdr_start) + finalizers.fini_offset);
+        (void (*)(void))(((uint8_t *)&__ehdr_start) + COMPARTMENT_IDENT(finalizers).fini_offset);
     fini();
   }
 
@@ -154,7 +153,7 @@ COMPARTMENT_IDENT(ia2_compartment_destructor)(void) {
 
 /* This pointer MUST be in a read-only (.data.rel.ro) section. */
 /* TODO: Check this in the resulting binary */
-static void (*const compartment_destructor_ptr)(void) =
+void (*const COMPARTMENT_IDENT(compartment_destructor_ptr))(void) =
     COMPARTMENT_IDENT(__wrap_ia2_compartment_destructor);
 
 /* UBSan doesn't like this access, so opt it out of sanitization. */
@@ -163,10 +162,9 @@ static inline uint32_t ubsan_access_phdr_type(Elf64_Phdr *phdr, int i) {
     return phdr[i].p_type;
 }
 
-__attribute__((visibility("default"))) void COMPARTMENT_IDENT(ia2_setup_destructors)(void) {
+__attribute__((visibility("default"))) void ia2_setup_destructors(Elf64_Ehdr *ehdr, int pkey, void *wrap_ia2_compartment_destructor_arg, void *compartment_destructor_ptr_arg, struct FinalizerInfo *finalizers) {
   int res = 0;
-  Elf64_Ehdr *ehdr = &__ehdr_start;
-  Elf64_Phdr *phdr = (Elf64_Phdr *)((uint8_t *)ehdr + __ehdr_start.e_phoff);
+  Elf64_Phdr *phdr = (Elf64_Phdr *)((uint8_t *)ehdr + ehdr->e_phoff);
   assert(sizeof(Elf64_Phdr) == ehdr->e_phentsize);
   Elf64_Phdr *dynamic_phdr = NULL;
   for (int i = 0; i < ehdr->e_phnum; i++) {
@@ -179,12 +177,12 @@ __attribute__((visibility("default"))) void COMPARTMENT_IDENT(ia2_setup_destruct
     return;
   }
   Elf64_Dyn *dynamic =
-      (Elf64_Dyn *)((uintptr_t)&__ehdr_start + dynamic_phdr->p_vaddr);
+      (Elf64_Dyn *)((uintptr_t)ehdr + dynamic_phdr->p_vaddr);
   void *rewrite_base = NULL;
   void *finalizers_region =
-      (void *)IA2_ROUND_DOWN((uintptr_t)&finalizers, PAGE_SIZE);
+      (void *)IA2_ROUND_DOWN((uintptr_t)finalizers, PAGE_SIZE);
   size_t finalizers_region_size =
-      IA2_ROUND_DOWN(((uintptr_t)&finalizers) + sizeof(finalizers) + PAGE_SIZE,
+      IA2_ROUND_DOWN(((uintptr_t)finalizers) + sizeof(finalizers) + PAGE_SIZE,
                      PAGE_SIZE) -
       (uintptr_t)finalizers_region;
   res = mprotect(finalizers_region, finalizers_region_size,
@@ -225,16 +223,18 @@ __attribute__((visibility("default"))) void COMPARTMENT_IDENT(ia2_setup_destruct
         }
       }
       if (dynamic[i].d_tag == DT_FINI) {
-        finalizers.fini_offset = dynamic[i].d_un.d_val;
+        finalizers->fini_offset = dynamic[i].d_un.d_val;
         dynamic[i].d_un.d_val =
-            (Elf64_Xword)&COMPARTMENT_IDENT(__wrap_ia2_compartment_destructor) -
-            (Elf64_Xword)&__ehdr_start;
+            //(Elf64_Xword)&COMPARTMENT_IDENT(__wrap_ia2_compartment_destructor) -
+            (Elf64_Xword)wrap_ia2_compartment_destructor_arg -
+            (Elf64_Xword)ehdr;
       } else if (dynamic[i].d_tag == DT_FINI_ARRAY) {
-        finalizers.fini_array_offset = dynamic[i].d_un.d_val;
-        dynamic[i].d_un.d_val = (Elf64_Xword)&compartment_destructor_ptr -
-                                (Elf64_Xword)&__ehdr_start;
+        finalizers->fini_array_offset = dynamic[i].d_un.d_val;
+        //dynamic[i].d_un.d_val = (Elf64_Xword)&compartment_destructor_ptr -
+        dynamic[i].d_un.d_val = (Elf64_Xword)compartment_destructor_ptr_arg -
+                                (Elf64_Xword)ehdr;
       } else if (dynamic[i].d_tag == DT_FINI_ARRAYSZ) {
-        finalizers.fini_array_size = dynamic[i].d_un.d_val;
+        finalizers->fini_array_size = dynamic[i].d_un.d_val;
         dynamic[i].d_un.d_val = 1;
       }
     }

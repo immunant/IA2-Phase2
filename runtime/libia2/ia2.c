@@ -360,6 +360,9 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
     return 0;
   }
 
+  if (!search_args->ehdr) {
+      search_args->ehdr = (void *)info->dlpi_addr;
+  }
   if (extra) {
     search_args->found_library_count++;
   }

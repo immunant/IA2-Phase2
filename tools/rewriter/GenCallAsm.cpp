@@ -915,7 +915,9 @@ static void emit_restore_args(AsmWriter &aw, Arch arch, bool pop) {
   }
 }
 
-static void emit_align_stack(AsmWriter &aw, Arch arch) {
+/// Align the stack to 16 bytes,
+/// assuming it is currently off by 8 bytes.
+static void emit_align_stack_8_to_16(AsmWriter &aw, Arch arch) {
   add_comment_line(aw, "Align stack");
   if (arch == Arch::X86) {
     add_asm_line(aw, "subq $8, %rsp");
@@ -924,7 +926,9 @@ static void emit_align_stack(AsmWriter &aw, Arch arch) {
   }
 }
 
-static void emit_revert_align_stack(AsmWriter &aw, Arch arch) {
+/// Revert `emit_align_stack_8_to_16`,
+/// so unalign the stack by 8 bytes.
+static void emit_revert_align_stack_8_to_16(AsmWriter &aw, Arch arch) {
   add_comment_line(aw, "Revert align stack");
   if (arch == Arch::X86) {
     add_asm_line(aw, "addq $8, %rsp");
@@ -1186,7 +1190,7 @@ std::string emit_asm_wrapper(
 
   if (!arg_indices_to_check.empty()) {
     emit_save_args(aw, arch);
-    emit_align_stack(aw, arch);
+    emit_align_stack_8_to_16(aw, arch);
     for (const auto i : arg_indices_to_check) {
       const auto &arg = sig.api.args[i];
       const auto &type = ctx.types.get(arg.type);
@@ -1197,7 +1201,7 @@ std::string emit_asm_wrapper(
       add_asm_line(aw, llvm::formatv("movq ${0}, %{1}", type.id, x86_int_param_reg_order[1]));
       emit_direct_call(aw, arch, ia2_type_registry_fn_name);
     }
-    emit_revert_align_stack(aw, arch);
+    emit_revert_align_stack_8_to_16(aw, arch);
     emit_restore_args(aw, arch, /* pop */ true);
   }
 
@@ -1281,9 +1285,9 @@ std::string emit_asm_wrapper(
     // unless this is the last condition.
     const bool pop = i == post_conditions.size() - 1;
     emit_restore_args(aw, arch, pop);
-    emit_align_stack(aw, arch);
+    emit_align_stack_8_to_16(aw, arch);
     emit_condition_fn_call(aw, arch, post_condition, "post");
-    emit_revert_align_stack(aw, arch);
+    emit_revert_align_stack_8_to_16(aw, arch);
   }
 
   emit_epilogue(aw, caller_pkey, arch);

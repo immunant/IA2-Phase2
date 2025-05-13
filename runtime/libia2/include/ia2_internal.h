@@ -174,7 +174,18 @@ struct PhdrSearchArgs {
   // IA2_MAX_SHARED_SECTION_COUNT elements (not including NULL terminating
   // pair). Pointer may be NULL if no shared ranges are used.
   const struct IA2SharedSection *shared_sections;
+  const void *ehdr;
 };
+
+struct FinalizerInfo {
+  uint64_t fini_offset;
+  uint64_t fini_array_offset;
+  uint64_t fini_array_size;
+};
+
+void ia2_setup_destructors(const Elf64_Ehdr *ehdr, int pkey, void *dtor_callgate, void *dtor_ptr, struct FinalizerInfo *finalizers);
+
+
 
 // The two following assembler macros are used because it's difficult to go from
 // PKEYs/tags to PKRU/shifted tags in the preprocessor so we instead have the
@@ -313,18 +324,6 @@ asm(".macro movz_shifted_tag_x18 tag\n"
 #define return_stackptr_if_compartment(compartment)
 #endif
 
-/* Pass to mmap to signal end of program init */
-#define IA2_FINISH_INIT_MAGIC 0x1a21face1a21faceULL
-/* Tell the syscall filter to forbid init-only operations. This mmap() will
-always fail because it maps a non-page-aligned addr with MAP_FIXED, so it
-works as a reasonable signpost no-op. */
-#define mark_init_finished() (void)mmap((void *)IA2_FINISH_INIT_MAGIC, 0, 0, MAP_FIXED, -1, 0)
-
-#define declare_init_tls_fn(n) __attribute__((visibility("default"))) void init_tls_##n(void);
-#define setup_destructors_for_compartment(n)                                   \
-  __attribute__((visibility("default"))) void ia2_setup_destructors_##n(void);                                        \
-  ia2_setup_destructors_##n();
-
 #if defined(__aarch64__)
 int ia2_mprotect_with_tag(void *addr, size_t len, int prot, int tag);
 #elif defined(__x86_64__)
@@ -339,9 +338,6 @@ static int ia2_mprotect_with_tag(void *addr, size_t len, int prot, int tag) {
 #endif
 #endif
 IA2_EXTERN_C char *allocate_stack(int i);
-IA2_EXTERN_C void allocate_stack_0();
-IA2_EXTERN_C void verify_tls_padding(void);
-IA2_EXTERN_C void ia2_set_up_tags(int *n_to_alloc);
 __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
 
 /* clang-format can't handle inline asm in macros */
@@ -415,31 +411,9 @@ __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
 /* clang-format on */
 
 #define _IA2_INIT_RUNTIME(n)                                                   \
-  __attribute__((visibility("default"))) int ia2_n_pkeys_to_alloc = n;                                                \
-  __attribute__((visibility("default"))) __thread void *ia2_stackptr_0[PAGE_SIZE / sizeof(void *)]                    \
-      __attribute__((aligned(4096)));                                          \
-                                                                               \
-  REPEATB(n, declare_init_tls_fn, nop_macro);                                  \
-                                                                               \
   /* Returns `&ia2_stackptr_N` given a pkru value for the Nth compartment. */  \
   __attribute__((visibility("default"))) void **ia2_stackptr_for_pkru(uint32_t pkru) {                                \
     REPEATB(n, return_stackptr_if_compartment,                                 \
             return_stackptr_if_compartment);                                   \
     abort();                                                                   \
-  }                                                                            \
-                                                                               \
-  __attribute__((visibility("default"))) __attribute__((weak)) void init_stacks_and_setup_tls(void) {                 \
-    verify_tls_padding();                                                      \
-    COMPARTMENT_SAVE_AND_RESTORE(REPEATB(n, ALLOCATE_COMPARTMENT_STACK_AND_SETUP_TLS, nop_macro), n); \
-    /* allocate an unprotected stack for the untrusted compartment */          \
-    allocate_stack_0();                                     \
-  }                                                                            \
-                                                                               \
-  __attribute__((constructor)) static void ia2_init(void) {                    \
-    /* Set up global resources. */                                             \
-    ia2_set_up_tags(&ia2_n_pkeys_to_alloc);                                    \
-    /* Initialize stacks for the main thread/ */                               \
-    init_stacks_and_setup_tls();                                               \
-    REPEATB##n(setup_destructors_for_compartment, nop_macro);                  \
-    mark_init_finished();                                                      \
   }

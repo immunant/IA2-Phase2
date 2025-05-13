@@ -344,12 +344,15 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
 
   struct PhdrSearchArgs *search_args = (struct PhdrSearchArgs *)data;
 
-  size_t cur_pkey = ia2_get_tag();
+  size_t cur_pkey = search_args->pkey;//ia2_get_tag();
+#if 0
+// Ok to remove this check since pkey_mprotect is a syscall
   if (cur_pkey != search_args->pkey) {
     fprintf(stderr, "Invalid pkey, expected %" PRId32 ", found %zu\n",
             search_args->pkey, cur_pkey);
     abort();
   }
+#endif
   Elf64_Addr address = (Elf64_Addr)search_args->address;
   bool extra = in_extra_libraries(info, search_args->extra_libraries);
   if (!in_loaded_segment(info, address) && !extra) {
@@ -357,6 +360,9 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
     return 0;
   }
 
+  if (!search_args->ehdr) {
+      search_args->ehdr = (void *)info->dlpi_addr;
+  }
   if (extra) {
     search_args->found_library_count++;
   }

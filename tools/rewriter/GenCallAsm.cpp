@@ -915,6 +915,28 @@ static void emit_restore_args(AsmWriter &aw, Arch arch, bool pop) {
   }
 }
 
+/// Align the stack to 16 bytes,
+/// assuming it is currently off by 8 bytes.
+static void emit_align_stack_8_to_16(AsmWriter &aw, Arch arch) {
+  add_comment_line(aw, "Align stack");
+  if (arch == Arch::X86) {
+    add_asm_line(aw, "subq $8, %rsp");
+  } else if (arch == Arch::Aarch64) {
+    // TODO
+  }
+}
+
+/// Revert `emit_align_stack_8_to_16`,
+/// so unalign the stack by 8 bytes.
+static void emit_revert_align_stack_8_to_16(AsmWriter &aw, Arch arch) {
+  add_comment_line(aw, "Revert align stack");
+  if (arch == Arch::X86) {
+    add_asm_line(aw, "addq $8, %rsp");
+  } else if (arch == Arch::Aarch64) {
+    // TODO
+  }
+}
+
 static void emit_condition_fn_call(AsmWriter &aw, Arch arch, std::string_view target_condition_name, std::string_view condition_type) {
   llvm::errs() << "emitting " << condition_type << "-condition call to " << target_condition_name << "\n";
   add_comment_line(aw, llvm::formatv("Call {0}-condition function", condition_type));
@@ -1129,6 +1151,60 @@ std::string emit_asm_wrapper(
 
   emit_prologue(aw, caller_pkey, target_pkey, arch);
 
+  // Check types that have (both) {con,de}structors.
+  // Check types in the type registry.
+  // If the function is itself a constructor or destructor,
+  // call `ia2_type_registry_{con,de}struct`.
+  // Otherwise, go through all of the args,
+  // and if they have (both) {con,de}structors
+  // and are one of the 6 x86 register args,
+  // call `ia2_type_registry_check`.
+  // TODO make x86 only
+  std::string_view ia2_type_registry_fn_kind;
+  std::string ia2_type_registry_fn_name;
+  std::vector<size_t> arg_indices_to_check;
+  if (target_name) {
+    if (ctx.constructors.find(*target_name) != ctx.constructors.end()) {
+      ia2_type_registry_fn_kind = "construct";
+      arg_indices_to_check.emplace_back(0);
+    } else if (ctx.destructors.find(*target_name) != ctx.destructors.end()) {
+      ia2_type_registry_fn_kind = "destruct";
+      arg_indices_to_check.emplace_back(0);
+    } else {
+      ia2_type_registry_fn_kind = "check";
+      for (auto i = 0; i < sig.api.args.size(); i++) {
+        const auto &arg = sig.api.args[i];
+        const auto &type = ctx.types.get(arg.type);
+        if (!type.has_structors()) {
+          continue;
+        }
+        if (i >= x86_int_param_reg_order.size()) {
+          llvm::errs() << "skipping checking type " << type.canonical_name << " type ID " << type.id << " for arg #" << i << " of function " << *target_name << "\n";
+          continue;
+        }
+        arg_indices_to_check.emplace_back(i);
+      }
+    }
+    ia2_type_registry_fn_name = llvm::formatv("ia2_type_registry_{0}", ia2_type_registry_fn_kind);
+  }
+
+  if (!arg_indices_to_check.empty()) {
+    emit_save_args(aw, arch);
+    emit_align_stack_8_to_16(aw, arch);
+    for (const auto i : arg_indices_to_check) {
+      const auto &arg = sig.api.args[i];
+      const auto &type = ctx.types.get(arg.type);
+      add_comment_line(aw, llvm::formatv("{0}ing type {1}, type ID {2}, arg #{3}", ia2_type_registry_fn_kind, type.canonical_name, type.id, i));
+      // `ia2_type_registry_*` arg 0 is a ptr of type `T*` from arg i.
+      add_asm_line(aw, llvm::formatv("movq {0}(%rsp), %{1}", 8 + 8 * (x86_int_param_reg_order.size() - 1 - i), x86_int_param_reg_order[0]));
+      // `ia2_type_registry_*` arg 1 is the `TypeId`.
+      add_asm_line(aw, llvm::formatv("movq ${0}, %{1}", type.id, x86_int_param_reg_order[1]));
+      emit_direct_call(aw, arch, ia2_type_registry_fn_name);
+    }
+    emit_revert_align_stack_8_to_16(aw, arch);
+    emit_restore_args(aw, arch, /* pop */ true);
+  }
+
   // Call the pre-condition functions for this target function.
   // The calls happens in the caller's compartment.
   // If there are any post-condition functions, save the args for that, too.
@@ -1203,22 +1279,9 @@ std::string emit_asm_wrapper(
     // unless this is the last condition.
     const bool pop = i == post_conditions.size() - 1;
     emit_restore_args(aw, arch, pop);
-
-    add_comment_line(aw, "Align stack");
-    if (arch == Arch::X86) {
-      add_asm_line(aw, "subq $8, %rsp");
-    } else if (arch == Arch::Aarch64) {
-      // TODO
-    }
-
+    emit_align_stack_8_to_16(aw, arch);
     emit_condition_fn_call(aw, arch, post_condition, "post");
-
-    add_comment_line(aw, "Revert align stack");
-    if (arch == Arch::X86) {
-      add_asm_line(aw, "addq $8, %rsp");
-    } else if (arch == Arch::Aarch64) {
-      // TODO
-    }
+    emit_revert_align_stack_8_to_16(aw, arch);
   }
 
   emit_epilogue(aw, caller_pkey, arch);

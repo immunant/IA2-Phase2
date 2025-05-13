@@ -2,9 +2,9 @@
 
 #include <stddef.h>
 
-typedef struct {
-  int field;
-} Dav1dContext;
+typedef struct Dav1dContext Dav1dContext;
+
+extern const size_t DAV1D_CONTEXT_SIZE;
 
 typedef struct Dav1dSettings {
   int field;
@@ -13,6 +13,10 @@ typedef struct Dav1dSettings {
 typedef struct {
   ptrdiff_t stride[2];
 } Dav1dPicture;
+
+void* dav1d_alloc(size_t size);
+
+void dav1d_free(void* memory);
 
 int dav1d_open(Dav1dContext *this, const Dav1dSettings *s);
 

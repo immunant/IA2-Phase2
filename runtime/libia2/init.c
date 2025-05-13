@@ -10,10 +10,14 @@
 
 // TODO: make this static
 static void ia2_set_up_tags(void);
+static void verify_tls_padding(void);
+static void allocate_stack_0();
+
 
 void ia2_start(void) {
     ia2_set_up_tags();
-    init_stacks_and_setup_tls();
+    verify_tls_padding();
+    allocate_stack_0();
     ia2_main();
     /* Tell the syscall filter to forbid init-only operations. This mmap() will
     always fail because it maps a non-page-aligned addr with MAP_FIXED, so it
@@ -22,6 +26,16 @@ void ia2_start(void) {
 }
 
 void ia2_protect_memory(const char *libs, int compartment, const char *extra_libraries) {
+    void *initial_sp = allocate_stack(compartment);
+  // TODO: this approach won't work so we may need to define a function in each compartment to get
+  // the current thread's stack pointer
+  extern __thread void *ia2_stackptr_1;
+  extern __thread void *ia2_stackptr_2;
+    if (compartment == 1) {
+        ia2_stackptr_1 = initial_sp;
+    } else if (compartment == 2) {
+        ia2_stackptr_2 = initial_sp;
+    }
     printf("%s: protecting %s with pkey %d\n", __func__, libs, compartment);
 
     // TODO: split up libs by whitespace
@@ -66,6 +80,7 @@ void ia2_protect_memory(const char *libs, int compartment, const char *extra_lib
         .shared_sections = shared_sections,
     };
     dl_iterate_phdr(protect_pages, &args);
+    dl_iterate_phdr(protect_tls_pages, &args);
     /* Check that we found all extra libraries */
     const char *cur_pos = args.extra_libraries;
     int extra_library_count = 0;
@@ -121,13 +136,13 @@ char *allocate_stack(int i) {
 #endif
 }
 
-void allocate_stack_0() {
+static void allocate_stack_0() {
   ia2_stackptr_0[0] = allocate_stack(0);
 }
 
 /* Confirm that stack pointers for compartments 0 and 1 are on separate */
 /* pages. */
-void verify_tls_padding(void) {
+static void verify_tls_padding(void) {
   /* It's safe to depend on ia2_stackptr_1 existing because all users of */
   /* IA2 will have at least one compartment other than the untrusted one. */
   extern __thread void *ia2_stackptr_1;

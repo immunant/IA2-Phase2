@@ -177,6 +177,13 @@ struct PhdrSearchArgs {
   const void *ehdr;
 };
 
+struct FinalizerInfo {
+  uint64_t fini_offset;
+  uint64_t fini_array_offset;
+  uint64_t fini_array_size;
+};
+
+
 // The two following assembler macros are used because it's difficult to go from
 // PKEYs/tags to PKRU/shifted tags in the preprocessor so we instead have the
 // assembler do the calculation

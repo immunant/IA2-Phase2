@@ -183,7 +183,7 @@ struct FinalizerInfo {
   uint64_t fini_array_size;
 };
 
-void ia2_setup_destructors(const Elf64_Ehdr *ehdr, int pkey, void *wrap_ia2_compartment_destructor_arg, void *compartment_destructor_ptr_arg, struct FinalizerInfo *finalizers);
+void ia2_setup_destructors(const Elf64_Ehdr *ehdr, int pkey, void *dtor_callgate, void *dtor_ptr, struct FinalizerInfo *finalizers);
 
 
 

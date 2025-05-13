@@ -11,10 +11,6 @@
 /* Pass to mmap to signal end of program init */
 #define IA2_FINISH_INIT_MAGIC 0x1a21face1a21faceULL
 
-static void ia2_set_up_tags(void);
-static void verify_tls_padding(void);
-static void allocate_stack_0();
-
 /* The 0th compartment is unprivileged and does not protect its memory, */
 /* so declare its stack pointer in the shared object that sets up the */
 /* runtime. */
@@ -24,108 +20,6 @@ static void allocate_stack_0();
 /* ia2_mprotect_with_taged by the next compartment depending on sizes/alignment. */
 // TODO: this may need to move depending on how we intend to link in this .o
 __attribute__((visibility("default"))) __thread void *ia2_stackptr_0[PAGE_SIZE / sizeof(void *)] __attribute__((aligned(4096)));
-
-void ia2_setup_destructors(const Elf64_Ehdr *ehdr, int pkey, void *wrap_ia2_compartment_destructor_arg, void *compartment_destructor_ptr_arg, struct FinalizerInfo *finalizers);
-
-void ia2_start(void) {
-    ia2_set_up_tags();
-    verify_tls_padding();
-    allocate_stack_0();
-    ia2_main();
-    /* Tell the syscall filter to forbid init-only operations. This mmap() will
-    always fail because it maps a non-page-aligned addr with MAP_FIXED, so it
-    works as a reasonable signpost no-op. */
-    mmap((void *)IA2_FINISH_INIT_MAGIC, 0, 0, MAP_FIXED, -1, 0);
-}
-
-void ia2_protect_memory(const char *libs, int compartment, const char *extra_libraries) {
-    void *initial_sp = allocate_stack(compartment);
-    // TODO: this approach won't work so we may need to define a function in each compartment to get
-    // the current thread's stack pointer
-    extern __thread void *ia2_stackptr_1;
-    extern __thread void *ia2_stackptr_2;
-    if (compartment == 1) {
-        ia2_stackptr_1 = initial_sp;
-    } else if (compartment == 2) {
-        ia2_stackptr_2 = initial_sp;
-    }
-    printf("%s: protecting %s with pkey %d\n", __func__, libs, compartment);
-
-    // TODO: split up libs by whitespace
-
-    void *dso_addr = NULL;
-    void *dso_shared_start = NULL;
-    void *dso_shared_stop = NULL;
-    // Get the address of things defined by ia2_compartment_init.inc.
-    // TODO: it may be possible to reduce the number of variables we have to look up by consolidating some of these definitions.
-    void *x = NULL;
-    void *y = NULL;
-    void *z = NULL;
-
-    if (!strcmp(libs, "main")) {
-        dso_addr = dlsym(RTLD_DEFAULT, "main");
-        dso_shared_start = dlsym(RTLD_DEFAULT, "__start_ia2_shared_data");
-        dso_shared_stop = dlsym(RTLD_DEFAULT, "__stop_ia2_shared_data");
-        x = dlsym(RTLD_DEFAULT, "__wrap_ia2_compartment_destructor_1");
-        y = dlsym(RTLD_DEFAULT, "compartment_destructor_ptr_1");
-        z = dlsym(RTLD_DEFAULT, "finalizers_1");
-    } else {
-        void *handle = dlopen(libs, RTLD_GLOBAL | RTLD_NOW);
-        if (!handle) {
-            printf("%s: failed to dlopen %s for compartment %d\n", __func__, libs, compartment);
-            // TODO: use actual error codes
-            exit(-1);
-        }
-        // TODO: use a symbol that will always be defined. This is specific to tests/two_keys_minimal/plugin.c
-        dso_addr = dlsym(handle, "start_plugin");
-        dso_shared_start = dlsym(handle, "__start_ia2_shared_data");
-        dso_shared_stop = dlsym(handle, "__stop_ia2_shared_data");
-        x = dlsym(handle, "__wrap_ia2_compartment_destructor_2");
-        y = dlsym(handle, "compartment_destructor_ptr_2");
-        z = dlsym(handle, "finalizers_2");
-    }
-    if (!dso_addr) {
-        printf("%s: failed to dlsym symbol 'foo' in %s for compartment %d\n", __func__, libs, compartment);
-        exit(-2);
-    }
-    if (!dso_shared_stop != !dso_shared_start) {
-        // We should not have one be null without the other
-        exit(-3);
-    }
-    assert(x);
-    assert(y);
-    assert(z);
-    struct IA2SharedSection shared_sections[2] = {
-        { dso_shared_start, dso_shared_stop },
-        {NULL, NULL},
-    };
-    struct PhdrSearchArgs args = {
-        .pkey = compartment,
-        .address = dso_addr,
-        .extra_libraries = extra_libraries,
-        .found_library_count = 0,
-        .shared_sections = shared_sections,
-        .ehdr = NULL,
-    };
-    dl_iterate_phdr(protect_pages, &args);
-    dl_iterate_phdr(protect_tls_pages, &args);
-    ia2_setup_destructors(args.ehdr, compartment, x, y, z);
-    /* Check that we found all extra libraries */
-    const char *cur_pos = args.extra_libraries;
-    int extra_library_count = 0;
-    while (cur_pos) {
-      extra_library_count++;
-      cur_pos = strchr(cur_pos, ';');
-      if (cur_pos) {
-        cur_pos++;
-      }
-    }
-    if (extra_library_count != args.found_library_count) {
-      fprintf(
-          stderr,
-          "WARNING: Not all libraries in IA2_COMPARTMENT_LIBRARIES were found.\n");
-    }
-}
 
 /* Allocate a fixed-size stack and protect it with the ith pkey. */
 /* Returns the top of the stack, not the base address of the allocation. */
@@ -153,10 +47,6 @@ char *allocate_stack(int i) {
   /* Each stack frame start + 8 is initially 16-byte aligned. */
   return stack + STACK_SIZE - 8;
 #endif
-}
-
-static void allocate_stack_0() {
-  ia2_stackptr_0[0] = allocate_stack(0);
 }
 
 /* Confirm that stack pointers for compartments 0 and 1 are on separate */
@@ -209,4 +99,111 @@ __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i) {
   printf("compartment %d in thread %d tried to allocate existing stack\n",
          i, gettid());
   exit(1);
+}
+
+/* This function is called from __wrap_main before handing off control to user code. It calls ia2_main which is the user-defined compartment config code */
+void ia2_start(void) {
+    ia2_set_up_tags();
+    verify_tls_padding();
+    /* This needs to happen even if there isn't a compartment 0 explicitly specified */
+    ia2_stackptr_0[0] = allocate_stack(0);
+    ia2_main();
+    /* Tell the syscall filter to forbid init-only operations. This mmap() will
+    always fail because it maps a non-page-aligned addr with MAP_FIXED, so it
+    works as a reasonable signpost no-op. */
+    mmap((void *)IA2_FINISH_INIT_MAGIC, 0, 0, MAP_FIXED, -1, 0);
+}
+
+static void append_to_name(char *name, int compartment) {
+    name[strlen(name) - 1] = '0' + compartment;
+}
+
+/* This function is expected to be called from the user-defined ia2_main once per compartment */
+void ia2_protect_memory(const char *libs, int compartment, const char *extra_libraries) {
+    printf("%s: protecting %s with pkey %d\n", __func__, libs, compartment);
+
+    void *handle = RTLD_DEFAULT;
+    const char *dso_sym = "main";
+
+    if (strcmp(libs, "main")) {
+        void *handle = dlopen(libs, RTLD_GLOBAL | RTLD_NOW);
+        if (!handle) {
+            printf("%s: failed to dlopen %s for compartment %d\n", __func__, libs, compartment);
+            // TODO: use actual error codes
+            exit(-1);
+        }
+        // TODO: use a symbol that will always be defined. This is specific to tests/two_keys_minimal/plugin.c
+        dso_sym = "start_plugin";
+    }
+
+    void *dso_addr = dlsym(handle, dso_sym);
+    if (!dso_addr) {
+        printf("%s: failed to dlsym symbol 'foo' in %s for compartment %d\n", __func__, libs, compartment);
+        exit(-2);
+    }
+    void *dso_shared_start = dlsym(handle, "__start_ia2_shared_data");
+    void *dso_shared_stop = dlsym(handle, "__stop_ia2_shared_data");
+    if (!dso_shared_stop != !dso_shared_start) {
+        // We should not have one be null without the other
+        exit(-3);
+    }
+    // Get the address of things defined by ia2_compartment_init.inc.
+    void *dtor_callgate = NULL;
+    void *dtor_ptr = NULL;
+    void *finalizers = NULL;
+
+    char dtor_name[] = "__wrap_ia2_compartment_destructor_N";
+    // Replace 'N' with the ascii character for the compartment number
+    append_to_name(dtor_name, compartment);
+    dtor_callgate = dlsym(handle, dtor_name);
+    assert(dtor_callgate);
+
+    char dtor_ptr_name[] = "compartment_destructor_ptr_N";
+    append_to_name(dtor_ptr_name, compartment);
+    dtor_ptr = dlsym(handle, dtor_ptr_name);
+    assert(dtor_ptr);
+
+    char finalizer_name[] = "finalizers_N";
+    append_to_name(finalizer_name, compartment);
+    finalizers = dlsym(handle, finalizer_name);
+    assert(finalizers);
+
+    if (compartment != 0) {
+        void *initial_sp = allocate_stack(compartment);
+        char stackptr_name[] = "ia2_stackptr_N";
+        append_to_name(stackptr_name, compartment);
+        void **stackptr = (void **)dlsym(handle, stackptr_name);
+        *stackptr = initial_sp;
+    }
+
+    struct IA2SharedSection shared_sections[2] = {
+        { dso_shared_start, dso_shared_stop },
+        {NULL, NULL},
+    };
+    struct PhdrSearchArgs args = {
+        .pkey = compartment,
+        .address = dso_addr,
+        .extra_libraries = extra_libraries,
+        .found_library_count = 0,
+        .shared_sections = shared_sections,
+        .ehdr = NULL,
+    };
+    dl_iterate_phdr(protect_pages, &args);
+    dl_iterate_phdr(protect_tls_pages, &args);
+    ia2_setup_destructors(args.ehdr, compartment, dtor_callgate, dtor_ptr, finalizers);
+    /* Check that we found all extra libraries */
+    const char *cur_pos = args.extra_libraries;
+    int extra_library_count = 0;
+    while (cur_pos) {
+      extra_library_count++;
+      cur_pos = strchr(cur_pos, ';');
+      if (cur_pos) {
+        cur_pos++;
+      }
+    }
+    if (extra_library_count != args.found_library_count) {
+      fprintf(
+          stderr,
+          "WARNING: Not all libraries in IA2_COMPARTMENT_LIBRARIES were found.\n");
+    }
 }

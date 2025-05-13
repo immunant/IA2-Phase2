@@ -12,7 +12,7 @@ static uint32_t ubsan_access_phdr_type(Elf64_Phdr *phdr, int i) {
 }
 
 // TODO: visibility may not be necessary anymore since this is only called from libia2.a
-__attribute__((visibility("default"))) void ia2_setup_destructors(const Elf64_Ehdr *ehdr, int pkey, void *wrap_ia2_compartment_destructor_arg, void *compartment_destructor_ptr_arg, struct FinalizerInfo *finalizers) {
+__attribute__((visibility("default"))) void ia2_setup_destructors(const Elf64_Ehdr *ehdr, int pkey, void *dtor_callgate, void *dtor_ptr, struct FinalizerInfo *finalizers) {
   int res = 0;
   Elf64_Phdr *phdr = (Elf64_Phdr *)((uint8_t *)ehdr + ehdr->e_phoff);
   assert(sizeof(Elf64_Phdr) == ehdr->e_phentsize);
@@ -75,13 +75,12 @@ __attribute__((visibility("default"))) void ia2_setup_destructors(const Elf64_Eh
       if (dynamic[i].d_tag == DT_FINI) {
         finalizers->fini_offset = dynamic[i].d_un.d_val;
         dynamic[i].d_un.d_val =
-            //(Elf64_Xword)&COMPARTMENT_IDENT(__wrap_ia2_compartment_destructor) -
-            (Elf64_Xword)wrap_ia2_compartment_destructor_arg -
+            (Elf64_Xword)dtor_callgate -
             (Elf64_Xword)ehdr;
       } else if (dynamic[i].d_tag == DT_FINI_ARRAY) {
         finalizers->fini_array_offset = dynamic[i].d_un.d_val;
         //dynamic[i].d_un.d_val = (Elf64_Xword)&compartment_destructor_ptr -
-        dynamic[i].d_un.d_val = (Elf64_Xword)compartment_destructor_ptr_arg -
+        dynamic[i].d_un.d_val = (Elf64_Xword)dtor_ptr -
                                 (Elf64_Xword)ehdr;
       } else if (dynamic[i].d_tag == DT_FINI_ARRAYSZ) {
         finalizers->fini_array_size = dynamic[i].d_un.d_val;

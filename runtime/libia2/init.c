@@ -8,11 +8,14 @@
 /* Pass to mmap to signal end of program init */
 #define IA2_FINISH_INIT_MAGIC 0x1a21face1a21faceULL
 
-// TODO: make this static
 static void ia2_set_up_tags(void);
 static void verify_tls_padding(void);
 static void allocate_stack_0();
 
+// TODO: this may need to move depending on how we intend to link in this .o
+__attribute__((visibility("default"))) __thread void *ia2_stackptr_0[PAGE_SIZE / sizeof(void *)] __attribute__((aligned(4096)));
+
+// TODO: Add a proper header once ia2_setup_destructors moves out of ia2_compartment_init.inc
 struct FinalizerInfo;
 void ia2_setup_destructors(void *ehdr, int pkey, void *wrap_ia2_compartment_destructor_arg, void *compartment_destructor_ptr_arg, struct FinalizerInfo *finalizers);
 

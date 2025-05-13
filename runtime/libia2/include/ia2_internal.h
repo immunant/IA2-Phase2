@@ -314,11 +314,6 @@ asm(".macro movz_shifted_tag_x18 tag\n"
 #define return_stackptr_if_compartment(compartment)
 #endif
 
-#define declare_init_tls_fn(n) __attribute__((visibility("default"))) void init_tls_##n(void);
-#define setup_destructors_for_compartment(n)                                   \
-  __attribute__((visibility("default"))) void ia2_setup_destructors_##n(void);                                        \
-  ia2_setup_destructors_##n();
-
 #if defined(__aarch64__)
 int ia2_mprotect_with_tag(void *addr, size_t len, int prot, int tag);
 #elif defined(__x86_64__)
@@ -406,12 +401,6 @@ __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
 /* clang-format on */
 
 #define _IA2_INIT_RUNTIME(n)                                                   \
-  __attribute__((visibility("default"))) int ia2_n_pkeys_to_alloc = n;                                                \
-  __attribute__((visibility("default"))) __thread void *ia2_stackptr_0[PAGE_SIZE / sizeof(void *)]                    \
-      __attribute__((aligned(4096)));                                          \
-                                                                               \
-  REPEATB(n, declare_init_tls_fn, nop_macro);                                  \
-                                                                               \
   /* Returns `&ia2_stackptr_N` given a pkru value for the Nth compartment. */  \
   __attribute__((visibility("default"))) void **ia2_stackptr_for_pkru(uint32_t pkru) {                                \
     REPEATB(n, return_stackptr_if_compartment,                                 \

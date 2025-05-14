@@ -75,9 +75,7 @@ void *ia2_thread_begin(void *arg) {
 #endif
 }
 
-int __real_pthread_create(pthread_t *restrict thread,
-                          const pthread_attr_t *restrict attr, void *(*fn)(void *),
-                          void *data);
+typeof(pthread_create) __real_pthread_create;
 
 int __wrap_pthread_create(pthread_t *restrict thread,
                           const pthread_attr_t *restrict attr, void *(*fn)(void *),

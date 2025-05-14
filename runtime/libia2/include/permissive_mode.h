@@ -468,7 +468,7 @@ __attribute__((constructor)) void permissive_mode_init(void) {
 // `getline` calls `malloc` inside of `libc`,
 // but we wrap `malloc` with `__wrap_malloc`,
 // so we need to free what `getline` allocated with `__real_free`.
-void __real_free(void *ptr);
+typeof(IA2_IGNORE(free)) __real_free;
 
 extern uintptr_t ia2_stack_addrs[IA2_MAX_COMPARTMENTS];
 

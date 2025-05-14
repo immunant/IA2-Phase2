@@ -101,25 +101,12 @@ __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i) {
   exit(1);
 }
 
-/* This function is called from __wrap_main before handing off control to user code. It calls ia2_main which is the user-defined compartment config code */
-void ia2_start(void) {
-    ia2_set_up_tags();
-    verify_tls_padding();
-    /* This needs to happen even if there isn't a compartment 0 explicitly specified */
-    ia2_stackptr_0[0] = allocate_stack(0);
-    ia2_main();
-    /* Tell the syscall filter to forbid init-only operations. This mmap() will
-    always fail because it maps a non-page-aligned addr with MAP_FIXED, so it
-    works as a reasonable signpost no-op. */
-    mmap((void *)IA2_FINISH_INIT_MAGIC, 0, 0, MAP_FIXED, -1, 0);
-}
-
-static void append_to_name(char *name, int compartment) {
+static void replace_suffix(char *name, int compartment) {
     name[strlen(name) - 1] = '0' + compartment;
 }
 
 /* This function is expected to be called from the user-defined ia2_main once per compartment */
-void ia2_protect_memory(const char *libs, int compartment, const char *extra_libraries) {
+static void ia2_protect_memory(const char *libs, int compartment, const char *extra_libraries) {
     printf("%s: protecting %s with pkey %d\n", __func__, libs, compartment);
 
     void *handle = RTLD_DEFAULT;
@@ -154,24 +141,24 @@ void ia2_protect_memory(const char *libs, int compartment, const char *extra_lib
 
     char dtor_name[] = "__wrap_ia2_compartment_destructor_N";
     // Replace 'N' with the ascii character for the compartment number
-    append_to_name(dtor_name, compartment);
+    replace_suffix(dtor_name, compartment);
     dtor_callgate = dlsym(handle, dtor_name);
     assert(dtor_callgate);
 
     char dtor_ptr_name[] = "compartment_destructor_ptr_N";
-    append_to_name(dtor_ptr_name, compartment);
+    replace_suffix(dtor_ptr_name, compartment);
     dtor_ptr = dlsym(handle, dtor_ptr_name);
     assert(dtor_ptr);
 
     char finalizer_name[] = "finalizers_N";
-    append_to_name(finalizer_name, compartment);
+    replace_suffix(finalizer_name, compartment);
     finalizers = dlsym(handle, finalizer_name);
     assert(finalizers);
 
     if (compartment != 0) {
         void *initial_sp = allocate_stack(compartment);
         char stackptr_name[] = "ia2_stackptr_N";
-        append_to_name(stackptr_name, compartment);
+        replace_suffix(stackptr_name, compartment);
         void **stackptr = (void **)dlsym(handle, stackptr_name);
         *stackptr = initial_sp;
     }
@@ -206,4 +193,41 @@ void ia2_protect_memory(const char *libs, int compartment, const char *extra_lib
           stderr,
           "WARNING: Not all libraries in IA2_COMPARTMENT_LIBRARIES were found.\n");
     }
+}
+
+struct CompartmentConfig {
+    const char *libs;
+    const char *extra_libraries;
+};
+
+static struct CompartmentConfig user_config[15] = { 0 };
+
+void ia2_register_compartment(const char *libs, int compartment, const char *extra_libraries) {
+    assert(compartment <= 15);
+    user_config[compartment].libs = libs;
+    user_config[compartment].extra_libraries = extra_libraries;
+}
+
+/*
+ * This function is called from __wrap_main before handing off control to user
+ * code. It calls ia2_main which is the user-defined compartment config code
+ */
+void ia2_start(void) {
+    /* Get the user config before doing anything */
+    ia2_main();
+
+    ia2_set_up_tags();
+    verify_tls_padding();
+    /* This needs to happen even if there isn't a compartment 0 explicitly specified */
+    ia2_stackptr_0[0] = allocate_stack(0);
+    for (int i = 0; i < 15; i++) {
+        if (!user_config[i].libs) {
+            continue;
+        }
+        ia2_protect_memory(user_config[i].libs, i, user_config[i].extra_libraries);
+    }
+    /* Tell the syscall filter to forbid init-only operations. This mmap() will
+    always fail because it maps a non-page-aligned addr with MAP_FIXED, so it
+    works as a reasonable signpost no-op. */
+    mmap((void *)IA2_FINISH_INIT_MAGIC, 0, 0, MAP_FIXED, -1, 0);
 }

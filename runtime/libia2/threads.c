@@ -105,6 +105,11 @@ struct ia2_all_threads_metadata {
 #define array_len(a) (sizeof(a) / sizeof(*(a)))
 
 struct ia2_thread_metadata *ia2_all_threads_metadata_lookup(struct ia2_all_threads_metadata *const this) {
+#if !IA2_DEBUG_LOG
+  // Only store these addresses and have this overhead when debug logging is on.
+  return NULL;
+#endif
+
   const pid_t tid = gettid();
 
   struct ia2_thread_metadata *metadata = NULL;

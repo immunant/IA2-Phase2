@@ -1,9 +1,11 @@
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
-#include <ia2_test_runner.h>
 #include <ia2.h>
+#include <ia2_test_runner.h>
 #include <permissive_mode.h>
+
+#include <pthread.h>
 
 INIT_RUNTIME(1);
 #define IA2_COMPARTMENT 1
@@ -30,4 +32,25 @@ Test(permissive_mode, main) {
 Test(permissive_mode, alloc) {
     // Alloc and free so that partition-alloc allocates its compartment heaps.
     free(malloc(1024));
+}
+
+__thread int tls;
+
+void *start_thread(void *const arg) {
+  // Mostly bogus stuff.
+  // Just want to use stack, heap, and TLS.
+  int a[4096] = {0};
+  malloc(10);
+  return (void *)((void *)a - (void *)&tls);
+}
+
+Test(permissive_mode, multithreaded) {
+  pthread_t threads[10];
+  for (size_t i = 0; i < 10; i++) {
+#if IA2_ENABLE
+    pthread_create(&threads[i], NULL, start_thread, NULL);
+#endif
+  }
+  // Exit before joining threads.
+  exit(0);
 }

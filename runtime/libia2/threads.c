@@ -154,8 +154,21 @@ struct ia2_addr_location ia2_all_threads_data_find_addr(struct ia2_all_threads_d
         location.compartment = compartment;
         goto unlock;
       }
+      if (addr == thread_data->tls_addrs[compartment]) {
+        location.name = "tls";
+        location.tid = tid;
+        location.compartment = compartment;
+        goto unlock;
+      }
+      if (addr == thread_data->tls_addr_compartment1_first || addr == thread_data->tls_addr_compartment1_second) {
+        location.name = "tls";
+        location.tid = tid;
+        location.compartment = 1;
+        goto unlock;
+      }
     }
   }
+
   goto unlock;
 
 unlock:

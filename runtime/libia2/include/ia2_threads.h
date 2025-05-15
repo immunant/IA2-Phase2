@@ -8,6 +8,15 @@ struct ia2_thread_data {
   /// This data is shared, so it should not be trusted for use as a pointer,
   /// but it can be used best effort as a provenance-less address.
   uintptr_t stack_addrs[IA2_MAX_COMPARTMENTS];
+
+  /// The addresses of each compartment's TLS region for this thread,
+  /// except for compartment 1, which has split TLS regions (see below).
+  uintptr_t tls_addrs[IA2_MAX_COMPARTMENTS];
+
+  /// The TLS region is split only for the first compartment,
+  /// so we need two addresses for just that one.
+  uintptr_t tls_addr_compartment1_first;
+  uintptr_t tls_addr_compartment1_second;
 };
 
 struct ia2_addr_location {

@@ -2,11 +2,10 @@
 
 #include "ia2.h"
 
+/// The data here is shared, so it should not be trusted for use as a pointer,
+/// but it can be used best effort for non-trusted purposes.
 struct ia2_thread_metadata {
   /// The addresses of each compartment's stack for this thread.
-  ///
-  /// This data is shared, so it should not be trusted for use as a pointer,
-  /// but it can be used best effort for non-trusted purposes.
   uintptr_t stack_addrs[IA2_MAX_COMPARTMENTS];
 
   /// The addresses of each compartment's TLS region for this thread,

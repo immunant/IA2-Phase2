@@ -22,7 +22,9 @@ jobs:
         ia2-tracer: [ON, OFF]
     steps:
       - name: Setup Rust
-        run: rustup toolchain install stable-x86_64-unknown-linux-gnu
+        # We don't use actions-rust-lang/setup-rust-toolchain because it's slower
+        # (~17 s vs. ~70 s) and we need to sequentially run this 32 times.
+        run: rustup toolchain install stable --target x86_64-unknown-linux-gnu --profile minimal --no-self-update --allow-downgrade
       - name: Check out code
         uses: actions/checkout@v4
       - name: Init b63 submodule # Can't use checkout@v4 because it unconditionally inits all

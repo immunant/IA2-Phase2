@@ -10,24 +10,33 @@ int b IA2_SHARED_DATA;
 
 Test(pre_condition, not_a_positive, .exit_code = 10) {
   b = 0;
-  f1(-1, &b);
+  f2(-1, &b);
 }
 
 Test(pre_condition, not_b_non_null, .exit_code = 11) {
-  f1(1, NULL);
+  f2(1, NULL);
 }
 
 Test(pre_condition, not_b_eq_0, .exit_code = 13) {
   b = 1;
-  f1(1, &b);
+  f2(1, &b);
 }
 
 Test(post_condition, not_b_eq_10, .exit_code = 21) {
   b = 0;
-  f1(1, &b);
+  f2(1, &b);
 }
 
 Test(pre_post_condition, success) {
   b = 0;
-  f1(10, &b);
+  f2(10, &b);
+}
+
+Test(pre_post_condition, odd_num_args_1) {
+  f1(11);
+}
+
+Test(pre_post_condition, odd_num_args_3) {
+  b = 0;
+  f3(&b, 11, 22);
 }

@@ -5,7 +5,7 @@
 #include "ia2.h"
 
 __attribute__((visibility("default"))) void init_stacks_and_setup_tls(void);
-__attribute__((visibility("default"))) void **ia2_stackptr_for_pkru(uint32_t pkey);
+__attribute__((visibility("default"))) void **ia2_stackptr_for_tag(size_t tag);
 
 struct ia2_thread_thunk {
   void *(*fn)(void *);
@@ -18,6 +18,9 @@ void *ia2_thread_begin(void *arg) {
   struct ia2_thread_thunk *thunk = (struct ia2_thread_thunk *)arg;
   void *(*fn)(void *) = thunk->fn;
   void *data = thunk->data;
+#if IA2_DEBUG_LOG
+  printf("%s: creating thread with function at %p and argument %p\n", __func__, fn, data);
+#endif
   /* stack_t alt_stack = { */
   /*     .ss_sp = ia2_signal_stack, .ss_flags = 0, .ss_size = STACK_SIZE}; */
 
@@ -29,19 +32,13 @@ void *ia2_thread_begin(void *arg) {
    * data. */
   /*  sigaltstack(&alt_stack, NULL); */
 
-#if defined(__x86_64__)
   /* Determine the current compartment so know which stack to use. */
-  uint32_t pkru = 0;
-  __asm__ volatile(
-      /* clang-format off */
-      "xor %%ecx,%%ecx\n"
-      "rdpkru\n"
-      /* clang-format on */
-      : "=a"(pkru)::"ecx", "edx");
-  void **new_sp_addr = ia2_stackptr_for_pkru(pkru);
+  size_t tag = ia2_get_tag();
+  void **new_sp_addr = ia2_stackptr_for_tag(tag);
 
   /* Switch to the stack for this compartment, then call `fn(data)`. */
   void *result;
+#if defined(__x86_64__)
   __asm__ volatile(
       /* clang-format off */
       // Copy stack pointer to rdi.
@@ -67,12 +64,42 @@ void *ia2_thread_begin(void *arg) {
       : "=a"(result)
       : [fn] "r"(fn), [data] "r"(data), [new_sp_addr] "r"(new_sp_addr)
       : "rdi");
-  /* clang-format on */
-  return result;
 #elif defined(__aarch64__)
-#warning "libia2 does not implement ia2_thread_begin yet"
-  __builtin_trap();
+  __asm__ volatile(
+        // Load argument
+        "ldr x0, [%[data]]\n"
+        // Copy stack pointer to x10
+        "mov x10, sp\n"
+        // Load the stack pointer for this compartment's stack
+        "ldr x0, [%[new_sp_addr]]\n"
+        "mov sp, x0\n"
+        // Push the old stack pointer
+        "str x10, [sp, #-8]!\n"
+        // Align the stack
+        "movn x10, #0x000f\n"
+        "mov x11, sp\n"
+        "and x11, x11, x10\n"
+        "mov sp, x11\n"
+        // Prologue
+        "str x29, [sp, #-8]!\n"
+        "mov x29, sp\n"
+        // Call fn(data)
+        "blr %[fn]\n"
+        // Pop the old stack pointer
+        "ldr x10, [sp], #8\n"
+        // Switch stacks back
+        "mov sp, x10\n"
+        // x0 now contains ret value
+        "mov %[result], x0\n"
+      : [result] "=r"(result)
+      : [fn] "r"(fn), [data] "r"(data), [new_sp_addr] "r"(new_sp_addr)
+      : "x0", "x10", "x11");
+#else
+#error "unknown architecture"
 #endif
+  /* clang-format on */
+
+  return result;
 }
 
 int __real_pthread_create(pthread_t *restrict thread,

@@ -31,8 +31,12 @@ void *thread_fn(void *ptr);
 void *thread_fn(void *ptr) {
   cr_log_info("tid %d ptr=%p\n", gettid(), ptr);
 
-  cr_log_info("main-module thread pkru=%08x\n", ia2_get_pkru());
-  cr_assert_eq(ia2_get_pkru(), 0xfffffff0);
+  cr_log_info("main-module thread pkru=%08zx\n", ia2_get_tag());
+#if defined(__aarch64__)
+  cr_assert_eq(ia2_get_tag(), 1);
+#else
+  cr_assert_eq(ia2_get_tag(), 0xfffffff0);
+#endif
 
   library_showpkru();
 
@@ -54,6 +58,7 @@ void create_threads(void) {
 __thread int thread_local_var = 50;
 
 void *access_ptr_thread_fn(void *ptr) {
+  cr_log_info("accessing pointer %p from access_ptr_thread_fn\n", ptr);
   int *x = (int *)ptr;
   cr_log_info("c1t3 accessing c1t1 thread-local: %d\n", *x);
   cr_log_info("c2t3 accessing c1t1 thread-local: %d\n",
@@ -62,10 +67,14 @@ void *access_ptr_thread_fn(void *ptr) {
 }
 
 Test(threads, main) {
-  cr_log_info("main-module main pkru=%08x\n", ia2_get_pkru());
-  cr_assert_eq(ia2_get_pkru(), 0xfffffff0);
+  cr_log_info("main-module main pkru=%08zx\n", ia2_get_tag());
+#if defined(__aarch64__)
+  cr_assert_eq(ia2_get_tag(), 1);
+#else
+  cr_assert_eq(ia2_get_tag(), 0xfffffff0);
+#endif
   library_showpkru();
-  cr_log_info("main-module main pkru=%08x\n", ia2_get_pkru());
+  cr_log_info("main-module main pkru=%08zx\n", ia2_get_tag());
 
   pthread_t lib_thread = library_spawn_thread();
 
@@ -80,6 +89,7 @@ Test(threads, main) {
 
   pthread_t fault_thread;
 #if IA2_ENABLE
+  cr_log_info("passing pointer %p to access_ptr_thread_fn\n", (void *)&thread_local_var);
   int thread_create_ret = pthread_create(
       &fault_thread, NULL, access_ptr_thread_fn, (void *)&thread_local_var);
 #endif

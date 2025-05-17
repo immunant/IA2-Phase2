@@ -105,6 +105,11 @@ struct ia2_all_threads_data {
 #define array_len(a) (sizeof(a) / sizeof(*(a)))
 
 struct ia2_thread_metadata *ia2_all_threads_data_lookup(struct ia2_all_threads_data *const this, const pid_t tid) {
+#if !IA2_DEBUG_LOG
+  // Only store these addresses and have this overhead when debug logging is on.
+  return NULL;
+#endif
+
   struct ia2_thread_metadata *metadata = NULL;
   if (pthread_mutex_lock(&this->lock) != 0) {
     goto ret;

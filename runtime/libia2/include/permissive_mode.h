@@ -19,6 +19,7 @@
 #include <sys/ucontext.h>
 
 #include "ia2.h"
+#include "ia2_threads.h"
 
 /*
  * PKRU is defined to be bit 9 in the XSAVE state component bitmap (Intel SDM
@@ -468,13 +469,7 @@ __attribute__((constructor)) void permissive_mode_init(void) {
 // `getline` calls `malloc` inside of `libc`,
 // but we wrap `malloc` with `__wrap_malloc`,
 // so we need to free what `getline` allocated with `__real_free`.
-void __real_free(void *ptr);
-
-extern uintptr_t ia2_stack_addrs[IA2_MAX_COMPARTMENTS];
-
-extern uintptr_t ia2_tls_addr_compartment1_first;
-extern uintptr_t ia2_tls_addr_compartment1_second;
-extern uintptr_t ia2_tls_addrs[IA2_MAX_COMPARTMENTS];
+typeof(IA2_IGNORE(free)) __real_free;
 
 extern uintptr_t (*partition_alloc_thread_isolated_pool_base_address)[IA2_MAX_COMPARTMENTS];
 
@@ -520,20 +515,16 @@ void log_memory_map(void) {
       fprintf(log, "%s", path);
     } else {
       // No path, try to identify it.
-      if (start_addr == ia2_tls_addr_compartment1_first || start_addr == ia2_tls_addr_compartment1_second) {
-        fprintf(log, "[tls:tid ?:compartment 1]");
+      const struct ia2_addr_location location = ia2_addr_location_find(start_addr);
+      if (location.name) {
+        fprintf(log, "[%s:tid %ld:compartment %d]", location.name, (long)location.tid, location.compartment);
       }
-      for (size_t pkey = 0; pkey < IA2_MAX_COMPARTMENTS; pkey++) {
-        if (start_addr == ia2_stack_addrs[pkey]) {
-          fprintf(log, "[stack:tid ?:compartment %zu]", pkey);
-          break;
-        }
-        if (start_addr == ia2_tls_addrs[pkey]) {
-          fprintf(log, "[tls:tid ?:compartment %zu]", pkey);
-          break;
-        }
-        if (partition_alloc_thread_isolated_pool_base_address && start_addr == (*partition_alloc_thread_isolated_pool_base_address)[pkey]) {
-          fprintf(log, "[heap:compartment %zu]", pkey);
+      if (partition_alloc_thread_isolated_pool_base_address) {
+        for (size_t pkey = 0; pkey < IA2_MAX_COMPARTMENTS; pkey++) {
+          if (start_addr == (*partition_alloc_thread_isolated_pool_base_address)[pkey]) {
+            fprintf(log, "[heap:compartment %zu]", pkey);
+            break;
+          }
         }
       }
     }

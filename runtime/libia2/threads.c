@@ -111,7 +111,7 @@ struct ia2_all_threads_data {
 
 struct ia2_thread_data *ia2_all_threads_data_lookup(struct ia2_all_threads_data *const this, const pid_t tid) {
   struct ia2_thread_data *data = NULL;
-  if (pthread_mutex_lock(&this->lock) == -1) {
+  if (pthread_mutex_lock(&this->lock) != 0) {
     goto ret;
   }
   for (size_t i = 0; i < this->num_threads; i++) {
@@ -141,7 +141,7 @@ struct ia2_addr_location ia2_all_threads_data_find_addr(struct ia2_all_threads_d
       .tid = -1,
       .compartment = -1,
   };
-  if (pthread_mutex_lock(&this->lock) == -1) {
+  if (pthread_mutex_lock(&this->lock) != 0) {
     goto ret;
   }
   for (size_t thread = 0; thread < this->num_threads; thread++) {

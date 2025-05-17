@@ -95,31 +95,31 @@ int __wrap_pthread_create(pthread_t *restrict thread,
   return __real_pthread_create(thread, attr, ia2_thread_begin, thread_thunk);
 }
 
-struct ia2_all_threads_data {
+struct ia2_all_threads_metadata {
   pthread_mutex_t lock;
   size_t num_threads;
   pid_t tids[IA2_MAX_THREADS];
-  struct ia2_thread_data thread_data[IA2_MAX_THREADS];
+  struct ia2_thread_metadata thread_metadata[IA2_MAX_THREADS];
 };
 
 #define array_len(a) (sizeof(a) / sizeof(*(a)))
 
-struct ia2_thread_data *ia2_all_threads_data_lookup(struct ia2_all_threads_data *const this, const pid_t tid) {
-  struct ia2_thread_data *data = NULL;
+struct ia2_thread_metadata *ia2_all_threads_metadata_lookup(struct ia2_all_threads_metadata *const this, const pid_t tid) {
+  struct ia2_thread_metadata *metadata = NULL;
   if (pthread_mutex_lock(&this->lock) != 0) {
     goto ret;
   }
   for (size_t i = 0; i < this->num_threads; i++) {
     if (this->tids[i] == tid) {
-      data = &this->thread_data[i];
+      metadata = &this->thread_metadata[i];
       goto unlock;
     }
   }
-  if (this->num_threads >= array_len(this->thread_data)) {
+  if (this->num_threads >= array_len(this->thread_metadata)) {
     fprintf(stderr, "created %zu threads, but can't store them all (max is IA2_MAX_THREADS)\n", this->num_threads);
     goto unlock;
   }
-  data = &this->thread_data[this->num_threads];
+  metadata = &this->thread_metadata[this->num_threads];
   this->tids[this->num_threads] = tid;
   this->num_threads++;
   goto unlock;
@@ -127,10 +127,10 @@ struct ia2_thread_data *ia2_all_threads_data_lookup(struct ia2_all_threads_data 
 unlock:
   pthread_mutex_unlock(&this->lock);
 ret:
-  return data;
+  return metadata;
 }
 
-struct ia2_addr_location ia2_all_threads_data_find_addr(struct ia2_all_threads_data *const this, const uintptr_t addr) {
+struct ia2_addr_location ia2_all_threads_metadata_find_addr(struct ia2_all_threads_metadata *const this, const uintptr_t addr) {
   struct ia2_addr_location location = {
       .name = NULL,
       .tid = -1,
@@ -142,20 +142,20 @@ struct ia2_addr_location ia2_all_threads_data_find_addr(struct ia2_all_threads_d
   for (size_t thread = 0; thread < this->num_threads; thread++) {
     const pid_t tid = this->tids[thread];
     for (int compartment = 0; compartment < IA2_MAX_COMPARTMENTS; compartment++) {
-      const struct ia2_thread_data *const thread_data = &this->thread_data[thread];
-      if (addr == thread_data->stack_addrs[compartment]) {
+      const struct ia2_thread_metadata *const thread_metadata = &this->thread_metadata[thread];
+      if (addr == thread_metadata->stack_addrs[compartment]) {
         location.name = "stack";
         location.tid = tid;
         location.compartment = compartment;
         goto unlock;
       }
-      if (addr == thread_data->tls_addrs[compartment]) {
+      if (addr == thread_metadata->tls_addrs[compartment]) {
         location.name = "tls";
         location.tid = tid;
         location.compartment = compartment;
         goto unlock;
       }
-      if (addr == thread_data->tls_addr_compartment1_first || addr == thread_data->tls_addr_compartment1_second) {
+      if (addr == thread_metadata->tls_addr_compartment1_first || addr == thread_metadata->tls_addr_compartment1_second) {
         location.name = "tls";
         location.tid = tid;
         location.compartment = 1;
@@ -173,16 +173,16 @@ ret:
 }
 
 // All zeroed, so this should go in `.bss` and only have pages lazily allocated.
-static struct ia2_all_threads_data IA2_SHARED_DATA threads = {
+static struct ia2_all_threads_metadata IA2_SHARED_DATA threads = {
     .lock = PTHREAD_MUTEX_INITIALIZER,
     .num_threads = 0,
-    .thread_data = {0},
+    .thread_metadata = {0},
 };
 
-struct ia2_thread_data *ia2_thread_data_get_current_thread(void) {
-  return ia2_all_threads_data_lookup(&threads, gettid());
+struct ia2_thread_metadata *ia2_thread_metadata_get_current_thread(void) {
+  return ia2_all_threads_metadata_lookup(&threads, gettid());
 }
 
 struct ia2_addr_location ia2_addr_location_find(const uintptr_t addr) {
-  return ia2_all_threads_data_find_addr(&threads, addr);
+  return ia2_all_threads_metadata_find_addr(&threads, addr);
 }

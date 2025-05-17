@@ -99,7 +99,7 @@ struct ia2_all_threads_data {
   pthread_mutex_t lock;
   size_t num_threads;
   pid_t tids[IA2_MAX_THREADS];
-  struct ia2_thread_data ia2_thread_data[IA2_MAX_THREADS];
+  struct ia2_thread_data thread_data[IA2_MAX_THREADS];
 };
 
 #define array_len(a) (sizeof(a) / sizeof(*(a)))
@@ -111,15 +111,15 @@ struct ia2_thread_data *ia2_all_threads_data_lookup(struct ia2_all_threads_data 
   }
   for (size_t i = 0; i < this->num_threads; i++) {
     if (this->tids[i] == tid) {
-      data = &this->ia2_thread_data[i];
+      data = &this->thread_data[i];
       goto unlock;
     }
   }
-  if (this->num_threads >= array_len(this->ia2_thread_data)) {
+  if (this->num_threads >= array_len(this->thread_data)) {
     fprintf(stderr, "created %zu threads, but can't store them all (max is IA2_MAX_THREADS)\n", this->num_threads);
     goto unlock;
   }
-  data = &this->ia2_thread_data[this->num_threads];
+  data = &this->thread_data[this->num_threads];
   this->tids[this->num_threads] = tid;
   this->num_threads++;
   goto unlock;
@@ -142,7 +142,7 @@ struct ia2_addr_location ia2_all_threads_data_find_addr(struct ia2_all_threads_d
   for (size_t thread = 0; thread < this->num_threads; thread++) {
     const pid_t tid = this->tids[thread];
     for (int compartment = 0; compartment < IA2_MAX_COMPARTMENTS; compartment++) {
-      const struct ia2_thread_data *const thread_data = &this->ia2_thread_data[thread];
+      const struct ia2_thread_data *const thread_data = &this->thread_data[thread];
       if (addr == thread_data->stack_addrs[compartment]) {
         location.name = "stack";
         location.tid = tid;
@@ -176,7 +176,7 @@ ret:
 static struct ia2_all_threads_data IA2_SHARED_DATA threads = {
     .lock = PTHREAD_MUTEX_INITIALIZER,
     .num_threads = 0,
-    .ia2_thread_data = {0},
+    .thread_data = {0},
 };
 
 struct ia2_thread_data *ia2_thread_data_get_current_thread(void) {

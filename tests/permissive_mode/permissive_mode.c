@@ -52,5 +52,7 @@ Test(permissive_mode, multithreaded) {
 #endif
   }
   // Exit before joining threads.
+  // We want to inspect the labeled memory map with all of the threads,
+  // so if we joined them first then we wouldn't be able to see them.
   exit(0);
 }

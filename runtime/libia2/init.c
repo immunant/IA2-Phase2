@@ -36,9 +36,9 @@ char *allocate_stack(int i) {
   stack = (char *)((uint64_t)stack | (uint64_t)i << 56);
 #endif
 
-  struct ia2_thread_data *const thread_data = ia2_thread_data_get_current_thread();
-  if (thread_data) {
-    thread_data->stack_addrs[i] = (uintptr_t)stack;
+  struct ia2_thread_metadata *const thread_metadata = ia2_thread_metadata_get_current_thread();
+  if (thread_metadata) {
+    thread_metadata->stack_addrs[i] = (uintptr_t)stack;
   }
 
 #ifdef __aarch64__

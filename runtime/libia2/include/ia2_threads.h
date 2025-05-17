@@ -26,7 +26,7 @@ struct ia2_addr_location {
   /// `NULL` if unknown.
   const char *name;
 
-  /// The thread ID of the thread this address is on.
+  /// The thread ID of the thread this address belongs to.
   ///
   /// `-1` if unknown.
   pid_t tid;

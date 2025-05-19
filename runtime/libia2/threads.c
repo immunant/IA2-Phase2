@@ -104,7 +104,9 @@ struct ia2_all_threads_metadata {
 
 #define array_len(a) (sizeof(a) / sizeof(*(a)))
 
-struct ia2_thread_metadata *ia2_all_threads_metadata_lookup(struct ia2_all_threads_metadata *const this, const pid_t tid) {
+struct ia2_thread_metadata *ia2_all_threads_metadata_lookup(struct ia2_all_threads_metadata *const this) {
+  const pid_t tid = gettid();
+
   struct ia2_thread_metadata *metadata = NULL;
   if (pthread_mutex_lock(&this->lock) != 0) {
     perror("pthread_mutex_lock in ia2_all_threads_data_lookup failed");
@@ -120,10 +122,14 @@ struct ia2_thread_metadata *ia2_all_threads_metadata_lookup(struct ia2_all_threa
     fprintf(stderr, "created %zu threads, but can't store them all (max is IA2_MAX_THREADS)\n", this->num_threads);
     goto unlock;
   }
+
   metadata = &this->thread_metadata[this->num_threads];
   this->tids[this->num_threads] = tid;
   this->num_threads++;
+
   metadata->tid = tid;
+  metadata->thread = pthread_self();
+
   goto unlock;
 
 unlock:
@@ -187,7 +193,7 @@ static struct ia2_all_threads_metadata IA2_SHARED_DATA threads = {
 };
 
 struct ia2_thread_metadata *ia2_thread_metadata_get_current_thread(void) {
-  return ia2_all_threads_metadata_lookup(&threads, gettid());
+  return ia2_all_threads_metadata_lookup(&threads);
 }
 
 struct ia2_addr_location ia2_addr_location_find(const uintptr_t addr) {

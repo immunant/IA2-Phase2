@@ -123,6 +123,7 @@ struct ia2_thread_metadata *ia2_all_threads_metadata_lookup(struct ia2_all_threa
   metadata = &this->thread_metadata[this->num_threads];
   this->tids[this->num_threads] = tid;
   this->num_threads++;
+  metadata->tid = tid;
   goto unlock;
 
 unlock:

@@ -1007,6 +1007,14 @@ public:
       return;
     }
 
+    if (fn_name == "operator\"\"_ns")
+      return;
+
+    // skip functions known to break processing
+    if (fn_name == "ToString") {
+      return;
+    }
+
     FnSignature fn_sig = determineFnSignatureForDecl(*fn_node, Target);
     fn_signatures[fn_name] = fn_sig;
 

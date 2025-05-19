@@ -39,6 +39,11 @@ struct ia2_addr_location {
   /// `-1` if unknown.
   pid_t tid;
 
+  /// The `pthread_t` of the thread this address belongs to.
+  ///
+  /// If `tid` is `-1`, this is not initialized.
+  pthread_t thread;
+
   /// The compartment this address is in.
   ///
   /// `-1` if unknown.

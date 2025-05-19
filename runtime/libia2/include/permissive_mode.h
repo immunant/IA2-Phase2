@@ -517,7 +517,13 @@ void log_memory_map(void) {
       // No path, try to identify it.
       const struct ia2_addr_location location = ia2_addr_location_find(start_addr);
       if (location.name) {
-        fprintf(log, "[%s:tid %ld:compartment %d]", location.name, (long)location.tid, location.compartment);
+        char thread_name[16] = {0};
+        const bool has_thread_name = pthread_getname_np(location.thread, thread_name, sizeof(thread_name)) == 0;
+        fprintf(log, "[%s:tid %ld", location.name, (long)location.tid);
+        if (has_thread_name) {
+          fprintf(log, " (thread %s)", thread_name);
+        }
+        fprintf(log, ":compartment %d]", location.compartment);
       }
       if (partition_alloc_thread_isolated_pool_base_address) {
         for (size_t pkey = 0; pkey < IA2_MAX_COMPARTMENTS; pkey++) {

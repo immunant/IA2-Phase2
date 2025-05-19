@@ -157,18 +157,21 @@ struct ia2_addr_location ia2_all_threads_metadata_find_addr(struct ia2_all_threa
       if (addr == thread_metadata->stack_addrs[compartment]) {
         location.name = "stack";
         location.tid = tid;
+        location.thread = thread_metadata->thread;
         location.compartment = compartment;
         goto unlock;
       }
       if (addr == thread_metadata->tls_addrs[compartment]) {
         location.name = "tls";
         location.tid = tid;
+        location.thread = thread_metadata->thread;
         location.compartment = compartment;
         goto unlock;
       }
       if (addr == thread_metadata->tls_addr_compartment1_first || addr == thread_metadata->tls_addr_compartment1_second) {
         location.name = "tls";
         location.tid = tid;
+        location.thread = thread_metadata->thread;
         location.compartment = 1;
         goto unlock;
       }

@@ -95,6 +95,10 @@ int __wrap_pthread_create(pthread_t *restrict thread,
   return __real_pthread_create(thread, attr, ia2_thread_begin, thread_thunk);
 }
 
+// Only enable this code that stores these addresses when debug logging is enabled.
+// This reduces the trusted codebase and avoids runtime overhead.
+#if IA2_DEBUG_LOG
+
 struct ia2_all_threads_metadata {
   pthread_mutex_t lock;
   size_t num_threads;
@@ -105,11 +109,6 @@ struct ia2_all_threads_metadata {
 #define array_len(a) (sizeof(a) / sizeof(*(a)))
 
 struct ia2_thread_metadata *ia2_all_threads_metadata_lookup(struct ia2_all_threads_metadata *const this) {
-#if !IA2_DEBUG_LOG
-  // Only store these addresses and have this overhead when debug logging is on.
-  return NULL;
-#endif
-
   const pid_t tid = gettid();
 
   struct ia2_thread_metadata *metadata = NULL;
@@ -200,10 +199,24 @@ static struct ia2_all_threads_metadata IA2_SHARED_DATA threads = {
     .thread_metadata = {0},
 };
 
+#endif // IA2_DEBUG_LOG
+
 struct ia2_thread_metadata *ia2_thread_metadata_get_current_thread(void) {
+#if IA2_DEBUG_LOG
   return ia2_all_threads_metadata_lookup(&threads);
+#else
+  return NULL;
+#endif
 }
 
 struct ia2_addr_location ia2_addr_location_find(const uintptr_t addr) {
+#if IA2_DEBUG_LOG
   return ia2_all_threads_metadata_find_addr(&threads, addr);
+#else
+  return (struct ia2_addr_location){
+      .name = NULL,
+      .tid = -1,
+      .compartment = -1,
+  };
+#endif
 }

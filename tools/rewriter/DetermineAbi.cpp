@@ -7,10 +7,12 @@
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/FileSystemOptions.h"
 #endif
+#include "clang/Basic/SourceManager.h"
 #include "clang/CodeGen/CGFunctionInfo.h"
 #include "clang/CodeGen/CodeGenABITypes.h"
 #include "clang/CodeGen/ModuleBuilder.h"
 #include "clang/Lex/HeaderSearchOptions.h"
+#include "clang/Lex/Lexer.h"
 #include "clang/Lex/PreprocessorOptions.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/Support/Casting.h"
@@ -182,6 +184,12 @@ AbiSignature determineAbiSignature(const clang::CodeGen::CGFunctionInfo &info,
   return sig;
 }
 
+static std::string get_expansion_filename(const clang::SourceLocation loc,
+                                          const clang::SourceManager &sm) {
+  llvm::SmallString<256> s(sm.getFilename(sm.getExpansionLoc(loc)));
+  return s.str().str();
+}
+
 AbiSignature determineAbiSignatureForDecl(const clang::FunctionDecl &fnDecl, Arch arch) {
   clang::ASTContext &astContext = fnDecl.getASTContext();
 
@@ -212,6 +220,50 @@ AbiSignature determineAbiSignatureForDecl(const clang::FunctionDecl &fnDecl, Arc
   clang::CodeGen::CodeGenModule &cgm = codeGenerator->CGM();
 
   auto name = fnDecl.getNameInfo().getAsString();
+  clang::SourceLocation loc = fnDecl.getLocation();
+  auto &sm = astContext.getSourceManager();
+  auto expansion_file = get_expansion_filename(loc, sm);
+  // skip for function decls that can't be made into pointers, as a sanity check
+  auto fn_ty = fnDecl.getType()->getAs<clang::FunctionType>();
+  if (!fn_ty) {
+    llvm::errs() << "no fn ptr type for " << fnDecl.getType().getAsString() << " " << clang::Lexer::getSourceText(clang::CharSourceRange::getTokenRange(fnDecl.getSourceRange()), sm, astContext.getLangOpts()).str() << "\n";
+    return {};
+  }
+
+  for (auto &param : fnDecl.parameters()) {
+    auto paramTy = param->getOriginalType();
+    if (paramTy.getTypePtr()->getAsRecordDecl() && paramTy.getTypePtr()->getAsCXXRecordDecl()) {
+      llvm::errs() << "Function " << name << " defined at " << loc.printToString(sm) << " takes cxxrecord type " << paramTy.getAsString() << " as arg, skipping\n";
+      return {};
+    }
+  }
+  auto retTy = fn_ty->getReturnType();
+  if (retTy.getTypePtr()->getAsRecordDecl() && retTy.getTypePtr()->getAsCXXRecordDecl()) {
+    llvm::errs() << "Function " << name << " defined at " << loc.printToString(sm) << " returns cxxrecord type " << retTy.getAsString() << ", skipping\n";
+    return {};
+  }
+
+  if (name == "load" || name == "inspect" || expansion_file.find("dist/include/double-conversion") != std::string::npos // big guns
+      || expansion_file.find("dist/include/fmt") != std::string::npos                                                   // big guns
+      || expansion_file.find("dist/include/mozilla/") != std::string::npos                                              // big guns
+      || expansion_file.find("js/") != std::string::npos                                                                // big guns
+      || expansion_file.find("BaseProfilingCategory.h") != std::string::npos || expansion_file.find("nsStreamUtils.h") != std::string::npos || expansion_file.find("xpcom") != std::string::npos || expansion_file.find("mozilla/Result.h") != std::string::npos || expansion_file.find("mozilla/Atomics.h") != std::string::npos) {
+    llvm::errs() << "Function " << name << " defined at " << loc.printToString(sm) << ", skipping\n";
+    return {};
+  }
+
+  if (fnDecl.getTemplatedKind() != clang::FunctionDecl::TK_NonTemplate) {
+    llvm::errs() << "Function " << name << " has TemplatedKind " << (int)fnDecl.getTemplatedKind() << "\n";
+  }
+  if (auto *TempInfo = fnDecl.getTemplateSpecializationInfo()) {
+    llvm::errs() << "Function " << name << " has template info\n";
+    if (!TempInfo->isExplicitInstantiationOrSpecialization()) {
+      llvm::errs() << "Function " << name << " is a template\n";
+      return {};
+    }
+    return {};
+  }
+
   const auto &info = cgFunctionInfo(cgm, fnDecl);
   DEBUG(llvm::dbgs() << "determineAbiSignatureForDecl: " << name << "\n");
 

@@ -199,15 +199,12 @@ static struct ia2_all_threads_metadata IA2_SHARED_DATA threads = {
     .thread_metadata = {0},
 };
 
-#endif // IA2_DEBUG_LOG
 
 struct ia2_thread_metadata *ia2_thread_metadata_get_current_thread(void) {
-#if IA2_DEBUG_LOG
   return ia2_all_threads_metadata_lookup(&threads);
-#else
-  return NULL;
-#endif
 }
+
+#endif // IA2_DEBUG_LOG
 
 struct ia2_addr_location ia2_addr_location_find(const uintptr_t addr) {
 #if IA2_DEBUG_LOG

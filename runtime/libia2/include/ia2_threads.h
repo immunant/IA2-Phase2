@@ -2,6 +2,8 @@
 
 #include "ia2.h"
 
+#if IA2_DEBUG_LOG
+
 /// The data here is shared, so it should not be trusted for use as a pointer,
 /// but it can be used best effort for non-trusted purposes.
 struct ia2_thread_metadata {
@@ -27,6 +29,17 @@ struct ia2_thread_metadata {
   uintptr_t tls_addr_compartment1_second;
 };
 
+/// Find the `struct ia2_thread_metadata*` for the current thread,
+/// adding (but not allocating) one if there isn't one yet.
+/// If there is no memory for more or an error, `NULL` is returned.
+/// This is a purely lookup and/or additive operation,
+/// so the lifetime of the returned `struct ia2_thread_metadata*` is infinite,
+/// and since it's thread-specific,
+/// it is thread-safe to read and write.
+struct ia2_thread_metadata *ia2_thread_metadata_get_current_thread(void);
+
+#endif
+
 struct ia2_addr_location {
   /// A descriptive name of what this address points to.
   /// For example, "stack".
@@ -49,15 +62,6 @@ struct ia2_addr_location {
   /// `-1` if unknown.
   int compartment;
 };
-
-/// Find the `struct ia2_thread_metadata*` for the current thread,
-/// adding (but not allocating) one if there isn't one yet.
-/// If there is no memory for more or an error, `NULL` is returned.
-/// This is a purely lookup and/or additive operation,
-/// so the lifetime of the returned `struct ia2_thread_metadata*` is infinite,
-/// and since it's thread-specific,
-/// it is thread-safe to read and write.
-struct ia2_thread_metadata *ia2_thread_metadata_get_current_thread(void);
 
 /// Find the `ia2_addr_location` of `addr`.
 /// If it is not found or there is an error,

@@ -262,7 +262,9 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
 
   const int pkey = search_args->pkey;
 
+#if IA2_DEBUG_LOG
   struct ia2_thread_metadata *const thread_metadata = ia2_thread_metadata_get_current_thread();
+#endif
 
   // Protect TLS segment.
   for (size_t i = 0; i < info->dlpi_phnum; i++) {
@@ -318,9 +320,11 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
           printf("ia2_mprotect_with_tag failed: %s\n", strerror(errno));
           exit(-1);
         }
+#if IA2_DEBUG_LOG
         if (thread_metadata) {
           thread_metadata->tls_addr_compartment1_first = (uintptr_t)start_round_down;
         }
+#endif
       }
       uint64_t after_untrusted_region_start = untrusted_stackptr_addr + 0x1000;
       uint64_t after_untrusted_region_len = end - after_untrusted_region_start;
@@ -332,9 +336,11 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
           printf("ia2_mprotect_with_tag failed: %s\n", strerror(errno));
           exit(-1);
         }
+#if IA2_DEBUG_LOG
         if (thread_metadata) {
           thread_metadata->tls_addr_compartment1_second = (uintptr_t)after_untrusted_region_start;
         }
+#endif
       }
     } else {
       int mprotect_err =
@@ -344,9 +350,11 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
         printf("ia2_mprotect_with_tag failed: %s\n", strerror(errno));
         exit(-1);
       }
+#if IA2_DEBUG_LOG
       if (thread_metadata) {
         thread_metadata->tls_addrs[pkey] = (uintptr_t)start_round_down;
       }
+#endif
     }
   }
 

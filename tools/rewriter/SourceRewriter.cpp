@@ -593,7 +593,11 @@ public:
     if (info == fn_ptr_info.end()) {
       // Add the hidden pointer argument to the function pointer arguments
       auto fn_ptr_ty = expr_ty->getAs<clang::PointerType>();
-      assert(fn_ptr_ty);
+      if (!fn_ptr_ty) {
+        llvm::errs() << "no fn ptr type for " << expr_ty.getAsString() << " " << clang::Lexer::getSourceText(clang::CharSourceRange::getTokenRange(fn_ptr_call->getSourceRange()), sm, ctxt.getLangOpts()).str() << "\n";
+        return;
+      }
+
       auto dest_fn_ty = fn_ptr_ty->getPointeeType()->getAs<clang::FunctionProtoType>();
       assert(dest_fn_ty);
       std::vector<clang::QualType> args = {dest_fn_ty->param_type_begin(), dest_fn_ty->param_type_end()};

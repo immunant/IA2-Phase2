@@ -1315,6 +1315,7 @@ int main(int argc, const char **argv) {
       pkey = pkey_from_commands(get_commands, s);
     }
     if (!pkey) {
+      llvm::errs() << "Fatal pkey error\n";
       return -1;
     }
 
@@ -1393,6 +1394,7 @@ int main(int argc, const char **argv) {
 
   auto rc = tool.runAndSave(newFrontendActionFactory(&refactorer).get());
   if (rc != 0) {
+    llvm::errs() << "Rewriting completed with errors\n";
     return rc;
   }
 

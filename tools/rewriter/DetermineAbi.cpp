@@ -137,9 +137,12 @@ cgFunctionInfo(clang::CodeGen::CodeGenModule &cgm,
   if (ft->isFunctionProtoType()) {
     return clang::CodeGen::arrangeFreeFunctionType(
         cgm, canQualFnTy.castAs<clang::FunctionProtoType>());
-  } else {
+  } else if (ft->isFunctionNoProtoType()) {
     return clang::CodeGen::arrangeFreeFunctionType(
         cgm, canQualFnTy.castAs<clang::FunctionNoProtoType>());
+  } else {
+    llvm::errs() << "Function is neither Proto nor NoProto type!";
+    abort();
   }
 }
 

@@ -155,6 +155,10 @@ static bool should_not_modify_file(const Filename &filename) {
     return false;
   }
 
+  if (filename.find("include/fmt") != std::string::npos) {
+    return true;
+  }
+
   // We shouldn't query if we should modify files in the root directory. But if
   // the output directory itself is inside the root directory, this will
   // (benignly) happen, and isn't actually a case of trying to modify files not

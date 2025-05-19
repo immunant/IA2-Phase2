@@ -36,10 +36,12 @@ char *allocate_stack(int i) {
   stack = (char *)((uint64_t)stack | (uint64_t)i << 56);
 #endif
 
+#if IA2_DEBUG_LOG
   struct ia2_thread_metadata *const thread_metadata = ia2_thread_metadata_get_current_thread();
   if (thread_metadata) {
     thread_metadata->stack_addrs[i] = (uintptr_t)stack;
   }
+#endif
 
 #ifdef __aarch64__
   return stack + STACK_SIZE - 16;

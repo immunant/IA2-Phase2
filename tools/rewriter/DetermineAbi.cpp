@@ -329,7 +329,7 @@ uint32_t get_type_id(clang::QualType type) {
 }
 
 Param determineParam(std::string name, clang::QualType type) {
-  return (Param) {
+  return (Param){
       .name = name,
       .type_name = type.getAsString(),
       .canonical_type_name = type.getCanonicalType().getAsString(),

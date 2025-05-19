@@ -70,9 +70,11 @@ abiSlotsForArg(const clang::QualType &qt,
       return {ArgLocation::Indirect(
           layout.getSize().getQuantity(),
           layout.getAlignment().getQuantity())};
-    } else {
-      llvm::report_fatal_error("indirect argument not a struct");
     }
+    llvm::errs() << "indirect argument (" << qt.getAsString() << ") not a struct\n";
+    return {ArgLocation::Indirect(
+        astContext.getTypeSize(qt),
+        astContext.getTypeAlign(qt))};
   }
   // in register with zext/sext
   case Kind::Extend:

@@ -597,6 +597,12 @@ public:
       auto dest_fn_ty = fn_ptr_ty->getPointeeType()->getAs<clang::FunctionProtoType>();
       assert(dest_fn_ty);
       std::vector<clang::QualType> args = {dest_fn_ty->param_type_begin(), dest_fn_ty->param_type_end()};
+      for (const auto &i : args) {
+        if (i.getTypePtr() && i.getTypePtr()->isTemplateTypeParmType()) {
+          llvm::errs() << "argument is template param\n";
+          return;
+        }
+      }
       args.insert(args.begin(), ctxt.VoidPtrTy);
       auto wrap_fn_ty = ctxt.getFunctionType(dest_fn_ty->getReturnType(), args, dest_fn_ty->getExtProtoInfo());
       auto wrap_fn_ptr_ty = ctxt.getPointerType(wrap_fn_ty);
@@ -1007,6 +1013,14 @@ public:
       return;
     }
 
+    // Skip uninstantiated templates
+    if (fn_node->getTemplatedKind() == clang::FunctionDecl::TK_FunctionTemplate)
+      return;
+    if (fn_node->getTemplatedKind() == clang::FunctionDecl::TK_MemberSpecialization)
+      return;
+
+    if (fn_node->isOverloadedOperator())
+      return;
     if (fn_name == "operator\"\"_ns")
       return;
 
@@ -1014,6 +1028,10 @@ public:
     if (fn_name == "ToString") {
       return;
     }
+
+    // ignore methods
+    if (dyn_cast<const clang::CXXMethodDecl>(fn_node))
+      return;
 
     FnSignature fn_sig = determineFnSignatureForDecl(*fn_node, Target);
     fn_signatures[fn_name] = fn_sig;

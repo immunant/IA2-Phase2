@@ -191,6 +191,7 @@ static std::string get_expansion_filename(const clang::SourceLocation loc,
 }
 
 AbiSignature determineAbiSignatureForDecl(const clang::FunctionDecl &fnDecl, Arch arch) {
+  assert(fnDecl.getTemplatedKind() != clang::FunctionDecl::TK_FunctionTemplate);
   clang::ASTContext &astContext = fnDecl.getASTContext();
 
   // set up context for codegen so we can ask about function ABI

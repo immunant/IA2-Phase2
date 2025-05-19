@@ -55,6 +55,13 @@ Test(permissive_mode, multithreaded) {
     pthread_create(&threads[i], NULL, start_thread, NULL);
 #endif
   }
+
+  // Name some (but not all) of them to see how we print them.
+  pthread_setname_np(threads[2], "two");
+  pthread_setname_np(threads[3], "three");
+  pthread_setname_np(threads[5], "five");
+  pthread_setname_np(threads[7], "seven");
+
   // Exit before joining threads.
   // We want to inspect the labeled memory map with all of the threads,
   // so if we joined them first then we wouldn't be able to see them.

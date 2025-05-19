@@ -107,6 +107,7 @@ struct ia2_all_threads_metadata {
 struct ia2_thread_metadata *ia2_all_threads_metadata_lookup(struct ia2_all_threads_metadata *const this, const pid_t tid) {
   struct ia2_thread_metadata *metadata = NULL;
   if (pthread_mutex_lock(&this->lock) != 0) {
+    perror("pthread_mutex_lock in ia2_all_threads_data_lookup failed");
     goto ret;
   }
   for (size_t i = 0; i < this->num_threads; i++) {
@@ -125,7 +126,9 @@ struct ia2_thread_metadata *ia2_all_threads_metadata_lookup(struct ia2_all_threa
   goto unlock;
 
 unlock:
-  pthread_mutex_unlock(&this->lock);
+  if (pthread_mutex_unlock(&this->lock) != 0) {
+    perror("pthread_mutex_unlock in ia2_all_threads_data_lookup failed");
+  }
 ret:
   return metadata;
 }
@@ -137,6 +140,7 @@ struct ia2_addr_location ia2_all_threads_metadata_find_addr(struct ia2_all_threa
       .compartment = -1,
   };
   if (pthread_mutex_lock(&this->lock) != 0) {
+    perror("pthread_mutex_lock in ia2_all_threads_data_find_addr failed");
     goto ret;
   }
   for (size_t thread = 0; thread < this->num_threads; thread++) {
@@ -167,7 +171,9 @@ struct ia2_addr_location ia2_all_threads_metadata_find_addr(struct ia2_all_threa
   goto unlock;
 
 unlock:
-  pthread_mutex_unlock(&this->lock);
+  if (pthread_mutex_unlock(&this->lock) != 0) {
+    perror("pthread_mutex_unlock in ia2_all_threads_data_find_addr failed");
+  }
 ret:
   return location;
 }

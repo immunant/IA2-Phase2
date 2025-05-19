@@ -5,6 +5,8 @@
 /// The data here is shared, so it should not be trusted for use as a pointer,
 /// but it can be used best effort for non-trusted purposes.
 struct ia2_thread_metadata {
+  pid_t tid;
+
   /// The addresses of each compartment's stack for this thread.
   uintptr_t stack_addrs[IA2_MAX_COMPARTMENTS];
 

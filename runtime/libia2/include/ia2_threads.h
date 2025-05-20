@@ -15,8 +15,8 @@ struct ia2_thread_metadata {
   /// The TLS region is split only for the first compartment,
   /// so we need two addresses for just that one.
   ///
-  /// Compartment 1's TLS region is split because there is
-  /// a page of unprotected data for `ia2_stackptr_0` plus padding,
+  /// Compartment 1's TLS region is split because there is a page of
+  /// unprotected data for `ia2_stackptr_0` (in compartment 0), plus padding,
   /// as we don't have a general implementation of shared TLS yet,
   /// but `ia2_stackptr_0` is special-cased for now
   /// as it must be stored in TLS and unprotected.

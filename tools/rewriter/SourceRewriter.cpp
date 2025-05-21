@@ -58,10 +58,24 @@ static std::string OutputPrefix;
 std::unordered_multimap<Function, Function> pre_condition_funcs;
 std::unordered_multimap<Function, Function> post_condition_funcs;
 
+bool use_default_pkey = false;
+Pkey default_pkey = 1;
+
+bool LibraryOnlyMode = false;
+std::set<std::string> RewriteFilesSet;
+
 // Map each translation unit's filename to its pkey.
 static std::map<Filename, Pkey> file_pkeys;
 
 static std::map<Filename, Filename> rel_path_to_full;
+
+/* Converts a path in the input directory to the equivalent path in the
+ * output directory.
+ */
+static Filename root_path_to_output_path(llvm::SmallString<256> path) {
+  llvm::sys::path::replace_path_prefix(path, RootDirectory, OutputDirectory);
+  return path.str().str();
+}
 
 static Filename get_expansion_filename(const clang::SourceLocation loc,
                                        const clang::SourceManager &sm) {
@@ -124,6 +138,9 @@ static Pkey get_file_pkey(const clang::SourceManager &sm) {
   try {
     return file_pkeys.at(filename);
   } catch (std::out_of_range const &exc) {
+    if (use_default_pkey) {
+      return default_pkey;
+    }
     llvm::errs() << "Source file " << filename.c_str()
                  << " has no entry with -DPKEY in compile_commands.json\n";
     abort();
@@ -147,10 +164,18 @@ static bool should_not_modify_file(const Filename &filename) {
     exit(1);
   }
 
-  return !filename.starts_with(OutputDirectory);
+  if (!filename.starts_with(OutputDirectory)) {
+    return true;
+  }
+
+  if (LibraryOnlyMode && !RewriteFilesSet.contains(filename)) {
+    return true;
+  }
+
+  return false;
 }
 
-static bool ignore_function(const clang::Decl &decl,
+static bool should_not_rewrite_decl(const clang::Decl &decl,
                             const std::optional<clang::SourceLocation> &loc,
                             const clang::SourceManager &sm) {
   if (const auto *named_decl = dyn_cast<clang::NamedDecl>(&decl)) {
@@ -167,6 +192,48 @@ static bool ignore_function(const clang::Decl &decl,
 
   if (loc) {
     return should_not_modify_file(get_filename(*loc, sm));
+  }
+
+  return false;
+}
+
+static bool should_not_analyze_decl(const clang::Decl &decl,
+                            const std::optional<clang::SourceLocation> &loc,
+                            const clang::SourceManager &sm) {
+  if (const auto *named_decl = dyn_cast<clang::NamedDecl>(&decl)) {
+    if (named_decl->getNameAsString().starts_with(
+            "ia2_compartment_destructor")) {
+      return false;
+    }
+  }
+
+  auto annotation = decl.getAttr<clang::AnnotateAttr>();
+  if (annotation && annotation->getAnnotation() == SKIP_WRAP_ATTR) {
+    return true;
+  }
+
+  Filename filename = get_filename(*loc, sm);
+
+  bool is_empty = filename.empty();
+  if (is_empty) {
+    return true;
+  }
+
+  // if (filename.find("include/fmt") != std::string::npos) {
+  //   return true;
+  // }
+
+  // We shouldn't query if we should modify files in the root directory. But if
+  // the output directory itself is inside the root directory, this will
+  // (benignly) happen, and isn't actually a case of trying to modify files not
+  // inside the output directory.
+  if (filename.starts_with(RootDirectory) && !filename.starts_with(OutputDirectory)) {
+    llvm::errs() << "internal error: querying if we should modify file under root directory (this should not happen): " << filename << "\n";
+    exit(1);
+  }
+
+  if (!filename.starts_with(OutputDirectory)) {
+    return true;
   }
 
   return false;
@@ -315,9 +382,6 @@ public:
 
     auto loc = old_decl->getLocation();
     auto filename = get_filename(loc, sm);
-    if (ignore_function(*old_decl, loc, sm)) {
-      return;
-    }
 
     auto *fpt = old_type->castAs<clang::PointerType>()
                     ->getPointeeType()
@@ -341,6 +405,12 @@ public:
     std::string new_decl = generate_decl(new_type, name);
 
     fn_ptr_types.insert(new_type);
+
+    // If we should not rewrite this decl, bail out here. We already added its
+    // type info to `fn_ptr_types`.
+    if (should_not_rewrite_decl(*old_decl, loc, sm)) {
+      return;
+    }
 
     // This check must come after inserting new_type into fn_ptr_types but
     // before the Replacement is added
@@ -464,12 +534,22 @@ public:
     // This matches expressions that reference declared functions and we use
     // this to filter out direct calls in the following matcher
     auto declared_function = declRefExpr(hasDeclaration(functionDecl()));
+    // Also match declared C++ methods
+    auto declared_method = declRefExpr(hasDeclaration(cxxMethodDecl()));
 
-    // Matches function calls excluding direct calls. Only the callee nodes are
-    // bound to "fnPtrCall"
-    StatementMatcher fn_ptr_call = callExpr(callee(
-                                                expr(unless(ignoringImplicit(declared_function))).bind("fnPtrExpr")))
-                                       .bind("fnPtrCall");
+    auto declared = anyOf(ignoringImplicit(declared_function), ignoringImplicit(declared_method));
+
+    // Matches function calls excluding direct calls and calls from C++ code.
+    // Only the callee nodes are bound to "fnPtrCall"
+    StatementMatcher fn_ptr_call =
+        callExpr(
+            callee(expr(unless(declared)).bind("fnPtrExpr")),
+            unless(anyOf(
+                hasAncestor(cxxMethodDecl()),
+                hasAncestor(cxxRecordDecl()),
+                hasAncestor(classTemplateDecl())
+            ))
+        ).bind("fnPtrCall");
 
     refactorer.addMatcher(fn_ptr_call, this);
   }
@@ -497,7 +577,7 @@ public:
     }
 
     auto callee_decl = fn_ptr_call->getCalleeDecl();
-    if (callee_decl && ignore_function(*callee_decl, {}, sm)) {
+    if (callee_decl && should_not_rewrite_decl(*callee_decl, {}, sm)) {
       return;
     }
 
@@ -649,12 +729,8 @@ public:
         llvm::cast<clang::NamedDecl>(fn_ptr_expr->getReferencedDeclOfCallee());
     assert(fn_decl != nullptr);
 
-    if (ignore_function(*fn_decl, loc, sm)) {
-      return;
-    }
-
     auto *param_decl = result.Nodes.getNodeAs<clang::ParmVarDecl>("fnPtrParamDecl");
-    if (param_decl && ignore_function(*param_decl, {}, sm)) {
+    if (param_decl && should_not_rewrite_decl(*param_decl, {}, sm)) {
       return;
     }
 
@@ -681,10 +757,18 @@ public:
     auto linkage = fn_decl->getFormalLinkage();
     if (clang::isExternallyVisible(linkage)) {
       addr_taken_fns[fn_name] = new_type;
+
+      if (should_not_rewrite_decl(*fn_decl, loc, sm) || get_file_pkey(sm) == 0) {
+        return;
+      }
     } else {
 
       auto [it, new_fn] = internal_addr_taken_fns[filename].insert(
           std::make_pair(fn_name, new_type));
+
+      if (should_not_rewrite_decl(*fn_decl, loc, sm) || get_file_pkey(sm) == 0) {
+        return;
+      }
 
       // TODO: Note that this only checks if a function is added to the
       // internal_addr_taken_fns map. To make the rewriter idempotent we should
@@ -895,7 +979,7 @@ public:
     Function fn_name = fn_node->getNameAsString();
 
     // Ignore declarations in libc and libia2 headers
-    if (ignore_function(*fn_node, fn_node->getLocation(), sm)) {
+    if (should_not_analyze_decl(*fn_node, fn_node->getLocation(), sm)) {
       return;
     }
 
@@ -1029,7 +1113,14 @@ std::set<llvm::SmallString<256>> copy_files(std::vector<std::unique_ptr<clang::A
         using llvm::sys::fs::perms;
         llvm::sys::fs::create_directories(llvm::sys::path::parent_path(output_file), ignore_existing, perms::all_all & ~perms::group_exe & ~perms::others_exe);
 
-        llvm::sys::fs::copy_file(input_file, output_file);
+        // Only copy file if it's different than the target file to avoid
+        // touching files that haven't changed. This can help speed up builds in
+        // some build systems.
+        auto input_md5 = llvm::sys::fs::md5_contents(input_file);
+        auto output_md5 = llvm::sys::fs::md5_contents(output_file);
+        if (input_md5 && output_md5 && input_md5.get() != output_md5.get()) {
+          llvm::sys::fs::copy_file(input_file, output_file);
+        }
       }
     }
   }
@@ -1165,14 +1256,31 @@ auto ValidateDirectory = CLI::Validator(
     },
     "Directory", "path of a directory");
 
-const std::map<std::string, int> arch_map{{"x86", (int)Arch::X86}, {"aarch64", (int)Arch::Aarch64}};
+const std::map<std::string, Arch> arch_map{{"x86", Arch::X86}, {"aarch64", Arch::Aarch64}};
 
 std::string CompilationDbPath;
+std::string LibraryFilesFile;
+std::string RewriteFilesFile;
 std::vector<std::string> SourceFiles;
 std::vector<std::string> ExtraArgs;
 
+auto LibOnlyGroup = "Library-only mode";
+
 int main(int argc, const char **argv) {
   CLI::App app{"IA2 Source Rewriter"};
+  auto LibFilesOpt =
+      app.add_option("--library-files", LibraryFilesFile, "Path to file listing untrusted library sources")
+          ->group(LibOnlyGroup)
+          ->option_text("FILE")
+          ->check(CLI::ExistingFile);
+  auto RwFilesOpt =
+      app.add_option("--rewrite-files", RewriteFilesFile, "Path to file listing application sources to rewrite")
+          ->group(LibOnlyGroup)
+          ->option_text("FILE")
+          ->check(CLI::ExistingFile);
+  app.add_flag("--library-only-mode", LibraryOnlyMode, "Compartmentalize one untrusted library inside a trusted application")
+      ->needs(LibFilesOpt)
+      ->needs(RwFilesOpt);
   app.add_option("--arch", Target, "Target architecture (x86 or aarch64), x86 by default")
       ->option_text("x86|aarch64")
       ->transform(CLI::Transformer(arch_map));
@@ -1206,6 +1314,36 @@ int main(int argc, const char **argv) {
     return -1;
   }
   CompilationDatabase &comp_db = *MaybeCmds;
+
+  std::set<std::string> LibraryFilesSet;
+
+  // Read library and rewrite filenames from input files for library-only mode
+  if (LibraryOnlyMode) {
+    assert(SourceFiles.empty());
+
+    // Library-only mode file groups
+    llvm::SmallVector<llvm::StringRef> LibraryFiles;
+    llvm::SmallVector<llvm::StringRef> RewriteFiles;
+
+    auto LibraryFilesStr = file_contents(LibraryFilesFile);
+    llvm::StringRef(LibraryFilesStr).split(LibraryFiles, '\n');
+
+    auto RewriteFilesStr = file_contents(RewriteFilesFile);
+    llvm::StringRef(RewriteFilesStr).split(RewriteFiles, '\n');
+
+    for (auto &i : LibraryFiles) {
+      SourceFiles.push_back(i.str());
+    }
+    for (auto &i : RewriteFiles) {
+      SourceFiles.push_back(i.str());
+    }
+
+    LibraryFilesSet.insert(LibraryFiles.begin(), LibraryFiles.end());
+
+    for (auto &file : RewriteFiles) {
+      RewriteFilesSet.insert(root_path_to_output_path(file));
+    }
+  }
 
   // Ensure that all files to process are in the compilation db; if not, we don't know how to process them!
   auto all_files = comp_db.getAllFiles();
@@ -1257,8 +1395,14 @@ int main(int argc, const char **argv) {
   // Collect mapping of filenames to pkeys and used pkeys
   std::set<Pkey> pkeys_used;
   for (auto s : SourceFiles) {
-    auto pkey = pkey_from_commands(get_commands, s);
+    std::optional<Pkey> pkey;
+    if (LibraryOnlyMode) {
+      pkey = LibraryFilesSet.contains(s) ? 0 : 1;
+    } else {
+      pkey = pkey_from_commands(get_commands, s);
+    }
     if (!pkey) {
+      llvm::errs() << "Fatal pkey error\n";
       return -1;
     }
 
@@ -1337,6 +1481,7 @@ int main(int argc, const char **argv) {
 
   auto rc = tool.runAndSave(newFrontendActionFactory(&refactorer).get());
   if (rc != 0) {
+    llvm::errs() << "Rewriting completed with errors\n";
     return rc;
   }
 
@@ -1594,6 +1739,11 @@ int main(int argc, const char **argv) {
   // IA2_FN)
   for (const auto &[filename, addr_taken_fns] :
        ptr_expr_pass.internal_addr_taken_fns) {
+
+    // In library only mode we only want to rewrite files in the rewrite set.
+    if (LibraryOnlyMode && !RewriteFilesSet.contains(filename)) {
+      continue;
+    }
 
     // Open each file that took the address of a static function
     std::ofstream source_file(filename, std::ios::app);

@@ -19,7 +19,7 @@
 #include <sys/ucontext.h>
 
 #include "ia2.h"
-#include "ia2_threads.h"
+#include "ia2_memory_maps.h"
 
 /*
  * PKRU is defined to be bit 9 in the XSAVE state component bitmap (Intel SDM
@@ -466,83 +466,6 @@ __attribute__((constructor)) void permissive_mode_init(void) {
   install_permissive_mode_handler();
 }
 
-// `getline` calls `malloc` inside of `libc`,
-// but we wrap `malloc` with `__wrap_malloc`,
-// so we need to free what `getline` allocated with `__real_free`.
-typeof(IA2_IGNORE(free)) __real_free;
-
-extern uintptr_t (*partition_alloc_thread_isolated_pool_base_address)[IA2_MAX_COMPARTMENTS];
-
-void log_memory_map(void) {
-  FILE *log = fopen(log_name, "a");
-  assert(log);
-  FILE *maps = fopen("/proc/self/maps", "r");
-  assert(maps);
-
-  // Skip dev and inode.
-  fprintf(log, "  start addr-end addr     perms offset  path\n");
-
-  char *line = NULL;
-  size_t line_cap = 0;
-  while (true) {
-    const ssize_t line_len = getline(&line, &line_cap, maps);
-    if (line_len == -1) {
-      break;
-    }
-
-    // Remove trailing newline.
-    if (line_len > 0 && line[line_len - 1] == '\n') {
-      line[line_len - 1] = 0;
-    }
-
-    // Parse `/proc/self/maps` line.
-    uintptr_t start_addr = 0;
-    uintptr_t end_addr = 0;
-    char perms[4] = {0};
-    uintptr_t offset = 0;
-    unsigned int dev_major = 0;
-    unsigned int dev_minor = 0;
-    ino_t inode = 0;
-    int path_index = 0;
-    sscanf(line, "%lx-%lx %4c %lx %x:%x %lu %n", &start_addr, &end_addr, perms, &offset, &dev_major, &dev_minor, &inode, &path_index);
-    const char *path = line + path_index;
-
-    // Skip dev and inode.
-    fprintf(log, "%08lx-%08lx %.4s %08lx ", start_addr, end_addr, perms, offset);
-
-    const size_t path_len = (size_t)line_len - path_index - 1;
-    if (path_len != 0) {
-      fprintf(log, "%s", path);
-    } else {
-      // No path, try to identify it.
-      const struct ia2_addr_location location = ia2_addr_location_find(start_addr);
-      if (location.name) {
-        char thread_name[16] = {0};
-        const bool has_thread_name = pthread_getname_np(location.thread, thread_name, sizeof(thread_name)) == 0;
-        fprintf(log, "[%s:tid %ld", location.name, (long)location.tid);
-        if (has_thread_name) {
-          fprintf(log, " (thread %s)", thread_name);
-        }
-        fprintf(log, ":compartment %d]", location.compartment);
-      }
-      if (partition_alloc_thread_isolated_pool_base_address) {
-        for (size_t pkey = 0; pkey < IA2_MAX_COMPARTMENTS; pkey++) {
-          if (start_addr == (*partition_alloc_thread_isolated_pool_base_address)[pkey]) {
-            fprintf(log, "[heap:compartment %zu]", pkey);
-            break;
-          }
-        }
-      }
-    }
-
-    fprintf(log, "\n");
-  }
-
-  __real_free(line);
-  fclose(log);
-  fclose(maps);
-}
-
 /*
  * Constructor to wait for the logging thread to finish and log the memory map.
  * If a process forks and execve's this function will not be called.
@@ -550,6 +473,9 @@ void log_memory_map(void) {
 __attribute((destructor)) void wait_logging_thread(void) {
   exiting = true;
   pthread_join(logging_thread, NULL);
-  log_memory_map();
+  FILE *log = fopen(log_name, "a");
+  assert(log);
+  ia2_log_memory_maps(log);
+  fclose(log);
 }
 #endif // IA2_ENABLE

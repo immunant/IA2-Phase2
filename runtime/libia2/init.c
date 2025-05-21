@@ -1,6 +1,6 @@
 #include "ia2.h"
 #include "ia2_internal.h"
-#include "ia2_threads.h"
+#include "memory_maps.h"
 
 #include <sys/auxv.h>
 #include <sys/prctl.h>

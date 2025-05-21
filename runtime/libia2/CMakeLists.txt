@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.12)
 project(libia2)
 
-add_library(libia2 ia2.c init.c threads.c main.c exit.c)
+add_library(libia2 ia2.c init.c threads.c main.c exit.c memory_maps.c)
 target_compile_options(libia2 PRIVATE "-fPIC")
 
 if (LIBIA2_AARCH64)

@@ -123,12 +123,33 @@ struct ia2_addr_location ia2_addr_location_find(const uintptr_t addr) {
 #endif
 }
 
+extern uintptr_t (*partition_alloc_thread_isolated_pool_base_address)[IA2_MAX_COMPARTMENTS];
+
+static void label_memory_map(FILE *log, uintptr_t start_addr) {
+  const struct ia2_addr_location location = ia2_addr_location_find(start_addr);
+  if (location.name) {
+    char thread_name[16] = {0};
+    const bool has_thread_name = pthread_getname_np(location.thread, thread_name, sizeof(thread_name)) == 0;
+    fprintf(log, "[%s:tid %ld", location.name, (long)location.tid);
+    if (has_thread_name) {
+      fprintf(log, " (thread %s)", thread_name);
+    }
+    fprintf(log, ":compartment %d]", location.compartment);
+  }
+  if (partition_alloc_thread_isolated_pool_base_address) {
+    for (size_t pkey = 0; pkey < IA2_MAX_COMPARTMENTS; pkey++) {
+      if (start_addr == (*partition_alloc_thread_isolated_pool_base_address)[pkey]) {
+        fprintf(log, "[heap:compartment %zu]", pkey);
+        break;
+      }
+    }
+  }
+}
+
 // `getline` calls `malloc` inside of `libc`,
 // but we wrap `malloc` with `__wrap_malloc`,
 // so we need to free what `getline` allocated with `__real_free`.
 typeof(IA2_IGNORE(free)) __real_free;
-
-extern uintptr_t (*partition_alloc_thread_isolated_pool_base_address)[IA2_MAX_COMPARTMENTS];
 
 void ia2_log_memory_maps(FILE *log) {
   FILE *maps = fopen("/proc/self/maps", "r");
@@ -170,24 +191,7 @@ void ia2_log_memory_maps(FILE *log) {
       fprintf(log, "%s", path);
     } else {
       // No path, try to identify it.
-      const struct ia2_addr_location location = ia2_addr_location_find(start_addr);
-      if (location.name) {
-        char thread_name[16] = {0};
-        const bool has_thread_name = pthread_getname_np(location.thread, thread_name, sizeof(thread_name)) == 0;
-        fprintf(log, "[%s:tid %ld", location.name, (long)location.tid);
-        if (has_thread_name) {
-          fprintf(log, " (thread %s)", thread_name);
-        }
-        fprintf(log, ":compartment %d]", location.compartment);
-      }
-      if (partition_alloc_thread_isolated_pool_base_address) {
-        for (size_t pkey = 0; pkey < IA2_MAX_COMPARTMENTS; pkey++) {
-          if (start_addr == (*partition_alloc_thread_isolated_pool_base_address)[pkey]) {
-            fprintf(log, "[heap:compartment %zu]", pkey);
-            break;
-          }
-        }
-      }
+      label_memory_map(log, start_addr);
     }
 
     fprintf(log, "\n");

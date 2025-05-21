@@ -7,7 +7,7 @@
 
 #include "ia2.h"
 #include "ia2_internal.h"
-#include "ia2_threads.h"
+#include "memory_maps.h"
 
 #if defined(__x86_64__)
 

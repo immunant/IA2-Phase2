@@ -1,6 +1,9 @@
 #pragma once
 
 #include "ia2.h"
+#include "ia2_memory_maps.h"
+
+#include <pthread.h>
 
 #if IA2_DEBUG_LOG
 

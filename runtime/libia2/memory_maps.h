@@ -5,6 +5,8 @@
 
 #include <pthread.h>
 
+// Only enable this code that stores these addresses when debug logging is enabled.
+// This reduces the trusted codebase and avoids runtime overhead.
 #if IA2_DEBUG_LOG
 
 /// The data here is shared, so it should not be trusted for use as a pointer,
@@ -41,8 +43,6 @@ struct ia2_thread_metadata {
 /// it is thread-safe to read and write.
 struct ia2_thread_metadata *ia2_thread_metadata_get_current_thread(void);
 
-#endif
-
 struct ia2_addr_location {
   /// A descriptive name of what this address points to.
   /// For example, "stack".
@@ -70,3 +70,5 @@ struct ia2_addr_location {
 /// If it is not found or there is an error,
 /// the fields are set to `NULL` or `-1` depending on the type.
 struct ia2_addr_location ia2_addr_location_find(uintptr_t addr);
+
+#endif // IA2_DEBUG_LOG

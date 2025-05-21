@@ -109,18 +109,8 @@ struct ia2_thread_metadata *ia2_thread_metadata_get_current_thread(void) {
   return ia2_all_threads_metadata_lookup(&threads);
 }
 
-#endif // IA2_DEBUG_LOG
-
 struct ia2_addr_location ia2_addr_location_find(const uintptr_t addr) {
-#if IA2_DEBUG_LOG
   return ia2_all_threads_metadata_find_addr(&threads, addr);
-#else
-  return (struct ia2_addr_location){
-      .name = NULL,
-      .tid = -1,
-      .compartment = -1,
-  };
-#endif
 }
 
 extern uintptr_t (*partition_alloc_thread_isolated_pool_base_address)[IA2_MAX_COMPARTMENTS];
@@ -145,6 +135,12 @@ static void label_memory_map(FILE *log, uintptr_t start_addr) {
     }
   }
 }
+
+#else // IA2_DEBUG_LOG
+
+void label_memory_map(FILE *log, uintptr_t start_addr) {}
+
+#endif // IA2_DEBUG_LOG
 
 // `getline` calls `malloc` inside of `libc`,
 // but we wrap `malloc` with `__wrap_malloc`,

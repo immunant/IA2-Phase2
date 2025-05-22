@@ -7,7 +7,7 @@
 
 // Only enable this code that stores these addresses when debug logging is enabled.
 // This reduces the trusted codebase and avoids runtime overhead.
-#if IA2_DEBUG_LOG
+#if IA2_DEBUG_MEMORY
 
 /// The data here is shared, so it should not be trusted for use as a pointer,
 /// but it can be used best effort for non-trusted purposes.
@@ -71,4 +71,4 @@ struct ia2_addr_location {
 /// the fields are set to `NULL` or `-1` depending on the type.
 struct ia2_addr_location ia2_addr_location_find(uintptr_t addr);
 
-#endif // IA2_DEBUG_LOG
+#endif // IA2_DEBUG_MEMORY

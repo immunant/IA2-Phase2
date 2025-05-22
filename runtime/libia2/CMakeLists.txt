@@ -17,6 +17,10 @@ if(IA2_DEBUG_LOG)
     target_compile_definitions(libia2 PRIVATE IA2_DEBUG_LOG=1)
 endif()
 
+if(IA2_DEBUG_MEMORY)
+    target_compile_definitions(libia2 PRIVATE IA2_DEBUG_MEMORY=1)
+endif()
+
 target_link_options(libia2
     INTERFACE
         "-pthread"

@@ -30,7 +30,8 @@ cmake .. \
     -DLLVM_EXTERNAL_LIT=$(which lit) \
     -G Ninja \
     -DCMAKE_BUILD_TYPE=Debug \
-    -DIA2_DEBUG_LOG=True
+    -DIA2_DEBUG_LOG=True \
+    -DIA2_DEBUG_MEMORY=True
 ```
 
 We can build for another `-DCMAKE_BUILD_TYPE` as well,
@@ -38,6 +39,8 @@ but a debug build like `Debug` or `RelWithDebInfo` is recommended
 in case tools crash and need to be debugged.
 
 `-DIA2_DEBUG_LOG=True` also helps with debugging the compartmentalized `dav1d`, too.
+
+`-DIA2_DEBUG_MEMORY=True` helps with debugging memory maps.
 
 ## Choosing Compartments
 
@@ -145,6 +148,7 @@ Then there are args for debugging:
 
 * `-DIA2_DEBUG=1` (for debug assertions)
 * `-DIA2_DEBUG_LOG=1` (for verbose logging)
+* `-DIA2_DEBUG_MEMORY=1` (for tracking and debugging memory maps)
 
 Then there are overrides:
 

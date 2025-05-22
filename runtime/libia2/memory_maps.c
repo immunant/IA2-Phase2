@@ -128,7 +128,7 @@ static void label_memory_map(FILE *log, uintptr_t start_addr) {
     Dl_info dl_info = {0};
     const bool has_dl_info = dladdr((void *)metadata->start_fn, &dl_info);
 
-    fprintf(log, "[%s:tid %ld", location.name, (long)metadata->tid);
+    fprintf(log, "[%s:compartment %d:tid %ld", location.name, location.compartment, (long)metadata->tid);
     if (has_thread_name) {
       fprintf(log, " (thread %s)", thread_name);
     }
@@ -142,7 +142,7 @@ static void label_memory_map(FILE *log, uintptr_t start_addr) {
     } else {
       fprintf(log, "%p", metadata->start_fn);
     }
-    fprintf(log, "):compartment %d]", location.compartment);
+    fprintf(log, ")]");
   }
 
   if (partition_alloc_thread_isolated_pool_base_address) {

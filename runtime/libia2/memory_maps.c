@@ -3,7 +3,7 @@
 
 // Only enable this code that stores these addresses when debug logging is enabled.
 // This reduces the trusted codebase and avoids runtime overhead.
-#if IA2_DEBUG_LOG
+#if IA2_DEBUG_MEMORY
 
 struct ia2_all_threads_metadata {
   pthread_mutex_t lock;
@@ -136,11 +136,11 @@ static void label_memory_map(FILE *log, uintptr_t start_addr) {
   }
 }
 
-#else // IA2_DEBUG_LOG
+#else // IA2_DEBUG_MEMORY
 
 static void label_memory_map(FILE *log, uintptr_t start_addr) {}
 
-#endif // IA2_DEBUG_LOG
+#endif // IA2_DEBUG_MEMORY
 
 // `getline` calls `malloc` inside of `libc`,
 // but we wrap `malloc` with `__wrap_malloc`,

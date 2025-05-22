@@ -5,6 +5,9 @@
 // This reduces the trusted codebase and avoids runtime overhead.
 #if IA2_DEBUG_MEMORY
 
+// It's much simpler to only support a static number of created threads,
+// especially because we want to have very few dependencies.
+// If a program needs more threads, you can just increase this number.
 #define IA2_MAX_THREADS 512
 
 struct ia2_all_threads_metadata {

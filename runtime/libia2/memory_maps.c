@@ -5,6 +5,8 @@
 // This reduces the trusted codebase and avoids runtime overhead.
 #if IA2_DEBUG_MEMORY
 
+#define IA2_MAX_THREADS (PTRS_PER_PAGE)
+
 struct ia2_all_threads_metadata {
   pthread_mutex_t lock;
   size_t num_threads;

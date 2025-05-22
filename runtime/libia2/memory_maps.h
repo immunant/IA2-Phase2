@@ -15,6 +15,9 @@ struct ia2_thread_metadata {
   pid_t tid;
   pthread_t thread;
 
+  /// The start function passed to `pthread_create`.
+  void *(*start_fn)(void *arg);
+
   /// The addresses of each compartment's stack for this thread.
   uintptr_t stack_addrs[IA2_MAX_COMPARTMENTS];
 

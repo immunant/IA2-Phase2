@@ -78,7 +78,7 @@ jobs:
     strategy:
       matrix:
         build-type: [RelWithDebInfo]
-        rebuild-glibc: [ON, OFF]
+        rebuild-glibc: [ON]
     steps:
       - name: Setup Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1

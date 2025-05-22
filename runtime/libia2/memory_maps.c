@@ -8,13 +8,13 @@
 // It's much simpler to only support a static number of created threads,
 // especially because we want to have very few dependencies.
 // If a program needs more threads, you can just increase this number.
-#define IA2_MAX_THREADS 512
+#define MAX_THREADS 512
 
 struct ia2_all_threads_metadata {
   pthread_mutex_t lock;
   size_t num_threads;
-  pid_t tids[IA2_MAX_THREADS];
-  struct ia2_thread_metadata thread_metadata[IA2_MAX_THREADS];
+  pid_t tids[MAX_THREADS];
+  struct ia2_thread_metadata thread_metadata[MAX_THREADS];
 };
 
 #define array_len(a) (sizeof(a) / sizeof(*(a)))
@@ -34,7 +34,7 @@ struct ia2_thread_metadata *ia2_all_threads_metadata_lookup(struct ia2_all_threa
     }
   }
   if (this->num_threads >= array_len(this->thread_metadata)) {
-    fprintf(stderr, "created %zu threads, but can't store them all (max is IA2_MAX_THREADS)\n", this->num_threads);
+    fprintf(stderr, "created %zu threads, but can't store them all (max is MAX_THREADS)\n", this->num_threads);
     goto unlock;
   }
 

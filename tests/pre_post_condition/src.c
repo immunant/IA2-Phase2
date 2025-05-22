@@ -1,5 +1,4 @@
 #include "src.h"
-#include <ia2_test_runner.h>
 #include <signal.h>
 #include <stdio.h>
 

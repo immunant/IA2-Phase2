@@ -297,8 +297,8 @@ asm(".macro movz_shifted_tag_x18 tag\n"
 
 #if defined(__x86_64__)
 #define return_stackptr_if_compartment(compartment)                            \
-  if (pkru == PKRU(compartment)) {                                             \
-    register void **out asm("rax");                                             \
+  if (tag == PKRU(compartment)) {                                              \
+    register void **out asm("rax");                                            \
     __asm__ volatile(                                                          \
         "mov %%fs:(0), %%rax\n"                                                \
         "addq ia2_stackptr_" #compartment "@GOTTPOFF(%%rip), %%rax\n"          \
@@ -308,8 +308,19 @@ asm(".macro movz_shifted_tag_x18 tag\n"
     return out;                                                                \
   }
 #elif defined(__aarch64__)
-#warning "libia2 does not implement return_stackptr_if_compartment yet"
-#define return_stackptr_if_compartment(compartment)
+#define return_stackptr_if_compartment(compartment)                            \
+  if (tag == compartment) {                                                    \
+    void *out;                                                                 \
+    __asm__ volatile(                                                          \
+        "mrs x9, tpidr_el0\n"                                                  \
+        "adrp %0, :gottprel:ia2_stackptr_" #compartment "\n"                   \
+        "ldr %0, [%0, #:gottprel_lo12:ia2_stackptr_" #compartment "]\n"        \
+        "add %0, %0, x9\n"                                                     \
+        : "=r"(out)                                                            \
+        :                                                                      \
+        : "x9");                                                               \
+    return out;                                                                \
+  }
 #endif
 
 /* Pass to mmap to signal end of program init */
@@ -421,7 +432,7 @@ __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
   REPEATB(n, declare_init_tls_fn, nop_macro);                                  \
                                                                                \
   /* Returns `&ia2_stackptr_N` given a pkru value for the Nth compartment. */  \
-  __attribute__((visibility("default"))) void **ia2_stackptr_for_pkru(uint32_t pkru) {                                \
+  __attribute__((visibility("default"))) void **ia2_stackptr_for_tag(size_t tag) {                                \
     REPEATB(n, return_stackptr_if_compartment,                                 \
             return_stackptr_if_compartment);                                   \
     abort();                                                                   \

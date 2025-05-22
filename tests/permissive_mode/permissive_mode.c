@@ -13,7 +13,7 @@ INIT_RUNTIME(1);
 
 Test(permissive_mode, main) {
     char* buffer = NULL;
-    cr_assert(ia2_get_pkru() == 0xFFFFFFF0);
+    cr_assert(ia2_get_tag() == 0xFFFFFFF0);
 
     /* allocate an extra pkey */
     cr_assert(pkey_alloc(0, PKEY_DISABLE_ACCESS | PKEY_DISABLE_WRITE) == 2);
@@ -26,7 +26,7 @@ Test(permissive_mode, main) {
     pkey_mprotect(buffer, 4096, PROT_READ | PROT_WRITE, 2);
     buffer[0] = 'b';
 
-    cr_assert(ia2_get_pkru() == 0xFFFFFFF0);
+    cr_assert(ia2_get_tag() == 0xFFFFFFF0);
 }
 
 Test(permissive_mode, alloc) {

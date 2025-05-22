@@ -26,6 +26,7 @@ target_link_options(libia2
         "-pthread"
         "-Wl,--wrap=pthread_create"
         "-Wl,--wrap=main"
+        "-Wl,--wrap=free" # Because we use `__real_free` in `memory_maps.c`.
 
         # Eagerly resolve GOT relocations
         "-Wl,-z,now"

@@ -202,7 +202,6 @@ asm(".macro movz_shifted_tag_x18 tag\n"
 #define errno_s (strerror_l(errno, uselocale((locale_t)0)))
 
 #define PTRS_PER_PAGE (PAGE_SIZE / sizeof(void *))
-#define IA2_MAX_THREADS (PTRS_PER_PAGE)
 
 #define IA2_ROUND_DOWN(x, y) ((x) & ~((y)-1))
 

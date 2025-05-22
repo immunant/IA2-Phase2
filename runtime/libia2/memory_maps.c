@@ -138,7 +138,7 @@ static void label_memory_map(FILE *log, uintptr_t start_addr) {
 
 #else // IA2_DEBUG_LOG
 
-void label_memory_map(FILE *log, uintptr_t start_addr) {}
+static void label_memory_map(FILE *log, uintptr_t start_addr) {}
 
 #endif // IA2_DEBUG_LOG
 

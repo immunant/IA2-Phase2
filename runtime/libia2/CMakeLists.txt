@@ -13,8 +13,8 @@ if(IA2_DEBUG)
     target_compile_definitions(libia2 PUBLIC IA2_DEBUG=1)
 endif()
 
-if(IA2_DEBUG_LOG)
-    target_compile_definitions(libia2 PRIVATE IA2_DEBUG_LOG=1)
+if(IA2_VERBOSE)
+    target_compile_definitions(libia2 PRIVATE IA2_VERBOSE=1)
 endif()
 
 if(IA2_DEBUG_MEMORY)

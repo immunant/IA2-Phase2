@@ -132,16 +132,17 @@ static void label_memory_map(FILE *log, uintptr_t start_addr) {
     if (has_thread_name) {
       fprintf(log, " (thread %s)", thread_name);
     }
+    fprintf(log, " (start fn ");
     if (!metadata->start_fn) {
       // `metadata->start_fn` is always set during `__wrap_pthread_create`/`ia2_thread_begin`,
       // so if it wasn't set, then it must be the main thread, started in `main`.
-      fprintf(log, " (start fn main)");
+      fprintf(log, "main");
     } else if (has_dl_info && dl_info.dli_sname) {
-      fprintf(log, " (start fn %s)", dl_info.dli_sname);
+      fprintf(log, "%s", dl_info.dli_sname);
     } else {
-      fprintf(log, " (start fn %p)", metadata->start_fn);
+      fprintf(log, "%p", metadata->start_fn);
     }
-    fprintf(log, ":compartment %d]", location.compartment);
+    fprintf(log, "):compartment %d]", location.compartment);
   }
 
   if (partition_alloc_thread_isolated_pool_base_address) {

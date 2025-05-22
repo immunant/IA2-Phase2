@@ -181,7 +181,12 @@ void ia2_log_memory_maps(FILE *log) {
     unsigned int dev_minor = 0;
     ino_t inode = 0;
     int path_index = 0;
-    sscanf(line, "%lx-%lx %4c %lx %x:%x %lu %n", &start_addr, &end_addr, perms, &offset, &dev_major, &dev_minor, &inode, &path_index);
+    const int vars_matched = sscanf(line, "%lx-%lx %4c %lx %x:%x %lu %n", &start_addr, &end_addr, perms, &offset, &dev_major, &dev_minor, &inode, &path_index);
+    if (vars_matched != 8) {
+      fprintf(log, "%s\n", line);
+      fprintf(stderr, "error parsing /proc/self/maps line: %s\n", line);
+      continue;
+    }
     const char *path = line + path_index;
 
     // Skip dev and inode.

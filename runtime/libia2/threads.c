@@ -3,6 +3,8 @@
 #include <stdint.h>
 #include <sys/mman.h>
 
+#include "memory_maps.h"
+
 __attribute__((visibility("default"))) void init_stacks_and_setup_tls(void);
 __attribute__((visibility("default"))) void **ia2_stackptr_for_pkru(uint32_t pkey);
 
@@ -22,6 +24,13 @@ void *ia2_thread_begin(void *arg) {
 
   /* Free the thunk. */
   munmap(arg, sizeof(struct ia2_thread_thunk));
+
+#if IA2_DEBUG_MEMORY
+  struct ia2_thread_metadata *const thread_metadata = ia2_thread_metadata_get_current_thread();
+  if (thread_metadata) {
+    thread_metadata->start_fn = fn;
+  }
+#endif
 
   init_stacks_and_setup_tls();
   /* TODO: Set up alternate stack when we have per-thread shared compartment

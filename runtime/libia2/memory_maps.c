@@ -124,9 +124,18 @@ static void label_memory_map(FILE *log, uintptr_t start_addr) {
   if (location.name) {
     char thread_name[16] = {0};
     const bool has_thread_name = pthread_getname_np(metadata->thread, thread_name, sizeof(thread_name)) == 0;
+
+    Dl_info dl_info = {0};
+    const bool has_dl_info = dladdr((void *)metadata->start_fn, &dl_info);
+
     fprintf(log, "[%s:tid %ld", location.name, (long)metadata->tid);
     if (has_thread_name) {
       fprintf(log, " (thread %s)", thread_name);
+    }
+    if (has_dl_info && dl_info.dli_sname) {
+      fprintf(log, " (start fn %s)", dl_info.dli_sname);
+    } else {
+      fprintf(log, " (start fn %p)", metadata->start_fn);
     }
     fprintf(log, ":compartment %d]", location.compartment);
   }

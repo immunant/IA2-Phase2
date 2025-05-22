@@ -58,7 +58,7 @@ ret:
 struct ia2_addr_location ia2_all_threads_metadata_find_addr(struct ia2_all_threads_metadata *const this, const uintptr_t addr) {
   struct ia2_addr_location location = {
       .name = NULL,
-      .tid = -1,
+      .thread_metadata = NULL,
       .compartment = -1,
   };
   if (pthread_mutex_lock(&this->lock) != 0) {
@@ -71,22 +71,19 @@ struct ia2_addr_location ia2_all_threads_metadata_find_addr(struct ia2_all_threa
       const struct ia2_thread_metadata *const thread_metadata = &this->thread_metadata[thread];
       if (addr == thread_metadata->stack_addrs[compartment]) {
         location.name = "stack";
-        location.tid = tid;
-        location.thread = thread_metadata->thread;
+        location.thread_metadata = thread_metadata;
         location.compartment = compartment;
         goto unlock;
       }
       if (addr == thread_metadata->tls_addrs[compartment]) {
         location.name = "tls";
-        location.tid = tid;
-        location.thread = thread_metadata->thread;
+        location.thread_metadata = thread_metadata;
         location.compartment = compartment;
         goto unlock;
       }
       if (addr == thread_metadata->tls_addr_compartment1_first || addr == thread_metadata->tls_addr_compartment1_second) {
         location.name = "tls";
-        location.tid = tid;
-        location.thread = thread_metadata->thread;
+        location.thread_metadata = thread_metadata;
         location.compartment = 1;
         goto unlock;
       }
@@ -122,15 +119,18 @@ extern uintptr_t (*partition_alloc_thread_isolated_pool_base_address)[IA2_MAX_CO
 
 static void label_memory_map(FILE *log, uintptr_t start_addr) {
   const struct ia2_addr_location location = ia2_addr_location_find(start_addr);
+  const struct ia2_thread_metadata *metadata = location.thread_metadata;
+
   if (location.name) {
     char thread_name[16] = {0};
-    const bool has_thread_name = pthread_getname_np(location.thread, thread_name, sizeof(thread_name)) == 0;
-    fprintf(log, "[%s:tid %ld", location.name, (long)location.tid);
+    const bool has_thread_name = pthread_getname_np(metadata->thread, thread_name, sizeof(thread_name)) == 0;
+    fprintf(log, "[%s:tid %ld", location.name, (long)metadata->tid);
     if (has_thread_name) {
       fprintf(log, " (thread %s)", thread_name);
     }
     fprintf(log, ":compartment %d]", location.compartment);
   }
+
   if (partition_alloc_thread_isolated_pool_base_address) {
     for (size_t pkey = 0; pkey < IA2_MAX_COMPARTMENTS; pkey++) {
       if (start_addr == (*partition_alloc_thread_isolated_pool_base_address)[pkey]) {

@@ -50,15 +50,8 @@ struct ia2_addr_location {
   /// `NULL` if unknown.
   const char *name;
 
-  /// The thread ID of the thread this address belongs to.
-  ///
-  /// `-1` if unknown.
-  pid_t tid;
-
-  /// The `pthread_t` of the thread this address belongs to.
-  ///
-  /// If `tid` is `-1`, this is not initialized.
-  pthread_t thread;
+  /// The metadata of the thread this address belongs to.
+  const struct ia2_thread_metadata *thread_metadata;
 
   /// The compartment this address is in.
   ///

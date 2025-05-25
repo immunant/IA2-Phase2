@@ -196,7 +196,7 @@ void ia2_log_memory_maps(FILE *log) {
     ino_t inode = 0;
     int path_index = 0;
     const int vars_matched = sscanf(line, "%lx-%lx %4c %lx %x:%x %lu %n", &start_addr, &end_addr, perms, &offset, &dev_major, &dev_minor, &inode, &path_index);
-    if (vars_matched != 8) {
+    if (vars_matched != 7) { // Note that "%n" doesn't count as a matched var.
       fprintf(log, "%s\n", line);
       fprintf(stderr, "error parsing /proc/self/maps line: %s\n", line);
       continue;

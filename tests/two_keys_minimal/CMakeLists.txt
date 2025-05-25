@@ -14,5 +14,3 @@ define_test(
     PKEY 1
     CRITERION_TEST
 )
-
-define_ia2_wrapper()

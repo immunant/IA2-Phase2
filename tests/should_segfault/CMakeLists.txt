@@ -9,6 +9,3 @@ define_test(
     NEEDS_LD_WRAP
     CRITERION_TEST
 )
-
-# Build the wrapper lib
-define_ia2_wrapper()

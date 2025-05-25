@@ -4,23 +4,6 @@ set(AVUTIL_HEADERS libavutil/dict.h libavutil/version.h libavutil/macros.h
     libavutil/rational.h libavutil/mathematics.h libavutil/intfloat.h
     libavutil/log.h libavutil/pixfmt.h libavutil/error.h)
 
-# Build wrapper libs
-define_ia2_wrapper(
-    WRAPPER avformat_wrapper
-    WRAPPED_LIB avformat
-    HEADERS ${AVFORMAT_HEADERS}
-    USE_SYSTEM_HEADERS
-    CALLER_PKEY 1
-)
-
-define_ia2_wrapper(
-    WRAPPER avutil_wrapper
-    WRAPPED_LIB avutil
-    HEADERS ${AVUTIL_HEADERS}
-    USE_SYSTEM_HEADERS
-    CALLER_PKEY 1
-)
-
 # Build the test
 define_test(
     SRCS main.c

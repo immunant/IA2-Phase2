@@ -12,5 +12,3 @@ define_test(
     CRITERION_TEST
     NOT_IN_CHECK_IA2
 )
-
-define_ia2_wrapper()

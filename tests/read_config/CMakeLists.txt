@@ -10,5 +10,3 @@ define_test(
     NEEDS_LD_WRAP
     CRITERION_TEST
 )
-
-define_ia2_wrapper()

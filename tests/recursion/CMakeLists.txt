@@ -14,5 +14,3 @@ define_test(
     INCLUDE_DIR include/dso
     CRITERION_TEST
 )
-
-define_ia2_wrapper()

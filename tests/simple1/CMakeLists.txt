@@ -11,5 +11,3 @@ define_test(
     CRITERION_TEST
 )
 
-define_ia2_wrapper()
-

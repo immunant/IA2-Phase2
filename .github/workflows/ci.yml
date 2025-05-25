@@ -18,10 +18,10 @@ jobs:
         build-type: [Release, Debug]
         c_compiler: [clang, gcc]
         linker: [lld, bfd]
-        ia2-debug: [ON, OFF]
-        ia2-tracer: [ON, OFF]
-        ia2-verbose: [ON]
-        ia2-debug-memory: [ON]
+        ia2-debug: [IA2_DEBUG=ON, IA2_DEBUG=OFF]
+        ia2-tracer: [IA2_TRACER=ON, IA2_TRACER=OFF]
+        ia2-verbose: [IA2_VERBOSE=ON]
+        ia2-debug-memory: [IA2_DEBUG_MEMORY=ON]
     steps:
       - name: Setup Rust
         # We don't use actions-rust-lang/setup-rust-toolchain because it's slower
@@ -46,10 +46,10 @@ jobs:
             -DClang_DIR=$Clang_DIR                                       \
             -DLLVM_DIR=$LLVM_DIR                                         \
             -DLLVM_EXTERNAL_LIT=$HOME/.local/bin/lit                     \
-            -DIA2_DEBUG=${{ matrix.ia2-debug }}                          \
-            -DIA2_TRACER=${{ matrix.ia2-tracer }}                        \
-            -DIA2_VERBOSE=${{ matrix.ia2-verbose }}                      \
-            -DIA2_DEBUG_MEMORY=${{ matrix.ia2-debug-memory }}        \
+            -D${{ matrix.ia2-debug }}                                    \
+            -D${{ matrix.ia2-tracer }}                                   \
+            -D${{ matrix.ia2-verbose }}                                  \
+            -D${{ matrix.ia2-debug-memory }}                             \
             -G Ninja
           ninja
           popd

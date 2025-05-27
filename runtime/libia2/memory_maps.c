@@ -1,6 +1,8 @@
 #include "memory_maps.h"
 #include "ia2.h"
 
+#include <stdatomic.h>
+
 // Only enable this code that stores these addresses when debug logging is enabled.
 // This reduces the trusted codebase and avoids runtime overhead.
 #if IA2_DEBUG_MEMORY
@@ -11,104 +13,135 @@
 #define MAX_THREADS 512
 
 struct ia2_all_threads_metadata {
-  pthread_mutex_t lock;
-  size_t num_threads;
+  /// This is the number of threads registered,
+  /// and it is monotonically increasing by 1.
+  ///
+  /// It may be transiently higher than `MAX_THREADS`,
+  /// but will abort if that happens (other threads may be observe a higher value).
+  _Atomic size_t num_threads;
   pid_t tids[MAX_THREADS];
+
+  /// Should be initialized to 0.
   struct ia2_thread_metadata thread_metadata[MAX_THREADS];
 };
 
-#define array_len(a) (sizeof(a) / sizeof(*(a)))
-
-struct ia2_thread_metadata *ia2_all_threads_metadata_lookup(struct ia2_all_threads_metadata *const this) {
-  const pid_t tid = gettid();
-
-  struct ia2_thread_metadata *metadata = NULL;
-  if (pthread_mutex_lock(&this->lock) != 0) {
-    perror("pthread_mutex_lock in ia2_all_threads_data_lookup failed");
-    goto ret;
-  }
-  for (size_t i = 0; i < this->num_threads; i++) {
-    if (this->tids[i] == tid) {
-      metadata = &this->thread_metadata[i];
-      goto unlock;
-    }
-  }
-  if (this->num_threads >= array_len(this->thread_metadata)) {
-    fprintf(stderr, "created %zu threads, but can't store them all (max is MAX_THREADS)\n", this->num_threads);
-    goto unlock;
-  }
-
-  metadata = &this->thread_metadata[this->num_threads];
-  this->tids[this->num_threads] = tid;
-  this->num_threads++;
-
-  metadata->tid = tid;
-  metadata->thread = pthread_self();
-
-  goto unlock;
-
-unlock:
-  if (pthread_mutex_unlock(&this->lock) != 0) {
-    perror("pthread_mutex_unlock in ia2_all_threads_data_lookup failed");
-  }
-ret:
-  return metadata;
-}
-
-struct ia2_addr_location ia2_all_threads_metadata_find_addr(struct ia2_all_threads_metadata *const this, const uintptr_t addr) {
-  struct ia2_addr_location location = {
-      .name = NULL,
-      .thread_metadata = NULL,
-      .compartment = -1,
-  };
-  if (pthread_mutex_lock(&this->lock) != 0) {
-    perror("pthread_mutex_lock in ia2_all_threads_data_find_addr failed");
-    goto ret;
-  }
-  for (size_t thread = 0; thread < this->num_threads; thread++) {
-    const pid_t tid = this->tids[thread];
-    for (int compartment = 0; compartment < IA2_MAX_COMPARTMENTS; compartment++) {
-      const struct ia2_thread_metadata *const thread_metadata = &this->thread_metadata[thread];
-      if (addr == thread_metadata->stack_addrs[compartment]) {
-        location.name = "stack";
-        location.thread_metadata = thread_metadata;
-        location.compartment = compartment;
-        goto unlock;
-      }
-      if (addr == thread_metadata->tls_addrs[compartment]) {
-        location.name = "tls";
-        location.thread_metadata = thread_metadata;
-        location.compartment = compartment;
-        goto unlock;
-      }
-      if (addr == thread_metadata->tls_addr_compartment1_first || addr == thread_metadata->tls_addr_compartment1_second) {
-        location.name = "tls";
-        location.thread_metadata = thread_metadata;
-        location.compartment = 1;
-        goto unlock;
-      }
-    }
-  }
-
-  goto unlock;
-
-unlock:
-  if (pthread_mutex_unlock(&this->lock) != 0) {
-    perror("pthread_mutex_unlock in ia2_all_threads_data_find_addr failed");
-  }
-ret:
-  return location;
-}
+#define min(a, b) ((a) < (b) ? (a) : (b))
 
 // All zeroed, so this should go in `.bss` and only have pages lazily allocated.
 static struct ia2_all_threads_metadata IA2_SHARED_DATA threads = {
-    .lock = PTHREAD_MUTEX_INITIALIZER,
     .num_threads = 0,
     .thread_metadata = {0},
 };
 
-struct ia2_thread_metadata *ia2_thread_metadata_get_current_thread(void) {
-  return ia2_all_threads_metadata_lookup(&threads);
+struct ia2_thread_metadata *ia2_all_threads_metadata_new_for_current_thread(struct ia2_all_threads_metadata *const this) {
+  const size_t thread = atomic_fetch_add(&this->num_threads, 1);
+  if (thread >= MAX_THREADS) {
+    fprintf(stderr, "created %zu threads, but can't store them all (max is MAX_THREADS: %zu)\n",
+            thread + 1, (size_t)MAX_THREADS);
+    abort();
+  }
+
+  const pid_t tid = gettid();
+  this->tids[thread] = tid;
+#if IA2_VERBOSE
+  fprintf(stderr, "new thread metadata for thread %ld\n", (long)tid);
+#endif
+
+  struct ia2_thread_metadata *metadata = &this->thread_metadata[thread];
+  metadata->tid = tid;
+  metadata->thread = pthread_self();
+  return metadata;
+}
+
+struct ia2_thread_metadata *ia2_all_threads_metadata_get_for_current_thread(struct ia2_all_threads_metadata *const this) {
+  const pid_t tid = gettid();
+
+  // We won't see threads created/registered after this,
+  // but `ia2_all_threads_metadata_new_for_current_thread`
+  // was supposed to be called first for this function to find it.
+  const size_t num_threads = min(MAX_THREADS, atomic_load(&this->num_threads));
+
+#if IA2_VERBOSE
+  fprintf(stderr, "get thread metadata for thread %ld\n", (long)tid);
+  fprintf(stderr, "searching through %zu threads\n", num_threads);
+  fprintf(stderr, "&this->num_threads = %p\n", &this->num_threads);
+  fprintf(stderr, "this = %p\n", this);
+  fprintf(stderr, "&threads = %p\n", &threads);
+  fprintf(stderr, "getpid() = %ld\n", (long)getpid());
+#endif
+
+  struct ia2_thread_metadata *metadata = NULL;
+  for (size_t thread = 0; thread < num_threads; thread++) {
+    if (this->tids[thread] == tid) {
+      return &this->thread_metadata[thread];
+    }
+  }
+
+  fprintf(stderr,
+          "ia2_thread_metadata not found for thread %ld\n"
+          "ia2_thread_metadata_new_for_current_thread must not have been previously called on this thread\n",
+          (long)tid);
+  abort();
+}
+
+struct ia2_addr_location ia2_all_threads_metadata_find_addr(struct ia2_all_threads_metadata *const this, const uintptr_t addr) {
+  // We won't see threads created/registered after this,
+  // but this is supposed to be best effort, so that's okay.
+  const size_t num_threads = min(MAX_THREADS, atomic_load(&this->num_threads));
+
+  for (size_t thread = 0; thread < this->num_threads; thread++) {
+    const pid_t tid = this->tids[thread];
+    const struct ia2_thread_metadata *const thread_metadata = &this->thread_metadata[thread];
+
+    if (addr == thread_metadata->tls_addr_compartment1_first || addr == thread_metadata->tls_addr_compartment1_second) {
+      return (struct ia2_addr_location){
+          .name = "tls",
+          .thread_metadata = thread_metadata,
+          .compartment = 1,
+      };
+    }
+
+    for (int compartment = 0; compartment < IA2_MAX_COMPARTMENTS; compartment++) {
+      if (addr == thread_metadata->stack_addrs[compartment]) {
+        return (struct ia2_addr_location){
+            .name = "stack",
+            .thread_metadata = thread_metadata,
+            .compartment = compartment,
+        };
+      }
+      if (addr == thread_metadata->tls_addrs[compartment]) {
+        return (struct ia2_addr_location){
+            .name = "tls",
+            .thread_metadata = thread_metadata,
+            .compartment = compartment,
+        };
+      }
+    }
+  }
+
+  return (struct ia2_addr_location){
+      .name = NULL,
+      .thread_metadata = NULL,
+      .compartment = -1,
+  };
+}
+
+struct ia2_thread_metadata *ia2_thread_metadata_new_for_current_thread(void) {
+  return ia2_all_threads_metadata_new_for_current_thread(&threads);
+}
+
+// /// Register the main thread's `ia2_thread_metadata`.
+// /// Non-main threads are registered upon thread creation.
+// void __attribute__((constructor)) register_main_thread_metadata(void) {
+//   ia2_thread_metadata_new_for_current_thread();
+// }
+
+void setup_thread_metadata(void) {
+  ia2_thread_metadata_new_for_current_thread();
+}
+
+struct ia2_thread_metadata *ia2_thread_metadata_get_for_current_thread(void) {
+  return ia2_all_threads_metadata_get_for_current_thread(&threads);
 }
 
 struct ia2_addr_location ia2_addr_location_find(const uintptr_t addr) {
@@ -156,6 +189,8 @@ static void label_memory_map(FILE *log, uintptr_t start_addr) {
 }
 
 #else // IA2_DEBUG_MEMORY
+
+void setup_thread_metadata(void) {}
 
 static void label_memory_map(FILE *log, uintptr_t start_addr) {}
 

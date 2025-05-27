@@ -24,6 +24,8 @@ struct dl_phdr_info;
 #include <sys/mman.h>
 #include <unistd.h>
 
+#define IA2_THREADS_METADATA_SIZE 4096 * 38
+
 #if __cplusplus
 #define IA2_EXTERN_C extern "C"
 #else
@@ -337,8 +339,9 @@ static int ia2_mprotect_with_tag(void *addr, size_t len, int prot, int tag) {
 #define ia2_mprotect_with_tag pkey_mprotect
 #endif
 #endif
+IA2_EXTERN_C void setup_thread_metadata(void);
 IA2_EXTERN_C char *allocate_stack(int i);
-IA2_EXTERN_C void allocate_stack_0();
+IA2_EXTERN_C void allocate_stack_0(void);
 IA2_EXTERN_C void verify_tls_padding(void);
 IA2_EXTERN_C void ia2_set_up_tags(int *n_to_alloc);
 __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
@@ -429,9 +432,10 @@ __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
                                                                                \
   __attribute__((visibility("default"))) __attribute__((weak)) void init_stacks_and_setup_tls(void) {                 \
     verify_tls_padding();                                                      \
+    setup_thread_metadata();                                                   \
     COMPARTMENT_SAVE_AND_RESTORE(REPEATB(n, ALLOCATE_COMPARTMENT_STACK_AND_SETUP_TLS, nop_macro), n); \
     /* allocate an unprotected stack for the untrusted compartment */          \
-    allocate_stack_0();                                     \
+    allocate_stack_0();                                                        \
   }                                                                            \
                                                                                \
   __attribute__((constructor)) static void ia2_init(void) {                    \
@@ -441,4 +445,8 @@ __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
     init_stacks_and_setup_tls();                                               \
     REPEATB##n(setup_destructors_for_compartment, nop_macro);                  \
     mark_init_finished();                                                      \
-  }
+  }                                                                            \
+                                                                               \
+  /* All zeroed, so this should go in `.bss` */                                \
+  /* and only have pages lazily allocated. */                                  \
+  char ia2_threads_metadata[IA2_THREADS_METADATA_SIZE] IA2_SHARED_DATA = {0};  \

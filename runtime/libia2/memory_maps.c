@@ -7,10 +7,20 @@
 // This reduces the trusted codebase and avoids runtime overhead.
 #if IA2_DEBUG_MEMORY
 
-// It's much simpler to only support a static number of created threads,
-// especially because we want to have very few dependencies.
-// If a program needs more threads, you can just increase this number.
-#define MAX_THREADS 512
+/// It's much simpler to only support a static number of created threads,
+/// especially because we want to have very few dependencies.
+/// If a program needs more threads, you can just increase this number.
+///
+/// Moreover, this is derived from `IA2_THREADS_METADATA_SIZE`,
+/// because we need to define `ia2_threads_metadata` in `INIT_RUNTIME`
+/// so that there is a single definition instead of having multiple ones
+/// from statically linking `libia2.a` into each compartment.
+/// Instead of including the full type definitions in `ia2_internal.h`
+/// (which becomes circular), we can just define `ia2_threads_metadata` as a `char` array
+/// and `extern` it here as a `struct ia2_all_threads_metadata` as long as it's large enough.
+/// That's why we use `IA2_THREADS_METADATA_SIZE` here,
+/// which is the size in bytes (`char`s) of `ia2_threads_metadata`.
+#define MAX_THREADS ((IA2_THREADS_METADATA_SIZE - sizeof(size_t)) / (sizeof(pid_t) + sizeof(struct ia2_thread_metadata)))
 
 struct ia2_all_threads_metadata {
   /// This is the number of threads registered,
@@ -25,13 +35,11 @@ struct ia2_all_threads_metadata {
   struct ia2_thread_metadata thread_metadata[MAX_THREADS];
 };
 
-#define min(a, b) ((a) < (b) ? (a) : (b))
+static_assert(sizeof(struct ia2_all_threads_metadata) <= IA2_THREADS_METADATA_SIZE, "Check that we (statically) allocated enough memory.");
 
-// All zeroed, so this should go in `.bss` and only have pages lazily allocated.
-static struct ia2_all_threads_metadata IA2_SHARED_DATA threads = {
-    .num_threads = 0,
-    .thread_metadata = {0},
-};
+extern struct ia2_all_threads_metadata ia2_threads_metadata;
+
+#define min(a, b) ((a) < (b) ? (a) : (b))
 
 struct ia2_thread_metadata *ia2_all_threads_metadata_new_for_current_thread(struct ia2_all_threads_metadata *const this) {
   const size_t thread = atomic_fetch_add(&this->num_threads, 1);
@@ -66,7 +74,7 @@ struct ia2_thread_metadata *ia2_all_threads_metadata_get_for_current_thread(stru
   fprintf(stderr, "searching through %zu threads\n", num_threads);
   fprintf(stderr, "&this->num_threads = %p\n", &this->num_threads);
   fprintf(stderr, "this = %p\n", this);
-  fprintf(stderr, "&threads = %p\n", &threads);
+  fprintf(stderr, "&ia2_threads_metadata = %p\n", &ia2_threads_metadata);
   fprintf(stderr, "getpid() = %ld\n", (long)getpid());
 #endif
 
@@ -127,7 +135,7 @@ struct ia2_addr_location ia2_all_threads_metadata_find_addr(struct ia2_all_threa
 }
 
 struct ia2_thread_metadata *ia2_thread_metadata_new_for_current_thread(void) {
-  return ia2_all_threads_metadata_new_for_current_thread(&threads);
+  return ia2_all_threads_metadata_new_for_current_thread(&ia2_threads_metadata);
 }
 
 // /// Register the main thread's `ia2_thread_metadata`.
@@ -141,11 +149,11 @@ void setup_thread_metadata(void) {
 }
 
 struct ia2_thread_metadata *ia2_thread_metadata_get_for_current_thread(void) {
-  return ia2_all_threads_metadata_get_for_current_thread(&threads);
+  return ia2_all_threads_metadata_get_for_current_thread(&ia2_threads_metadata);
 }
 
 struct ia2_addr_location ia2_addr_location_find(const uintptr_t addr) {
-  return ia2_all_threads_metadata_find_addr(&threads, addr);
+  return ia2_all_threads_metadata_find_addr(&ia2_threads_metadata, addr);
 }
 
 extern uintptr_t (*partition_alloc_thread_isolated_pool_base_address)[IA2_MAX_COMPARTMENTS];

@@ -24,6 +24,8 @@ struct dl_phdr_info;
 #include <sys/mman.h>
 #include <unistd.h>
 
+#define IA2_THREADS_METADATA_SIZE 4096 * 38
+
 #if __cplusplus
 #define IA2_EXTERN_C extern "C"
 #else
@@ -443,4 +445,8 @@ __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
     init_stacks_and_setup_tls();                                               \
     REPEATB##n(setup_destructors_for_compartment, nop_macro);                  \
     mark_init_finished();                                                      \
-  }
+  }                                                                            \
+                                                                               \
+  /* All zeroed, so this should go in `.bss` */                                \
+  /* and only have pages lazily allocated. */                                  \
+  char ia2_threads_metadata[IA2_THREADS_METADATA_SIZE] IA2_SHARED_DATA = {0};  \

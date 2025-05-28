@@ -110,5 +110,50 @@ __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i) {
   exit(1);
 }
 
+static void ia2_protect_memory(const char *libs, int compartment, const char *extra_libraries) {
+    ia2_log("protecting memory for compartment %d\n", compartment);
+}
+
+struct CompartmentConfig {
+    const char *libs;
+    const char *extra_libraries;
+};
+
+/*
+ * Compartment 0 does not need to be protected so we don't need to store config info. This variable
+ * will only be accessed from the compartment defining ia2_main since it's the only one that should
+ * call ia2_register_compartment so other copies of it won't be referenced if libia2 is statically
+ * linked into all compartments.
+ */
+static struct CompartmentConfig user_config[IA2_MAX_COMPARTMENTS - 1] = { 0 };
+
+/*
+ * Stores the main DSO and extra libraries (if any) for the specified compartment. This should only
+ * be called for protected compartments (calls specifying compartment 0 are no-ops).
+ */
+void ia2_register_compartment(const char *libs, int compartment, const char *extra_libraries) {
+    ia2_log("registered %s and %s for compartment #%d\n", libs, extra_libraries, compartment);
+    assert(compartment < IA2_MAX_COMPARTMENTS);
+    user_config[compartment].libs = libs;
+    user_config[compartment].extra_libraries = extra_libraries;
+}
+
+/*
+ * This function is called from __wrap_main before handing off control to user code. It calls
+ * ia2_main which is the user-defined compartment config code.
+ */
 void ia2_start(void) {
+    ia2_log("initializing ia2 runtime");
+    /* Get the user config before doing anything else */
+    ia2_main();
+    /* Check the config for compartments 1..=15 */
+    for (int i = 1; i < IA2_MAX_COMPARTMENTS; i++) {
+        /* Skip blank user_config entries */
+        if (!user_config[i].libs) {
+            /* Sanity check to ensure it wasn't misconfigured */
+            assert(user_config[i].extra_libraries);
+            continue;
+        }
+        ia2_protect_memory(user_config[i].libs, i, user_config[i].extra_libraries);
+    }
 }

@@ -323,13 +323,6 @@ asm(".macro movz_shifted_tag_x18 tag\n"
   }
 #endif
 
-/* Pass to mmap to signal end of program init */
-#define IA2_FINISH_INIT_MAGIC 0x1a21face1a21faceULL
-/* Tell the syscall filter to forbid init-only operations. This mmap() will
-always fail because it maps a non-page-aligned addr with MAP_FIXED, so it
-works as a reasonable signpost no-op. */
-#define mark_init_finished() (void)mmap((void *)IA2_FINISH_INIT_MAGIC, 0, 0, MAP_FIXED, -1, 0)
-
 #define declare_init_tls_fn(n) __attribute__((visibility("default"))) void init_tls_##n(void);
 #define setup_destructors_for_compartment(n)                                   \
   __attribute__((visibility("default"))) void ia2_setup_destructors_##n(void);                                        \
@@ -448,7 +441,6 @@ __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
     /* Initialize stacks for the main thread/ */                               \
     init_stacks_and_setup_tls();                                               \
     REPEATB##n(setup_destructors_for_compartment, nop_macro);                  \
-    mark_init_finished();                                                      \
   }
 
 #if IA2_VERBOSE

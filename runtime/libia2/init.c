@@ -69,23 +69,20 @@ void verify_tls_padding(void) {
 }
 
 /* Allocates the required pkeys on x86 or enables MTE on aarch64 */
-void ia2_set_up_tags(int *n_to_alloc) {
+static void ia2_set_up_tags(void) {
 #if defined(__x86_64__)
-  if (*n_to_alloc != 0) {
-    for (int pkey = 1; pkey <= *n_to_alloc; pkey++) {
-      int allocated = pkey_alloc(0, 0);
-      if (allocated < 0) {
-        printf("Failed to allocate protection key %d (%s)\n", pkey,
-               errno_s);
-        exit(-1);
-      }
-      if (allocated != pkey) {
-        printf(
-            "Failed to allocate protection keys in the expected order\n");
-        exit(-1);
-      }
+  for (int pkey = 1; pkey < IA2_MAX_COMPARTMENTS; pkey++) {
+    int allocated = pkey_alloc(0, 0);
+    if (allocated < 0) {
+      printf("Failed to allocate protection key %d (%s)\n", pkey,
+             errno_s);
+      exit(-1);
     }
-    *n_to_alloc = 0;
+    if (allocated != pkey) {
+      printf(
+          "Failed to allocate protection keys in the expected order\n");
+      exit(-1);
+    }
   }
 #elif defined(__aarch64__)
   if (!(getauxval(AT_HWCAP2) & HWCAP2_MTE)) {
@@ -145,6 +142,8 @@ void ia2_start(void) {
     ia2_log("initializing ia2 runtime");
     /* Get the user config before doing anything else */
     ia2_main();
+    /* Set up global resources. */
+    ia2_set_up_tags();
     /* Check the config for compartments 1..=15 */
     for (int i = 1; i < IA2_MAX_COMPARTMENTS; i++) {
         /* Skip blank user_config entries */

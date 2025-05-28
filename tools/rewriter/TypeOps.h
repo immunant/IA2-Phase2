@@ -1,6 +1,7 @@
 #pragma once
 
 #include "clang/AST/AST.h"
+#include <optional>
 #include <string>
 
 extern const std::string kTypePlaceHolder;
@@ -19,6 +20,19 @@ struct TypeInfo {
   TypeId id;
   std::string name;
   std::string canonical_name;
+  std::optional<std::string> constructor;
+  std::optional<std::string> destructor;
+
+  /// Check if one was already set.
+  void set_constructor(std::string name);
+
+  /// Check if one was already set.
+  void set_destructor(std::string name);
+
+  bool has_structors() const;
+
+  /// Check if there is both a constructor and destructor, or neither.
+  void check() const;
 };
 
 class TypeInfoInterner {
@@ -41,4 +55,6 @@ public:
   const TypeInfo &get(TypeId index) const;
 
   TypeInfo &get(TypeId index);
+
+  void check() const;
 };

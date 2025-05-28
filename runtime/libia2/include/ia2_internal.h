@@ -442,3 +442,9 @@ __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
     REPEATB##n(setup_destructors_for_compartment, nop_macro);                  \
     mark_init_finished();                                                      \
   }
+
+#if IA2_VERBOSE
+#define ia2_log(fmt, ...) fprintf(stdout, "%s:" fmt, __func__, __VA_ARGS__)
+#else
+#define ia2_log(...)
+#endif

@@ -51,13 +51,13 @@ char *allocate_stack(int i) {
 #endif
 }
 
-void allocate_stack_0() {
+static void allocate_stack_0() {
   ia2_stackptr_0[0] = allocate_stack(0);
 }
 
 /* Confirm that stack pointers for compartments 0 and 1 are on separate */
 /* pages. */
-void verify_tls_padding(void) {
+static void verify_tls_padding(void) {
   /* It's safe to depend on ia2_stackptr_1 existing because all users of */
   /* IA2 will have at least one compartment other than the untrusted one. */
   extern __thread void *ia2_stackptr_1;
@@ -155,6 +155,9 @@ void ia2_start(void) {
     ia2_main();
     /* Set up global resources. */
     ia2_set_up_tags();
+    verify_tls_padding();
+    /* allocate an unprotected stack for the untrusted compartment */
+    allocate_stack_0();
     /* Check the config for compartments 1..=15 */
     for (int i = 1; i < IA2_MAX_COMPARTMENTS; i++) {
         /* Skip blank user_config entries */

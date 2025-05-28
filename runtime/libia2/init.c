@@ -107,6 +107,17 @@ __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i) {
   exit(1);
 }
 
+static void mark_init_finished(void) {
+    /* Pass to mmap to signal end of program init */
+    const uint64_t IA2_FINISH_INIT_MAGIC = 0x1a21face1a21faceULL;
+    /*
+     * Tell the syscall filter to forbid init-only operations. This mmap() will
+     * always fail because it maps a non-page-aligned addr with MAP_FIXED, so it
+     * works as a reasonable signpost no-op.
+     */
+    mmap((void *)IA2_FINISH_INIT_MAGIC, 0, 0, MAP_FIXED, -1, 0)
+}
+
 static void ia2_protect_memory(const char *libs, int compartment, const char *extra_libraries) {
     ia2_log("protecting memory for compartment %d\n", compartment);
 }
@@ -155,4 +166,5 @@ void ia2_start(void) {
         }
         ia2_protect_memory(user_config[i].libs, i, user_config[i].extra_libraries);
     }
+    mark_init_finished();
 }

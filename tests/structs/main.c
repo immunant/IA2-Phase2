@@ -41,6 +41,10 @@ INIT_RUNTIME(1);
 #define check_field_i128(name, val) \
   { cr_assert(s.name == (__int128)val); }
 
+void ia2_main(void) {
+    ia2_register_compartment("main", 1, NULL);
+}
+
 Test(structs, main) {
   /* For each struct, test passing it to functions, returning it from functions
   (see structs.c), and calls with various combinations of argument/return types. */

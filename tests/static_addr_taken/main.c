@@ -7,6 +7,11 @@ INIT_RUNTIME(2);
 
 #include "static_fns.h"
 
+void ia2_main(void) {
+    ia2_register_compartment("main", 1, NULL);
+    ia2_register_compartment("libstatic_addr_taken_lib.so", 2, NULL);
+}
+
 static void duplicate_noop(void) {
     printf("called %s in main binary\n", __func__);
 }

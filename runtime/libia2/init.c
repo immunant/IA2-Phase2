@@ -1,3 +1,9 @@
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+#include <link.h>
+#include <dlfcn.h>
+#include <elf.h>
 #include "ia2.h"
 #include "ia2_internal.h"
 #include "memory_maps.h"
@@ -51,13 +57,13 @@ char *allocate_stack(int i) {
 #endif
 }
 
-void allocate_stack_0() {
+static void allocate_stack_0() {
   ia2_stackptr_0[0] = allocate_stack(0);
 }
 
 /* Confirm that stack pointers for compartments 0 and 1 are on separate */
 /* pages. */
-void verify_tls_padding(void) {
+static void verify_tls_padding(void) {
   /* It's safe to depend on ia2_stackptr_1 existing because all users of */
   /* IA2 will have at least one compartment other than the untrusted one. */
   extern __thread void *ia2_stackptr_1;
@@ -69,23 +75,20 @@ void verify_tls_padding(void) {
 }
 
 /* Allocates the required pkeys on x86 or enables MTE on aarch64 */
-void ia2_set_up_tags(int *n_to_alloc) {
+static void ia2_set_up_tags(void) {
 #if defined(__x86_64__)
-  if (*n_to_alloc != 0) {
-    for (int pkey = 1; pkey <= *n_to_alloc; pkey++) {
-      int allocated = pkey_alloc(0, 0);
-      if (allocated < 0) {
-        printf("Failed to allocate protection key %d (%s)\n", pkey,
-               errno_s);
-        exit(-1);
-      }
-      if (allocated != pkey) {
-        printf(
-            "Failed to allocate protection keys in the expected order\n");
-        exit(-1);
-      }
+  for (int pkey = 1; pkey < IA2_MAX_COMPARTMENTS; pkey++) {
+    int allocated = pkey_alloc(0, 0);
+    if (allocated < 0) {
+      printf("Failed to allocate protection key %d (%s)\n", pkey,
+             errno_s);
+      exit(-1);
     }
-    *n_to_alloc = 0;
+    if (allocated != pkey) {
+      printf(
+          "Failed to allocate protection keys in the expected order\n");
+      exit(-1);
+    }
   }
 #elif defined(__aarch64__)
   if (!(getauxval(AT_HWCAP2) & HWCAP2_MTE)) {
@@ -107,4 +110,129 @@ __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i) {
   printf("compartment %d in thread %d tried to allocate existing stack\n",
          i, gettid());
   exit(1);
+}
+
+static void mark_init_finished(void) {
+    /* Pass to mmap to signal end of program init */
+    const uint64_t IA2_FINISH_INIT_MAGIC = 0x1a21face1a21faceULL;
+    /*
+     * Tell the syscall filter to forbid init-only operations. This mmap() will
+     * always fail because it maps a non-page-aligned addr with MAP_FIXED, so it
+     * works as a reasonable signpost no-op.
+     */
+    mmap((void *)IA2_FINISH_INIT_MAGIC, 0, 0, MAP_FIXED, -1, 0);
+}
+
+static int ia2_protect_memory(const char *dso, int compartment, const char *extra_libraries) {
+    ia2_log("protecting memory for compartment %d\n", compartment);
+    void *handle = RTLD_DEFAULT;
+    /* if the DSO is not the main executable dlopen it */
+    if (strcmp(dso, "main")) {
+        void *handle = dlopen(dso, RTLD_GLOBAL | RTLD_NOW);
+        if (!handle) {
+            printf("%s: failed to dlopen DSO %s for compartment %d\n", __func__, dso, compartment);
+            return -1;
+        }
+    }
+    void *dso_addr = NULL;
+    dlinfo(handle, RTLD_DI_PHDR, dso_addr);
+    if (!dso_addr) {
+        printf("%s: dlinfo request for '%s' in compartment %d failed\n", __func__, dso, compartment);
+        return -1;
+    }
+    void *dso_shared_start = dlsym(handle, "__start_ia2_shared_data");
+    void *dso_shared_stop = dlsym(handle, "__stop_ia2_shared_data");
+    if (!dso_shared_start != !dso_shared_stop) {
+        // We should not have one be null without the other
+        return -1;
+    }
+    if (compartment != 0) {
+        void *initial_sp = allocate_stack(compartment);
+        void **stackptr = ia2_stackptr_for_pkru(pkru_values[compartment]);
+        *stackptr = initial_sp;
+    }
+
+    struct IA2SharedSection shared_sections[2] = {
+        { dso_shared_start, dso_shared_stop },
+        { NULL, NULL },
+    };
+    struct PhdrSearchArgs args = {
+        .pkey = compartment,
+        .address = dso_addr,
+        .extra_libraries = extra_libraries,
+        .found_library_count = 0,
+        .shared_sections = shared_sections,
+    };
+    dl_iterate_phdr(protect_pages, &args);
+    /* Check that we found all extra libraries */
+    const char *cur_pos = args.extra_libraries;
+    int extra_library_count = 0;
+    while (cur_pos) {
+        extra_library_count++;
+        cur_pos = strchr(cur_pos, ';');
+        if (cur_pos) {
+            cur_pos++;
+        }
+    }
+    if (extra_library_count != args.found_library_count) {
+        printf("%s: Could not find all extra libraries '%s' for compartment %d\n", __func__, extra_libraries, compartment);
+        return -1;
+    }
+
+    dl_iterate_phdr(protect_tls_pages, &args);
+    return 0;
+}
+
+struct CompartmentConfig {
+    const char *dso;
+    const char *extra_libraries;
+};
+
+/*
+ * Compartment 0 does not need to be protected so we don't need to store config info. This variable
+ * will only be accessed from the compartment defining ia2_main since it's the only one that should
+ * call ia2_register_compartment so other copies of it won't be referenced if libia2 is statically
+ * linked into all compartments.
+ */
+static struct CompartmentConfig user_config[IA2_MAX_COMPARTMENTS - 1] = { 0 };
+
+/*
+ * Stores the main DSO and extra libraries (if any) for the specified compartment. This should only
+ * be called for protected compartments (calls specifying compartment 0 are no-ops).
+ */
+void ia2_register_compartment(const char *dso, int compartment, const char *extra_libraries) {
+    ia2_log("registered %s and %s for compartment #%d\n", dso, extra_libraries, compartment);
+    assert(compartment < IA2_MAX_COMPARTMENTS);
+    user_config[compartment].dso = dso;
+    user_config[compartment].extra_libraries = extra_libraries;
+}
+
+/*
+ * This function is called from __wrap_main before handing off control to user code. It calls
+ * ia2_main which is the user-defined compartment config code.
+ */
+void ia2_start(void) {
+    ia2_log("initializing ia2 runtime");
+    /* Get the user config before doing anything else */
+    ia2_main();
+    /* Set up global resources. */
+    ia2_set_up_tags();
+    verify_tls_padding();
+    /* allocate an unprotected stack for the untrusted compartment */
+    allocate_stack_0();
+    /* Check the config for compartments 1..=15 */
+    for (int i = 1; i < IA2_MAX_COMPARTMENTS; i++) {
+        /* Skip blank user_config entries */
+        if (!user_config[i].dso) {
+            /* Sanity check to ensure it wasn't misconfigured */
+            assert(user_config[i].extra_libraries);
+            continue;
+        }
+        int rc = ia2_protect_memory(user_config[i].dso, i, user_config[i].extra_libraries);
+        if (rc != 0) {
+            printf("%s: failed to initialize runtime (%d)\n", __func__, rc);
+            exit(rc);
+        }
+    }
+    mark_init_finished();
 }

@@ -12,6 +12,12 @@ INIT_RUNTIME(3);
 
 
 
+void ia2_main(void) {
+    ia2_register_compartment("main", 1, NULL);
+    ia2_register_compartment("liblib_2.so", 2, NULL);
+    ia2_register_compartment("liblib_1.so", 3, NULL);
+}
+
 
 void main_noop(void) {
 }

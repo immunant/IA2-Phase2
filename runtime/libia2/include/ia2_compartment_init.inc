@@ -44,69 +44,6 @@ extern int ia2_n_pkeys_to_alloc;
 extern char __start_ia2_shared_data __attribute__((visibility("hidden"))),
     __stop_ia2_shared_data __attribute__((visibility("hidden")));
 
-IA2_EXTERN_C void ia2_set_up_tags(int *n_to_alloc);
-__attribute__((constructor)) static void COMPARTMENT_IDENT(init_pkey)() {
-  ia2_set_up_tags(&ia2_n_pkeys_to_alloc);
-  struct IA2SharedSection shared_sections[2] = {{
-                                                    &__start_ia2_shared_data,
-                                                    &__stop_ia2_shared_data,
-                                                },
-                                                {NULL, NULL}};
-  struct PhdrSearchArgs args = {
-      .pkey = IA2_COMPARTMENT,
-      .address = (const void *)&COMPARTMENT_IDENT(init_pkey),
-      .extra_libraries = IA2_COMPARTMENT_LIBRARIES,
-      .found_library_count = 0,
-      .shared_sections = shared_sections,
-  };
-
-#if defined(__x86_64__)
-  __asm__ volatile(
-      /* Set PKRU to the compartment's value */
-      "xorl %%ecx, %%ecx\n"
-      "xorl %%edx, %%edx\n"
-      "mov_pkru_eax " IA2_STR(IA2_COMPARTMENT) "\n"
-      "wrpkru\n"
-      :
-      :
-      : "rax", "rcx", "rdx");
-#elif defined(__aarch64__)
-  __asm__ volatile("movz_shifted_tag_x18 " IA2_STR(IA2_COMPARTMENT) "\n");
-#endif
-
-  dl_iterate_phdr(protect_pages, &args);
-
-#if defined(__x86_64__)
-  __asm__ volatile(
-      /* Set PKRU to fully untrusted (no access) */
-      "xorl %%ecx, %%ecx\n"
-      "xorl %%edx, %%edx\n"
-      "xorl %%eax, %%eax\n"
-      "wrpkru\n"
-      :
-      :
-      : "rax", "rcx", "rdx");
-#elif defined(__aarch64__)
-  __asm__ volatile("movz_shifted_tag_x18 0\n");
-#endif
-
-  /* Check that we found all extra libraries */
-  const char *cur_pos = args.extra_libraries;
-  int extra_library_count = 0;
-  while (cur_pos) {
-    extra_library_count++;
-    cur_pos = strchr(cur_pos, ';');
-    if (cur_pos) {
-      cur_pos++;
-    }
-  }
-  if (extra_library_count != args.found_library_count) {
-    fprintf(
-        stderr,
-        "WARNING: Not all libraries in IA2_COMPARTMENT_LIBRARIES were found.\n");
-  }
-}
-
 __attribute__((visibility("default"))) void COMPARTMENT_IDENT(init_tls)(void) {
   struct PhdrSearchArgs args = {
       .pkey = IA2_COMPARTMENT,

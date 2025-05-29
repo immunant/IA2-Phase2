@@ -1,9 +1,9 @@
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
+#include <link.h>
 #include <dlfcn.h>
 #include <elf.h>
-#include <link.h>
 #include "ia2.h"
 #include "ia2_internal.h"
 #include "memory_maps.h"

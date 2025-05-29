@@ -14,6 +14,11 @@ INIT_RUNTIME(2);
 #define IA2_COMPARTMENT 1
 #include <ia2_compartment_init.inc>
 
+void ia2_main(void) {
+    ia2_register_compartment("main", 1, NULL);
+    ia2_register_compartment("libtype_confusion_lib.so", 2, NULL);
+}
+
 Test(type_confusion, normal) {
   // `Dav1dContext` is opaque.
   Dav1dContext *c = dav1d_alloc(DAV1D_CONTEXT_SIZE);

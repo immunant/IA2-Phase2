@@ -7,6 +7,11 @@ INIT_RUNTIME(2);
 
 #include <signal.h>
 
+void ia2_main(void) {
+    ia2_register_compartment("main", 1, NULL);
+    ia2_register_compartment("libsignals_lib.so", 2, NULL);
+}
+
 Test(signals, signal_1, .signal = SIGHUP) {
     raise(1);
 }

@@ -1,3 +1,9 @@
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+#include <dlfcn.h>
+#include <elf.h>
+#include <link.h>
 #include "ia2.h"
 #include "ia2_internal.h"
 #include "memory_maps.h"
@@ -115,15 +121,71 @@ static void mark_init_finished(void) {
      * always fail because it maps a non-page-aligned addr with MAP_FIXED, so it
      * works as a reasonable signpost no-op.
      */
-    mmap((void *)IA2_FINISH_INIT_MAGIC, 0, 0, MAP_FIXED, -1, 0)
+    mmap((void *)IA2_FINISH_INIT_MAGIC, 0, 0, MAP_FIXED, -1, 0);
 }
 
-static void ia2_protect_memory(const char *libs, int compartment, const char *extra_libraries) {
+static int ia2_protect_memory(const char *dso, int compartment, const char *extra_libraries) {
     ia2_log("protecting memory for compartment %d\n", compartment);
+    void *handle = RTLD_DEFAULT;
+    /* if the DSO is not the main executable dlopen it */
+    if (strcmp(dso, "main")) {
+        handle = dlopen(dso, RTLD_GLOBAL | RTLD_NOW);
+        if (!handle) {
+            printf("%s: failed to dlopen DSO %s for compartment %d\n", __func__, dso, compartment);
+            return -1;
+        }
+    }
+    void *dso_addr = NULL;
+    dlinfo(handle, RTLD_DI_PHDR, dso_addr);
+    if (!dso_addr) {
+        printf("%s: dlinfo request for '%s' in compartment %d failed\n", __func__, dso, compartment);
+        return -1;
+    }
+    void *dso_shared_start = dlsym(handle, "__start_ia2_shared_data");
+    void *dso_shared_stop = dlsym(handle, "__stop_ia2_shared_data");
+    if (!dso_shared_start != !dso_shared_stop) {
+        // We should not have one be null without the other
+        return -1;
+    }
+    if (compartment != 0) {
+        void *initial_sp = allocate_stack(compartment);
+        void **stackptr = ia2_stackptr_for_pkru(pkru_values[compartment]);
+        *stackptr = initial_sp;
+    }
+
+    struct IA2SharedSection shared_sections[2] = {
+        { dso_shared_start, dso_shared_stop },
+        { NULL, NULL },
+    };
+    struct PhdrSearchArgs args = {
+        .pkey = compartment,
+        .address = dso_addr,
+        .extra_libraries = extra_libraries,
+        .found_library_count = 0,
+        .shared_sections = shared_sections,
+    };
+    dl_iterate_phdr(protect_pages, &args);
+    /* Check that we found all extra libraries */
+    const char *cur_pos = args.extra_libraries;
+    int extra_library_count = 0;
+    while (cur_pos) {
+        extra_library_count++;
+        cur_pos = strchr(cur_pos, ';');
+        if (cur_pos) {
+            cur_pos++;
+        }
+    }
+    if (extra_library_count != args.found_library_count) {
+        printf("%s: Could not find all extra libraries '%s' for compartment %d\n", __func__, extra_libraries, compartment);
+        return -1;
+    }
+
+    dl_iterate_phdr(protect_tls_pages, &args);
+    return 0;
 }
 
 struct CompartmentConfig {
-    const char *libs;
+    const char *dso;
     const char *extra_libraries;
 };
 
@@ -139,10 +201,10 @@ static struct CompartmentConfig user_config[IA2_MAX_COMPARTMENTS - 1] = { 0 };
  * Stores the main DSO and extra libraries (if any) for the specified compartment. This should only
  * be called for protected compartments (calls specifying compartment 0 are no-ops).
  */
-void ia2_register_compartment(const char *libs, int compartment, const char *extra_libraries) {
-    ia2_log("registered %s and %s for compartment #%d\n", libs, extra_libraries, compartment);
+void ia2_register_compartment(const char *dso, int compartment, const char *extra_libraries) {
+    ia2_log("registered %s and %s for compartment #%d\n", dso, extra_libraries, compartment);
     assert(compartment < IA2_MAX_COMPARTMENTS);
-    user_config[compartment].libs = libs;
+    user_config[compartment].dso = dso;
     user_config[compartment].extra_libraries = extra_libraries;
 }
 
@@ -162,12 +224,16 @@ void ia2_start(void) {
     /* Check the config for compartments 1..=15 */
     for (int i = 1; i < IA2_MAX_COMPARTMENTS; i++) {
         /* Skip blank user_config entries */
-        if (!user_config[i].libs) {
+        if (!user_config[i].dso) {
             /* Sanity check to ensure it wasn't misconfigured */
             assert(user_config[i].extra_libraries);
             continue;
         }
-        ia2_protect_memory(user_config[i].libs, i, user_config[i].extra_libraries);
+        int rc = ia2_protect_memory(user_config[i].dso, i, user_config[i].extra_libraries);
+        if (rc != 0) {
+            printf("%s: failed to initialize runtime (%d)\n", __func__, rc);
+            exit(rc);
+        }
     }
     mark_init_finished();
 }

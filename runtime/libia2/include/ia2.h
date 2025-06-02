@@ -4,15 +4,17 @@
 #define IA2_ENABLE 0
 #endif
 
-// This include must come first so we define _GNU_SOURCE before including
-// standard headers. ia2_internal.h requires GNU-specific headers.
-#if IA2_ENABLE
-#include "ia2_internal.h"
+// This include must come first so we define
+//`_GNU_SOURCE` before including standard headers.
+//`ia2_internal.h` requires GNU-specific headers.
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
 #endif
 
 #include <errno.h>
 #include <stdint.h>
 #include <unistd.h>
+#include <pthread.h>
 
 /// Do not wrap functions or function pointers in the following code.
 ///
@@ -185,6 +187,54 @@
 
 #define IA2_MAX_COMPARTMENTS 16
 
+/// The data here is shared, so it should not be trusted for use as a pointer,
+/// but it can be used best effort for non-trusted purposes.
+///
+/// All fields should be used atomically.
+struct ia2_thread_metadata {
+  pid_t tid;
+  pthread_t thread;
+
+  /// The start function passed to `pthread_create`.
+  void *(*start_fn)(void *arg);
+
+  /// The addresses of each compartment's stack for this thread.
+  uintptr_t stack_addrs[IA2_MAX_COMPARTMENTS];
+
+  /// The addresses of each compartment's TLS region for this thread,
+  /// except for compartment 1, which has split TLS regions (see below).
+  uintptr_t tls_addrs[IA2_MAX_COMPARTMENTS];
+
+  /// The TLS region is split only for the first compartment,
+  /// so we need two addresses for just that one.
+  ///
+  /// Compartment 1's TLS region is split because there is a page of
+  /// unprotected data for `ia2_stackptr_0` (in compartment 0), plus padding,
+  /// as we don't have a general implementation of shared TLS yet,
+  /// but `ia2_stackptr_0` is special-cased for now
+  /// as it must be stored in TLS and unprotected.
+  uintptr_t tls_addr_compartment1_first;
+  uintptr_t tls_addr_compartment1_second;
+};
+
+// It's much simpler to only support a static number of created threads,
+// especially because we want to have very few dependencies.
+// If a program needs more threads, you can just increase this number.
+#define IA2_MAX_THREADS 512
+
+struct ia2_all_threads_metadata {
+  /// This is the number of threads registered,
+  /// and it is monotonically increasing by 1.
+  ///
+  /// It may be transiently higher than `IA2_MAX_THREADS`,
+  /// but will abort if that happens (other threads may be observe a higher value).
+  _Atomic size_t num_threads;
+  pid_t tids[IA2_MAX_THREADS];
+
+  /// Should be initialized to 0.
+  struct ia2_thread_metadata thread_metadata[IA2_MAX_THREADS];
+};
+
 /// Convert a compartment pkey to a PKRU register value
 #define PKRU(pkey) (~((3U << (2 * pkey)) | 3))
 
@@ -203,4 +253,8 @@ size_t ia2_get_compartment();
 
 #ifdef __cplusplus
 }
+#endif
+
+#if IA2_ENABLE
+#include "ia2_internal.h"
 #endif

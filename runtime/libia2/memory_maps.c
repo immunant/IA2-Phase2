@@ -10,19 +10,19 @@
 // It's much simpler to only support a static number of created threads,
 // especially because we want to have very few dependencies.
 // If a program needs more threads, you can just increase this number.
-#define MAX_THREADS 512
+#define IA2_MAX_THREADS 512
 
 struct ia2_all_threads_metadata {
   /// This is the number of threads registered,
   /// and it is monotonically increasing by 1.
   ///
-  /// It may be transiently higher than `MAX_THREADS`,
+  /// It may be transiently higher than `IA2_MAX_THREADS`,
   /// but will abort if that happens (other threads may be observe a higher value).
   _Atomic size_t num_threads;
-  pid_t tids[MAX_THREADS];
+  pid_t tids[IA2_MAX_THREADS];
 
   /// Should be initialized to 0.
-  struct ia2_thread_metadata thread_metadata[MAX_THREADS];
+  struct ia2_thread_metadata thread_metadata[IA2_MAX_THREADS];
 };
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
@@ -35,9 +35,9 @@ static struct ia2_all_threads_metadata IA2_SHARED_DATA ia2_threads_metadata = {
 
 struct ia2_thread_metadata *ia2_all_threads_metadata_new_for_current_thread(struct ia2_all_threads_metadata *const this) {
   const size_t thread = atomic_fetch_add(&this->num_threads, 1);
-  if (thread >= MAX_THREADS) {
-    fprintf(stderr, "created %zu threads, but can't store them all (max is MAX_THREADS: %zu)\n",
-            thread + 1, (size_t)MAX_THREADS);
+  if (thread >= IA2_MAX_THREADS) {
+    fprintf(stderr, "created %zu threads, but can't store them all (max is IA2_MAX_THREADS: %zu)\n",
+            thread + 1, (size_t)IA2_MAX_THREADS);
     abort();
   }
 
@@ -59,7 +59,7 @@ struct ia2_thread_metadata *ia2_all_threads_metadata_get_for_current_thread(stru
   // We won't see threads created/registered after this,
   // but `ia2_all_threads_metadata_new_for_current_thread`
   // was supposed to be called first for this function to find it.
-  const size_t num_threads = min(MAX_THREADS, atomic_load(&this->num_threads));
+  const size_t num_threads = min(IA2_MAX_THREADS, atomic_load(&this->num_threads));
 
 #if IA2_VERBOSE
   fprintf(stderr, "get thread metadata for thread %ld\n", (long)tid);
@@ -87,7 +87,7 @@ struct ia2_thread_metadata *ia2_all_threads_metadata_get_for_current_thread(stru
 struct ia2_addr_location ia2_all_threads_metadata_find_addr(struct ia2_all_threads_metadata *const this, const uintptr_t addr) {
   // We won't see threads created/registered after this,
   // but this is supposed to be best effort, so that's okay.
-  const size_t num_threads = min(MAX_THREADS, atomic_load(&this->num_threads));
+  const size_t num_threads = min(IA2_MAX_THREADS, atomic_load(&this->num_threads));
 
   for (size_t thread = 0; thread < this->num_threads; thread++) {
     const pid_t tid = this->tids[thread];

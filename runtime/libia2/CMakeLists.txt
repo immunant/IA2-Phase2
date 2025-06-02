@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 4.0)
 project(libia2)
 
 add_library(libia2 ia2.c init.c threads.c main.c exit.c memory_maps.c)

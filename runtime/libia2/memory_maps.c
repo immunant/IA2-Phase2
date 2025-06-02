@@ -7,31 +7,10 @@
 // This reduces the trusted codebase and avoids runtime overhead.
 #if IA2_DEBUG_MEMORY
 
-// It's much simpler to only support a static number of created threads,
-// especially because we want to have very few dependencies.
-// If a program needs more threads, you can just increase this number.
-#define IA2_MAX_THREADS 512
-
-struct ia2_all_threads_metadata {
-  /// This is the number of threads registered,
-  /// and it is monotonically increasing by 1.
-  ///
-  /// It may be transiently higher than `IA2_MAX_THREADS`,
-  /// but will abort if that happens (other threads may be observe a higher value).
-  _Atomic size_t num_threads;
-  pid_t tids[IA2_MAX_THREADS];
-
-  /// Should be initialized to 0.
-  struct ia2_thread_metadata thread_metadata[IA2_MAX_THREADS];
-};
-
 #define min(a, b) ((a) < (b) ? (a) : (b))
 
 // All zeroed, so this should go in `.bss` and only have pages lazily allocated.
-static struct ia2_all_threads_metadata IA2_SHARED_DATA ia2_threads_metadata = {
-    .num_threads = 0,
-    .thread_metadata = {0},
-};
+extern struct ia2_all_threads_metadata ia2_threads_metadata;
 
 struct ia2_thread_metadata *ia2_all_threads_metadata_new_for_current_thread(struct ia2_all_threads_metadata *const this) {
   const size_t thread = atomic_fetch_add(&this->num_threads, 1);

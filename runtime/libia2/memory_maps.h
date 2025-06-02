@@ -48,7 +48,7 @@ struct ia2_thread_metadata {
 /// and will not be moved or deallocated/uninitialized.
 /// Operations on the `ia2_thread_metadata` must be atomic.
 ///
-/// If too many threads are created, this will abort and `MAX_THREADS` can be increased.
+/// If too many threads are created, this will abort and `IA2_MAX_THREADS` can be increased.
 struct ia2_thread_metadata *ia2_thread_metadata_new_for_current_thread(void);
 
 /// Find the `ia2_thread_metadata` for the current thread.

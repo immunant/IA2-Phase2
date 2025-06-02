@@ -28,7 +28,7 @@ struct ia2_all_threads_metadata {
 #define min(a, b) ((a) < (b) ? (a) : (b))
 
 // All zeroed, so this should go in `.bss` and only have pages lazily allocated.
-static struct ia2_all_threads_metadata IA2_SHARED_DATA threads = {
+static struct ia2_all_threads_metadata IA2_SHARED_DATA ia2_threads_metadata = {
     .num_threads = 0,
     .thread_metadata = {0},
 };
@@ -66,7 +66,7 @@ struct ia2_thread_metadata *ia2_all_threads_metadata_get_for_current_thread(stru
   fprintf(stderr, "searching through %zu threads\n", num_threads);
   fprintf(stderr, "&this->num_threads = %p\n", &this->num_threads);
   fprintf(stderr, "this = %p\n", this);
-  fprintf(stderr, "&threads = %p\n", &threads);
+  fprintf(stderr, "&ia2_threads_metadata = %p\n", &ia2_threads_metadata);
   fprintf(stderr, "getpid() = %ld\n", (long)getpid());
 #endif
 
@@ -127,7 +127,7 @@ struct ia2_addr_location ia2_all_threads_metadata_find_addr(struct ia2_all_threa
 }
 
 struct ia2_thread_metadata *ia2_thread_metadata_new_for_current_thread(void) {
-  return ia2_all_threads_metadata_new_for_current_thread(&threads);
+  return ia2_all_threads_metadata_new_for_current_thread(&ia2_threads_metadata);
 }
 
 // /// Register the main thread's `ia2_thread_metadata`.
@@ -141,11 +141,11 @@ void setup_thread_metadata(void) {
 }
 
 struct ia2_thread_metadata *ia2_thread_metadata_get_for_current_thread(void) {
-  return ia2_all_threads_metadata_get_for_current_thread(&threads);
+  return ia2_all_threads_metadata_get_for_current_thread(&ia2_threads_metadata);
 }
 
 struct ia2_addr_location ia2_addr_location_find(const uintptr_t addr) {
-  return ia2_all_threads_metadata_find_addr(&threads, addr);
+  return ia2_all_threads_metadata_find_addr(&ia2_threads_metadata, addr);
 }
 
 extern uintptr_t (*partition_alloc_thread_isolated_pool_base_address)[IA2_MAX_COMPARTMENTS];

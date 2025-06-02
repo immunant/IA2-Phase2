@@ -10,8 +10,8 @@
 #include <string.h>
 #include <sys/mman.h>
 
-#include <ia2_internal.h>
 #include <ia2.h>
+#include <ia2_internal.h>
 
 #ifndef IA2_COMPARTMENT_LIBRARIES
 #define IA2_COMPARTMENT_LIBRARIES NULL

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.13)
+cmake_minimum_required(VERSION 4.0)
 project(IA2Phase2)
 include(ExternalProject)
 

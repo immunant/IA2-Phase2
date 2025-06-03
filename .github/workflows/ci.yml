@@ -98,8 +98,6 @@ jobs:
             libc6-dev-arm64-cross
             clang-15
             pkg-config
-            cmake
-            ninja-build
             llvm # for llvm-objdump
             llvm-15-dev
             libclang-15-dev
@@ -107,6 +105,10 @@ jobs:
             libcapstone-dev
             libglib2.0-dev
           version: 1.0 # version of cache to load
+      - name: Install cmake and ninja
+        uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: "^4.0.2"
       - name: Check out code
         uses: actions/checkout@v4
       - name: Init b63 submodule # Can't use checkout@v4 because it unconditionally inits all

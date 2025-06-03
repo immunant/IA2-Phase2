@@ -57,13 +57,13 @@ char *allocate_stack(int i) {
 #endif
 }
 
-static void allocate_stack_0() {
+void allocate_stack_0() {
   ia2_stackptr_0[0] = allocate_stack(0);
 }
 
 /* Confirm that stack pointers for compartments 0 and 1 are on separate */
 /* pages. */
-static void verify_tls_padding(void) {
+void verify_tls_padding(void) {
   /* It's safe to depend on ia2_stackptr_1 existing because all users of */
   /* IA2 will have at least one compartment other than the untrusted one. */
   extern __thread void *ia2_stackptr_1;

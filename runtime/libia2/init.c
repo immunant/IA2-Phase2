@@ -136,7 +136,8 @@ static int ia2_protect_memory(const char *dso, int compartment, const char *extr
         }
     }
     void *dso_addr = NULL;
-    dlinfo(handle, RTLD_DI_PHDR, dso_addr);
+    // FIXME: this constants is a workaround for having mismatched libc headers and .so's on our test runner
+    dlinfo(handle, 11 /* RTLD_DI_PHDR */, dso_addr);
     if (!dso_addr) {
         printf("%s: dlinfo request for '%s' in compartment %d failed\n", __func__, dso, compartment);
         return -1;

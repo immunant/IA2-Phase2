@@ -493,5 +493,19 @@ __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
     init_stacks_and_setup_tls();                                               \
     REPEATB##n(setup_destructors_for_compartment, nop_macro);                  \
     mark_init_finished();                                                      \
+    __asm__( \
+      /* rcx and rdx may arguments so preserve them across the wrpkru */ \
+      "movq %rcx, %r10\n" \
+      "movq %rdx, %r11\n" \
+      "movq %rax, %r12\n" \
+      /* zero the PKRU to allow access to all compartments */ \
+      "xorl %ecx, %ecx\n" \
+      "xorl %edx, %edx\n" \
+      "xorl %eax, %eax\n" \
+      "wrpkru\n" \
+      "movq %r10, %rcx\n" \
+      "movq %r11, %rdx\n" \
+      "movq %r12, %rax\n" \
+    ); \
   }
 #endif

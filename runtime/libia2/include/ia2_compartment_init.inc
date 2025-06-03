@@ -108,6 +108,21 @@ __attribute__((constructor)) static void COMPARTMENT_IDENT(init_pkey)() {
         stderr,
         "WARNING: Not all libraries in IA2_COMPARTMENT_LIBRARIES were found.\n");
   }
+
+  __asm__(
+    /* rcx and rdx may arguments so preserve them across the wrpkru */
+    "movq %rcx, %r10\n"
+    "movq %rdx, %r11\n"
+    "movq %rax, %r12\n"
+    /* zero the PKRU to allow access to all compartments */
+    "xorl %ecx, %ecx\n"
+    "xorl %edx, %edx\n"
+    "xorl %eax, %eax\n"
+    "wrpkru\n"
+    "movq %r10, %rcx\n"
+    "movq %r11, %rdx\n"
+    "movq %r12, %rax\n"
+  );
 }
 
 __attribute__((visibility("default"))) void COMPARTMENT_IDENT(init_tls)(void) {

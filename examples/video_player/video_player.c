@@ -127,6 +127,11 @@ static void exit_sdl(void) {
   SDL_Quit();
 }
 
+void ia2_main(void) {
+    ia2_register_compartment("main", 1, "libSDL2-2.0.so;libswscale.so");
+    ia2_register_compartment("libvideo_decoder.so", 2, "libavcodec.so;libavformat.so");
+}
+
 int main(int argc, const char *argv[]) {
   /*
    * Pretend to use the secrets for something.

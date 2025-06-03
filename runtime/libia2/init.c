@@ -203,7 +203,10 @@ static struct CompartmentConfig user_config[IA2_MAX_COMPARTMENTS - 1] = { 0 };
  * be called for protected compartments (calls specifying compartment 0 are no-ops).
  */
 void ia2_register_compartment(const char *dso, int compartment, const char *extra_libraries) {
-    ia2_log("registered %s and %s for compartment #%d\n", dso, extra_libraries, compartment);
+    ia2_log("registered %s for compartment #%d\n", dso, compartment);
+    if (extra_libraries) {
+        ia2_log("also registered %s for compartment #%d\n", extra_libraries, compartment);
+    }
     assert(compartment < IA2_MAX_COMPARTMENTS);
     user_config[compartment].dso = dso;
     user_config[compartment].extra_libraries = extra_libraries;

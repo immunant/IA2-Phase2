@@ -127,6 +127,7 @@ static void mark_init_finished(void) {
 static int ia2_protect_memory(const char *dso, int compartment, const char *extra_libraries) {
     ia2_log("protecting memory for compartment %d\n", compartment);
     void *handle = RTLD_DEFAULT;
+    void *dso_addr = &ia2_protect_memory;
     /* if the DSO is not the main executable dlopen it */
     if (strcmp(dso, "main")) {
         handle = dlopen(dso, RTLD_GLOBAL | RTLD_NOW);
@@ -134,13 +135,11 @@ static int ia2_protect_memory(const char *dso, int compartment, const char *extr
             printf("%s: failed to dlopen DSO %s for compartment %d\n", __func__, dso, compartment);
             return -1;
         }
-    }
-    void *dso_addr = NULL;
-    // FIXME: this constants is a workaround for having mismatched libc headers and .so's on our test runner
-    dlinfo(handle, 11 /* RTLD_DI_PHDR */, dso_addr);
-    if (!dso_addr) {
-        printf("%s: dlinfo request for '%s' in compartment %d failed\n", __func__, dso, compartment);
-        return -1;
+        dso_addr = dlsym(handle, "ia2_get_pkey");
+        if (!dso_addr) {
+            printf("%s: failed to dlsym 'ia2_get_pkey' in '%s'/compartment %d failed (%s)\n", __func__, dso, compartment, dlerror());
+            return -1;
+        }
     }
     void *dso_shared_start = dlsym(handle, "__start_ia2_shared_data");
     void *dso_shared_stop = dlsym(handle, "__stop_ia2_shared_data");
@@ -196,7 +195,7 @@ struct CompartmentConfig {
  * call ia2_register_compartment so other copies of it won't be referenced if libia2 is statically
  * linked into all compartments.
  */
-static struct CompartmentConfig user_config[IA2_MAX_COMPARTMENTS - 1] = { 0 };
+static struct CompartmentConfig user_config[IA2_MAX_COMPARTMENTS] = { 0 };
 
 /*
  * Stores the main DSO and extra libraries (if any) for the specified compartment. This should only
@@ -217,7 +216,7 @@ void ia2_register_compartment(const char *dso, int compartment, const char *extr
  * ia2_main which is the user-defined compartment config code.
  */
 void ia2_start(void) {
-    ia2_log("initializing ia2 runtime");
+    ia2_log("initializing ia2 runtime\n");
     /* Get the user config before doing anything else */
     ia2_main();
     /* Set up global resources. */
@@ -230,7 +229,7 @@ void ia2_start(void) {
         /* Skip blank user_config entries */
         if (!user_config[i].dso) {
             /* Sanity check to ensure it wasn't misconfigured */
-            assert(user_config[i].extra_libraries);
+            assert(!user_config[i].extra_libraries);
             continue;
         }
         int rc = ia2_protect_memory(user_config[i].dso, i, user_config[i].extra_libraries);

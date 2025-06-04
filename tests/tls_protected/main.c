@@ -52,9 +52,7 @@ void run_test(bool access_lib_secret) {
       cr_log_info("main: accessing lib secret at %p\n", addr);
     }
     cr_log_info("main: lib secret is %x\n", CHECK_VIOLATION(lib_secret));
-#if defined(__x86_64__)
     cr_assert(false); // Should not reach here
-#endif
   } else {
     lib_print_main_secret();
   }

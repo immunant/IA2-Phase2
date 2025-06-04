@@ -85,3 +85,22 @@ Test(threads, main) {
 #endif
   pthread_join(fault_thread, NULL);
 }
+
+// Ensure we are not corrupting thread argument or return value.
+#define TEST_THREAD_DATA_VALUE 0xabcdef0123456789
+void *arg_ret_thread_fn(void *ptr) {
+  cr_assert_eq(ptr, (void *)TEST_THREAD_DATA_VALUE);
+  return (void *)((uintptr_t)ptr / 2);
+}
+
+#if IA2_ENABLE
+Test(threads, arg_ret) {
+  pthread_t thread;
+  int create_ret = pthread_create(&thread, NULL, arg_ret_thread_fn, (void *)TEST_THREAD_DATA_VALUE);
+  cr_assert_eq(create_ret, 0);
+  void *out = 0;
+  int join_ret = pthread_join(thread, &out);
+  cr_assert_eq(join_ret, 0);
+  cr_assert_eq((uintptr_t)out, TEST_THREAD_DATA_VALUE / 2);
+}
+#endif

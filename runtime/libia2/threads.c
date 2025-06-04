@@ -81,8 +81,8 @@ void *ia2_thread_begin(void *arg) {
         // Copy stack pointer to x10
         "mov x10, sp\n"
         // Load the stack pointer for this compartment's stack
-        "ldr x0, [%[new_sp_addr]]\n"
-        "mov sp, x0\n"
+        "ldr x11, [%[new_sp_addr]]\n"
+        "mov sp, x11\n"
         // Push the old stack pointer
         "str x10, [sp, #-8]!\n"
         // Align the stack

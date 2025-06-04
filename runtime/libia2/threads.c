@@ -68,7 +68,7 @@ void *ia2_thread_begin(void *arg) {
 #elif defined(__aarch64__)
   __asm__ volatile(
         // Load argument
-        "ldr x0, [%[data]]\n"
+        "mov x0, %[data]\n"
         // Copy stack pointer to x10
         "mov x10, sp\n"
         // Load the stack pointer for this compartment's stack

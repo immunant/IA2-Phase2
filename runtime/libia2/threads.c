@@ -76,18 +76,11 @@ void *ia2_thread_begin(void *arg) {
         "mov sp, x11\n"
         // Push the old stack pointer
         "str x10, [sp, #-8]!\n"
-        // Align the stack
-        "movn x10, #0x000f\n"
-        "mov x11, sp\n"
-        "and x11, x11, x10\n"
-        "mov sp, x11\n"
-        // Prologue
-        "str x29, [sp, #-8]!\n"
-        "mov x29, sp\n"
+        "str x10, [sp, #-8]!\n"
         // Call fn(data)
         "blr %[fn]\n"
         // Pop the old stack pointer
-        "ldr x10, [sp], #8\n"
+        "ldr x10, [sp], #-8\n"
         // Switch stacks back
         "mov sp, x10\n"
         // x0 now contains ret value

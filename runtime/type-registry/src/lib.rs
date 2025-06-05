@@ -1,17 +1,121 @@
-use std::collections::HashMap;
-use std::fmt;
-use std::fmt::Debug;
-use std::fmt::Display;
-use std::fmt::Formatter;
-use std::hash::BuildHasherDefault;
-use std::hash::DefaultHasher;
-use std::ptr;
-use std::sync::RwLock;
+#![no_std]
+/* use the C allocator; don't use libstd */
+extern crate alloc;
+use libc_alloc::LibcAlloc;
+
+#[global_allocator]
+static ALLOCATOR: LibcAlloc = LibcAlloc;
+
+/* print errors via libc */
+macro_rules! eprintln {
+    ($($items: expr),+) => {{
+        let s = alloc::format!($($items,)+);
+        unsafe extern "C" { unsafe fn write(fd: i32, buf: *const u8, len: usize); }
+        unsafe {write(2, s.as_ptr(), s.len()); write(2, "\n".as_ptr(), 1);}
+    }}
+}
+
+#[panic_handler]
+fn panic(info: &core::panic::PanicInfo) -> ! {
+    eprintln!("{info}");
+    unsafe extern "C" {
+        safe fn abort() -> !;
+    }
+    abort();
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn rust_eh_personality() {}
+
+#[link(name = "gcc_s")]
+unsafe extern "C" {}
+
+use alloc::collections::BTreeMap;
+use alloc::fmt;
+use alloc::fmt::Debug;
+use alloc::fmt::Display;
+use alloc::fmt::Formatter;
+use core::ptr;
+
+use mutex::Mutex;
+
+mod mutex {
+    use core::{
+        cell::UnsafeCell,
+        fmt::{Debug, Formatter},
+        sync::atomic::{AtomicBool, Ordering},
+    };
+
+    unsafe impl<T: Send> Sync for Mutex<T> {}
+
+    #[derive(Default)]
+    pub struct Mutex<T> {
+        inner: UnsafeCell<T>,
+        locked: AtomicBool,
+    }
+
+    impl<T> Mutex<T> {
+        pub const fn new(inner: T) -> Self {
+            Self {
+                inner: UnsafeCell::new(inner),
+                locked: AtomicBool::new(false),
+            }
+        }
+
+        pub fn lock(&self) -> Guard<'_, T> {
+            while self
+                .locked
+                .compare_exchange(false, true, Ordering::Acquire, Ordering::Acquire)
+                .is_err()
+            {
+                while self.locked.load(Ordering::Relaxed) {
+                    core::hint::spin_loop();
+                }
+            }
+            Guard {
+                locked: &self.locked,
+                inner: self.inner.get(),
+            }
+        }
+    }
+
+    pub struct Guard<'a, T> {
+        locked: &'a AtomicBool,
+        inner: *mut T,
+    }
+
+    impl<'a, T> core::ops::Deref for Guard<'a, T> {
+        type Target = T;
+        fn deref(&self) -> &T {
+            unsafe { &*self.inner }
+        }
+    }
+
+    impl<'a, T> core::ops::DerefMut for Guard<'a, T> {
+        fn deref_mut(&mut self) -> &mut T {
+            unsafe { &mut *self.inner }
+        }
+    }
+
+    impl<'a, T: Debug> Debug for Guard<'a, T> {
+        fn fmt(&self, fmt: &mut Formatter) -> Result<(), alloc::fmt::Error> {
+            self.inner.fmt(fmt)
+        }
+    }
+
+    impl<'a, T> Drop for Guard<'a, T> {
+        fn drop(&mut self) {
+            self.locked
+                .compare_exchange(true, false, Ordering::Acquire, Ordering::Acquire)
+                .expect("unlocked mutex that was not locked");
+        }
+    }
+}
 
 pub type Ptr = *const ();
 
 /// A pointer's address without provenance, used purely as an address for comparisons.
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PtrAddr(usize);
 
 impl Display for PtrAddr {
@@ -67,13 +171,13 @@ pub extern "C-unwind" fn ia2_type_registry_check(ptr: Ptr, expected_type_id: Typ
 
 #[derive(Default)]
 pub struct TypeRegistry {
-    map: RwLock<HashMap<PtrAddr, TypeId, BuildHasherDefault<DefaultHasher>>>,
+    map: Mutex<BTreeMap<PtrAddr, TypeId>>,
 }
 
 impl TypeRegistry {
     pub const fn new() -> Self {
         Self {
-            map: RwLock::new(HashMap::with_hasher(BuildHasherDefault::new()))
+            map: Mutex::new(BTreeMap::new()),
         }
     }
 
@@ -83,7 +187,7 @@ impl TypeRegistry {
     #[track_caller]
     pub fn construct(&self, ptr: Ptr, type_id: TypeId) {
         let ptr = PtrAddr(ptr.addr());
-        let map = &mut *self.map.write().unwrap();
+        let mut map = self.map.lock();
         if cfg!(debug_assertions) {
             eprintln!("construct({ptr}, {type_id}): {map:#?}");
         }
@@ -99,7 +203,7 @@ impl TypeRegistry {
     #[track_caller]
     pub fn destruct(&self, ptr: Ptr, expected_type_id: TypeId) {
         let ptr = PtrAddr(ptr.addr());
-        let map = &mut *self.map.write().unwrap();
+        let map = &mut *self.map.lock();
         if cfg!(debug_assertions) {
             eprintln!("destruct({ptr}, {expected_type_id}): {map:#?}");
         }
@@ -117,7 +221,7 @@ impl TypeRegistry {
     #[track_caller]
     pub fn check(&self, ptr: Ptr, expected_type_id: TypeId) {
         let ptr = PtrAddr(ptr.addr());
-        let map = &*self.map.read().unwrap();
+        let map = self.map.lock();
         if cfg!(debug_assertions) {
             eprintln!("check({ptr}, {expected_type_id}): {map:#?}");
         }
@@ -136,15 +240,9 @@ impl TypeRegistry {
 
 impl Drop for TypeRegistry {
     fn drop(&mut self) {
-        match self.map.get_mut() {
-            Ok(map) => {
-                if !map.is_empty() {
-                    eprintln!("warning: leak: {map:#?}");
-                }
-            }
-            Err(e) => {
-                eprintln!("poison: {e}")
-            }
+        let map = self.map.lock();
+        if !map.is_empty() {
+            eprintln!("warning: leak: {map:?}");
         }
     }
 }

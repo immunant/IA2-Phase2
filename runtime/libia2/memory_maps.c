@@ -22,9 +22,6 @@ struct ia2_thread_metadata *ia2_all_threads_metadata_new_for_current_thread(stru
 
   const pid_t tid = gettid();
   this->tids[thread] = tid;
-#if IA2_VERBOSE
-  fprintf(stderr, "new thread metadata for thread %ld\n", (long)tid);
-#endif
 
   struct ia2_thread_metadata *metadata = &this->thread_metadata[thread];
   metadata->tid = tid;
@@ -39,15 +36,6 @@ struct ia2_thread_metadata *ia2_all_threads_metadata_get_for_current_thread(stru
   // but `ia2_all_threads_metadata_new_for_current_thread`
   // was supposed to be called first for this function to find it.
   const size_t num_threads = min(IA2_MAX_THREADS, atomic_load(&this->num_threads));
-
-#if IA2_VERBOSE
-  fprintf(stderr, "get thread metadata for thread %ld\n", (long)tid);
-  fprintf(stderr, "searching through %zu threads\n", num_threads);
-  fprintf(stderr, "&this->num_threads = %p\n", &this->num_threads);
-  fprintf(stderr, "this = %p\n", this);
-  fprintf(stderr, "&ia2_threads_metadata = %p\n", &ia2_threads_metadata);
-  fprintf(stderr, "getpid() = %ld\n", (long)getpid());
-#endif
 
   struct ia2_thread_metadata *metadata = NULL;
   for (size_t thread = 0; thread < num_threads; thread++) {

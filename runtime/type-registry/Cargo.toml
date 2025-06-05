@@ -9,6 +9,8 @@ crate-type = ["staticlib"]
 
 [dependencies]
 
+libc_alloc = "1"
+
 # We always need `panic = "abort"`,
 # as we don't want panics to cross the C/Rust boundary,
 # and we want such panics for these security checks to always be fatal.

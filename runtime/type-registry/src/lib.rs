@@ -76,7 +76,11 @@ mod mutex {
         }
 
         pub fn lock(&self) -> Guard<'_, T> {
-            while self.locked.compare_and_swap(false, true, Ordering::Acquire) != false {
+            while self
+                .locked
+                .compare_exchange(false, true, Ordering::Acquire, Ordering::Acquire)
+                .is_err()
+            {
                 while self.locked.load(Ordering::Relaxed) {
                     core::hint::spin_loop();
                 }
@@ -114,7 +118,9 @@ mod mutex {
 
     impl<'a, T> Drop for Guard<'a, T> {
         fn drop(&mut self) {
-            self.locked.compare_and_swap(true, false, Ordering::Acquire);
+            self.locked
+                .compare_exchange(true, false, Ordering::Acquire, Ordering::Acquire)
+                .expect("unlocked mutex that was not locked");
         }
     }
 }

@@ -6,12 +6,24 @@ use libc_alloc::LibcAlloc;
 #[global_allocator]
 static ALLOCATOR: LibcAlloc = LibcAlloc;
 
+struct StdErrWriter;
+impl alloc::fmt::Write for StdErrWriter {
+    fn write_str(&mut self, s: &str) -> Result<(), core::fmt::Error> {
+        unsafe extern "C" {
+            unsafe fn write(fd: i32, buf: *const u8, len: usize);
+        }
+        unsafe {
+            write(2, s.as_ptr(), s.len());
+        }
+        Ok(())
+    }
+}
+
 /* print errors via libc */
 macro_rules! eprintln {
     ($($items: expr),+) => {{
-        let s = alloc::format!($($items,)+);
-        unsafe extern "C" { unsafe fn write(fd: i32, buf: *const u8, len: usize); }
-        unsafe {write(2, s.as_ptr(), s.len()); write(2, "\n".as_ptr(), 1);}
+        use alloc::fmt::Write;
+        let _ = writeln!(&mut StdErrWriter, $($items,)+);
     }}
 }
 

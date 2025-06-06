@@ -312,13 +312,6 @@ asm(".macro movz_shifted_tag_x18 tag\n"
 #define return_stackptr_if_compartment(compartment)
 #endif
 
-/* Pass to mmap to signal end of program init */
-#define IA2_FINISH_INIT_MAGIC 0x1a21face1a21faceULL
-/* Tell the syscall filter to forbid init-only operations. This mmap() will
-always fail because it maps a non-page-aligned addr with MAP_FIXED, so it
-works as a reasonable signpost no-op. */
-#define mark_init_finished() (void)mmap((void *)IA2_FINISH_INIT_MAGIC, 0, 0, MAP_FIXED, -1, 0)
-
 #define declare_init_tls_fn(n) __attribute__((visibility("default"))) void init_tls_##n(void);
 #define setup_destructors_for_compartment(n)                                   \
   __attribute__((visibility("default"))) void ia2_setup_destructors_##n(void);                                        \
@@ -338,9 +331,8 @@ static int ia2_mprotect_with_tag(void *addr, size_t len, int prot, int tag) {
 #endif
 #endif
 IA2_EXTERN_C char *allocate_stack(int i);
-IA2_EXTERN_C void allocate_stack_0();
+IA2_EXTERN_C void allocate_stack_0(void);
 IA2_EXTERN_C void verify_tls_padding(void);
-IA2_EXTERN_C void ia2_set_up_tags(int *n_to_alloc);
 __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
 
 /* clang-format can't handle inline asm in macros */
@@ -430,21 +422,39 @@ __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
   __attribute__((visibility("default"))) __attribute__((weak)) void init_stacks_and_setup_tls(void) {                 \
     verify_tls_padding();                                                      \
     COMPARTMENT_SAVE_AND_RESTORE(REPEATB(n, ALLOCATE_COMPARTMENT_STACK_AND_SETUP_TLS, nop_macro), n); \
-    /* allocate an unprotected stack for the untrusted compartment */          \
-    allocate_stack_0();                                     \
+    /* allocate an unprotected stack for the untrusted  compartment */         \
+    allocate_stack_0();                                                        \
   }                                                                            \
                                                                                \
   __attribute__((constructor)) static void ia2_init(void) {                    \
-    /* Set up global resources. */                                             \
-    ia2_set_up_tags(&ia2_n_pkeys_to_alloc);                                    \
-    /* Initialize stacks for the main thread/ */                               \
-    init_stacks_and_setup_tls();                                               \
     REPEATB##n(setup_destructors_for_compartment, nop_macro);                  \
-    mark_init_finished();                                                      \
   }
 
 #if IA2_VERBOSE
-#define ia2_log(fmt, ...) fprintf(stdout, "%s:" fmt, __func__, __VA_ARGS__)
+#define ia2_log(fmt, ...) fprintf(stdout, "%s: " fmt, __func__, ##__VA_ARGS__)
 #else
 #define ia2_log(...)
 #endif
+
+#if defined(__x86_64__)
+static const uint32_t pkru_values[16] = {
+  0xFFFFFFFC,
+  0xFFFFFFF0,
+  0xFFFFFFCC,
+  0xFFFFFF3C,
+  0xFFFFFCFC,
+  0xFFFFF3FC,
+  0xFFFFCFFC,
+  0xFFFF3FFC,
+  0xFFFCFFFC,
+  0xFFF3FFFC,
+  0xFFCFFFFC,
+  0xFF3FFFFC,
+  0xFCFFFFFC,
+  0xF3FFFFFC,
+  0xCFFFFFFC,
+  0x3FFFFFFC
+};
+#endif
+
+void **ia2_stackptr_for_pkru(uint32_t pkru);

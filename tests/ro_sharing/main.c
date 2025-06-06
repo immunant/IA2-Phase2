@@ -19,6 +19,11 @@ INIT_RUNTIME(2);
 #define IA2_COMPARTMENT 1
 #include <ia2_compartment_init.inc>
 
+void ia2_main(void) {
+    ia2_register_compartment("main", 1, NULL);
+    ia2_register_compartment("libro_sharing_lib.so", 2, NULL);
+}
+
 // All string literals should be in .rodata
 const char *main_str = "this is the main binary's string\n";
 

@@ -12,3 +12,6 @@ define_test(
     CRITERION_TEST
     WITHOUT_SANDBOX # TODO remove once tracer bug (#488) is fixed
 )
+
+# This test uses the type registry, so link it into the call gates
+target_link_libraries(type_confusion_call_gates PRIVATE type-registry)

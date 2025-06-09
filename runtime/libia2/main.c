@@ -59,6 +59,11 @@ __asm__(
     "stp x29, x30, [sp, #-16]!\n"
     "mov x29, sp\n"
 
+    // Call ia2_start making sure to preserve/restore the original arguments to main
+    "stp x0, x1, [sp, #-16]!\n"
+    "bl ia2_start\n"
+    "ldp x0, x1, [sp], #16\n"
+
     // Save old stack pointer in main_sp
     "adrp x9, main_sp\n"
     "add x9, x9, #:lo12:main_sp\n"

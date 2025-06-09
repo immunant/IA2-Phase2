@@ -447,25 +447,5 @@ __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
 #define ia2_log(...)
 #endif
 
-#if defined(__x86_64__)
-static const uint32_t pkru_values[16] = {
-  0xFFFFFFFC,
-  0xFFFFFFF0,
-  0xFFFFFFCC,
-  0xFFFFFF3C,
-  0xFFFFFCFC,
-  0xFFFFF3FC,
-  0xFFFFCFFC,
-  0xFFFF3FFC,
-  0xFFFCFFFC,
-  0xFFF3FFFC,
-  0xFFCFFFFC,
-  0xFF3FFFFC,
-  0xFCFFFFFC,
-  0xF3FFFFFC,
-  0xCFFFFFFC,
-  0x3FFFFFFC
-};
-#endif
-
-void **ia2_stackptr_for_pkru(uint32_t pkru);
+void **ia2_stackptr_for_tag(size_t tag);
+void **ia2_stackptr_for_compartment(int compartment);

@@ -9,6 +9,14 @@
 #include "ia2_internal.h"
 #include "memory_maps.h"
 
+void **ia2_stackptr_for_compartment(int compartment) {
+#if defined(__x86_64__)
+    return ia2_stackptr_for_tag(PKRU(compartment));
+#elif defined(__aarch64__)
+    return ia2_stackptr_for_tag(compartment);
+#endif
+}
+
 #if defined(__x86_64__)
 
 __attribute__((__used__)) static uint32_t ia2_get_pkru() {

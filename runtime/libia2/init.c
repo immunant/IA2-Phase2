@@ -148,7 +148,7 @@ static int ia2_protect_memory(const char *dso, int compartment, const char *extr
     }
     if (compartment != 0) {
         void *initial_sp = allocate_stack(compartment);
-        void **stackptr = ia2_stackptr_for_pkru(pkru_values[compartment]);
+        void **stackptr = ia2_stackptr_for_compartment(compartment);
         *stackptr = initial_sp;
     }
 

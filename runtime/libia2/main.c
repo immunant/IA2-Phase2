@@ -21,6 +21,7 @@ __asm__(
     "pushq %rsi\n"
     "pushq %rdx\n"
     "subq $8, %rsp\n"
+    // This sets rax to the initial PKRU
     "callq ia2_start\n"
     "addq $8, %rsp\n"
     "popq %rdx\n"
@@ -30,7 +31,6 @@ __asm__(
     // Switch pkey to the appropriate compartment.
     "xor %ecx,%ecx\n"
     "mov %ecx,%edx\n"
-    "mov_pkru_eax 1\n"
     "wrpkru\n"
     // Save the old stack pointer in main_sp.
     "movq %rsp, main_sp(%rip)\n"
@@ -61,7 +61,9 @@ __asm__(
 
     // Call ia2_start making sure to preserve/restore the original arguments to main
     "stp x0, x1, [sp, #-16]!\n"
+    // This returns the initial x18 value in x0
     "bl ia2_start\n"
+    "mov x18, x0\n"
     "ldp x0, x1, [sp], #16\n"
 
     // Save old stack pointer in main_sp
@@ -83,9 +85,6 @@ __asm__(
 
     "ldr x9, [x9]\n"
     "mov sp, x9\n"
-
-    // Set x18 tag to 1
-    "movz_shifted_tag_x18 1\n"
 
     // Call the real main function
     "bl __real_main\n"

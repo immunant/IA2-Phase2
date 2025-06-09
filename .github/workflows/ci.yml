@@ -45,7 +45,7 @@ jobs:
             -DCMAKE_C_FLAGS="-fuse-ld=${{ matrix.linker }}"              \
             -DClang_DIR=$Clang_DIR                                       \
             -DLLVM_DIR=$LLVM_DIR                                         \
-            -DLLVM_EXTERNAL_LIT=$HOME/.local/bin/lit                     \
+            -DLLVM_EXTERNAL_LIT=/usr/lib/llvm-18/build/utils/lit/lit.py  \
             -D${{ matrix.ia2-debug }}                                    \
             -D${{ matrix.ia2-tracer }}                                   \
             -D${{ matrix.ia2-verbose }}                                  \

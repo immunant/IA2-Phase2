@@ -223,6 +223,7 @@ jobs:
             -DClang_DIR=$Clang_DIR                                  \
             -DCLANG_EXE=`which clang-15`                            \
             -DLLVM_DIR=$LLVM_DIR                                    \
+            -DIA2_VERBOSE=ON                                    \
             -G Ninja
           # glibc Makefile picks up compiler-rt via LLVM_BUILD_DIR
           export LLVM_BUILD_DIR="$(pwd)/../llvm-project"

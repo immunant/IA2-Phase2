@@ -3,8 +3,9 @@ use std::fmt;
 use std::fmt::Debug;
 use std::fmt::Display;
 use std::fmt::Formatter;
+use std::hash::BuildHasherDefault;
+use std::hash::DefaultHasher;
 use std::ptr;
-use std::sync::LazyLock;
 use std::sync::RwLock;
 
 pub type Ptr = *const ();
@@ -44,7 +45,7 @@ impl Debug for TypeId {
     }
 }
 
-static GLOBAL_TYPE_REGISTRY: LazyLock<TypeRegistry> = LazyLock::new(TypeRegistry::default);
+static GLOBAL_TYPE_REGISTRY: TypeRegistry = TypeRegistry::new();
 
 /// See [`TypeRegistry::construct`].
 #[unsafe(no_mangle)]
@@ -66,10 +67,16 @@ pub extern "C-unwind" fn ia2_type_registry_check(ptr: Ptr, expected_type_id: Typ
 
 #[derive(Default)]
 pub struct TypeRegistry {
-    map: RwLock<HashMap<PtrAddr, TypeId>>,
+    map: RwLock<HashMap<PtrAddr, TypeId, BuildHasherDefault<DefaultHasher>>>,
 }
 
 impl TypeRegistry {
+    pub const fn new() -> Self {
+        Self {
+            map: RwLock::new(HashMap::with_hasher(BuildHasherDefault::new()))
+        }
+    }
+
     /// Called after an object is constructed to register it and its type.
     ///
     /// Panics if `ptr` is already constructed.

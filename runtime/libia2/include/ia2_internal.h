@@ -425,6 +425,8 @@ __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
 #endif
 /* clang-format on */
 
+void create_thread_keys(void);
+
 #define _IA2_INIT_RUNTIME(n)                                                   \
   __attribute__((visibility("default"))) int ia2_n_pkeys_to_alloc = n;                                                \
   __attribute__((visibility("default"))) __thread void *ia2_stackptr_0[PAGE_SIZE / sizeof(void *)]                    \
@@ -442,6 +444,7 @@ __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
   __attribute__((visibility("default"))) __attribute__((weak)) void init_stacks_and_setup_tls(void) {                 \
     verify_tls_padding();                                                      \
     setup_thread_metadata();                                                   \
+    create_thread_keys();                                                      \
     COMPARTMENT_SAVE_AND_RESTORE(REPEATB(n, ALLOCATE_COMPARTMENT_STACK_AND_SETUP_TLS, nop_macro), n); \
     /* allocate an unprotected stack for the untrusted compartment */          \
     allocate_stack_0();                                                        \

@@ -17,15 +17,17 @@ set(CARGO_PROFILE "release")
 set(CARGO_PROFILE_DIR "release")
 endif()
 
+set(LIB_PATH ${CMAKE_CURRENT_BINARY_DIR}/${CARGO_ARCH_SUFFIX}/${CARGO_PROFILE_DIR}/libmemory_map.so)
+
 add_custom_command(
-  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${CARGO_ARCH_SUFFIX}/${CARGO_PROFILE_DIR}/libmemory_map.so
+  OUTPUT ${LIB_PATH}
   COMMAND CARGO_TARGET_DIR=${CMAKE_CURRENT_BINARY_DIR} cargo build ${CARGO_TARGET_FLAG} --manifest-path ${CMAKE_CURRENT_SOURCE_DIR}/memory-map/Cargo.toml --profile ${CARGO_PROFILE}
   DEPENDS memory-map/Cargo.toml memory-map/src/lib.rs
 )
 
 add_library(memory-map STATIC IMPORTED)
-set_property(TARGET memory-map PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_BINARY_DIR}/${CARGO_ARCH_SUFFIX}/${CARGO_PROFILE_DIR}/libmemory_map.so)
-add_custom_target(memory-map-tgt DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${CARGO_ARCH_SUFFIX}/${CARGO_PROFILE_DIR}/libmemory_map.so)
+set_property(TARGET memory-map PROPERTY IMPORTED_LOCATION ${LIB_PATH})
+add_custom_target(memory-map-tgt DEPENDS ${LIB_PATH})
 add_dependencies(memory-map memory-map-tgt)
 
 if(LIBIA2_X86_64)

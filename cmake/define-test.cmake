@@ -84,9 +84,10 @@ endfunction()
 # CRITERION_TEST - If present, link against criterion and add the test to the
 #                  cmake test infrastructure.
 # WITHOUT_SANDBOX - If present, test is run without the IA2 sandbox runtime.
+# TYPE_REGISTRY - If present, link against the type registry.
 function(define_test)
     # Parse options
-    set(options NEEDS_LD_WRAP NOT_IN_CHECK_IA2 NO_LIBS NO_UBSAN CRITERION_TEST WITHOUT_SANDBOX)
+    set(options NEEDS_LD_WRAP NOT_IN_CHECK_IA2 NO_LIBS NO_UBSAN CRITERION_TEST WITHOUT_SANDBOX TYPE_REGISTRY)
     set(oneValueArgs PKEY NAME)
     set(multiValueArgs LIBS SRCS INCLUDE_DIR
         UNWRAPPED_INCLUDE_DIRS UNWRAPPED_LIBRARY_DIRS UNWRAPPED_LIBS)
@@ -186,6 +187,10 @@ function(define_test)
         ${SHARED_LIB_UNWRAPPED_LIBRARY_DIRS})
     target_link_libraries(${TEST_NAME} PUBLIC
         ${SHARED_LIB_UNWRAPPED_LIBS})
+    
+    if(DEFINE_TEST_WITHOUT_SANDBOX)
+        target_link_libraries(${TEST_NAME}_call_gates PRIVATE type-registry)
+    endif()
 endfunction()
 
 function(define_ia2_main)

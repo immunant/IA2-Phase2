@@ -415,6 +415,8 @@ __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
 #endif
 /* clang-format on */
 
+void create_thread_keys(void);
+
 #define _IA2_INIT_RUNTIME(n)                                                   \
   __attribute__((visibility("default"))) int ia2_n_pkeys_to_alloc = n;                                                \
   __attribute__((visibility("default"))) __thread void *ia2_stackptr_0[PAGE_SIZE / sizeof(void *)]                    \

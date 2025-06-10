@@ -8,6 +8,7 @@
 #include "ia2_internal.h"
 #include "memory_maps.h"
 
+#include <pthread.h>
 #include <sys/auxv.h>
 #include <sys/prctl.h>
 
@@ -20,6 +21,30 @@
 /* ia2_mprotect_with_taged by the next compartment depending on sizes/alignment. */
 extern __thread void *ia2_stackptr_0[PAGE_SIZE / sizeof(void *)]
     __attribute__((aligned(4096)));
+
+static pthread_key_t thread_stacks_key IA2_SHARED_DATA;
+
+__thread void *stacks[IA2_MAX_COMPARTMENTS] = {0};
+
+void thread_stacks_destructor(void *_unused) {
+  for (size_t compartment = 0; compartment < IA2_MAX_COMPARTMENTS; compartment++) {
+    void *const stack = stacks[compartment];
+    if (!stack) {
+      continue;
+    }
+    if (munmap(stack, STACK_SIZE) == -1) {
+      fprintf(stderr, "munmap failed\n");
+      abort();
+    }
+  }
+}
+
+void create_thread_keys(void) {
+  if (pthread_key_create(&thread_stacks_key, thread_stacks_destructor) != 0) {
+    fprintf(stderr, "pthread_key_create failed\n");
+    abort();
+  }
+}
 
 /* Allocate a fixed-size stack and protect it with the ith pkey. */
 /* Returns the top of the stack, not the base address of the allocation. */
@@ -44,6 +69,18 @@ char *allocate_stack(int i) {
     thread_metadata->stack_addrs[i] = (uintptr_t)stack;
   }
 #endif
+  stacks[i] = stack;
+  // The value set doesn't matter here as long as it's non-`NULL`.
+  // `allocate_stack` is called for each compartment
+  // when a new thread is created, so we just need to set a non-`NULL` value
+  // (which triggers a destructor running on thread termination),
+  // but it doesn't really matter what value it is,
+  // since the destructor `thread_stacks_destructor`
+  // just uses the TLS global `stack_ptrs` directly.
+  if (pthread_setspecific(thread_stacks_key, (void *)stacks) != 0) {
+    fprintf(stderr, "pthread_setspecific failed\n");
+    abort();
+  }
 
 #ifdef __aarch64__
   /* Tag the allocated stack pointer so it is accessed with the right pkey */
@@ -232,6 +269,7 @@ void ia2_start(void) {
     ia2_setup_destructors();
     /* Set up global resources. */
     ia2_set_up_tags();
+    create_thread_keys();
     verify_tls_padding();
     /* allocate an unprotected stack for the untrusted compartment */
     allocate_stack_0();

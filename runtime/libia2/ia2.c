@@ -9,6 +9,14 @@
 #include "ia2_internal.h"
 #include "memory_maps.h"
 
+void **ia2_stackptr_for_compartment(int compartment) {
+#if defined(__x86_64__)
+    return ia2_stackptr_for_tag(PKRU(compartment));
+#elif defined(__aarch64__)
+    return ia2_stackptr_for_tag(compartment);
+#endif
+}
+
 #if defined(__x86_64__)
 
 __attribute__((__used__)) static uint32_t ia2_get_pkru() {
@@ -374,12 +382,6 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
 
   struct PhdrSearchArgs *search_args = (struct PhdrSearchArgs *)data;
 
-  size_t cur_pkey = ia2_get_compartment();
-  if (cur_pkey != search_args->pkey) {
-    fprintf(stderr, "Invalid pkey, expected %" PRId32 ", found %zu\n",
-            search_args->pkey, cur_pkey);
-    abort();
-  }
   Elf64_Addr address = (Elf64_Addr)search_args->address;
   bool extra = in_extra_libraries(info, search_args->extra_libraries);
   if (!in_loaded_segment(info, address) && !extra) {
@@ -511,7 +513,7 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
         // TODO: Inline ia2_mprotect_with_tag call and make sure the pkey is in a
         // register here so we can disallow calls to the libc function
         int mprotect_err = ia2_mprotect_with_tag((void *)start, cur_end - start,
-                                         access_flags, (int)cur_pkey);
+                                         access_flags, (int)search_args->pkey);
         if (mprotect_err != 0) {
           printf("ia2_mprotect_with_tag failed: %s\n", strerror(errno));
           exit(-1);

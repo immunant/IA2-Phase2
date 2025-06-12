@@ -102,7 +102,7 @@ int main() {
     struct fake_criterion_test *test = &tests[i];
     if (test->signal != 0) {
       // If an expected signal was set, check if it was valid.
-      assert(test->signal > 0 && test->signal < _NSIG);
+      cr_assert(test->signal > 0 && test->signal < _NSIG);
       if (test->exit_code != 0) {
         fprintf(stderr, "can't expect both signal %d (SIG%s) and exit status %d\n",
                 test->signal, sigabbrev_np(test->signal), test->exit_code);
@@ -169,7 +169,7 @@ int main() {
       return 2;
     }
 
-    assert(WIFEXITED(status) ^ WIFSIGNALED(status));
+    cr_assert(WIFEXITED(status) ^ WIFSIGNALED(status));
     if (WIFSIGNALED(status)) {
       fprintf(stderr, "killed by signal %d (SIG%s)",
               WTERMSIG(status), sigabbrev_np(WTERMSIG(status)));

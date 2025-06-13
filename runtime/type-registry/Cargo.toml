@@ -18,3 +18,6 @@ panic = "abort"
 
 [profile.release]
 panic = "abort"
+# It's important to be small to link into call gates,
+# and LTO reduces size by an order of magnitude.
+lto = true

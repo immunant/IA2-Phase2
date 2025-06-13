@@ -17,8 +17,9 @@ libc_alloc = "1"
 
 [profile.dev]
 panic = "abort"
-lto = true
 
 [profile.release]
 panic = "abort"
+# It's important to be small to link into call gates,
+# and LTO reduces size by an order of magnitude.
 lto = true

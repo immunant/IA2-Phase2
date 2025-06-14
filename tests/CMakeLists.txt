@@ -71,6 +71,7 @@ add_subdirectory(tls_protected)
 add_subdirectory(threads)
 add_subdirectory(protected_threads)
 add_subdirectory(memory_maps)
+add_subdirectory(signals)
 
 # The following tests are not supported on ARM64 yet
 if (NOT LIBIA2_AARCH64)

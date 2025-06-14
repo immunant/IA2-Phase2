@@ -8,6 +8,10 @@ use std::hash::DefaultHasher;
 use std::ptr;
 use std::sync::RwLock;
 
+use crate::panic::panic_abort;
+
+mod panic;
+
 pub type Ptr = *const ();
 
 /// A pointer's address without provenance, used purely as an address for comparisons.
@@ -73,7 +77,7 @@ pub struct TypeRegistry {
 impl TypeRegistry {
     pub const fn new() -> Self {
         Self {
-            map: RwLock::new(HashMap::with_hasher(BuildHasherDefault::new()))
+            map: RwLock::new(HashMap::with_hasher(BuildHasherDefault::new())),
         }
     }
 
@@ -83,13 +87,15 @@ impl TypeRegistry {
     #[track_caller]
     pub fn construct(&self, ptr: Ptr, type_id: TypeId) {
         let ptr = PtrAddr(ptr.addr());
-        let map = &mut *self.map.write().unwrap();
+        let map = &mut *self.map.write().unwrap_or_else(|e| panic_abort!("{e}"));
         if cfg!(debug_assertions) {
             eprintln!("construct({ptr}, {type_id}): {map:#?}");
         }
         let prev_type_id = map.insert(ptr, type_id);
         if let Some(prev_type_id) = prev_type_id {
-            panic!("trying to construct {type_id} at {ptr}, but {ptr} is already {prev_type_id}");
+            panic_abort!(
+                "trying to construct {type_id} at {ptr}, but {ptr} is already {prev_type_id}"
+            );
         }
     }
 
@@ -99,13 +105,13 @@ impl TypeRegistry {
     #[track_caller]
     pub fn destruct(&self, ptr: Ptr, expected_type_id: TypeId) {
         let ptr = PtrAddr(ptr.addr());
-        let map = &mut *self.map.write().unwrap();
+        let map = &mut *self.map.write().unwrap_or_else(|e| panic_abort!("{e}"));
         if cfg!(debug_assertions) {
             eprintln!("destruct({ptr}, {expected_type_id}): {map:#?}");
         }
         let type_id = map.remove(&ptr);
         if type_id.is_none() {
-            panic!(
+            panic_abort!(
                 "trying to destruct {expected_type_id} at {ptr}, but {ptr} has no type currently"
             );
         }
@@ -117,17 +123,17 @@ impl TypeRegistry {
     #[track_caller]
     pub fn check(&self, ptr: Ptr, expected_type_id: TypeId) {
         let ptr = PtrAddr(ptr.addr());
-        let map = &*self.map.read().unwrap();
+        let map = &*self.map.read().unwrap_or_else(|e| panic_abort!("{e}"));
         if cfg!(debug_assertions) {
             eprintln!("check({ptr}, {expected_type_id}): {map:#?}");
         }
         let type_id = map.get(&ptr).copied();
         match type_id {
             None => {
-                panic!("{ptr} should have {expected_type_id}, but has no type currently");
+                panic_abort!("{ptr} should have {expected_type_id}, but has no type currently");
             }
             Some(type_id) if type_id != expected_type_id => {
-                panic!("{ptr} should have {expected_type_id}, but has {type_id} instead");
+                panic_abort!("{ptr} should have {expected_type_id}, but has {type_id} instead");
             }
             Some(_) => {}
         }

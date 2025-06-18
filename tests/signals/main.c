@@ -15,23 +15,21 @@ Test(signals, signal_2, .signal = SIGINT) {
     raise(2);
 }
 
+// `SIGQUIT` core dumps.
 Test(signals, signal_3, .signal = SIGQUIT) {
     raise(3);
 }
 
-// TODO 1 sec delay
 // `SIGILL` core dumps.
 Test(signals, signal_4, .signal = SIGILL) {
     raise(4);
 }
 
-// TODO 1 sec delay
 // `SIGTRAP` core dumps.
 Test(signals, signal_5, .signal = SIGTRAP) {
     raise(5);
 }
 
-// TODO 1 sec delay
 // `SIGABRT` core dumps.
 Test(signals, signal_6, .signal = SIGABRT) {
     raise(6);
@@ -115,13 +113,11 @@ Test(signals, signal_23) {
     raise(SIGURG);
 }
 
-// TODO 1 sec delay
 // `SIGXCPU` core dumps.
 Test(signals, signal_24, .signal = SIGXCPU) {
     raise(24);
 }
 
-// TODO 1 sec delay
 // `SIGXFSZ` core dumps.
 Test(signals, signal_25, .signal = SIGXFSZ) {
     raise(25);
@@ -148,7 +144,6 @@ Test(signals, signal_30, .signal = SIGPWR) {
     raise(30);
 }
 
-// TODO 1 sec delay
 // `SIGSYS` core dumps.
 Test(signals, signal_31, .signal = SIGSYS) {
     raise(31);

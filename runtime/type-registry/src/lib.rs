@@ -1,4 +1,4 @@
-#![no_std]
+#![cfg_attr(not(test), no_std)]
 /* use the C allocator; don't use libstd */
 extern crate alloc;
 use libc_alloc::LibcAlloc;
@@ -27,6 +27,7 @@ macro_rules! eprintln {
     }}
 }
 
+#[cfg(not(test))]
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
     eprintln!("{info}");
@@ -36,6 +37,7 @@ fn panic(info: &core::panic::PanicInfo) -> ! {
     abort();
 }
 
+#[cfg(not(test))]
 #[unsafe(no_mangle)]
 extern "C" fn rust_eh_personality() {}
 

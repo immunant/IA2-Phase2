@@ -27,7 +27,9 @@ void *start_abort(void *_arg) {
 }
 
 void *start_pthread_exit(void *_arg) {
-  // pthread_exit(NULL); // TODO `SIGILL`s.
+  exit(0); // TODO Skip for now, as `pthread_exit` `SIGILL`s (#605).
+
+  pthread_exit(NULL);
   return NULL;
 }
 

@@ -42,8 +42,8 @@ extern struct fake_criterion_test *fake_criterion_tests;
   IA2_END_NO_WRAP                                                                           \
   struct fake_criterion_test fake_criterion_##suite_##_##name_##_##test IA2_SHARED_DATA = { \
       .next = NULL,                                                                         \
-      .suite = EXPAND_AND_STRINGIFY(suite_),                                                           \
-      .name = EXPAND_AND_STRINGIFY(name_),                                                             \
+      .suite = EXPAND_AND_STRINGIFY(suite_),                                                \
+      .name = EXPAND_AND_STRINGIFY(name_),                                                  \
       .test = fake_criterion_##suite_##_##name_,                                            \
       ##__VA_ARGS__};                                                                       \
   __attribute__((constructor)) void fake_criterion_add_##suite_##_##name_##_##test(void) {  \
@@ -52,8 +52,8 @@ extern struct fake_criterion_test *fake_criterion_tests;
   }                                                                                         \
   void fake_criterion_##suite_##_##name_(void)
 
-#define cr_log_info(f, ...) printf(f "\n", ##__VA_ARGS__)
-#define cr_log_error(f, ...) fprintf(stderr, f "\n", ##__VA_ARGS__)
+#define cr_log_info(fmt, ...) printf(fmt "\n", ##__VA_ARGS__)
+#define cr_log_error(fmt, ...) fprintf(stderr, fmt "\n", ##__VA_ARGS__)
 
 #if NDEBUG
 #define cr_assert(x) (x || (abort(), true))
@@ -64,10 +64,10 @@ extern struct fake_criterion_test *fake_criterion_tests;
 
 #define cr_assert_eq(a, b) cr_assert((a) == (b))
 #define cr_assert_lt(a, b) cr_assert((a) < (b))
-#define cr_fatal(s)          \
-  do {                       \
-    fprintf(stderr, s "\n"); \
-    exit(1);                 \
+#define cr_fatal(fmt, ...)            \
+  do {                                \
+    cr_log_error(fmt, ##__VA_ARGS__); \
+    exit(1);                          \
   } while (0)
 
 /*

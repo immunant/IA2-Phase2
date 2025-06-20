@@ -52,8 +52,15 @@ int end_join(pthread_t thread) {
 }
 
 int end_cancel(pthread_t thread) {
-  // return pthread_cancel(thread); // TODO `SIGSEGV`s.
-  exit(0);
+  exit(0); // TODO Skip for now, as `pthread_cancel` `SIGSEGV`s (#606).
+
+  const int result = pthread_cancel(thread) != 0;
+  if (result != 0) {
+    return result;
+  }
+  // Cancellation is asynchronous, so we still need to
+  // join it to ensure cancellation completes.
+  return pthread_join(thread, NULL);
 }
 
 void run_test(size_t num_threads, start_fn start, end_fn end, start_fn main) {

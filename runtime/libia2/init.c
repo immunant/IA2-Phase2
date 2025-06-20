@@ -2,6 +2,7 @@
 #include "ia2_internal.h"
 #include "memory_maps.h"
 
+#include <pthread.h>
 #include <sys/auxv.h>
 #include <sys/prctl.h>
 
@@ -17,10 +18,21 @@ extern __thread void *ia2_stackptr_0[PAGE_SIZE / sizeof(void *)]
 
 static pthread_key_t stack_thread_key IA2_SHARED_DATA;
 
-void stack_thread_destructor(void* stack) {
-  if (munmap(stack, STACK_SIZE) == -1) {
-    // TODO fprintf(stderr)
-    abort();
+__thread void *stack_ptrs[IA2_MAX_COMPARTMENTS] = {0};
+
+void stack_thread_destructor(void *stack) {
+  char thread_name[16] = {0};
+  assert(pthread_getname_np(pthread_self(), thread_name, sizeof(thread_name)) == 0);
+
+  for (size_t i = 0; i < IA2_MAX_COMPARTMENTS; i++) {
+    if (!stack_ptrs[i]) {
+      continue;
+    }
+    fprintf(stderr, "freeing compartment %zu stack on thread %ld (%s): %p..%p\n", i, (long)gettid(), thread_name, stack, stack + STACK_SIZE);
+    if (munmap(stack_ptrs[i], STACK_SIZE) == -1) {
+      // TODO fprintf(stderr)
+      abort();
+    }
   }
 }
 
@@ -29,6 +41,8 @@ void create_thread_keys(void) {
     // TODO fprintf(stderr)
     abort();
   }
+  // memset(&stack_ptrs, 0, sizeof(stack_ptrs));
+  pthread_setspecific(stack_thread_key, stack_ptrs);
 }
 
 /* Allocate a fixed-size stack and protect it with the ith pkey. */
@@ -52,15 +66,17 @@ char *allocate_stack(int i) {
   stack = (char *)((uint64_t)stack | (uint64_t)i << 56);
 #endif
 
+  fprintf(stderr, "allocating stack for compartment %zu (%d), thread %ld: %p..%p\n", ia2_get_compartment(), i, (long)gettid(), stack, stack + STACK_SIZE);
 #if IA2_DEBUG_MEMORY
   struct ia2_thread_metadata *const thread_metadata = ia2_thread_metadata_get_for_current_thread();
   // Atomic write.
   thread_metadata->stack_addrs[i] = (uintptr_t)stack;
 #endif
-  if (pthread_setspecific(stack_thread_key, (void*)stack) != 0) {
-    // TODO fprintf(stderr)
-    abort();
-  }
+  stack_ptrs[i] = stack;
+  // if (pthread_setspecific(stack_thread_key, (void *)stack) != 0) {
+  //   // TODO fprintf(stderr)
+  //   abort();
+  // }
 
 #ifdef __aarch64__
   return stack + STACK_SIZE - 16;

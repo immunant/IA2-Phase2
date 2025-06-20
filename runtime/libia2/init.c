@@ -15,6 +15,22 @@
 extern __thread void *ia2_stackptr_0[PAGE_SIZE / sizeof(void *)]
     __attribute__((aligned(4096)));
 
+static pthread_key_t stack_thread_key IA2_SHARED_DATA;
+
+void stack_thread_destructor(void* stack) {
+  if (munmap(stack, STACK_SIZE) == -1) {
+    // TODO fprintf(stderr)
+    abort();
+  }
+}
+
+void create_thread_keys(void) {
+  if (pthread_key_create(&stack_thread_key, stack_thread_destructor) != 0) {
+    // TODO fprintf(stderr)
+    abort();
+  }
+}
+
 /* Allocate a fixed-size stack and protect it with the ith pkey. */
 /* Returns the top of the stack, not the base address of the allocation. */
 char *allocate_stack(int i) {
@@ -41,6 +57,10 @@ char *allocate_stack(int i) {
   // Atomic write.
   thread_metadata->stack_addrs[i] = (uintptr_t)stack;
 #endif
+  if (pthread_setspecific(stack_thread_key, (void*)stack) != 0) {
+    // TODO fprintf(stderr)
+    abort();
+  }
 
 #ifdef __aarch64__
   return stack + STACK_SIZE - 16;

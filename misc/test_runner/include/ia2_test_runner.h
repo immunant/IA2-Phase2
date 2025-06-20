@@ -55,7 +55,13 @@ extern struct fake_criterion_test *fake_criterion_tests;
 #define cr_log_info(f, ...) printf(f "\n", ##__VA_ARGS__)
 #define cr_log_error(f, ...) fprintf(stderr, f "\n", ##__VA_ARGS__)
 
+#if NDEBUG
 #define cr_assert(x) (x || (abort(), true))
+#else
+#include <assert.h>
+#define cr_assert assert
+#endif
+
 #define cr_assert_eq(a, b) cr_assert((a) == (b))
 #define cr_assert_lt(a, b) cr_assert((a) < (b))
 #define cr_fatal(s)          \

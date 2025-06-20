@@ -6,7 +6,7 @@ INIT_RUNTIME(2);
 #include <ia2_compartment_init.inc>
 
 #include <pthread.h>
-// #include <signal.h> // TODO 1 second delay from SIGABRT
+#include <signal.h>
 
 #if IA2_ENABLE
 
@@ -22,7 +22,7 @@ void *start_exit(void *_arg) {
 }
 
 void *start_abort(void *_arg) {
-  // abort(); // TODO 1 second delay
+  abort();
   return NULL;
 }
 
@@ -86,9 +86,7 @@ Test(terminating_threads, threads_1_exit) {
   run_test(0, start_pause, end_none, start_exit);
 }
 
-Test(terminating_threads, threads_1_abort,
-     // .signal = SIGABRT
-) {
+Test(terminating_threads, threads_1_abort, .signal = SIGABRT) {
   run_test(0, start_pause, end_none, start_abort);
 }
 
@@ -106,9 +104,7 @@ Test(terminating_threads, threads_2_main_thread_exit) {
   run_test(1, start_pause, end_none, start_exit);
 }
 
-Test(terminating_threads, threads_2_main_thread_abort,
-     // .signal = SIGABRT
-) {
+Test(terminating_threads, threads_2_main_thread_abort, .signal = SIGABRT) {
   run_test(1, start_pause, end_none, start_abort);
 }
 
@@ -126,9 +122,7 @@ Test(terminating_threads, threads_11_main_thread_exit) {
   run_test(10, start_pause, end_none, start_exit);
 }
 
-Test(terminating_threads, threads_11_main_thread_abort,
-     // .signal = SIGABRT
-) {
+Test(terminating_threads, threads_11_main_thread_abort, .signal = SIGABRT) {
   run_test(10, start_pause, end_none, start_abort);
 }
 
@@ -146,9 +140,7 @@ Test(terminating_threads, threads_2_other_thread_exit) {
   run_test(1, start_exit, end_join, start_return);
 }
 
-Test(terminating_threads, threads_2_other_thread_abort,
-     // .signal = SIGABRT
-) {
+Test(terminating_threads, threads_2_other_thread_abort, .signal = SIGABRT) {
   run_test(1, start_abort, end_join, start_return);
 }
 
@@ -174,9 +166,7 @@ Test(terminating_threads, threads_11_other_threads_exit) {
   run_test(10, start_exit, end_join, start_return);
 }
 
-Test(terminating_threads, threads_11_other_threads_abort,
-     // .signal = SIGABRT
-) {
+Test(terminating_threads, threads_11_other_threads_abort, .signal = SIGABRT) {
   run_test(10, start_abort, end_join, start_return);
 }
 

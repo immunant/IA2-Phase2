@@ -26,6 +26,10 @@ void thread_stacks_destructor(void *_unused) {
     if (!stack) {
       continue;
     }
+#if IA2_VERBOSE
+    ia2_log("deallocating stack for compartment %zu on thread %ld: %p..%p\n",
+            compartment, (long)gettid(), stack, stack + STACK_SIZE);
+#endif
     if (munmap(stacks[compartment], STACK_SIZE) == -1) {
       fprintf(stderr, "munmap failed\n");
       abort();
@@ -61,6 +65,9 @@ char *allocate_stack(int i) {
   stack = (char *)((uint64_t)stack | (uint64_t)i << 56);
 #endif
 
+#if IA2_VERBOSE
+  ia2_log("allocating stack for compartment %d on thread %ld: %p..%p\n", i, (long)gettid(), stack, stack + STACK_SIZE);
+#endif
 #if IA2_DEBUG_MEMORY
   struct ia2_thread_metadata *const thread_metadata = ia2_thread_metadata_get_for_current_thread();
   // Atomic write.

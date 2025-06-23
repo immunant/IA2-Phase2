@@ -27,13 +27,21 @@ static pthread_key_t thread_stacks_key IA2_SHARED_DATA;
 __thread void *stacks[IA2_MAX_COMPARTMENTS] = {0};
 
 void thread_stacks_destructor(void *_unused) {
+#if IA2_VERBOSE
+  char thread_name[16] = {0};
+  if (pthread_getname_np(pthread_self(), thread_name, sizeof(thread_name)) != 0) {
+    ia2_log("pthread_getname_np failed on thread %ld\n", (long)gettid());
+    thread_name[0] = '?';
+  }
+#endif
+
   for (size_t compartment = 0; compartment < IA2_MAX_COMPARTMENTS; compartment++) {
     void *const stack = stacks[compartment];
     if (!stack) {
       continue;
     }
-    ia2_log("deallocating stack for compartment %zu on thread %ld: %p..%p\n",
-            compartment, (long)gettid(), stack, stack + STACK_SIZE);
+    ia2_log("deallocating stack for compartment %zu on thread %ld (%s): %p..%p\n",
+            compartment, (long)gettid(), thread_name, stack, stack + STACK_SIZE);
     if (munmap(stack, STACK_SIZE) == -1) {
       fprintf(stderr, "munmap failed\n");
       abort();

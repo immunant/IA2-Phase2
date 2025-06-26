@@ -3,6 +3,8 @@
 // Use the C allocator; don't use libstd.
 extern crate alloc;
 
+use libc::STDERR_FILENO;
+use libc::write;
 use libc_alloc::LibcAlloc;
 
 #[global_allocator]
@@ -11,12 +13,7 @@ static ALLOCATOR: LibcAlloc = LibcAlloc;
 struct StdErrWriter;
 impl alloc::fmt::Write for StdErrWriter {
     fn write_str(&mut self, s: &str) -> Result<(), core::fmt::Error> {
-        unsafe extern "C" {
-            unsafe fn write(fd: i32, buf: *const u8, len: usize);
-        }
-        unsafe {
-            write(2, s.as_ptr(), s.len());
-        }
+        unsafe { write(STDERR_FILENO, s.as_ptr().cast(), s.len()) };
         Ok(())
     }
 }
@@ -32,11 +29,10 @@ macro_rules! eprintln {
 #[cfg(not(test))]
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
+    use libc::abort;
+
     eprintln!("{info}");
-    unsafe extern "C" {
-        safe fn abort() -> !;
-    }
-    abort();
+    unsafe { abort() };
 }
 
 #[cfg(not(test))]

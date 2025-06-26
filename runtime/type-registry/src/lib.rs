@@ -25,6 +25,7 @@ struct StdErrWriter;
 
 impl fmt::Write for StdErrWriter {
     fn write_str(&mut self, s: &str) -> Result<(), fmt::Error> {
+        // SAFETY: `s.as_ptr()` points to `s.len()` bytes.
         unsafe { write(STDERR_FILENO, s.as_ptr().cast(), s.len()) };
         Ok(())
     }
@@ -42,6 +43,7 @@ macro_rules! eprintln {
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     eprintln!("{info}");
+    // SAFETY: `abort` is always safe.
     unsafe { abort() };
 }
 

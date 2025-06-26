@@ -30,6 +30,7 @@ struct StdErrWriter;
 
 #[cfg(not(test))]
 impl fmt::Write for StdErrWriter {
+    /// async-signal-safe
     fn write_str(&mut self, s: &str) -> Result<(), fmt::Error> {
         // SAFETY: `s.as_ptr()` points to `s.len()` bytes.
         unsafe { write(STDERR_FILENO, s.as_ptr().cast(), s.len()) };

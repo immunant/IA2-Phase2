@@ -1,6 +1,8 @@
 #![cfg_attr(not(test), no_std)]
-/* use the C allocator; don't use libstd */
+
+// Use the C allocator; don't use libstd.
 extern crate alloc;
+
 use libc_alloc::LibcAlloc;
 
 #[global_allocator]
@@ -19,7 +21,7 @@ impl alloc::fmt::Write for StdErrWriter {
     }
 }
 
-/* print errors via libc */
+// Print errors via libc.
 macro_rules! eprintln {
     ($($items: expr),+) => {{
         use alloc::fmt::Write;

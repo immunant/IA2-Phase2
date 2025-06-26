@@ -16,7 +16,7 @@ use libc::STDERR_FILENO;
 use libc::abort;
 use libc::write;
 use libc_alloc::LibcAlloc;
-use mutex::Mutex;
+use spin::RwLock;
 
 #[global_allocator]
 static ALLOCATOR: LibcAlloc = LibcAlloc;
@@ -53,83 +53,6 @@ extern "C" fn rust_eh_personality() {}
 
 #[link(name = "gcc_s")]
 unsafe extern "C" {}
-
-mod mutex {
-    use core::cell::UnsafeCell;
-    use core::fmt;
-    use core::fmt::Debug;
-    use core::fmt::Formatter;
-    use core::hint::spin_loop;
-    use core::ops::Deref;
-    use core::ops::DerefMut;
-    use core::sync::atomic::AtomicBool;
-    use core::sync::atomic::Ordering;
-
-    unsafe impl<T: Send> Sync for Mutex<T> {}
-
-    #[derive(Default)]
-    pub struct Mutex<T> {
-        inner: UnsafeCell<T>,
-        locked: AtomicBool,
-    }
-
-    impl<T> Mutex<T> {
-        pub const fn new(inner: T) -> Self {
-            Self {
-                inner: UnsafeCell::new(inner),
-                locked: AtomicBool::new(false),
-            }
-        }
-
-        pub fn lock(&self) -> Guard<'_, T> {
-            while self
-                .locked
-                .compare_exchange(false, true, Ordering::Acquire, Ordering::Acquire)
-                .is_err()
-            {
-                while self.locked.load(Ordering::Relaxed) {
-                    spin_loop();
-                }
-            }
-            Guard {
-                locked: &self.locked,
-                inner: self.inner.get(),
-            }
-        }
-    }
-
-    pub struct Guard<'a, T> {
-        locked: &'a AtomicBool,
-        inner: *mut T,
-    }
-
-    impl<'a, T> Deref for Guard<'a, T> {
-        type Target = T;
-        fn deref(&self) -> &T {
-            unsafe { &*self.inner }
-        }
-    }
-
-    impl<'a, T> DerefMut for Guard<'a, T> {
-        fn deref_mut(&mut self) -> &mut T {
-            unsafe { &mut *self.inner }
-        }
-    }
-
-    impl<'a, T: Debug> Debug for Guard<'a, T> {
-        fn fmt(&self, fmt: &mut Formatter) -> Result<(), fmt::Error> {
-            self.inner.fmt(fmt)
-        }
-    }
-
-    impl<'a, T> Drop for Guard<'a, T> {
-        fn drop(&mut self) {
-            self.locked
-                .compare_exchange(true, false, Ordering::Acquire, Ordering::Acquire)
-                .expect("unlocked mutex that was not locked");
-        }
-    }
-}
 
 pub type Ptr = *const ();
 
@@ -190,13 +113,13 @@ pub extern "C-unwind" fn ia2_type_registry_check(ptr: Ptr, expected_type_id: Typ
 
 #[derive(Default)]
 pub struct TypeRegistry {
-    map: Mutex<BTreeMap<PtrAddr, TypeId>>,
+    map: RwLock<BTreeMap<PtrAddr, TypeId>>,
 }
 
 impl TypeRegistry {
     pub const fn new() -> Self {
         Self {
-            map: Mutex::new(BTreeMap::new()),
+            map: RwLock::new(BTreeMap::new()),
         }
     }
 
@@ -206,7 +129,7 @@ impl TypeRegistry {
     #[track_caller]
     pub fn construct(&self, ptr: Ptr, type_id: TypeId) {
         let ptr = PtrAddr(ptr.addr());
-        let mut map = self.map.lock();
+        let map = &mut *self.map.write();
         if cfg!(debug_assertions) {
             eprintln!("construct({ptr}, {type_id}): {map:#?}");
         }
@@ -222,7 +145,7 @@ impl TypeRegistry {
     #[track_caller]
     pub fn destruct(&self, ptr: Ptr, expected_type_id: TypeId) {
         let ptr = PtrAddr(ptr.addr());
-        let map = &mut *self.map.lock();
+        let map = &mut *self.map.write();
         if cfg!(debug_assertions) {
             eprintln!("destruct({ptr}, {expected_type_id}): {map:#?}");
         }
@@ -240,7 +163,7 @@ impl TypeRegistry {
     #[track_caller]
     pub fn check(&self, ptr: Ptr, expected_type_id: TypeId) {
         let ptr = PtrAddr(ptr.addr());
-        let map = self.map.lock();
+        let map = &*self.map.read();
         if cfg!(debug_assertions) {
             eprintln!("check({ptr}, {expected_type_id}): {map:#?}");
         }
@@ -259,7 +182,7 @@ impl TypeRegistry {
 
 impl Drop for TypeRegistry {
     fn drop(&mut self) {
-        let map = self.map.lock();
+        let map = &*self.map.read();
         if !map.is_empty() {
             eprintln!("warning: leak: {map:?}");
         }

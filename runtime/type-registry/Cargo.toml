@@ -8,8 +8,8 @@ rust-version = "1.85"
 crate-type = ["staticlib"]
 
 [dependencies]
-
-libc_alloc = "1"
+libc = { version = "0.2.174", default-features = false }
+libc_alloc = "1.0.7"
 
 # We always need `panic = "abort"`,
 # as we don't want panics to cross the C/Rust boundary,

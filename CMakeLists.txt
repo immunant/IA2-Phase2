@@ -2,12 +2,23 @@ cmake_minimum_required(VERSION 4.0)
 project(IA2Phase2)
 
 include(ExternalProject)
+include(CTest)
 include(cmake/ia2.cmake)
 include(cmake/qemu-command.cmake)
 
 find_package(PkgConfig REQUIRED)
 
 set(EXTERNAL_DIR ${PROJECT_SOURCE_DIR}/external)
+
+enable_testing()
+
+# Set up 'check' target
+if (LIBIA2_AARCH64)
+    # On aarch64, avoid swallowing QEMU MTE check failures
+    set(CMAKE_CTEST_COMMAND ${CMAKE_CTEST_COMMAND} --verbose)
+endif()
+add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure)
+set_target_properties(check PROPERTIES FOLDER ".")
 
 # runtime needs to be first so it defines libia2_BINARY_DIR
 add_subdirectory(runtime)

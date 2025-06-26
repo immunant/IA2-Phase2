@@ -1,11 +1,11 @@
 cmake_minimum_required(VERSION 4.0)
 project(IA2Phase2)
+
 include(ExternalProject)
-
-find_package(PkgConfig REQUIRED)
-
 include(cmake/ia2.cmake)
 include(cmake/qemu-command.cmake)
+
+find_package(PkgConfig REQUIRED)
 
 set(EXTERNAL_DIR ${PROJECT_SOURCE_DIR}/external)
 

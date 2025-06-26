@@ -4,19 +4,13 @@
 extern crate alloc;
 
 use alloc::collections::BTreeMap;
+#[cfg(not(test))]
+use crate::no_std::eprintln;
 use core::fmt;
 use core::fmt::Debug;
 use core::fmt::Display;
 use core::fmt::Formatter;
-#[cfg(not(test))]
-use core::panic::PanicInfo;
 use core::ptr;
-#[cfg(not(test))]
-use libc::STDERR_FILENO;
-#[cfg(not(test))]
-use libc::abort;
-#[cfg(not(test))]
-use libc::write;
 use libc_alloc::LibcAlloc;
 use spin::RwLock;
 #[cfg(test)]
@@ -26,41 +20,49 @@ use std::eprintln;
 static ALLOCATOR: LibcAlloc = LibcAlloc;
 
 #[cfg(not(test))]
-struct StdErrWriter;
+mod no_std {
+    use core::fmt;
+    use core::panic::PanicInfo;
+    use libc::STDERR_FILENO;
+    use libc::abort;
+    use libc::write;
 
-#[cfg(not(test))]
-impl fmt::Write for StdErrWriter {
-    /// async-signal-safe
-    fn write_str(&mut self, s: &str) -> Result<(), fmt::Error> {
-        // SAFETY: `s.as_ptr()` points to `s.len()` bytes.
-        unsafe { write(STDERR_FILENO, s.as_ptr().cast(), s.len()) };
-        Ok(())
+    pub struct StdErrWriter;
+
+    impl fmt::Write for StdErrWriter {
+        /// async-signal-safe
+        fn write_str(&mut self, s: &str) -> Result<(), fmt::Error> {
+            // SAFETY: `s.as_ptr()` points to `s.len()` bytes.
+            unsafe { write(STDERR_FILENO, s.as_ptr().cast(), s.len()) };
+            Ok(())
+        }
     }
+
+    // Print errors via libc.
+    macro_rules! eprintln {
+        ($($items: expr),+) => {{
+            use core::fmt::Write;
+            use crate::no_std::StdErrWriter;
+
+            let _ = writeln!(&mut StdErrWriter, $($items,)+);
+        }}
+    }
+
+    pub(crate) use eprintln;
+
+    #[panic_handler]
+    fn panic(info: &PanicInfo) -> ! {
+        eprintln!("{info}");
+        // SAFETY: `abort` is always safe.
+        unsafe { abort() };
+    }
+
+    #[unsafe(no_mangle)]
+    extern "C" fn rust_eh_personality() {}
+
+    #[link(name = "gcc_s")]
+    unsafe extern "C" {}
 }
-
-// Print errors via libc.
-#[cfg(not(test))]
-macro_rules! eprintln {
-    ($($items: expr),+) => {{
-        use core::fmt::Write;
-        let _ = writeln!(&mut StdErrWriter, $($items,)+);
-    }}
-}
-
-#[cfg(not(test))]
-#[panic_handler]
-fn panic(info: &PanicInfo) -> ! {
-    eprintln!("{info}");
-    // SAFETY: `abort` is always safe.
-    unsafe { abort() };
-}
-
-#[cfg(not(test))]
-#[unsafe(no_mangle)]
-extern "C" fn rust_eh_personality() {}
-
-#[link(name = "gcc_s")]
-unsafe extern "C" {}
 
 pub type Ptr = *const ();
 

@@ -3,16 +3,28 @@
 // Use the C allocator; don't use libstd.
 extern crate alloc;
 
+use alloc::collections::BTreeMap;
+use core::fmt;
+use core::fmt::Debug;
+use core::fmt::Display;
+use core::fmt::Formatter;
+#[cfg(not(test))]
+use core::panic::PanicInfo;
+use core::ptr;
 use libc::STDERR_FILENO;
+#[cfg(not(test))]
+use libc::abort;
 use libc::write;
 use libc_alloc::LibcAlloc;
+use mutex::Mutex;
 
 #[global_allocator]
 static ALLOCATOR: LibcAlloc = LibcAlloc;
 
 struct StdErrWriter;
-impl alloc::fmt::Write for StdErrWriter {
-    fn write_str(&mut self, s: &str) -> Result<(), core::fmt::Error> {
+
+impl fmt::Write for StdErrWriter {
+    fn write_str(&mut self, s: &str) -> Result<(), fmt::Error> {
         unsafe { write(STDERR_FILENO, s.as_ptr().cast(), s.len()) };
         Ok(())
     }
@@ -21,16 +33,14 @@ impl alloc::fmt::Write for StdErrWriter {
 // Print errors via libc.
 macro_rules! eprintln {
     ($($items: expr),+) => {{
-        use alloc::fmt::Write;
+        use core::fmt::Write;
         let _ = writeln!(&mut StdErrWriter, $($items,)+);
     }}
 }
 
 #[cfg(not(test))]
 #[panic_handler]
-fn panic(info: &core::panic::PanicInfo) -> ! {
-    use libc::abort;
-
+fn panic(info: &PanicInfo) -> ! {
     eprintln!("{info}");
     unsafe { abort() };
 }
@@ -42,21 +52,16 @@ extern "C" fn rust_eh_personality() {}
 #[link(name = "gcc_s")]
 unsafe extern "C" {}
 
-use alloc::collections::BTreeMap;
-use alloc::fmt;
-use alloc::fmt::Debug;
-use alloc::fmt::Display;
-use alloc::fmt::Formatter;
-use core::ptr;
-
-use mutex::Mutex;
-
 mod mutex {
-    use core::{
-        cell::UnsafeCell,
-        fmt::{Debug, Formatter},
-        sync::atomic::{AtomicBool, Ordering},
-    };
+    use core::cell::UnsafeCell;
+    use core::fmt;
+    use core::fmt::Debug;
+    use core::fmt::Formatter;
+    use core::hint::spin_loop;
+    use core::ops::Deref;
+    use core::ops::DerefMut;
+    use core::sync::atomic::AtomicBool;
+    use core::sync::atomic::Ordering;
 
     unsafe impl<T: Send> Sync for Mutex<T> {}
 
@@ -81,7 +86,7 @@ mod mutex {
                 .is_err()
             {
                 while self.locked.load(Ordering::Relaxed) {
-                    core::hint::spin_loop();
+                    spin_loop();
                 }
             }
             Guard {
@@ -96,21 +101,21 @@ mod mutex {
         inner: *mut T,
     }
 
-    impl<'a, T> core::ops::Deref for Guard<'a, T> {
+    impl<'a, T> Deref for Guard<'a, T> {
         type Target = T;
         fn deref(&self) -> &T {
             unsafe { &*self.inner }
         }
     }
 
-    impl<'a, T> core::ops::DerefMut for Guard<'a, T> {
+    impl<'a, T> DerefMut for Guard<'a, T> {
         fn deref_mut(&mut self) -> &mut T {
             unsafe { &mut *self.inner }
         }
     }
 
     impl<'a, T: Debug> Debug for Guard<'a, T> {
-        fn fmt(&self, fmt: &mut Formatter) -> Result<(), alloc::fmt::Error> {
+        fn fmt(&self, fmt: &mut Formatter) -> Result<(), fmt::Error> {
             self.inner.fmt(fmt)
         }
     }

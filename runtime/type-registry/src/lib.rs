@@ -11,18 +11,24 @@ use core::fmt::Formatter;
 #[cfg(not(test))]
 use core::panic::PanicInfo;
 use core::ptr;
+#[cfg(not(test))]
 use libc::STDERR_FILENO;
 #[cfg(not(test))]
 use libc::abort;
+#[cfg(not(test))]
 use libc::write;
 use libc_alloc::LibcAlloc;
 use spin::RwLock;
+#[cfg(test)]
+use std::eprintln;
 
 #[global_allocator]
 static ALLOCATOR: LibcAlloc = LibcAlloc;
 
+#[cfg(not(test))]
 struct StdErrWriter;
 
+#[cfg(not(test))]
 impl fmt::Write for StdErrWriter {
     fn write_str(&mut self, s: &str) -> Result<(), fmt::Error> {
         // SAFETY: `s.as_ptr()` points to `s.len()` bytes.
@@ -32,6 +38,7 @@ impl fmt::Write for StdErrWriter {
 }
 
 // Print errors via libc.
+#[cfg(not(test))]
 macro_rules! eprintln {
     ($($items: expr),+) => {{
         use core::fmt::Write;

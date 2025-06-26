@@ -1,135 +1,75 @@
 #![cfg_attr(not(test), no_std)]
-/* use the C allocator; don't use libstd */
+
+// Use the C allocator; don't use libstd.
 extern crate alloc;
+
+#[cfg(not(test))]
+use crate::no_std::eprintln;
+use core::fmt;
+use core::fmt::Debug;
+use core::fmt::Display;
+use core::fmt::Formatter;
+use core::hash::BuildHasherDefault;
+use core::ptr;
+use fnv::FnvHasher;
+use hashbrown::HashMap;
 use libc_alloc::LibcAlloc;
+use spin::RwLock;
+#[cfg(test)]
+use std::eprintln;
 
 #[global_allocator]
 static ALLOCATOR: LibcAlloc = LibcAlloc;
 
-struct StdErrWriter;
-impl alloc::fmt::Write for StdErrWriter {
-    fn write_str(&mut self, s: &str) -> Result<(), core::fmt::Error> {
-        unsafe extern "C" {
-            unsafe fn write(fd: i32, buf: *const u8, len: usize);
-        }
-        unsafe {
-            write(2, s.as_ptr(), s.len());
-        }
-        Ok(())
-    }
-}
-
-/* print errors via libc */
-macro_rules! eprintln {
-    ($($items: expr),+) => {{
-        use alloc::fmt::Write;
-        let _ = writeln!(&mut StdErrWriter, $($items,)+);
-    }}
-}
-
 #[cfg(not(test))]
-#[panic_handler]
-fn panic(info: &core::panic::PanicInfo) -> ! {
-    eprintln!("{info}");
-    unsafe extern "C" {
-        safe fn abort() -> !;
-    }
-    abort();
-}
+mod no_std {
+    use core::fmt;
+    use core::panic::PanicInfo;
+    use libc::STDERR_FILENO;
+    use libc::abort;
+    use libc::write;
 
-#[cfg(not(test))]
-#[unsafe(no_mangle)]
-extern "C" fn rust_eh_personality() {}
+    pub struct StdErrWriter;
 
-#[link(name = "gcc_s")]
-unsafe extern "C" {}
-
-use alloc::collections::BTreeMap;
-use alloc::fmt;
-use alloc::fmt::Debug;
-use alloc::fmt::Display;
-use alloc::fmt::Formatter;
-use core::ptr;
-
-use mutex::Mutex;
-
-mod mutex {
-    use core::{
-        cell::UnsafeCell,
-        fmt::{Debug, Formatter},
-        sync::atomic::{AtomicBool, Ordering},
-    };
-
-    unsafe impl<T: Send> Sync for Mutex<T> {}
-
-    #[derive(Default)]
-    pub struct Mutex<T> {
-        inner: UnsafeCell<T>,
-        locked: AtomicBool,
-    }
-
-    impl<T> Mutex<T> {
-        pub const fn new(inner: T) -> Self {
-            Self {
-                inner: UnsafeCell::new(inner),
-                locked: AtomicBool::new(false),
-            }
-        }
-
-        pub fn lock(&self) -> Guard<'_, T> {
-            while self
-                .locked
-                .compare_exchange(false, true, Ordering::Acquire, Ordering::Acquire)
-                .is_err()
-            {
-                while self.locked.load(Ordering::Relaxed) {
-                    core::hint::spin_loop();
-                }
-            }
-            Guard {
-                locked: &self.locked,
-                inner: self.inner.get(),
-            }
+    impl fmt::Write for StdErrWriter {
+        /// async-signal-safe
+        fn write_str(&mut self, s: &str) -> Result<(), fmt::Error> {
+            // SAFETY: `s.as_ptr()` points to `s.len()` bytes.
+            unsafe { write(STDERR_FILENO, s.as_ptr().cast(), s.len()) };
+            Ok(())
         }
     }
 
-    pub struct Guard<'a, T> {
-        locked: &'a AtomicBool,
-        inner: *mut T,
+    // Print errors via libc.
+    macro_rules! eprintln {
+        ($($items: expr),+) => {{
+            use core::fmt::Write;
+            use crate::no_std::StdErrWriter;
+
+            let _ = writeln!(&mut StdErrWriter, $($items,)+);
+        }}
     }
 
-    impl<'a, T> core::ops::Deref for Guard<'a, T> {
-        type Target = T;
-        fn deref(&self) -> &T {
-            unsafe { &*self.inner }
-        }
+    pub(crate) use eprintln;
+
+    #[panic_handler]
+    fn panic(info: &PanicInfo) -> ! {
+        eprintln!("{info}");
+        // SAFETY: `abort` is always safe.
+        unsafe { abort() };
     }
 
-    impl<'a, T> core::ops::DerefMut for Guard<'a, T> {
-        fn deref_mut(&mut self) -> &mut T {
-            unsafe { &mut *self.inner }
-        }
-    }
+    #[unsafe(no_mangle)]
+    extern "C" fn rust_eh_personality() {}
 
-    impl<'a, T: Debug> Debug for Guard<'a, T> {
-        fn fmt(&self, fmt: &mut Formatter) -> Result<(), alloc::fmt::Error> {
-            self.inner.fmt(fmt)
-        }
-    }
-
-    impl<'a, T> Drop for Guard<'a, T> {
-        fn drop(&mut self) {
-            self.locked
-                .compare_exchange(true, false, Ordering::Acquire, Ordering::Acquire)
-                .expect("unlocked mutex that was not locked");
-        }
-    }
+    #[link(name = "gcc_s")]
+    unsafe extern "C" {}
 }
 
 pub type Ptr = *const ();
 
 /// A pointer's address without provenance, used purely as an address for comparisons.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct PtrAddr(usize);
 
 impl Display for PtrAddr {
@@ -185,13 +125,13 @@ pub extern "C-unwind" fn ia2_type_registry_check(ptr: Ptr, expected_type_id: Typ
 
 #[derive(Default)]
 pub struct TypeRegistry {
-    map: Mutex<BTreeMap<PtrAddr, TypeId>>,
+    map: RwLock<HashMap<PtrAddr, TypeId, BuildHasherDefault<FnvHasher>>>,
 }
 
 impl TypeRegistry {
     pub const fn new() -> Self {
         Self {
-            map: Mutex::new(BTreeMap::new()),
+            map: RwLock::new(HashMap::with_hasher(BuildHasherDefault::new())),
         }
     }
 
@@ -201,7 +141,7 @@ impl TypeRegistry {
     #[track_caller]
     pub fn construct(&self, ptr: Ptr, type_id: TypeId) {
         let ptr = PtrAddr(ptr.addr());
-        let mut map = self.map.lock();
+        let map = &mut *self.map.write();
         if cfg!(debug_assertions) {
             eprintln!("construct({ptr}, {type_id}): {map:#?}");
         }
@@ -217,7 +157,7 @@ impl TypeRegistry {
     #[track_caller]
     pub fn destruct(&self, ptr: Ptr, expected_type_id: TypeId) {
         let ptr = PtrAddr(ptr.addr());
-        let map = &mut *self.map.lock();
+        let map = &mut *self.map.write();
         if cfg!(debug_assertions) {
             eprintln!("destruct({ptr}, {expected_type_id}): {map:#?}");
         }
@@ -235,7 +175,7 @@ impl TypeRegistry {
     #[track_caller]
     pub fn check(&self, ptr: Ptr, expected_type_id: TypeId) {
         let ptr = PtrAddr(ptr.addr());
-        let map = self.map.lock();
+        let map = &*self.map.read();
         if cfg!(debug_assertions) {
             eprintln!("check({ptr}, {expected_type_id}): {map:#?}");
         }
@@ -254,7 +194,7 @@ impl TypeRegistry {
 
 impl Drop for TypeRegistry {
     fn drop(&mut self) {
-        let map = self.map.lock();
+        let map = &*self.map.read();
         if !map.is_empty() {
             eprintln!("warning: leak: {map:?}");
         }

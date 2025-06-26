@@ -3,14 +3,16 @@
 // Use the C allocator; don't use libstd.
 extern crate alloc;
 
-use alloc::collections::BTreeMap;
 use core::fmt;
 use core::fmt::Debug;
 use core::fmt::Display;
 use core::fmt::Formatter;
+use core::hash::BuildHasherDefault;
 #[cfg(not(test))]
 use core::panic::PanicInfo;
 use core::ptr;
+use fnv::FnvHasher;
+use hashbrown::HashMap;
 use libc::STDERR_FILENO;
 #[cfg(not(test))]
 use libc::abort;
@@ -57,7 +59,7 @@ unsafe extern "C" {}
 pub type Ptr = *const ();
 
 /// A pointer's address without provenance, used purely as an address for comparisons.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct PtrAddr(usize);
 
 impl Display for PtrAddr {
@@ -113,13 +115,13 @@ pub extern "C-unwind" fn ia2_type_registry_check(ptr: Ptr, expected_type_id: Typ
 
 #[derive(Default)]
 pub struct TypeRegistry {
-    map: RwLock<BTreeMap<PtrAddr, TypeId>>,
+    map: RwLock<HashMap<PtrAddr, TypeId, BuildHasherDefault<FnvHasher>>>,
 }
 
 impl TypeRegistry {
     pub const fn new() -> Self {
         Self {
-            map: RwLock::new(BTreeMap::new()),
+            map: RwLock::new(HashMap::with_hasher(BuildHasherDefault::new())),
         }
     }
 

@@ -21,7 +21,12 @@ set(LIB_PATH ${CMAKE_CURRENT_BINARY_DIR}/${CARGO_ARCH_SUFFIX}/${CARGO_PROFILE_DI
 
 add_custom_command(
   OUTPUT ${LIB_PATH}
-  COMMAND CARGO_TARGET_DIR=${CMAKE_CURRENT_BINARY_DIR} cargo build ${CARGO_TARGET_FLAG} --manifest-path ${CMAKE_CURRENT_SOURCE_DIR}/memory-map/Cargo.toml --profile ${CARGO_PROFILE}
+  COMMAND ${CMAKE_COMMAND} -E env
+    CARGO_TARGET_DIR=${CMAKE_CURRENT_BINARY_DIR}
+    cargo build
+      --manifest-path ${CMAKE_CURRENT_SOURCE_DIR}/memory-map/Cargo.toml
+      --profile ${CARGO_PROFILE}
+      ${CARGO_TARGET_FLAG}
   DEPENDS memory-map/Cargo.toml memory-map/src/lib.rs
 )
 

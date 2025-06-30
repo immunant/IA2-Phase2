@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 4.0)
 project(type-registry)
 
 if (LIBIA2_AARCH64)
-set(CARGO_TARGET_FLAG "--target=aarch64-unknown-linux-gnu" "--config" "target.aarch64-unknown-linux-gnu.linker=\\\"aarch64-linux-gnu-gcc\\\"")
+set(CARGO_TARGET_FLAG "--target=aarch64-unknown-linux-gnu")
 set(CARGO_ARCH_SUFFIX "aarch64-unknown-linux-gnu")
 else()
 set(CARGO_TARGET_FLAG "")

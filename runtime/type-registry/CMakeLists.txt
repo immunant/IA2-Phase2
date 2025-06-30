@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 4.0)
 project(type-registry)
 
-if (LIBIA2_AARCH64)
+if(LIBIA2_AARCH64)
 set(CARGO_TARGET "aarch64-unknown-linux-gnu")
 else()
 set(CARGO_TARGET "x86_64-unknown-linux-gnu")
@@ -33,12 +33,16 @@ set_property(TARGET type-registry PROPERTY IMPORTED_LOCATION ${LIB_PATH})
 add_custom_target(type-registry-tgt DEPENDS ${LIB_PATH})
 add_dependencies(type-registry type-registry-tgt)
 
-add_test(
-  NAME type-registry-test
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-  COMMAND ${CMAKE_COMMAND} -E env
-    CARGO_TARGET_DIR=${CMAKE_CURRENT_BINARY_DIR}
-    cargo test
-      --profile ${CARGO_PROFILE}
-      --target ${CARGO_TARGET}
-)
+if (NOT LIBIA2_AARCH64)
+  # It's more complex to test with qemu, so only test on x86_64,
+  # which should be sufficient for what's tested (nothing significant is platform dependent).
+  add_test(
+    NAME type-registry-test
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    COMMAND ${CMAKE_COMMAND} -E env
+      CARGO_TARGET_DIR=${CMAKE_CURRENT_BINARY_DIR}
+      cargo test
+        --profile ${CARGO_PROFILE}
+        --target ${CARGO_TARGET}
+  )
+endif()

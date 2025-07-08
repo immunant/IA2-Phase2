@@ -44,7 +44,7 @@ void *start_thread(void *const arg) {
   // Mostly bogus stuff.
   // Just want to use stack, heap, and TLS.
   int a[4096] = {0};
-  malloc(10);
+  (void)malloc(10);
 
   // We want to inspect the labeled memory map with all of the threads,
   // so if we joined them first then we wouldn't be able to see them.

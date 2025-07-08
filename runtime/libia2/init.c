@@ -123,10 +123,10 @@ static void mark_init_finished(void) {
     mmap((void *)IA2_FINISH_INIT_MAGIC, 0, 0, MAP_FIXED, -1, 0);
 }
 
-static int ia2_protect_memory(const char *dso, int compartment, const char *extra_libraries) {
+static int ia2_setup_compartment(const char *dso, int compartment, const char *extra_libraries) {
     ia2_log("protecting memory for compartment %d\n", compartment);
     void *handle = RTLD_DEFAULT;
-    void *dso_addr = &ia2_protect_memory;
+    void *dso_addr = &ia2_setup_compartment;
     /* if the DSO is not the main executable dlopen it */
     if (strcmp(dso, "main")) {
         handle = dlopen(dso, RTLD_GLOBAL | RTLD_NOW);
@@ -231,7 +231,7 @@ void ia2_start(void) {
             assert(!user_config[i].extra_libraries);
             continue;
         }
-        int rc = ia2_protect_memory(user_config[i].dso, i, user_config[i].extra_libraries);
+        int rc = ia2_setup_compartment(user_config[i].dso, i, user_config[i].extra_libraries);
         if (rc != 0) {
             printf("%s: failed to initialize runtime (%d)\n", __func__, rc);
             exit(rc);

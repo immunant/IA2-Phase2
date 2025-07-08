@@ -134,9 +134,18 @@ static int ia2_setup_compartment(const char *dso, int compartment, const char *e
             printf("%s: failed to dlopen DSO %s for compartment %d\n", __func__, dso, compartment);
             return -1;
         }
-        dso_addr = dlsym(handle, "ia2_get_pkey");
+        /*
+         * The protect_pages requires an arbitrary address in the loaded DSO to find the correct
+         * segments. For the main binary we just take the address of the current function
+         * (ia2_setup_compartment) but for shared libraries we can't use this since only the copy
+         * in the main binary is executed so it always refers to that DSO. Instead we use an
+         * arbitrary symbol defined in libia2.a (ia2_get_tag) with a handle to the dlopen'ed DSO.
+         * This works since libia2 is statically linked in and that function can never get dead code
+         * eliminated by the linker.
+         */
+        dso_addr = dlsym(handle, "ia2_get_tag");
         if (!dso_addr) {
-            printf("%s: failed to dlsym 'ia2_get_pkey' in '%s'/compartment %d failed (%s)\n", __func__, dso, compartment, dlerror());
+            printf("%s: failed to dlsym 'ia2_get_tag' in '%s'/compartment %d failed (%s)\n", __func__, dso, compartment, dlerror());
             return -1;
         }
     }

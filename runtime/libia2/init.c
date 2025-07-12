@@ -24,9 +24,9 @@ extern __thread void *ia2_stackptr_0[PAGE_SIZE / sizeof(void *)]
 
 static pthread_key_t thread_stacks_key IA2_SHARED_DATA;
 
-__thread void *stacks[IA2_MAX_COMPARTMENTS] = {0};
+static __thread void *stacks[IA2_MAX_COMPARTMENTS] = {0};
 
-void thread_stacks_destructor(void *_unused) {
+static void thread_stacks_destructor(void *_unused) {
 #if IA2_VERBOSE
   char thread_name[16] = {0};
   if (pthread_getname_np(pthread_self(), thread_name, sizeof(thread_name)) != 0) {

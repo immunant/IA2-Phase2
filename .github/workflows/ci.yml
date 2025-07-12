@@ -91,6 +91,7 @@ jobs:
       - name: Install dep packages
         uses: awalsh128/cache-apt-pkgs-action@latest
         with:
+          # `llvm` is for `llvm-objdump`.
           packages: |
             gcc-aarch64-linux-gnu
             g++-aarch64-linux-gnu
@@ -98,7 +99,7 @@ jobs:
             libc6-dev-arm64-cross
             clang-15
             pkg-config
-            llvm # for llvm-objdump
+            llvm
             llvm-15-dev
             libclang-15-dev
             zlib1g-dev

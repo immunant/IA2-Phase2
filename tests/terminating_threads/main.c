@@ -99,6 +99,7 @@ struct start_wrapper_args {
   start_fn start;
   pthread_barrier_t *barrier;
   void *stack_ptr;
+  size_t index;
 };
 
 static void *start_wrapper(void *arg) {
@@ -109,6 +110,14 @@ static void *start_wrapper(void *arg) {
 
   int stack_arg;
   args->stack_ptr = (void *)&stack_arg;
+
+  char thread_name[16] = {0};
+  snprintf(thread_name, sizeof(thread_name), "%zu", args->index);
+  const int result = pthread_setname_np(pthread_self(), thread_name);
+  if (result != 0) {
+    cr_fatal("pthread_setname_np failed: %s", strerrorname_np(result));
+  }
+  cr_log_info("thread %ld is named %s", (long)gettid(), thread_name);
 
   pthread_barrier_wait(args->barrier);
   return start(NULL);
@@ -125,6 +134,7 @@ void run_test(size_t num_threads, start_fn start, end_fn end, start_fn main) {
       args[i].start = start;
       args[i].barrier = &barrier;
       args[i].stack_ptr = NULL;
+      args[i].index = i;
 #if IA2_ENABLE
       pthread_create(&threads[i], NULL, start_wrapper, (void *)&args[i]);
 #endif

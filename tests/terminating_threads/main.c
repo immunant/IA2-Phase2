@@ -102,6 +102,15 @@ struct start_wrapper_args {
   size_t index;
 };
 
+/// Run some pre-thread start code in the new thread.
+///
+/// `arg` should be a `struct start_wrapper_args`.
+///
+/// The wrapper:
+/// * saves `args->start` in case it's deallocated in the parent thread.
+/// * stores a stack ptr from the new thread.
+/// * names the thread to help with debugging.
+/// * waits on `args->barrier` so that all thread wrappers finish before the parent thread finishes.
 static void *start_wrapper(void *arg) {
   struct start_wrapper_args *const args = (struct start_wrapper_args *)arg;
 

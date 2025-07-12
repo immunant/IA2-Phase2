@@ -63,24 +63,37 @@ int end_cancel(pthread_t thread) {
 
 struct start_wrapper_args {
   start_fn start;
+  pthread_barrier_t *barrier;
 };
 
 static void *start_wrapper(void *arg) {
   const struct start_wrapper_args *const args = (const struct start_wrapper_args *)arg;
-  return args->start(NULL);
+
+  // Save the start fn before the barrier, as `args` might be deallocated after the barrier.
+  const start_fn start = args->start;
+
+  pthread_barrier_wait(args->barrier);
+  return start(NULL);
 }
 
 void run_test(size_t num_threads, start_fn start, end_fn end, start_fn main) {
   if (num_threads > 0) {
     pthread_t threads[num_threads];
-    // Let `args` leak since it may have to outlive `run_test` for other threads to access it.
-    struct start_wrapper_args *const args = malloc(num_threads * sizeof(*args));
+    struct start_wrapper_args args[num_threads];
+    pthread_barrier_t barrier;
+    cr_assert(pthread_barrier_init(&barrier, NULL, (unsigned)num_threads + 1) == 0);
+
     for (size_t i = 0; i < num_threads; i++) {
       args[i].start = start;
+      args[i].barrier = &barrier;
 #if IA2_ENABLE
       pthread_create(&threads[i], NULL, start_wrapper, (void *)&args[i]);
 #endif
     }
+
+    // Make sure all threads read `args` before it goes out of scope here.
+    pthread_barrier_wait(&barrier);
+
     for (size_t i = 0; i < num_threads; i++) {
       // Don't call fn ptr inside a macro, as the rewriter won't rewrite it.
       const int result = end(threads[i]);

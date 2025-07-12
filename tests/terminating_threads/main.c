@@ -70,7 +70,9 @@ void run_test(size_t num_threads, start_fn start, end_fn end, start_fn main) {
       pthread_create(&threads[i], NULL, start, NULL);
     }
     for (size_t i = 0; i < num_threads; i++) {
-      cr_assert(end(threads[i]) == 0);
+      // Don't call fn ptr inside a macro, as the rewriter won't rewrite it.
+      const int result = end(threads[i]);
+      cr_assert(result == 0);
     }
   }
   main(NULL);

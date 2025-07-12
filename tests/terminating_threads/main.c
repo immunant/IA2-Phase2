@@ -146,10 +146,12 @@ void run_test(size_t num_threads, start_fn start, end_fn end, start_fn main) {
     cr_assert(pthread_barrier_init(&barrier, NULL, (unsigned)num_threads + 1) == 0);
 
     for (size_t i = 0; i < num_threads; i++) {
-      args[i].start = start;
-      args[i].barrier = &barrier;
-      args[i].stack_ptr = NULL;
-      args[i].index = i;
+      args[i] = (struct start_wrapper_args){
+          .start = start,
+          .barrier = &barrier,
+          .stack_ptr = NULL,
+          .index = i,
+      };
 #if IA2_ENABLE
       pthread_create(&threads[i], NULL, start_wrapper, (void *)&args[i]);
 #endif

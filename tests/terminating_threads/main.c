@@ -37,53 +37,53 @@ void ia2_main(void) {
 typedef void *(*start_fn)(void *arg);
 typedef int (*end_fn)(pthread_t thread);
 
-void *start_return(void *_arg) {
+static void *start_return(void *_arg) {
   return NULL;
 }
 
 #if 0 // TODO Skip for now, as `exit` does cleanup that might have some issues.
 
-void *start_exit(void *_arg) {
+static void *start_exit(void *_arg) {
   exit(0);
 }
 
 #endif
 
-void *start_abort(void *_arg) {
+static void *start_abort(void *_arg) {
   abort();
   return NULL;
 }
 
 #if 0 // TODO Skip for now, as `pthread_exit` `SIGILL`s (#605).
 
-void *start_pthread_exit(void *_arg) {
+static void *start_pthread_exit(void *_arg) {
   pthread_exit(NULL);
   return NULL;
 }
 
 #endif
 
-void *start_pause(void *_arg) {
+static void *start_pause(void *_arg) {
   pause();
   return NULL;
 }
 
-void *start_sleep_100_us(void *_arg) {
+static void *start_sleep_100_us(void *_arg) {
   usleep(100);
   return NULL;
 }
 
-int end_none(pthread_t _thread) {
+static int end_none(pthread_t _thread) {
   return 0;
 }
 
-int end_join(pthread_t thread) {
+static int end_join(pthread_t thread) {
   return pthread_join(thread, NULL);
 }
 
 #if 0 // TODO Skip for now, as `pthread_cancel` `SIGSEGV`s (#606).
 
-int end_cancel(pthread_t thread) {
+static int end_cancel(pthread_t thread) {
   const int result = pthread_cancel(thread) != 0;
   if (result != 0) {
     return result;
@@ -147,7 +147,7 @@ static void *start_wrapper(void *arg) {
   return start(NULL);
 }
 
-void run_test(size_t num_threads, start_fn start, end_fn end, start_fn main) {
+static void run_test(size_t num_threads, start_fn start, end_fn end, start_fn main) {
   if (num_threads > 0) {
     pthread_t threads[num_threads];
     struct start_wrapper_args args[num_threads];

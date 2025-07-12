@@ -29,8 +29,9 @@ static __thread void *stacks[IA2_MAX_COMPARTMENTS] = {0};
 static void thread_stacks_destructor(void *_unused) {
 #if IA2_VERBOSE
   char thread_name[16] = {0};
-  if (pthread_getname_np(pthread_self(), thread_name, sizeof(thread_name)) != 0) {
-    ia2_log("pthread_getname_np failed on thread %ld\n", (long)gettid());
+  const int result = pthread_getname_np(pthread_self(), thread_name, sizeof(thread_name));
+  if (result != 0) {
+    ia2_log("pthread_getname_np failed on thread %ld: %s\n", (long)gettid(), strerrorname_np(result));
     thread_name[0] = '?';
   }
 #endif
@@ -43,15 +44,16 @@ static void thread_stacks_destructor(void *_unused) {
     ia2_log("deallocating stack for compartment %zu on thread %ld (%s): %p..%p\n",
             compartment, (long)gettid(), thread_name, stack, stack + STACK_SIZE);
     if (munmap(stack, STACK_SIZE) == -1) {
-      fprintf(stderr, "munmap failed\n");
+      fprintf(stderr, "munmap failed: %s\n", strerrorname_np(errno));
       abort();
     }
   }
 }
 
 void create_thread_keys(void) {
-  if (pthread_key_create(&thread_stacks_key, thread_stacks_destructor) != 0) {
-    fprintf(stderr, "pthread_key_create failed\n");
+  const int result = pthread_key_create(&thread_stacks_key, thread_stacks_destructor);
+  if (result != 0) {
+    fprintf(stderr, "pthread_key_create failed: %s\n", strerrorname_np(result));
     abort();
   }
 }
@@ -88,8 +90,9 @@ char *allocate_stack(int i) {
   // but it doesn't really matter what value it is,
   // since the destructor `thread_stacks_destructor`
   // just uses the TLS global `stack_ptrs` directly.
-  if (pthread_setspecific(thread_stacks_key, (void *)stacks) != 0) {
-    fprintf(stderr, "pthread_setspecific failed\n");
+  const int result = pthread_setspecific(thread_stacks_key, (void *)stacks);
+  if (result != 0) {
+    fprintf(stderr, "pthread_setspecific failed: %s\n", strerrorname_np(result));
     abort();
   }
 

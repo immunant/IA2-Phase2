@@ -77,13 +77,17 @@ int end_cancel(pthread_t thread) {
 struct start_wrapper_args {
   start_fn start;
   pthread_barrier_t *barrier;
+  void *stack_ptr;
 };
 
 static void *start_wrapper(void *arg) {
-  const struct start_wrapper_args *const args = (const struct start_wrapper_args *)arg;
+  struct start_wrapper_args *const args = (struct start_wrapper_args *)arg;
 
   // Save the start fn before the barrier, as `args` might be deallocated after the barrier.
   const start_fn start = args->start;
+
+  int stack_arg;
+  args->stack_ptr = (void *)&stack_arg;
 
   pthread_barrier_wait(args->barrier);
   return start(NULL);
@@ -99,6 +103,7 @@ void run_test(size_t num_threads, start_fn start, end_fn end, start_fn main) {
     for (size_t i = 0; i < num_threads; i++) {
       args[i].start = start;
       args[i].barrier = &barrier;
+      args[i].stack_ptr = NULL;
 #if IA2_ENABLE
       pthread_create(&threads[i], NULL, start_wrapper, (void *)&args[i]);
 #endif

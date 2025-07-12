@@ -8,8 +8,6 @@ INIT_RUNTIME(2);
 #include <pthread.h>
 #include <signal.h>
 
-#if IA2_ENABLE
-
 typedef void *(*start_fn)(void *arg);
 typedef int (*end_fn)(pthread_t thread);
 
@@ -79,7 +77,9 @@ void run_test(size_t num_threads, start_fn start, end_fn end, start_fn main) {
     struct start_wrapper_args *const args = malloc(num_threads * sizeof(*args));
     for (size_t i = 0; i < num_threads; i++) {
       args[i].start = start;
+#if IA2_ENABLE
       pthread_create(&threads[i], NULL, start_wrapper, (void *)&args[i]);
+#endif
     }
     for (size_t i = 0; i < num_threads; i++) {
       // Don't call fn ptr inside a macro, as the rewriter won't rewrite it.
@@ -195,5 +195,3 @@ Test(terminating_threads, threads_11_other_threads_pthread_join) {
 Test(terminating_threads, threads_11_other_threads_pthread_cancel) {
   run_test(10, start_pause, end_cancel, start_return);
 }
-
-#endif

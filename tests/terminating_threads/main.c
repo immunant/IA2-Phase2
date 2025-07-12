@@ -7,6 +7,27 @@ INIT_RUNTIME(2);
 
 #include <pthread.h>
 #include <signal.h>
+#include <unistd.h>
+
+/// Check if `ptr` is currently a mapped memory address using `mincore`.
+static bool addr_is_mapped(void *const ptr) {
+  const uintptr_t page_mask = ~(PAGE_SIZE - 1);
+  void *const aligned_ptr = (void *)((uintptr_t)ptr & page_mask);
+
+  unsigned char vec = 0;
+  const int result = mincore(aligned_ptr, PAGE_SIZE, &vec);
+  if (result == -1) {
+    if (errno == ENOMEM) {
+      // `ENOMEM` for `mincore` means that the page `aligned_ptr..aligned_ptr + PAGE_SIZE`,
+      // which itself contains `ptr`, contains unmapped memory pages.
+      cr_log_info("%p is unmapped", ptr);
+      return false;
+    }
+    cr_fatal("mincore failed: %s", strerrorname_np(errno));
+  }
+  cr_log_info("%p is mapped", ptr);
+  return true;
+}
 
 void ia2_main(void) {
     ia2_register_compartment("main", 1, NULL);
@@ -116,6 +137,14 @@ void run_test(size_t num_threads, start_fn start, end_fn end, start_fn main) {
       // Don't call fn ptr inside a macro, as the rewriter won't rewrite it.
       const int result = end(threads[i]);
       cr_assert(result == 0);
+
+      const bool stack_is_mapped = addr_is_mapped(args[i].stack_ptr);
+      if (start == start_pause && end == end_none) {
+        // Threads are still alive, so their stack ptrs should still be mapped.
+        cr_assert(stack_is_mapped);
+      } else if (end == end_join || false /* end == end_cancel */) {
+        cr_assert(!stack_is_mapped);
+      }
     }
   }
   main(NULL);

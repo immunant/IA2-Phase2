@@ -22,10 +22,16 @@
 extern __thread void *ia2_stackptr_0[PAGE_SIZE / sizeof(void *)]
     __attribute__((aligned(4096)));
 
+/// The TLS pthread key for storing thread stacks.
+/// The value of the data set with `pthread_setspecific` is not used;
+/// it just matters if it was set (to non-`NULL`) or not.
 static pthread_key_t thread_stacks_key IA2_SHARED_DATA;
 
+/// The compartment stacks for each thread.
 static __thread void *stacks[IA2_MAX_COMPARTMENTS] = {0};
 
+/// The destructor for `thread_stacks_key`.
+/// It deallocates all of the compartment stacks for the current thread being destructed.
 static void thread_stacks_destructor(void *_unused) {
 #if IA2_VERBOSE
   char thread_name[16] = {0};
@@ -50,6 +56,8 @@ static void thread_stacks_destructor(void *_unused) {
   }
 }
 
+/// Create `thread_stacks_key`.
+/// This should be called once per process at the very beginning, currently in `ia2_init`.
 void create_thread_keys(void) {
   const int result = pthread_key_create(&thread_stacks_key, thread_stacks_destructor);
   if (result != 0) {
@@ -89,7 +97,7 @@ char *allocate_stack(int i) {
   // (which triggers a destructor running on thread termination),
   // but it doesn't really matter what value it is,
   // since the destructor `thread_stacks_destructor`
-  // just uses the TLS global `stack_ptrs` directly.
+  // just uses the TLS global `stack` directly.
   const int result = pthread_setspecific(thread_stacks_key, (void *)stacks);
   if (result != 0) {
     fprintf(stderr, "pthread_setspecific failed: %s\n", strerrorname_np(result));

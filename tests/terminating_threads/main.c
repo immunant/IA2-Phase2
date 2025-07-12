@@ -63,11 +63,23 @@ int end_cancel(pthread_t thread) {
   return pthread_join(thread, NULL);
 }
 
+struct start_wrapper_args {
+  start_fn start;
+};
+
+static void *start_wrapper(void *arg) {
+  const struct start_wrapper_args *const args = (const struct start_wrapper_args *)arg;
+  return args->start(NULL);
+}
+
 void run_test(size_t num_threads, start_fn start, end_fn end, start_fn main) {
   if (num_threads > 0) {
     pthread_t threads[num_threads];
+    // Let `args` leak since it may have to outlive `run_test` for other threads to access it.
+    struct start_wrapper_args *const args = malloc(num_threads * sizeof(*args));
     for (size_t i = 0; i < num_threads; i++) {
-      pthread_create(&threads[i], NULL, start, NULL);
+      args[i].start = start;
+      pthread_create(&threads[i], NULL, start_wrapper, (void *)&args[i]);
     }
     for (size_t i = 0; i < num_threads; i++) {
       // Don't call fn ptr inside a macro, as the rewriter won't rewrite it.

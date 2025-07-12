@@ -111,8 +111,23 @@ static void *start_wrapper(void *arg) {
   int stack_arg;
   args->stack_ptr = (void *)&stack_arg;
 
+  const char *start_name = "?";
+  if (start == start_return) {
+    start_name = "return";
+  } else if (false /* start == start_exit */) {
+    start_name = "exit";
+  } else if (start == start_abort) {
+    start_name = "abort";
+  } else if (false /* start == start_pthread_exit */) {
+    start_name = "pthread_exit";
+  } else if (start == start_pause) {
+    start_name = "pause";
+  } else if (start == start_sleep_100_us) {
+    start_name = "sleep_100_us";
+  }
+
   char thread_name[16] = {0};
-  snprintf(thread_name, sizeof(thread_name), "%zu", args->index);
+  snprintf(thread_name, sizeof(thread_name), "%zu, %s", args->index, start_name);
   const int result = pthread_setname_np(pthread_self(), thread_name);
   if (result != 0) {
     cr_fatal("pthread_setname_np failed: %s", strerrorname_np(result));

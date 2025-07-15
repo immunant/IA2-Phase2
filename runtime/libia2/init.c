@@ -2,6 +2,7 @@
 #include "ia2_internal.h"
 #include "memory_maps.h"
 
+#include <pthread.h>
 #include <sys/auxv.h>
 #include <sys/prctl.h>
 
@@ -14,6 +15,50 @@
 /* ia2_mprotect_with_taged by the next compartment depending on sizes/alignment. */
 extern __thread void *ia2_stackptr_0[PAGE_SIZE / sizeof(void *)]
     __attribute__((aligned(4096)));
+
+/// The TLS pthread key for storing thread stacks.
+/// The value of the data set with `pthread_setspecific` is not used;
+/// it just matters if it was set (to non-`NULL`) or not.
+static pthread_key_t thread_stacks_key IA2_SHARED_DATA;
+
+/// The compartment stacks for each thread.
+static __thread void *stacks[IA2_MAX_COMPARTMENTS] = {0};
+
+/// The destructor for `thread_stacks_key`.
+/// It deallocates all of the compartment stacks for the current thread being destructed.
+static void thread_stacks_destructor(void *_unused) {
+#if IA2_VERBOSE
+  char thread_name[16] = {0};
+  const int result = pthread_getname_np(pthread_self(), thread_name, sizeof(thread_name));
+  if (result != 0) {
+    ia2_log("pthread_getname_np failed on thread %ld: %s\n", (long)gettid(), strerrorname_np(result));
+    thread_name[0] = '?';
+  }
+#endif
+
+  for (size_t compartment = 0; compartment < IA2_MAX_COMPARTMENTS; compartment++) {
+    void *const stack = stacks[compartment];
+    if (!stack) {
+      continue;
+    }
+    ia2_log("deallocating stack for compartment %zu on thread %ld (%s): %p..%p\n",
+            compartment, (long)gettid(), thread_name, stack, stack + STACK_SIZE);
+    if (munmap(stack, STACK_SIZE) == -1) {
+      fprintf(stderr, "munmap failed: %s\n", strerrorname_np(errno));
+      abort();
+    }
+  }
+}
+
+/// Create `thread_stacks_key`.
+/// This should be called once per process at the very beginning, currently in `ia2_init`.
+void create_thread_keys(void) {
+  const int result = pthread_key_create(&thread_stacks_key, thread_stacks_destructor);
+  if (result != 0) {
+    fprintf(stderr, "pthread_key_create failed: %s\n", strerrorname_np(result));
+    abort();
+  }
+}
 
 /* Allocate a fixed-size stack and protect it with the ith pkey. */
 /* Returns the top of the stack, not the base address of the allocation. */
@@ -32,12 +77,26 @@ char *allocate_stack(int i) {
     }
   }
 
+  ia2_log("allocating stack for compartment %d on thread %ld: %p..%p\n", i, (long)gettid(), stack, stack + STACK_SIZE);
 #if IA2_DEBUG_MEMORY
   struct ia2_thread_metadata *const thread_metadata = ia2_thread_metadata_get_current_thread();
   if (thread_metadata) {
     thread_metadata->stack_addrs[i] = (uintptr_t)stack;
   }
 #endif
+  stacks[i] = stack;
+  // The value set doesn't matter here as long as it's non-`NULL`.
+  // `allocate_stack` is called for each compartment
+  // when a new thread is created, so we just need to set a non-`NULL` value
+  // (which triggers a destructor running on thread termination),
+  // but it doesn't really matter what value it is,
+  // since the destructor `thread_stacks_destructor`
+  // just uses the TLS global `stack` directly.
+  const int result = pthread_setspecific(thread_stacks_key, (void *)stacks);
+  if (result != 0) {
+    fprintf(stderr, "pthread_setspecific failed: %s\n", strerrorname_np(result));
+    abort();
+  }
 
 #ifdef __aarch64__
   /* Tag the allocated stack pointer so it is accessed with the right pkey */

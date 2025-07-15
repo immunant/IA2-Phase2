@@ -424,6 +424,8 @@ __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
 #endif
 /* clang-format on */
 
+void create_thread_keys(void);
+
 #define _IA2_INIT_RUNTIME(n)                                                   \
   __attribute__((visibility("default"))) int ia2_n_pkeys_to_alloc = n;                                                \
   __attribute__((visibility("default"))) __thread void *ia2_stackptr_0[PAGE_SIZE / sizeof(void *)]                    \
@@ -448,6 +450,7 @@ __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
   __attribute__((constructor)) static void ia2_init(void) {                    \
     /* Set up global resources. */                                             \
     ia2_set_up_tags(&ia2_n_pkeys_to_alloc);                                    \
+    create_thread_keys();                                                      \
     /* Initialize stacks for the main thread/ */                               \
     init_stacks_and_setup_tls();                                               \
     REPEATB##n(setup_destructors_for_compartment, nop_macro);                  \

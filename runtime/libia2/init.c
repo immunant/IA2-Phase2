@@ -204,7 +204,7 @@ struct CompartmentConfig {
  * call ia2_register_compartment so other copies of it won't be referenced if libia2 is statically
  * linked into all compartments.
  */
-static struct CompartmentConfig user_config[IA2_MAX_COMPARTMENTS] = { 0 };
+static struct CompartmentConfig user_config[IA2_MAX_COMPARTMENTS] IA2_SHARED_DATA = { 0 };
 
 /*
  * Stores the main DSO and extra libraries (if any) for the specified compartment. This should only

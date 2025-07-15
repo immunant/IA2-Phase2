@@ -7,49 +7,70 @@ INIT_RUNTIME(2);
 
 #include <pthread.h>
 #include <signal.h>
+#include <unistd.h>
+
+/// Check if `ptr` is currently a mapped memory address using `mincore`.
+static bool addr_is_mapped(void *const ptr) {
+  const uintptr_t page_mask = ~(PAGE_SIZE - 1);
+  void *const aligned_ptr = (void *)((uintptr_t)ptr & page_mask);
+
+  unsigned char vec = 0;
+  const int result = mincore(aligned_ptr, PAGE_SIZE, &vec);
+  if (result == -1) {
+    if (errno == ENOMEM) {
+      // `ENOMEM` for `mincore` means that the page `aligned_ptr..aligned_ptr + PAGE_SIZE`,
+      // which itself contains `ptr`, contains unmapped memory pages.
+      cr_log_info("%p is unmapped", ptr);
+      return false;
+    }
+    cr_fatal("mincore failed: %s", strerrorname_np(errno));
+  }
+  cr_log_info("%p is mapped", ptr);
+  return true;
+}
 
 typedef void *(*start_fn)(void *arg);
 typedef int (*end_fn)(pthread_t thread);
 
-void *start_return(void *_arg) {
+static void *start_return(void *_arg) {
   return NULL;
 }
 
-void *start_exit(void *_arg) {
+static void *start_exit(void *_arg) {
   exit(0);
 }
 
-void *start_abort(void *_arg) {
+static void *start_abort(void *_arg) {
   abort();
   return NULL;
 }
 
-void *start_pthread_exit(void *_arg) {
+static void *start_pthread_exit(void *_arg) {
   exit(0); // TODO Skip for now, as `pthread_exit` `SIGILL`s (#605).
 
   pthread_exit(NULL);
   return NULL;
 }
 
-void *start_pause(void *_arg) {
+static void *start_pause(void *_arg) {
   pause();
   return NULL;
 }
 
-void *start_sleep_100_us(void *_arg) {
+static void *start_sleep_100_us(void *_arg) {
   usleep(100);
   return NULL;
 }
 
-int end_none(pthread_t _thread) {
+static int end_none(pthread_t _thread) {
   return 0;
 }
 
-int end_join(pthread_t thread) {
+static int end_join(pthread_t thread) {
   return pthread_join(thread, NULL);
 }
 
-int end_cancel(pthread_t thread) {
+static int end_cancel(pthread_t thread) {
   exit(0); // TODO Skip for now, as `pthread_cancel` `SIGSEGV`s (#606).
 
   const int result = pthread_cancel(thread) != 0;
@@ -64,19 +85,56 @@ int end_cancel(pthread_t thread) {
 struct start_wrapper_args {
   start_fn start;
   pthread_barrier_t *barrier;
+  void *stack_ptr;
+  size_t index;
 };
 
+/// Run some pre-thread start code in the new thread.
+///
+/// `arg` should be a `struct start_wrapper_args`.
+///
+/// The wrapper:
+/// * saves `args->start` in case it's deallocated in the parent thread.
+/// * stores a stack ptr from the new thread.
+/// * names the thread to help with debugging.
+/// * waits on `args->barrier` so that all thread wrappers finish before the parent thread finishes.
 static void *start_wrapper(void *arg) {
-  const struct start_wrapper_args *const args = (const struct start_wrapper_args *)arg;
+  struct start_wrapper_args *const args = (struct start_wrapper_args *)arg;
 
   // Save the start fn before the barrier, as `args` might be deallocated after the barrier.
   const start_fn start = args->start;
+
+  int stack_arg;
+  args->stack_ptr = (void *)&stack_arg;
+
+  const char *start_name = "?";
+  if (start == start_return) {
+    start_name = "return";
+  } else if (start == start_exit) {
+    start_name = "exit";
+  } else if (start == start_abort) {
+    start_name = "abort";
+  } else if (start == start_pthread_exit) {
+    start_name = "pthread_exit";
+  } else if (start == start_pause) {
+    start_name = "pause";
+  } else if (start == start_sleep_100_us) {
+    start_name = "sleep_100_us";
+  }
+
+  char thread_name[16] = {0};
+  snprintf(thread_name, sizeof(thread_name), "%zu, %s", args->index, start_name);
+  const int result = pthread_setname_np(pthread_self(), thread_name);
+  if (result != 0) {
+    cr_fatal("pthread_setname_np failed: %s", strerrorname_np(result));
+  }
+  cr_log_info("thread %ld is named %s", (long)gettid(), thread_name);
 
   pthread_barrier_wait(args->barrier);
   return start(NULL);
 }
 
-void run_test(size_t num_threads, start_fn start, end_fn end, start_fn main) {
+static void run_test(size_t num_threads, start_fn start, end_fn end, start_fn main) {
   if (num_threads > 0) {
     pthread_t threads[num_threads];
     struct start_wrapper_args args[num_threads];
@@ -84,8 +142,12 @@ void run_test(size_t num_threads, start_fn start, end_fn end, start_fn main) {
     cr_assert(pthread_barrier_init(&barrier, NULL, (unsigned)num_threads + 1) == 0);
 
     for (size_t i = 0; i < num_threads; i++) {
-      args[i].start = start;
-      args[i].barrier = &barrier;
+      args[i] = (struct start_wrapper_args){
+          .start = start,
+          .barrier = &barrier,
+          .stack_ptr = NULL,
+          .index = i,
+      };
 #if IA2_ENABLE
       pthread_create(&threads[i], NULL, start_wrapper, (void *)&args[i]);
 #endif
@@ -98,6 +160,14 @@ void run_test(size_t num_threads, start_fn start, end_fn end, start_fn main) {
       // Don't call fn ptr inside a macro, as the rewriter won't rewrite it.
       const int result = end(threads[i]);
       cr_assert(result == 0);
+
+      const bool stack_is_mapped = addr_is_mapped(args[i].stack_ptr);
+      if (start == start_pause && end == end_none) {
+        // Threads are still alive, so their stack ptrs should still be mapped.
+        cr_assert(stack_is_mapped);
+      } else if (end == end_join || end == end_cancel) {
+        cr_assert(!stack_is_mapped);
+      }
     }
   }
   main(NULL);

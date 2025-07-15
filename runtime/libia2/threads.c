@@ -30,17 +30,16 @@ void *ia2_thread_begin(void *arg) {
   /* Free the thunk. */
   munmap(arg, sizeof(struct ia2_thread_thunk));
 
-#if IA2_DEBUG_MEMORY
-  struct ia2_thread_metadata *const thread_metadata = ia2_thread_metadata_get_current_thread();
-  if (thread_metadata) {
-    thread_metadata->start_fn = fn;
-  }
-#endif
-
   init_stacks_and_setup_tls();
   /* TODO: Set up alternate stack when we have per-thread shared compartment
    * data. */
   /*  sigaltstack(&alt_stack, NULL); */
+
+#if IA2_DEBUG_MEMORY
+  struct ia2_thread_metadata *const thread_metadata = ia2_thread_metadata_get_for_current_thread();
+  // Atomic write.
+  thread_metadata->start_fn = fn;
+#endif
 
   /* Determine the current compartment so know which stack to use. */
   size_t tag = ia2_get_tag();

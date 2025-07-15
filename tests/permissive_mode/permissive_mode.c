@@ -11,12 +11,13 @@ INIT_RUNTIME(1);
 #define IA2_COMPARTMENT 1
 #include <ia2_compartment_init.inc>
 
+void ia2_main(void) {
+    ia2_register_compartment("main", 1, NULL);
+}
+
 Test(permissive_mode, main) {
     char* buffer = NULL;
     cr_assert(ia2_get_tag() == 0xFFFFFFF0);
-
-    /* allocate an extra pkey */
-    cr_assert(pkey_alloc(0, PKEY_DISABLE_ACCESS | PKEY_DISABLE_WRITE) == 2);
 
     buffer = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
 
@@ -40,7 +41,7 @@ void *start_thread(void *const arg) {
   // Mostly bogus stuff.
   // Just want to use stack, heap, and TLS.
   int a[4096] = {0};
-  malloc(10);
+  (void)malloc(10);
 
   // We want to inspect the labeled memory map with all of the threads,
   // so if we joined them first then we wouldn't be able to see them.

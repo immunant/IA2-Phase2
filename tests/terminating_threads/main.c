@@ -8,6 +8,11 @@ INIT_RUNTIME(2);
 #include <pthread.h>
 #include <signal.h>
 
+void ia2_main(void) {
+    ia2_register_compartment("main", 1, NULL);
+    ia2_register_compartment("libterminating_threads_lib.so", 2, NULL);
+}
+
 typedef void *(*start_fn)(void *arg);
 typedef int (*end_fn)(pthread_t thread);
 

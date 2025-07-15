@@ -18,6 +18,10 @@ INIT_RUNTIME(1);
 #define IA2_COMPARTMENT 1
 #include <ia2_compartment_init.inc>
 
+void ia2_main(void) {
+    ia2_register_compartment("main", 1, NULL);
+}
+
 // libsimple1 checks if the function pointer is NULL. To initialize this to a
 // function defined in this binary, we'd need to define a wrapper with
 // IA2_DEFINE_WRAPPER with target pkey 1, then use IA2_WRAPPER.

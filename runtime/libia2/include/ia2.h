@@ -123,6 +123,18 @@
 /// compartment.
 #define IA2_SHARED_DATA __attribute__((section("ia2_shared_data")))
 
+#define STRINGIFY(a) #a
+#define EXPAND_AND_STRINGIFY(a) STRINGIFY(a)
+
+/// Create a unique asm label for the given pkru and id (`__COUNTER__`).
+/// `id` is passed as an arg instead of `__COUNTER__` directly
+/// so that `ASSERT_PKRU_LABEL` can be called twice in one `ASSERT_PKRU`.
+/// `__COUNTER__` is used to make this unique, as `__LINE__` does not suffice
+/// and `__FILE__` is not a valid label name.
+#define ASSERT_PKRU_LABEL(pkru, id) "__assert_pkru_" #pkru \
+  "_line_" EXPAND_AND_STRINGIFY(__LINE__) \
+  "_id_" EXPAND_AND_STRINGIFY(id)
+
 /// Assembly to check and assert that `pkru` matches the current PKRU register
 /// value
 ///
@@ -131,7 +143,9 @@
 #define ASSERT_PKRU(pkru)
 #elif defined(__x86_64__)
 /* clang-format off */
-#define ASSERT_PKRU(pkru)                       \
+#define ASSERT_PKRU_ID(pkru, id)                \
+  ".globl " ASSERT_PKRU_LABEL(pkru, id) "\n"    \
+  ASSERT_PKRU_LABEL(pkru, id) ":\n"             \
   "movq %rcx, %r10\n"                           \
   "movq %rdx, %r11\n"                           \
   "xorl %ecx, %ecx\n"                           \
@@ -143,6 +157,7 @@
   "movq %r11, %rdx\n"                           \
   "movq %r10, %rcx\n"
 /* clang-format on */
+#define ASSERT_PKRU(pkru) ASSERT_PKRU_ID(pkru, __COUNTER__)
 #else
 #warning "ASSERT_PKRU is unimplemented on this target"
 #define ASSERT_PKRU(pkru)

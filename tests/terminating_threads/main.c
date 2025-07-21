@@ -16,6 +16,8 @@ void *start_return(void *_arg) {
 }
 
 void *start_exit(void *_arg) {
+  _exit(0); // TODO Skip for now, as `exit` does cleanup that might have some issues.
+
   exit(0);
 }
 
@@ -25,7 +27,7 @@ void *start_abort(void *_arg) {
 }
 
 void *start_pthread_exit(void *_arg) {
-  exit(0); // TODO Skip for now, as `pthread_exit` `SIGILL`s (#605).
+  _exit(0); // TODO Skip for now, as `pthread_exit` `SIGILL`s (#605).
 
   pthread_exit(NULL);
   return NULL;
@@ -50,7 +52,7 @@ int end_join(pthread_t thread) {
 }
 
 int end_cancel(pthread_t thread) {
-  exit(0); // TODO Skip for now, as `pthread_cancel` `SIGSEGV`s (#606).
+  _exit(0); // TODO Skip for now, as `pthread_cancel` `SIGSEGV`s (#606).
 
   const int result = pthread_cancel(thread) != 0;
   if (result != 0) {

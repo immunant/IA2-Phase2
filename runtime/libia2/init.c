@@ -92,6 +92,8 @@ char *allocate_stack(int i) {
   // but it doesn't really matter what value it is,
   // since the destructor `thread_stacks_destructor`
   // just uses the TLS global `stack` directly.
+  // Moreover, this is idempotent as it doesn't matter how many times we set it,
+  // since it just matters that it's non-`NULL`.
   const int result = pthread_setspecific(thread_stacks_key, (void *)stacks);
   if (result != 0) {
     fprintf(stderr, "pthread_setspecific failed: %s\n", strerrorname_np(result));

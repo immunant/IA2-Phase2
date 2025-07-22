@@ -58,7 +58,7 @@ static void thread_stacks_destructor(void *_unused) {
 
 /// Create `thread_stacks_key`.
 /// This should be called once per process at the very beginning, currently in `ia2_init`.
-void create_thread_keys(void) {
+void ia2_create_thread_keys(void) {
   const int result = pthread_key_create(&thread_stacks_key, thread_stacks_destructor);
   if (result != 0) {
     fprintf(stderr, "pthread_key_create failed: %s\n", strerrorname_np(result));
@@ -291,7 +291,7 @@ void ia2_start(void) {
     ia2_setup_destructors();
     /* Set up global resources. */
     ia2_set_up_tags();
-    create_thread_keys();
+    ia2_create_thread_keys();
     verify_tls_padding();
     /* allocate an unprotected stack for the untrusted compartment */
     allocate_stack_0();

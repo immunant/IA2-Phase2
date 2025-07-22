@@ -28,7 +28,8 @@ extern __thread void *ia2_stackptr_0[PAGE_SIZE / sizeof(void *)]
 /// it just matters if it was set (to non-`NULL`) or not.
 static pthread_key_t thread_stacks_key IA2_SHARED_DATA;
 
-/// The compartment stacks for each thread.
+/// The base address of the compartment stacks for each thread.
+/// This is the address directly `mmap`ed, so there is no tagging.
 static __thread void *stacks[IA2_MAX_COMPARTMENTS] = {0};
 
 /// The destructor for `thread_stacks_key`.

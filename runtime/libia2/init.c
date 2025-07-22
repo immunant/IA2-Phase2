@@ -7,6 +7,7 @@
 #include "ia2.h"
 #include "ia2_internal.h"
 #include "memory_maps.h"
+#include "thread_name.h"
 
 #include <pthread.h>
 #include <sys/auxv.h>
@@ -33,22 +34,13 @@ static __thread void *stacks[IA2_MAX_COMPARTMENTS] = {0};
 /// The destructor for `thread_stacks_key`.
 /// It deallocates all of the compartment stacks for the current thread being destructed.
 static void thread_stacks_destructor(void *_unused) {
-#if IA2_VERBOSE
-  char thread_name[16] = {0};
-  const int result = pthread_getname_np(pthread_self(), thread_name, sizeof(thread_name));
-  if (result != 0) {
-    ia2_log("pthread_getname_np failed on thread %ld: %s\n", (long)gettid(), strerrorname_np(result));
-    thread_name[0] = '?';
-  }
-#endif
-
   for (size_t compartment = 0; compartment < IA2_MAX_COMPARTMENTS; compartment++) {
     void *const stack = stacks[compartment];
     if (!stack) {
       continue;
     }
     ia2_log("deallocating stack for compartment %zu on thread %ld (%s): %p..%p\n",
-            compartment, (long)gettid(), thread_name, stack, stack + STACK_SIZE);
+            compartment, (long)gettid(), thread_name_get(pthread_self()).name, stack, stack + STACK_SIZE);
     if (munmap(stack, STACK_SIZE) == -1) {
       fprintf(stderr, "munmap failed: %s\n", strerrorname_np(errno));
       abort();

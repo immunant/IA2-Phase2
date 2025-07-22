@@ -83,6 +83,7 @@ char *allocate_stack(int i) {
     thread_metadata->stack_addrs[i] = (uintptr_t)stack;
   }
 #endif
+  assert(stacks[i] == NULL); // We should only be setting this once per thread compartment right after thread creation.
   stacks[i] = stack;
   // The value set doesn't matter here as long as it's non-`NULL`.
   // `allocate_stack` is called for each compartment

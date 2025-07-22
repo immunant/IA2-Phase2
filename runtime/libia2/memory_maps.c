@@ -1,5 +1,6 @@
 #include "memory_maps.h"
 #include "ia2.h"
+#include "thread_name.h"
 
 // Only enable this code that stores these addresses when debug logging is enabled.
 // This reduces the trusted codebase and avoids runtime overhead.
@@ -122,16 +123,11 @@ static void label_memory_map(FILE *log, uintptr_t start_addr) {
   const struct ia2_thread_metadata *metadata = location.thread_metadata;
 
   if (location.name) {
-    char thread_name[16] = {0};
-    const bool has_thread_name = pthread_getname_np(metadata->thread, thread_name, sizeof(thread_name)) == 0;
-
     Dl_info dl_info = {0};
     const bool has_dl_info = dladdr((void *)metadata->start_fn, &dl_info);
 
     fprintf(log, "[%s:compartment %d:tid %ld", location.name, location.compartment, (long)metadata->tid);
-    if (has_thread_name) {
-      fprintf(log, " (thread %s)", thread_name);
-    }
+    fprintf(log, " (thread %s)", thread_name_get(metadata->thread).name);
     fprintf(log, " (start fn ");
     if (!metadata->start_fn) {
       // `metadata->start_fn` is always set during `__wrap_pthread_create`/`ia2_thread_begin`,

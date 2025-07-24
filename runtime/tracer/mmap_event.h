@@ -59,6 +59,7 @@ enum mmap_event {
   EVENT_PKEY_MPROTECT,
   EVENT_CLONE,
   EVENT_EXEC,
+  EVENT_EXIT,
   EVENT_NONE,
 };
 
@@ -71,6 +72,7 @@ static const char *event_names[] = {
     "PKEY_MPROTECT",
     "CLONE",
     "EXEC",
+    "EXIT",
     "NONE",
 };
 
@@ -95,6 +97,8 @@ static inline const struct range *event_target_range(enum mmap_event event, cons
   case EVENT_CLONE:
     return NULL;
   case EVENT_EXEC:
+    return NULL;
+  case EVENT_EXIT:
     return NULL;
   case EVENT_NONE:
     return NULL;

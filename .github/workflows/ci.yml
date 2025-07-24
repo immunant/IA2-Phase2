@@ -219,7 +219,8 @@ jobs:
           Clang_DIR=`realpath $LLVM_DIR/../clang`
           mkdir build
           pushd build
-          rtlibs_dir="$(pwd)/../llvm-project/build-rtlibs"
+          llvm_checkout="$(pwd)/../llvm-project"
+          rtlibs_dir="${llvm_checkout}/build-rtlibs"
           cross_link_flags="-B${rtlibs_dir}/compiler-rt/lib/linux -L${rtlibs_dir}/lib \
           --rtlib=compiler-rt --unwindlib=libunwind"
           cross_flags="-isystem /usr/aarch64-linux-gnu/include --gcc-toolchain=/usr \
@@ -231,8 +232,8 @@ jobs:
             -DCMAKE_BUILD_TYPE=${{ matrix.build-type }} \
             -DCMAKE_CROSSCOMPILING_EMULATOR=/usr/bin/qemu-aarch64 \
             -DCMAKE_TOOLCHAIN_FILE=../cmake/aarch64-toolchain.cmake \
-            -DCMAKE_C_COMPILER=`pwd`/../llvm-project/build/bin/clang-19 \
-            -DCMAKE_CXX_COMPILER=`pwd`/../llvm-project/build/bin/clang-19 \
+            -DCMAKE_C_COMPILER=${llvm_checkout}/build/bin/clang-19 \
+            -DCMAKE_CXX_COMPILER=${llvm_checkout}/build/bin/clang-19 \
             -DCMAKE_OBJCOPY=/usr/bin/llvm-objcopy-15 \
             -DCMAKE_C_FLAGS="$cross_flags" \
             -DCMAKE_CXX_FLAGS="$cross_flags" \

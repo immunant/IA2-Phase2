@@ -44,6 +44,16 @@ impl fmt::Debug for Range {
 }
 
 impl Range {
+    pub fn from_bounds(start: usize, end: usize) -> Option<Range> {
+        if start < end {
+            Some(Range {
+                start,
+                len: end - start,
+            })
+        } else {
+            None
+        }
+    }
     pub fn end(&self) -> usize {
         self.start + self.len
     }
@@ -58,6 +68,25 @@ impl Range {
         let end_round_up = (end + 0xFFF) & !0xFFF;
         self.start = self.start & !0xFFF;
         self.len = end_round_up - self.start;
+    }
+
+    pub fn overlap(&self, other: &Range) -> Option<Range> {
+        let start = self.start.max(other.start);
+        let end = self.end().min(other.end());
+        Self::from_bounds(start, end)
+    }
+
+    /// Remove the other range from this one.
+    /// If they do not overlap, returns None.
+    /// Otherwise, returns a pair of any prefix remaining from this range and any suffix remaining from this range.
+    pub fn subtract(&self, other: &Range) -> Option<(Option<Range>, Option<Range>)> {
+        match self.overlap(other) {
+            None => None,
+            Some(overlap) => Some((
+                Self::from_bounds(self.start, overlap.start),
+                Self::from_bounds(overlap.end(), self.end()),
+            )),
+        }
     }
 }
 
@@ -178,45 +207,48 @@ impl MemoryMap {
         })
     }
 
-    /* removes exactly the specified range from an existing region, leaving any other parts of that region mapped */
-    fn split_out_region(&mut self, mut subrange: Range) -> Option<State> {
+    /* removes exactly the specified range from all existing regions, leaving any other parts of that region mapped */
+    fn split_out_region(&mut self, mut subrange: Range) -> Result<State, usize> {
         subrange.round_to_4k();
 
-        // return None if the subrange does not overlap or is not fully contained
-        let r = match self.find_overlapping_region(subrange) {
-            Some(r) => r,
-            None => {
-                #[cfg(debug)]
-                printerrln!("{:?} has no overlap", subrange);
-                return None;
+        let mut removed_state = None;
+        let mut count = 0;
+        while let Some(r) = self.find_overlapping_region(subrange) {
+            // remove the range containing the subrange; this should not fail
+            let found = self.remove_region(r.range).is_some();
+            assert!(found);
+
+            // re-add any prefix range
+            let before = Range {
+                start: r.range.start,
+                len: subrange.start - r.range.start,
+            };
+            self.add_region(before, r.state);
+
+            // re-add any suffix range
+            let after = Range {
+                start: subrange.end(),
+                len: r.range.end() - subrange.end(),
+            };
+            self.add_region(after, r.state);
+
+            if count == 0 {
+                removed_state = Some(r.state);
             }
-        };
-        if !r.range.subsumes(subrange) {
+            count += 1;
+        }
+        /*if !r.range.subsumes(subrange) {
             #[cfg(debug)]
             printerrln!("{:?} does not subsume {:?}", r.range, subrange);
             return None;
+        }*/
+
+        // return the split-out range's state, or the count ranges if not exactly 1
+        if count == 1 {
+            Ok(removed_state.unwrap())
+        } else {
+            Err(count)
         }
-
-        // remove the range containing the subrange; this should not fail
-        let found = self.remove_region(r.range).is_some();
-        assert!(found);
-
-        // re-add any prefix range
-        let before = Range {
-            start: r.range.start,
-            len: subrange.start - r.range.start,
-        };
-        self.add_region(before, r.state);
-
-        // re-add any suffix range
-        let after = Range {
-            start: subrange.end(),
-            len: r.range.end() - subrange.end(),
-        };
-        self.add_region(after, r.state);
-
-        // return the split-out range
-        Some(r.state)
     }
 
     pub fn split_region(
@@ -225,7 +257,7 @@ impl MemoryMap {
         owner_pkey: u8,
         prot: u32,
     ) -> Option<MemRegion> {
-        let state = self.split_out_region(subrange)?;
+        let state = self.split_out_region(subrange).ok()?;
 
         // add the new split-off range
         let new_state = State {
@@ -361,7 +393,7 @@ pub extern "C" fn memory_map_region_get_owner_pkey(map: &MemoryMap, needle: Rang
 
 #[no_mangle]
 pub extern "C" fn memory_map_unmap_region(map: &mut MemoryMap, needle: Range) -> bool {
-    map.split_out_region(needle).is_some()
+    map.split_out_region(needle).is_ok()
 }
 
 #[no_mangle]
@@ -398,7 +430,7 @@ pub extern "C" fn memory_map_pkey_mprotect_region(
     range: Range,
     pkey: u8,
 ) -> bool {
-    if let Some(mut state) = map.split_out_region(range) {
+    if let Some(mut state) = map.split_out_region(range).ok() {
         /* forbid pkey_mprotect of memory owned by another compartment other than 0 */
         if state.owner_pkey != pkey && state.owner_pkey != 0 {
             printerrln!(
@@ -428,7 +460,7 @@ pub extern "C" fn memory_map_pkey_mprotect_region(
 
 #[no_mangle]
 pub extern "C" fn memory_map_mprotect_region(map: &mut MemoryMap, range: Range, prot: u32) -> bool {
-    if let Some(mut state) = map.split_out_region(range) {
+    if let Some(mut state) = map.split_out_region(range).ok() {
         if state.mprotected == false {
             state.mprotected = true;
             state.prot = prot;

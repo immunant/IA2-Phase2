@@ -29,6 +29,8 @@ enum mmap_event event_from_syscall(uint64_t syscall_nr) {
   case __NR_execve:
   case __NR_execveat:
     return EVENT_EXEC;
+  case __NR_exit:
+    return EVENT_EXIT;
   default:
     return EVENT_NONE;
   }

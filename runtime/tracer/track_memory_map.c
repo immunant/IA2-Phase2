@@ -112,6 +112,10 @@ static bool is_op_permitted(struct memory_map *map, int event,
     return true;
     break;
   }
+  case EVENT_EXIT: {
+    return true;
+    break;
+  }
   case EVENT_NONE:
     return true;
     break;
@@ -183,6 +187,11 @@ static bool update_memory_map(struct memory_map *map, int event,
   }
   case EVENT_EXEC: {
     memory_map_clear(map);
+    return true;
+    break;
+  }
+  case EVENT_EXIT: {
+    printf("clearing memory map on exit\n");
     return true;
     break;
   }
@@ -688,7 +697,7 @@ static struct memory_map_for_process for_process_new(struct memory_map *map, pid
   return for_processes;
 }
 
-static enum control_flow handle_process_exit(struct memory_maps *maps, pid_t waited_pid) {
+static enum control_flow handle_thread_exit(struct memory_maps *maps, pid_t waited_pid) {
   struct memory_map_for_process *map_for_proc = find_memory_map(maps, waited_pid);
   if (!map_for_proc) {
     fprintf(stderr, "exited: could not find memory map for process %d\n", waited_pid);
@@ -698,6 +707,7 @@ static enum control_flow handle_process_exit(struct memory_maps *maps, pid_t wai
     fprintf(stderr, "could not remove pid %d from memory map\n", waited_pid);
     return RETURN_FALSE;
   }
+  // exit of the last thread in the process
   if (map_for_proc->n_pids == 0) {
     if (!remove_map(maps, map_for_proc)) {
       fprintf(stderr, "could not remove memory map for pid %d\n", waited_pid);
@@ -831,12 +841,12 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
     }
     case WAIT_SIGNALED: {
       fprintf(stderr, "process received fatal signal (syscall entry)\n");
-      enum control_flow cf = handle_process_exit(&maps, waited_pid);
+      enum control_flow cf = handle_thread_exit(&maps, waited_pid);
       return false;
     }
     case WAIT_EXITED: {
       debug_exit("pid %d exited (syscall entry)\n", waited_pid);
-      propagate(handle_process_exit(&maps, waited_pid));
+      propagate(handle_thread_exit(&maps, waited_pid));
 
       // in any case, this process is gone, so wait for a new one
       continue;
@@ -962,7 +972,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
     }
     case WAIT_EXITED:
       debug_exit("pid %d exited (syscall exit)\n", waited_pid);
-      propagate(handle_process_exit(&maps, waited_pid));
+      propagate(handle_thread_exit(&maps, waited_pid));
 
       // in any case, this process is gone, so wait for a new one
       continue;

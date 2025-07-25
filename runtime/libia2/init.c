@@ -208,9 +208,10 @@ static struct CompartmentConfig user_config[IA2_MAX_COMPARTMENTS] IA2_SHARED_DAT
 
 /*
  * Stores the main DSO and extra libraries (if any) for the specified compartment. This should only
- * be called for protected compartments (calls specifying compartment 0 are no-ops).
+ * be called for protected compartments (calls specifying compartment 0 are forbidden).
  */
 void ia2_register_compartment(const char *dso, int compartment, const char *extra_libraries) {
+    assert(compartment != 0);
     ia2_log("registered %s for compartment #%d\n", dso, compartment);
     if (extra_libraries) {
         ia2_log("also registered %s for compartment #%d\n", extra_libraries, compartment);

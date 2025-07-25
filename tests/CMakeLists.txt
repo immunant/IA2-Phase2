@@ -62,18 +62,17 @@ add_subdirectory(protected_threads)
 add_subdirectory(memory_maps)
 add_subdirectory(signals)
 add_subdirectory(terminating_threads)
+add_subdirectory(destructors)
+add_subdirectory(ro_sharing)
+add_subdirectory(should_segfault)
+add_subdirectory(trusted_direct)
+add_subdirectory(untrusted_indirect)
+add_subdirectory(two_keys_minimal)
+add_subdirectory(two_shared_ranges)
+add_subdirectory(trusted_indirect)
 
 # The following tests are not supported on ARM64 yet
 if (NOT LIBIA2_AARCH64)
-    # Expected to have compartment violations, but we aren't enforcing yet:
-    add_subdirectory(destructors)
-    add_subdirectory(ro_sharing)
-    add_subdirectory(should_segfault)
-    add_subdirectory(trusted_direct)
-    add_subdirectory(untrusted_indirect)
-    add_subdirectory(two_keys_minimal)
-    add_subdirectory(two_shared_ranges)
-    add_subdirectory(trusted_indirect)
 
     # test calls PKRU-specific functions
     add_subdirectory(mmap_loop)

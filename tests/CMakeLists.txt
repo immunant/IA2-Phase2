@@ -62,6 +62,7 @@ add_subdirectory(protected_threads)
 add_subdirectory(memory_maps)
 add_subdirectory(signals)
 add_subdirectory(terminating_threads)
+add_subdirectory(untrusted_executable)
 
 # The following tests are not supported on ARM64 yet
 if (NOT LIBIA2_AARCH64)

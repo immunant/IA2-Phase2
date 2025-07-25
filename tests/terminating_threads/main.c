@@ -174,6 +174,7 @@ static void run_test(size_t num_threads, start_fn start, end_fn end, start_fn ma
       const int result = end(threads[i]);
       cr_assert(result == 0);
 
+      // NOTE: This only checks that compartment 1 (`main.c`)'s stacks are freed.
       const bool stack_is_mapped = addr_is_mapped(args[i].stack_ptr);
       if (start == start_pause && end == end_none) {
         // Threads are still alive, so their stack ptrs should still be mapped.

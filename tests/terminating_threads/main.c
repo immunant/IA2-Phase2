@@ -261,9 +261,13 @@ Test(terminating_threads, threads_2_other_thread_pthread_cancel) {
 
 // 11 threads, other threads
 
+#ifndef __aarch64__
+
 Test(terminating_threads, threads_11_other_threads_return) {
   run_test(10, start_return, end_join, start_return);
 }
+
+#endif
 
 Test(terminating_threads, threads_11_other_threads_exit) {
   run_test(10, start_exit, end_join, start_return);

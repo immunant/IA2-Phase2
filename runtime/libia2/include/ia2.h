@@ -201,11 +201,12 @@ size_t ia2_get_tag();
 /// Returns the current compartment number
 size_t ia2_get_compartment();
 
-/// Registers the DSOs associated with a given protected compartment for use in ia2_main.
+/// Registers the DSOs associated with a given protected compartment. For use in ia2_main.
 ///
-/// `lib` must be a DSO or "main" for the main executable.`extra_libraries` must be a
-/// semicolon-separated list of libraries. The pointers must remain valid after ia2_main returns.
-/// This function should not be called for compartment 0 since it is not a protected compartment.
+/// `lib` must be the filename of a ` DSO or "main" for the main executable.`extra_libraries` must
+/// be a semicolon-separated list of libraries or NULL. The pointers must remain valid after
+/// ia2_main returns. This function should not be called for compartment 0 since it is not a
+/// protected compartment.
 void ia2_register_compartment(const char *lib, int compartment, const char *extra_libraries);
 
 /// The prototype for the user-defined config function which will be called before main.

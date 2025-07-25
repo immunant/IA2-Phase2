@@ -41,27 +41,23 @@ static void *start_return(void *_arg) {
   return NULL;
 }
 
-#if 0 // TODO Skip for now, as `exit` does cleanup that might have some issues.
-
 static void *start_exit(void *_arg) {
+  _exit(0); // TODO Skip for now, as `exit` does cleanup that might have some issues.
+
   exit(0);
 }
-
-#endif
 
 static void *start_abort(void *_arg) {
   abort();
   return NULL;
 }
 
-#if 0 // TODO Skip for now, as `pthread_exit` `SIGILL`s (#605).
-
 static void *start_pthread_exit(void *_arg) {
+  _exit(0); // TODO Skip for now, as `pthread_exit` `SIGILL`s (#605).
+
   pthread_exit(NULL);
   return NULL;
 }
-
-#endif
 
 static void *start_pause(void *_arg) {
   pause();
@@ -81,9 +77,9 @@ static int end_join(pthread_t thread) {
   return pthread_join(thread, NULL);
 }
 
-#if 0 // TODO Skip for now, as `pthread_cancel` `SIGSEGV`s (#606).
-
 static int end_cancel(pthread_t thread) {
+  _exit(0); // TODO Skip for now, as `pthread_cancel` `SIGSEGV`s (#606).
+
   const int result = pthread_cancel(thread) != 0;
   if (result != 0) {
     return result;
@@ -92,8 +88,6 @@ static int end_cancel(pthread_t thread) {
   // join it to ensure cancellation completes.
   return pthread_join(thread, NULL);
 }
-
-#endif
 
 struct start_wrapper_args {
   start_fn start;
@@ -193,25 +187,17 @@ Test(terminating_threads, threads_1_return) {
   run_test(0, start_pause, end_none, start_return);
 }
 
-#if 0
-
 Test(terminating_threads, threads_1_exit) {
   run_test(0, start_pause, end_none, start_exit);
 }
-
-#endif
 
 Test(terminating_threads, threads_1_abort, .signal = SIGABRT) {
   run_test(0, start_pause, end_none, start_abort);
 }
 
-#if 0
-
 Test(terminating_threads, threads_1_pthread_exit) {
   run_test(0, start_pause, end_none, start_pthread_exit);
 }
-
-#endif
 
 // 2 threads, main thread
 
@@ -219,25 +205,17 @@ Test(terminating_threads, threads_2_main_thread_return) {
   run_test(1, start_pause, end_none, start_return);
 }
 
-#if 0
-
 Test(terminating_threads, threads_2_main_thread_exit) {
   run_test(1, start_pause, end_none, start_exit);
 }
-
-#endif
 
 Test(terminating_threads, threads_2_main_thread_abort, .signal = SIGABRT) {
   run_test(1, start_pause, end_none, start_abort);
 }
 
-#if 0
-
 Test(terminating_threads, threads_2_main_thread_pthread_exit) {
   run_test(1, start_pause, end_none, start_pthread_exit);
 }
-
-#endif
 
 // 11 threads, main thread
 
@@ -245,25 +223,17 @@ Test(terminating_threads, threads_11_main_thread_return) {
   run_test(10, start_pause, end_none, start_return);
 }
 
-#if 0
-
 Test(terminating_threads, threads_11_main_thread_exit) {
   run_test(10, start_pause, end_none, start_exit);
 }
-
-#endif
 
 Test(terminating_threads, threads_11_main_thread_abort, .signal = SIGABRT) {
   run_test(10, start_pause, end_none, start_abort);
 }
 
-#if 0
-
 Test(terminating_threads, threads_11_main_thread_pthread_exit) {
   run_test(10, start_pause, end_none, start_pthread_exit);
 }
-
-#endif
 
 // 2 threads, other thread
 
@@ -271,37 +241,25 @@ Test(terminating_threads, threads_2_other_thread_return) {
   run_test(1, start_return, end_join, start_return);
 }
 
-#if 0
-
 Test(terminating_threads, threads_2_other_thread_exit) {
   run_test(1, start_exit, end_join, start_return);
 }
-
-#endif
 
 Test(terminating_threads, threads_2_other_thread_abort, .signal = SIGABRT) {
   run_test(1, start_abort, end_join, start_return);
 }
 
-#if 0
-
 Test(terminating_threads, threads_2_other_thread_pthread_exit) {
   run_test(1, start_pthread_exit, end_join, start_return);
 }
-
-#endif
 
 Test(terminating_threads, threads_2_other_thread_pthread_join) {
   run_test(1, start_sleep_100_us, end_join, start_return);
 }
 
-#if 0
-
 Test(terminating_threads, threads_2_other_thread_pthread_cancel) {
   run_test(1, start_pause, end_cancel, start_return);
 }
-
-#endif
 
 // 11 threads, other threads
 
@@ -309,34 +267,22 @@ Test(terminating_threads, threads_11_other_threads_return) {
   run_test(10, start_return, end_join, start_return);
 }
 
-#if 0
-
 Test(terminating_threads, threads_11_other_threads_exit) {
   run_test(10, start_exit, end_join, start_return);
 }
-
-#endif
 
 Test(terminating_threads, threads_11_other_threads_abort, .signal = SIGABRT) {
   run_test(10, start_abort, end_join, start_return);
 }
 
-#if 0
-
 Test(terminating_threads, threads_11_other_threads_pthread_exit) {
   run_test(10, start_pthread_exit, end_join, start_return);
 }
-
-#endif
 
 Test(terminating_threads, threads_11_other_threads_pthread_join) {
   run_test(10, start_sleep_100_us, end_join, start_return);
 }
 
-#if 0
-
 Test(terminating_threads, threads_11_other_threads_pthread_cancel) {
   run_test(10, start_pause, end_cancel, start_return);
 }
-
-#endif

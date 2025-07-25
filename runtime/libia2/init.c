@@ -120,7 +120,7 @@ static void mark_init_finished(void) {
      * always fail because it maps a non-page-aligned addr with MAP_FIXED, so it
      * works as a reasonable signpost no-op.
      */
-    mmap((void *)IA2_FINISH_INIT_MAGIC, 0, 0, MAP_FIXED, -1, 0);
+    (void)mmap((void *)IA2_FINISH_INIT_MAGIC, 0, 0, MAP_FIXED, -1, 0);
 }
 
 static int ia2_setup_compartment(const char *dso, int compartment, const char *extra_libraries) {

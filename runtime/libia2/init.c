@@ -228,6 +228,7 @@ void ia2_start(void) {
     ia2_log("initializing ia2 runtime\n");
     /* Get the user config before doing anything else */
     ia2_main();
+    ia2_setup_destructors();
     /* Set up global resources. */
     ia2_set_up_tags();
     verify_tls_padding();

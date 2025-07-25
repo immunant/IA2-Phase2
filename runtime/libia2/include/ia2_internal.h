@@ -435,7 +435,7 @@ __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
     allocate_stack_0();                                                        \
   }                                                                            \
                                                                                \
-  __attribute__((constructor)) static void ia2_init(void) {                    \
+  void ia2_setup_destructors(void) {                                           \
     REPEATB##n(setup_destructors_for_compartment, nop_macro);                  \
   }
 
@@ -447,3 +447,4 @@ __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
 
 void **ia2_stackptr_for_tag(size_t tag);
 void **ia2_stackptr_for_compartment(int compartment);
+void ia2_setup_destructors(void);

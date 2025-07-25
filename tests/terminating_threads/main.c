@@ -14,8 +14,8 @@ static bool addr_is_mapped(void *const ptr) {
   const uintptr_t page_mask = ~(PAGE_SIZE - 1);
   void *const aligned_ptr = (void *)((uintptr_t)ptr & page_mask);
 
-  unsigned char vec = 0;
-  const int result = mincore(aligned_ptr, PAGE_SIZE, &vec);
+  unsigned char vec[1] = {0}; // We're only checking 1 page.
+  const int result = mincore(aligned_ptr, PAGE_SIZE, vec);
   if (result == -1) {
     if (errno == ENOMEM) {
       // `ENOMEM` for `mincore` means that the page `aligned_ptr..aligned_ptr + PAGE_SIZE`,

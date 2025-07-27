@@ -202,6 +202,15 @@ size_t ia2_get_tag();
 /// Returns the current compartment number
 size_t ia2_get_compartment();
 
+/// Returns (through arguments) the base ptr and size of the stack
+/// of the current thread and compartment.
+///
+/// This is modeled after the `pthread_attr_getstack` API.
+/// The difference is that it only operates on the current thread,
+/// and it accounts for each compartment having its own stack.
+/// Thus, this stack will be different from the one returned by `pthread_attr_getstack`.
+void ia2_get_stack(void **stack_base_ptr, size_t *stack_size);
+
 /// Registers the DSOs associated with a given protected compartment. For use in ia2_main.
 ///
 /// `lib` must be the filename of a ` DSO or "main" for the main executable.`extra_libraries` must

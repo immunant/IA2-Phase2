@@ -323,7 +323,7 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
   const int pkey = search_args->pkey;
 
 #if IA2_DEBUG_MEMORY
-  struct ia2_thread_metadata *const thread_metadata = ia2_thread_metadata_get_current_thread();
+  struct ia2_thread_metadata *const thread_metadata = ia2_thread_metadata_get_for_current_thread();
 #endif
 
   // Protect TLS segment.

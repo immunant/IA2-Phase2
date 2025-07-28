@@ -61,8 +61,16 @@ struct ia2_addr_location ia2_all_threads_metadata_find_addr(struct ia2_all_threa
   }
   for (size_t thread = 0; thread < this->num_threads; thread++) {
     const pid_t tid = this->tids[thread];
+    const struct ia2_thread_metadata *const thread_metadata = &this->thread_metadata[thread];
+
+    if (addr == thread_metadata->tls_addr_compartment1_first || addr == thread_metadata->tls_addr_compartment1_second) {
+      location.name = "tls";
+      location.thread_metadata = thread_metadata;
+      location.compartment = 1;
+      goto unlock;
+    }
+
     for (int compartment = 0; compartment < IA2_MAX_COMPARTMENTS; compartment++) {
-      const struct ia2_thread_metadata *const thread_metadata = &this->thread_metadata[thread];
       if (addr == thread_metadata->stack_addrs[compartment]) {
         location.name = "stack";
         location.thread_metadata = thread_metadata;
@@ -73,12 +81,6 @@ struct ia2_addr_location ia2_all_threads_metadata_find_addr(struct ia2_all_threa
         location.name = "tls";
         location.thread_metadata = thread_metadata;
         location.compartment = compartment;
-        goto unlock;
-      }
-      if (addr == thread_metadata->tls_addr_compartment1_first || addr == thread_metadata->tls_addr_compartment1_second) {
-        location.name = "tls";
-        location.thread_metadata = thread_metadata;
-        location.compartment = 1;
         goto unlock;
       }
     }

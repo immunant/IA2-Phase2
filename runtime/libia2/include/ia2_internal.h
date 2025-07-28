@@ -437,7 +437,19 @@ __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
                                                                                                       \
   void ia2_setup_destructors(void) {                                                                  \
     REPEATB##n(setup_destructors_for_compartment, nop_macro);                                         \
-  }
+  }                                                                                                   \
+                                                                                                      \
+  /* Moved `ia2_threads_metadata` from `memory_maps.c` to here */                                     \
+  /* so that it can be used in `_IA2_INIT_RUNTIME` */                                                 \
+  /* to only initialize the `ia2_threads_metadata` global once. */                                    \
+                                                                                                      \
+  /* All zeroed, so this should go in `.bss` */                                                       \
+  /* and only have pages lazily allocated. */                                                         \
+  struct ia2_all_threads_metadata ia2_threads_metadata IA2_SHARED_DATA = {                            \
+      .lock = PTHREAD_MUTEX_INITIALIZER,                                                              \
+      .num_threads = 0,                                                                               \
+      .thread_metadata = {0},                                                                         \
+  };
 
 #if IA2_VERBOSE
 #define ia2_log(fmt, ...) fprintf(stdout, "%s: " fmt, __func__, ##__VA_ARGS__)

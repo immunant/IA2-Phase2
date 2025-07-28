@@ -18,7 +18,7 @@
 /// so the lifetime of the returned `struct ia2_thread_metadata*` is infinite,
 /// and since it's thread-specific,
 /// it is thread-safe to read and write.
-struct ia2_thread_metadata *ia2_thread_metadata_get_current_thread(void);
+struct ia2_thread_metadata *ia2_thread_metadata_get_for_current_thread(void);
 
 struct ia2_addr_location {
   /// A descriptive name of what this address points to.

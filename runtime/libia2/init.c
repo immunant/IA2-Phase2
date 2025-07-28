@@ -84,6 +84,7 @@ char *allocate_stack(int i) {
   ia2_log("allocating stack for compartment %d on thread %ld: %p..%p\n", i, (long)gettid(), stack, stack + STACK_SIZE);
 #if IA2_DEBUG_MEMORY
   struct ia2_thread_metadata *const thread_metadata = ia2_thread_metadata_get_for_current_thread();
+  // Atomic write.
   thread_metadata->stack_addrs[i] = (uintptr_t)stack;
 #endif
   assert(stacks[i] == NULL); // We should only be setting this once per thread compartment right after thread creation.
@@ -291,6 +292,9 @@ void ia2_start(void) {
   /* Set up global resources. */
   ia2_set_up_tags();
   create_thread_keys();
+#if IA2_DEBUG_MEMORY
+  ia2_thread_metadata_new_for_current_thread();
+#endif
   verify_tls_padding();
   /* allocate an unprotected stack for the untrusted compartment */
   allocate_stack_0();

@@ -381,6 +381,7 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
           exit(-1);
         }
 #if IA2_DEBUG_MEMORY
+        // Atomic write.
         thread_metadata->tls_addr_compartment1_first = (uintptr_t)start_round_down;
 #endif
       }
@@ -396,6 +397,7 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
           exit(-1);
         }
 #if IA2_DEBUG_MEMORY
+        // Atomic write.
         thread_metadata->tls_addr_compartment1_second = (uintptr_t)after_untrusted_region_start;
 #endif
       }
@@ -409,6 +411,7 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
         exit(-1);
       }
 #if IA2_DEBUG_MEMORY
+      // Atomic write.
       thread_metadata->tls_addrs[pkey] = (uintptr_t)start_round_down;
 #endif
     }

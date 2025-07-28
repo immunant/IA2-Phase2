@@ -31,7 +31,7 @@ void *ia2_thread_begin(void *arg) {
   munmap(arg, sizeof(struct ia2_thread_thunk));
 
 #if IA2_DEBUG_MEMORY
-  struct ia2_thread_metadata *const thread_metadata = ia2_thread_metadata_get_current_thread();
+  struct ia2_thread_metadata *const thread_metadata = ia2_thread_metadata_get_for_current_thread();
   if (thread_metadata) {
     thread_metadata->start_fn = fn;
   }

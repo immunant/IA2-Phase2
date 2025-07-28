@@ -32,9 +32,7 @@ void *ia2_thread_begin(void *arg) {
 
 #if IA2_DEBUG_MEMORY
   struct ia2_thread_metadata *const thread_metadata = ia2_thread_metadata_get_for_current_thread();
-  if (thread_metadata) {
-    thread_metadata->start_fn = fn;
-  }
+  thread_metadata->start_fn = fn;
 #endif
 
   init_stacks_and_setup_tls();

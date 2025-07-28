@@ -381,9 +381,7 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
           exit(-1);
         }
 #if IA2_DEBUG_MEMORY
-        if (thread_metadata) {
-          thread_metadata->tls_addr_compartment1_first = (uintptr_t)start_round_down;
-        }
+        thread_metadata->tls_addr_compartment1_first = (uintptr_t)start_round_down;
 #endif
       }
       uint64_t after_untrusted_region_start = untrusted_stackptr_addr + 0x1000;
@@ -398,9 +396,7 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
           exit(-1);
         }
 #if IA2_DEBUG_MEMORY
-        if (thread_metadata) {
-          thread_metadata->tls_addr_compartment1_second = (uintptr_t)after_untrusted_region_start;
-        }
+        thread_metadata->tls_addr_compartment1_second = (uintptr_t)after_untrusted_region_start;
 #endif
       }
     } else {
@@ -413,9 +409,7 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
         exit(-1);
       }
 #if IA2_DEBUG_MEMORY
-      if (thread_metadata) {
-        thread_metadata->tls_addrs[pkey] = (uintptr_t)start_round_down;
-      }
+      thread_metadata->tls_addrs[pkey] = (uintptr_t)start_round_down;
 #endif
     }
   }

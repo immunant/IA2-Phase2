@@ -11,14 +11,26 @@
 // so that it can be used in `ia2_internal.h` within `_IA2_INIT_RUNTIME`
 // to only initialize the `ia2_threads_metadata` global once.
 
-/// Find the `struct ia2_thread_metadata*` for the current thread,
-/// adding (but not allocating) one if there isn't one yet.
-/// If there is no memory for more or some unexpected error,
-/// it `abort`s.  `NULL` is never returned.
-/// This is a purely lookup and/or additive operation,
-/// so the lifetime of the returned `struct ia2_thread_metadata*` is infinite,
-/// and since it's thread-specific,
-/// it is thread-safe to read and write.
+/// Allocate and initialize a new `ia2_thread_metadata` for the current thread.
+/// Importantly, this may only be called once per thread.
+///
+/// The returned pointer is stable, non-`NULL`,
+/// and will not be moved or deallocated/uninitialized.
+/// Operations on the `ia2_thread_metadata` must be atomic.
+///
+/// If too many threads are created, this will `abort`
+/// and `IA2_MAX_THREADS` can be increased.
+struct ia2_thread_metadata *ia2_thread_metadata_new_for_current_thread(void);
+
+/// Find the `ia2_thread_metadata` for the current thread.
+///
+/// `ia2_thread_metadata_new_for_current_thread`
+/// must have been previously called for this thread,
+/// or else the `ia2_thread_metadata` will not be found and this will `abort`.
+///
+/// The returned pointer is stable, non-`NULL`,
+/// and will not be moved or deallocated/uninitialized.
+/// Operations on the `ia2_thread_metadata` must be atomic.
 struct ia2_thread_metadata *ia2_thread_metadata_get_for_current_thread(void);
 
 struct ia2_addr_location {
@@ -29,6 +41,8 @@ struct ia2_addr_location {
   const char *name;
 
   /// The metadata of the thread this address belongs to.
+  ///
+  /// Fields must be read atomically.
   const struct ia2_thread_metadata *thread_metadata;
 
   /// The compartment this address is in.

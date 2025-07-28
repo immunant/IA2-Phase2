@@ -12,7 +12,7 @@
 
 #define array_len(a) (sizeof(a) / sizeof(*(a)))
 
-struct ia2_thread_metadata *ia2_all_threads_metadata_lookup(struct ia2_all_threads_metadata *const this) {
+struct ia2_thread_metadata *ia2_all_threads_metadata_get_for_current_thread(struct ia2_all_threads_metadata *const this) {
   const pid_t tid = gettid();
 
   struct ia2_thread_metadata *metadata = NULL;
@@ -98,8 +98,8 @@ ret:
 // to only initialize the `ia2_threads_metadata` global once.
 extern struct ia2_all_threads_metadata ia2_threads_metadata;
 
-struct ia2_thread_metadata *ia2_thread_metadata_get_current_thread(void) {
-  return ia2_all_threads_metadata_lookup(&ia2_threads_metadata);
+struct ia2_thread_metadata *ia2_thread_metadata_get_for_current_thread(void) {
+  return ia2_all_threads_metadata_get_for_current_thread(&ia2_threads_metadata);
 }
 
 struct ia2_addr_location ia2_addr_location_find(const uintptr_t addr) {

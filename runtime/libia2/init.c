@@ -83,7 +83,7 @@ char *allocate_stack(int i) {
 
   ia2_log("allocating stack for compartment %d on thread %ld: %p..%p\n", i, (long)gettid(), stack, stack + STACK_SIZE);
 #if IA2_DEBUG_MEMORY
-  struct ia2_thread_metadata *const thread_metadata = ia2_thread_metadata_get_current_thread();
+  struct ia2_thread_metadata *const thread_metadata = ia2_thread_metadata_get_for_current_thread();
   if (thread_metadata) {
     thread_metadata->stack_addrs[i] = (uintptr_t)stack;
   }

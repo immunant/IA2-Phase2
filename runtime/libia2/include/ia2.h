@@ -208,7 +208,7 @@ size_t ia2_get_compartment();
 /// The difference is that it only operates on the current thread,
 /// and it accounts for each compartment having its own stack.
 /// Thus, this stack will be different from the one returned by `pthread_attr_getstack`.
-void ia2_get_stack(void **stack_base_ptr, size_t *stack_size);
+void ia2_get_compartment_stack(void **stack_base_ptr, size_t *stack_size);
 
 /// Registers the DSOs associated with a given protected compartment. For use in ia2_main.
 ///

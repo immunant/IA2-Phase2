@@ -32,7 +32,7 @@ static pthread_key_t thread_stacks_key IA2_SHARED_DATA;
 /// This is the address directly `mmap`ed, so there is no tagging.
 static __thread void *stacks[IA2_MAX_COMPARTMENTS] = {0};
 
-void ia2_get_stack(void **stack_base_ptr, size_t *stack_size) {
+void ia2_get_compartment_stack(void **stack_base_ptr, size_t *stack_size) {
   *stack_base_ptr = stacks[ia2_get_compartment()];
   *stack_size = STACK_SIZE;
 }

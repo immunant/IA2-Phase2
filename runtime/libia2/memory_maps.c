@@ -102,18 +102,18 @@ ret:
 }
 
 // All zeroed, so this should go in `.bss` and only have pages lazily allocated.
-static struct ia2_all_threads_metadata IA2_SHARED_DATA threads = {
+static struct ia2_all_threads_metadata IA2_SHARED_DATA all_threads_metadata = {
     .lock = PTHREAD_MUTEX_INITIALIZER,
     .num_threads = 0,
     .thread_metadata = {0},
 };
 
 struct ia2_thread_metadata *ia2_thread_metadata_get_current_thread(void) {
-  return ia2_all_threads_metadata_lookup(&threads);
+  return ia2_all_threads_metadata_lookup(&all_threads_metadata);
 }
 
 struct ia2_addr_location ia2_addr_location_find(const uintptr_t addr) {
-  return ia2_all_threads_metadata_find_addr(&threads, addr);
+  return ia2_all_threads_metadata_find_addr(&all_threads_metadata, addr);
 }
 
 extern uintptr_t (*partition_alloc_thread_isolated_pool_base_address)[IA2_MAX_COMPARTMENTS];

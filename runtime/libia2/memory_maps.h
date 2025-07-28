@@ -13,7 +13,8 @@
 
 /// Find the `struct ia2_thread_metadata*` for the current thread,
 /// adding (but not allocating) one if there isn't one yet.
-/// If there is no memory for more or an error, `NULL` is returned.
+/// If there is no memory for more or some unexpected error,
+/// it `abort`s.  `NULL` is never returned.
 /// This is a purely lookup and/or additive operation,
 /// so the lifetime of the returned `struct ia2_thread_metadata*` is infinite,
 /// and since it's thread-specific,

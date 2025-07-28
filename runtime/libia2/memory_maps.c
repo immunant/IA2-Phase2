@@ -15,20 +15,22 @@
 struct ia2_thread_metadata *ia2_all_threads_metadata_get_for_current_thread(struct ia2_all_threads_metadata *const this) {
   const pid_t tid = gettid();
 
-  struct ia2_thread_metadata *metadata = NULL;
   if (pthread_mutex_lock(&this->lock) != 0) {
     perror("pthread_mutex_lock in ia2_all_threads_data_lookup failed");
-    goto ret;
+    abort();
   }
+
+  if (this->num_threads >= array_len(this->thread_metadata)) {
+    fprintf(stderr, "created %zu threads, but can't store them all (max is IA2_MAX_THREADS)\n", this->num_threads);
+    abort();
+  }
+
+  struct ia2_thread_metadata *metadata = NULL;
   for (size_t i = 0; i < this->num_threads; i++) {
     if (this->tids[i] == tid) {
       metadata = &this->thread_metadata[i];
       goto unlock;
     }
-  }
-  if (this->num_threads >= array_len(this->thread_metadata)) {
-    fprintf(stderr, "created %zu threads, but can't store them all (max is IA2_MAX_THREADS)\n", this->num_threads);
-    goto unlock;
   }
 
   metadata = &this->thread_metadata[this->num_threads];
@@ -38,13 +40,12 @@ struct ia2_thread_metadata *ia2_all_threads_metadata_get_for_current_thread(stru
   metadata->tid = tid;
   metadata->thread = pthread_self();
 
-  goto unlock;
-
 unlock:
   if (pthread_mutex_unlock(&this->lock) != 0) {
     perror("pthread_mutex_unlock in ia2_all_threads_data_lookup failed");
+    abort();
   }
-ret:
+
   return metadata;
 }
 
@@ -112,6 +113,7 @@ static void label_memory_map(FILE *log, uintptr_t start_addr) {
   const struct ia2_addr_location location = ia2_addr_location_find(start_addr);
   const struct ia2_thread_metadata *metadata = location.thread_metadata;
 
+  // If `location.name` is non-`NULL`, then `location` was found.
   if (location.name) {
     Dl_info dl_info = {0};
     const bool has_dl_info = dladdr((void *)metadata->start_fn, &dl_info);

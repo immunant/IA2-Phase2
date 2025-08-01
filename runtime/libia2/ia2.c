@@ -19,7 +19,7 @@ void **ia2_stackptr_for_compartment(int compartment) {
 
 #if defined(__x86_64__)
 
-__attribute__((__used__)) static uint32_t ia2_get_pkru() {
+__attribute__((__used__)) static uint32_t ia2_get_pkru(void) {
   uint32_t pkru = 0;
   __asm__ volatile("rdpkru" : "=a"(pkru) : "a"(0), "d"(0), "c"(0));
   return pkru;
@@ -27,7 +27,7 @@ __attribute__((__used__)) static uint32_t ia2_get_pkru() {
 
 size_t ia2_get_tag(void) __attribute__((alias("ia2_get_pkru")));
 
-size_t ia2_get_compartment() {
+size_t ia2_get_compartment(void) {
   uint32_t pkru = ia2_get_pkru();
   switch (pkru) {
   case 0xFFFFFFFC: {

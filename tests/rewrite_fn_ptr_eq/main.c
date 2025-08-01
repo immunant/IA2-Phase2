@@ -31,7 +31,9 @@ Test(rewrite_fn_ptr_eq, main) {
     int res;
     int *y = &res;
     void *x = NULL;
+    // REWRITER: bin_op fn = IA2_FN(add);
     bin_op fn = add;
+    // REWRITER: bin_op fn2 = { 0 };
     bin_op fn2 = NULL;
 
     // Check that pointers for types other than functions are not rewritten
@@ -97,4 +99,41 @@ Test(rewrite_fn_ptr_eq, main) {
     if (y || !fn) { }
     // REWRITER: if (x && IA2_ADDR(fn) && y) { }
     if (x && fn && y) { }
+
+    // REWRITER: fn = (typeof(fn)) { 0 };
+    fn = NULL;
+
+    // Do we handle custom NULL defines?
+#define IA2NULL 0
+
+    // REWRITER: fn = (typeof(fn)) { 0 };
+    fn = IA2NULL;
+
+    // What about a cast combined with a null macro?
+    // REWRITER: fn = (typeof(fn)) { 0 };
+    fn = (typeof(fn)) IA2NULL;
+
+    // the following tests don't use NULL so the rewriter output shouldn't rely on it either
+#undef NULL
+    // REWRITER: bin_op fn3 = { 0 };
+    bin_op fn3 = 0;
+
+    // REWRITER: bin_op fn4 = { 0 };
+    bin_op fn4 = (typeof(fn)) 0;
+
+    // REWRITER: fn = (typeof(fn)) { 0 };
+    fn = 0;
+
+    // REWRITER: fn = (typeof(fn)) { 0 };
+    fn = (typeof(fn)) 0;
+
+    // check that literal zeroes aren't rewritten if not cast to function pointers
+    // REWRITER: res = 0;
+    res = 0;
+
+    // REWRITER: if (IA2_ADDR(fn) == 0) { }
+    if (fn == 0) { }
+
+    // REWRITER: if (IA2_ADDR(mod.fn) == 0) { }
+    if (mod.fn == 0) { }
 }

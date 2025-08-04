@@ -42,7 +42,7 @@ INIT_RUNTIME(1);
   { cr_assert(s.name == (__int128)val); }
 
 void ia2_main(void) {
-    ia2_register_compartment("main", 1, NULL);
+  ia2_register_compartment("main", 1, NULL);
 }
 
 Test(structs, main) {

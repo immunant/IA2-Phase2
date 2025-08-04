@@ -1,6 +1,6 @@
 #pragma once
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 void print_message(void);
 

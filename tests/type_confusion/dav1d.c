@@ -15,22 +15,24 @@ struct Dav1dContext {
 const size_t DAV1D_CONTEXT_SIZE = sizeof(Dav1dContext);
 
 /// Allocate memory in dav1d's compartment 2.
-void* dav1d_alloc(const size_t size) {
+void *dav1d_alloc(const size_t size) {
   return malloc(size);
 }
 
-void dav1d_free(void* const memory) {
+void dav1d_free(void *const memory) {
   free(memory);
 }
 
 IA2_CONSTRUCTOR // Registers that ptr `this` has type `Dav1dContext` now.
-int dav1d_open(Dav1dContext *const this, const Dav1dSettings *const s) {
+    int
+    dav1d_open(Dav1dContext *const this, const Dav1dSettings *const s) {
   // Initialize `this`; implementation omitted.
   return 0;
 }
 
 IA2_DESTRUCTOR // Registers that ptr `this` no longer has type `Dav1dContext`.
-void dav1d_close(Dav1dContext *const this) {
+    void
+    dav1d_close(Dav1dContext *const this) {
   // Uninitialize `this`; implementation omitted.
 }
 

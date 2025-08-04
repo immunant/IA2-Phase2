@@ -1,13 +1,13 @@
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
-#include <dlfcn.h>
-#include <elf.h>
-#include <link.h>
 #include "ia2.h"
 #include "ia2_internal.h"
 #include "memory_maps.h"
 #include "thread_name.h"
+#include <dlfcn.h>
+#include <elf.h>
+#include <link.h>
 
 #include <pthread.h>
 #include <sys/auxv.h>
@@ -169,88 +169,88 @@ __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i) {
 }
 
 static void mark_init_finished(void) {
-    /* Pass to mmap to signal end of program init */
-    const uint64_t IA2_FINISH_INIT_MAGIC = 0x1a21face1a21faceULL;
-    /*
-     * Tell the syscall filter to forbid init-only operations. This mmap() will
-     * always fail because it maps a non-page-aligned addr with MAP_FIXED, so it
-     * works as a reasonable signpost no-op.
-     */
-    (void)mmap((void *)IA2_FINISH_INIT_MAGIC, 0, 0, MAP_FIXED, -1, 0);
+  /* Pass to mmap to signal end of program init */
+  const uint64_t IA2_FINISH_INIT_MAGIC = 0x1a21face1a21faceULL;
+  /*
+   * Tell the syscall filter to forbid init-only operations. This mmap() will
+   * always fail because it maps a non-page-aligned addr with MAP_FIXED, so it
+   * works as a reasonable signpost no-op.
+   */
+  (void)mmap((void *)IA2_FINISH_INIT_MAGIC, 0, 0, MAP_FIXED, -1, 0);
 }
 
 static int ia2_setup_compartment(const char *dso, int compartment, const char *extra_libraries) {
-    ia2_log("protecting memory for compartment %d\n", compartment);
-    void *handle = RTLD_DEFAULT;
-    void *dso_addr = &ia2_setup_compartment;
-    /* if the DSO is not the main executable dlopen it */
-    if (strcmp(dso, "main")) {
-        handle = dlopen(dso, RTLD_GLOBAL | RTLD_NOW);
-        if (!handle) {
-            printf("%s: failed to dlopen DSO %s for compartment %d\n", __func__, dso, compartment);
-            return -1;
-        }
-        /*
-         * The protect_pages requires an arbitrary address in the loaded DSO to find the correct
-         * segments. For the main binary we just take the address of the current function
-         * (ia2_setup_compartment) but for shared libraries we can't use this since only the copy
-         * in the main binary is executed so it always refers to that DSO. Instead we use an
-         * arbitrary symbol defined in libia2.a (ia2_get_tag) with a handle to the dlopen'ed DSO.
-         * This works since libia2 is statically linked in and that function can never get dead code
-         * eliminated by the linker.
-         */
-        dso_addr = dlsym(handle, "ia2_get_tag");
-        if (!dso_addr) {
-            printf("%s: failed to dlsym 'ia2_get_tag' in '%s'/compartment %d failed (%s)\n", __func__, dso, compartment, dlerror());
-            return -1;
-        }
+  ia2_log("protecting memory for compartment %d\n", compartment);
+  void *handle = RTLD_DEFAULT;
+  void *dso_addr = &ia2_setup_compartment;
+  /* if the DSO is not the main executable dlopen it */
+  if (strcmp(dso, "main")) {
+    handle = dlopen(dso, RTLD_GLOBAL | RTLD_NOW);
+    if (!handle) {
+      printf("%s: failed to dlopen DSO %s for compartment %d\n", __func__, dso, compartment);
+      return -1;
     }
-    void *dso_shared_start = dlsym(handle, "__start_ia2_shared_data");
-    void *dso_shared_stop = dlsym(handle, "__stop_ia2_shared_data");
-    if (!dso_shared_start != !dso_shared_stop) {
-        // We should not have one be null without the other
-        return -1;
+    /*
+     * The protect_pages requires an arbitrary address in the loaded DSO to find the correct
+     * segments. For the main binary we just take the address of the current function
+     * (ia2_setup_compartment) but for shared libraries we can't use this since only the copy
+     * in the main binary is executed so it always refers to that DSO. Instead we use an
+     * arbitrary symbol defined in libia2.a (ia2_get_tag) with a handle to the dlopen'ed DSO.
+     * This works since libia2 is statically linked in and that function can never get dead code
+     * eliminated by the linker.
+     */
+    dso_addr = dlsym(handle, "ia2_get_tag");
+    if (!dso_addr) {
+      printf("%s: failed to dlsym 'ia2_get_tag' in '%s'/compartment %d failed (%s)\n", __func__, dso, compartment, dlerror());
+      return -1;
     }
-    if (compartment != 0) {
-        void *initial_sp = allocate_stack(compartment);
-        void **stackptr = ia2_stackptr_for_compartment(compartment);
-        *stackptr = initial_sp;
-    }
+  }
+  void *dso_shared_start = dlsym(handle, "__start_ia2_shared_data");
+  void *dso_shared_stop = dlsym(handle, "__stop_ia2_shared_data");
+  if (!dso_shared_start != !dso_shared_stop) {
+    // We should not have one be null without the other
+    return -1;
+  }
+  if (compartment != 0) {
+    void *initial_sp = allocate_stack(compartment);
+    void **stackptr = ia2_stackptr_for_compartment(compartment);
+    *stackptr = initial_sp;
+  }
 
-    struct IA2SharedSection shared_sections[2] = {
-        { dso_shared_start, dso_shared_stop },
-        { NULL, NULL },
-    };
-    struct PhdrSearchArgs args = {
-        .pkey = compartment,
-        .address = dso_addr,
-        .extra_libraries = extra_libraries,
-        .found_library_count = 0,
-        .shared_sections = shared_sections,
-    };
-    dl_iterate_phdr(protect_pages, &args);
-    /* Check that we found all extra libraries */
-    const char *cur_pos = args.extra_libraries;
-    int extra_library_count = 0;
-    while (cur_pos) {
-        extra_library_count++;
-        cur_pos = strchr(cur_pos, ';');
-        if (cur_pos) {
-            cur_pos++;
-        }
+  struct IA2SharedSection shared_sections[2] = {
+      {dso_shared_start, dso_shared_stop},
+      {NULL, NULL},
+  };
+  struct PhdrSearchArgs args = {
+      .pkey = compartment,
+      .address = dso_addr,
+      .extra_libraries = extra_libraries,
+      .found_library_count = 0,
+      .shared_sections = shared_sections,
+  };
+  dl_iterate_phdr(protect_pages, &args);
+  /* Check that we found all extra libraries */
+  const char *cur_pos = args.extra_libraries;
+  int extra_library_count = 0;
+  while (cur_pos) {
+    extra_library_count++;
+    cur_pos = strchr(cur_pos, ';');
+    if (cur_pos) {
+      cur_pos++;
     }
-    if (extra_library_count != args.found_library_count) {
-        printf("%s: Could not find all extra libraries '%s' for compartment %d\n", __func__, extra_libraries, compartment);
-        return -1;
-    }
+  }
+  if (extra_library_count != args.found_library_count) {
+    printf("%s: Could not find all extra libraries '%s' for compartment %d\n", __func__, extra_libraries, compartment);
+    return -1;
+  }
 
-    dl_iterate_phdr(protect_tls_pages, &args);
-    return 0;
+  dl_iterate_phdr(protect_tls_pages, &args);
+  return 0;
 }
 
 struct CompartmentConfig {
-    const char *dso;
-    const char *extra_libraries;
+  const char *dso;
+  const char *extra_libraries;
 };
 
 /*
@@ -259,21 +259,21 @@ struct CompartmentConfig {
  * call ia2_register_compartment so other copies of it won't be referenced if libia2 is statically
  * linked into all compartments.
  */
-static struct CompartmentConfig user_config[IA2_MAX_COMPARTMENTS] IA2_SHARED_DATA = { 0 };
+static struct CompartmentConfig user_config[IA2_MAX_COMPARTMENTS] IA2_SHARED_DATA = {0};
 
 /*
  * Stores the main DSO and extra libraries (if any) for the specified compartment. This should only
  * be called for protected compartments (calls specifying compartment 0 are forbidden).
  */
 void ia2_register_compartment(const char *dso, int compartment, const char *extra_libraries) {
-    assert(compartment != 0);
-    ia2_log("registered %s for compartment #%d\n", dso, compartment);
-    if (extra_libraries) {
-        ia2_log("also registered %s for compartment #%d\n", extra_libraries, compartment);
-    }
-    assert(compartment < IA2_MAX_COMPARTMENTS);
-    user_config[compartment].dso = dso;
-    user_config[compartment].extra_libraries = extra_libraries;
+  assert(compartment != 0);
+  ia2_log("registered %s for compartment #%d\n", dso, compartment);
+  if (extra_libraries) {
+    ia2_log("also registered %s for compartment #%d\n", extra_libraries, compartment);
+  }
+  assert(compartment < IA2_MAX_COMPARTMENTS);
+  user_config[compartment].dso = dso;
+  user_config[compartment].extra_libraries = extra_libraries;
 }
 
 /*
@@ -281,29 +281,29 @@ void ia2_register_compartment(const char *dso, int compartment, const char *extr
  * ia2_main which is the user-defined compartment config code.
  */
 void ia2_start(void) {
-    ia2_log("initializing ia2 runtime\n");
-    /* Get the user config before doing anything else */
-    ia2_main();
-    ia2_setup_destructors();
-    /* Set up global resources. */
-    ia2_set_up_tags();
-    create_thread_keys();
-    verify_tls_padding();
-    /* allocate an unprotected stack for the untrusted compartment */
-    allocate_stack_0();
-    /* Check the config for compartments 1..=15 */
-    for (int i = 1; i < IA2_MAX_COMPARTMENTS; i++) {
-        /* Skip blank user_config entries */
-        if (!user_config[i].dso) {
-            /* Sanity check to ensure it wasn't misconfigured */
-            assert(!user_config[i].extra_libraries);
-            continue;
-        }
-        int rc = ia2_setup_compartment(user_config[i].dso, i, user_config[i].extra_libraries);
-        if (rc != 0) {
-            printf("%s: failed to initialize runtime (%d)\n", __func__, rc);
-            exit(rc);
-        }
+  ia2_log("initializing ia2 runtime\n");
+  /* Get the user config before doing anything else */
+  ia2_main();
+  ia2_setup_destructors();
+  /* Set up global resources. */
+  ia2_set_up_tags();
+  create_thread_keys();
+  verify_tls_padding();
+  /* allocate an unprotected stack for the untrusted compartment */
+  allocate_stack_0();
+  /* Check the config for compartments 1..=15 */
+  for (int i = 1; i < IA2_MAX_COMPARTMENTS; i++) {
+    /* Skip blank user_config entries */
+    if (!user_config[i].dso) {
+      /* Sanity check to ensure it wasn't misconfigured */
+      assert(!user_config[i].extra_libraries);
+      continue;
     }
-    mark_init_finished();
+    int rc = ia2_setup_compartment(user_config[i].dso, i, user_config[i].extra_libraries);
+    if (rc != 0) {
+      printf("%s: failed to initialize runtime (%d)\n", __func__, rc);
+      exit(rc);
+    }
+  }
+  mark_init_finished();
 }

@@ -56,7 +56,7 @@ SHIM_ALWAYS_EXPORT void *shared_memalign(size_t alignment, size_t size) __THROW 
     // TODO(bartekn): See if the compiler optimizes branches down the stack on
     // Mac, where PartitionPageSize() isn't constexpr.
     return allocator_shim::internal::PartitionAllocMalloc::SharedAllocator()
-      ->AllocInline<partition_alloc::AllocFlags::kNoHooks>(size);
+        ->AllocInline<partition_alloc::AllocFlags::kNoHooks>(size);
   }
 
   return allocator_shim::internal::PartitionAllocMalloc::SharedAllocator()

@@ -30,8 +30,8 @@ static bool addr_is_mapped(void *const ptr) {
 }
 
 void ia2_main(void) {
-    ia2_register_compartment("main", 1, NULL);
-    ia2_register_compartment("libterminating_threads_lib.so", 2, NULL);
+  ia2_register_compartment("main", 1, NULL);
+  ia2_register_compartment("libterminating_threads_lib.so", 2, NULL);
 }
 
 typedef void *(*start_fn)(void *arg);

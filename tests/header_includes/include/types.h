@@ -2,6 +2,6 @@
 #include <stdbool.h>
 
 typedef struct Option {
-    int value;
-    bool present;
+  int value;
+  bool present;
 } Option;

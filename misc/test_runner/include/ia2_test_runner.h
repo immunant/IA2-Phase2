@@ -42,8 +42,8 @@ extern struct fake_criterion_test *fake_criterion_tests;
   IA2_END_NO_WRAP                                                                           \
   struct fake_criterion_test fake_criterion_##suite_##_##name_##_##test IA2_SHARED_DATA = { \
       .next = NULL,                                                                         \
-      .suite = EXPAND_AND_STRINGIFY(suite_),                                                           \
-      .name = EXPAND_AND_STRINGIFY(name_),                                                             \
+      .suite = EXPAND_AND_STRINGIFY(suite_),                                                \
+      .name = EXPAND_AND_STRINGIFY(name_),                                                  \
       .test = fake_criterion_##suite_##_##name_,                                            \
       ##__VA_ARGS__};                                                                       \
   __attribute__((constructor)) void fake_criterion_add_##suite_##_##name_##_##test(void) {  \

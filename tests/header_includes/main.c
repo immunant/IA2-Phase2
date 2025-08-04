@@ -12,12 +12,12 @@ INIT_RUNTIME(1);
 #include <ia2_compartment_init.inc>
 
 void ia2_main(void) {
-    ia2_register_compartment("main", 1, NULL);
+  ia2_register_compartment("main", 1, NULL);
 }
 
 Test(header_includes, main) {
-    Option x = Some(3);
-    Option none = None();
-    cr_assert_eq(unwrap_or(x, -1), 3);
-    cr_assert_eq(unwrap_or(none, -1), -1);
+  Option x = Some(3);
+  Option none = None();
+  cr_assert_eq(unwrap_or(x, -1), 3);
+  cr_assert_eq(unwrap_or(none, -1), -1);
 }

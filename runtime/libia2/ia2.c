@@ -11,9 +11,9 @@
 
 void **ia2_stackptr_for_compartment(int compartment) {
 #if defined(__x86_64__)
-    return ia2_stackptr_for_tag(PKRU(compartment));
+  return ia2_stackptr_for_tag(PKRU(compartment));
 #elif defined(__aarch64__)
-    return ia2_stackptr_for_tag(compartment);
+  return ia2_stackptr_for_tag(compartment);
 #endif
 }
 
@@ -93,72 +93,119 @@ size_t ia2_get_compartment() {
 #elif defined(__aarch64__)
 
 static size_t ia2_get_x18(void) {
-    size_t x18;
-    asm("mov %0, x18" : "=r"(x18));
-    return (x18 >> 56) & 0xF;
+  size_t x18;
+  asm("mov %0, x18" : "=r"(x18));
+  return (x18 >> 56) & 0xF;
 }
 
 size_t ia2_get_tag(void) __attribute__((alias("ia2_get_x18")));
 
 size_t ia2_get_compartment(void) {
-    return ia2_get_tag();
+  return ia2_get_tag();
 }
 
 // TODO: insert_tag could probably be cleaned up a bit, but I'm not sure if the
 // generated code could be simplified since addg encodes the tag as an imm field
 #define _addg(out_ptr, in_ptr, tag) \
-    asm("addg %0, %1, #0, %2" : "=r"(out_ptr) : "r"(in_ptr), "i"(tag)); \
+  asm("addg %0, %1, #0, %2" : "=r"(out_ptr) : "r"(in_ptr), "i"(tag));
 
 #define insert_tag(ptr, tag) \
-    ({ \
-        uint64_t _res; \
-        switch (tag) { \
-            case 0: { _addg(_res, ptr, 0); break; } \
-            case 1: { _addg(_res, ptr, 1); break; } \
-            case 2: { _addg(_res, ptr, 2); break; } \
-            case 3: { _addg(_res, ptr, 3); break; } \
-            case 4: { _addg(_res, ptr, 4); break; } \
-            case 5: { _addg(_res, ptr, 5); break; } \
-            case 6: { _addg(_res, ptr, 6); break; } \
-            case 7: { _addg(_res, ptr, 7); break; } \
-            case 8: { _addg(_res, ptr, 8); break; } \
-            case 9: { _addg(_res, ptr, 9); break; } \
-            case 10: { _addg(_res, ptr, 10); break; } \
-            case 11: { _addg(_res, ptr, 11); break; } \
-            case 12: { _addg(_res, ptr, 12); break; } \
-            case 13: { _addg(_res, ptr, 13); break; } \
-            case 14: { _addg(_res, ptr, 14); break; } \
-            case 15: { _addg(_res, ptr, 15); break; } \
-        } \
-        _res; \
-    })
-
+  ({                         \
+    uint64_t _res;           \
+    switch (tag) {           \
+    case 0: {                \
+      _addg(_res, ptr, 0);   \
+      break;                 \
+    }                        \
+    case 1: {                \
+      _addg(_res, ptr, 1);   \
+      break;                 \
+    }                        \
+    case 2: {                \
+      _addg(_res, ptr, 2);   \
+      break;                 \
+    }                        \
+    case 3: {                \
+      _addg(_res, ptr, 3);   \
+      break;                 \
+    }                        \
+    case 4: {                \
+      _addg(_res, ptr, 4);   \
+      break;                 \
+    }                        \
+    case 5: {                \
+      _addg(_res, ptr, 5);   \
+      break;                 \
+    }                        \
+    case 6: {                \
+      _addg(_res, ptr, 6);   \
+      break;                 \
+    }                        \
+    case 7: {                \
+      _addg(_res, ptr, 7);   \
+      break;                 \
+    }                        \
+    case 8: {                \
+      _addg(_res, ptr, 8);   \
+      break;                 \
+    }                        \
+    case 9: {                \
+      _addg(_res, ptr, 9);   \
+      break;                 \
+    }                        \
+    case 10: {               \
+      _addg(_res, ptr, 10);  \
+      break;                 \
+    }                        \
+    case 11: {               \
+      _addg(_res, ptr, 11);  \
+      break;                 \
+    }                        \
+    case 12: {               \
+      _addg(_res, ptr, 12);  \
+      break;                 \
+    }                        \
+    case 13: {               \
+      _addg(_res, ptr, 13);  \
+      break;                 \
+    }                        \
+    case 14: {               \
+      _addg(_res, ptr, 14);  \
+      break;                 \
+    }                        \
+    case 15: {               \
+      _addg(_res, ptr, 15);  \
+      break;                 \
+    }                        \
+    }                        \
+    _res;                    \
+  })
 
 #define set_tag(tagged_ptr) \
-    asm volatile("st2g %0, [%0]" :: "r"(tagged_ptr) : "memory");
+  asm volatile("st2g %0, [%0]" ::"r"(tagged_ptr) : "memory");
 
 int ia2_mprotect_with_tag(void *addr, size_t len, int prot, int tag) {
-    int res = mprotect(addr, len, prot | PROT_MTE);
-    if (res != 0) {
-        /* Skip memory tagging if mprotect returned an error */
-        printf("mprotect failed with %d\n", res);
-        return res;
+  int res = mprotect(addr, len, prot | PROT_MTE);
+  if (res != 0) {
+    /* Skip memory tagging if mprotect returned an error */
+    printf("mprotect failed with %d\n", res);
+    return res;
+  }
+  /* Protect each page */
+  assert((len % PAGE_SIZE) == 0);
+  for (int page = 0; page < len / PAGE_SIZE; page++) {
+    char *page_base = addr + page * PAGE_SIZE;
+    /* Assuming we're using st2g. stgm is undefined at EL0 so it's not an option */
+    const int granule_sz = 32;
+    const int granules_per_page = PAGE_SIZE / 32;
+    /* Protect each granule in the page */
+    for (int granule = 0; granule < granules_per_page; granule++) {
+      // TODO: It may be possible to simplify this to be more efficient using the addg imm offset
+      uint64_t tagged_ptr = insert_tag((uint64_t)page_base + (granule * granule_sz), tag);
+      set_tag(tagged_ptr);
     }
-    /* Protect each page */
-    assert((len % PAGE_SIZE) == 0);
-    for(int page = 0; page < len / PAGE_SIZE; page++) {
-        char* page_base = addr + page * PAGE_SIZE;
-        /* Assuming we're using st2g. stgm is undefined at EL0 so it's not an option */
-        const int granule_sz = 32;
-        const int granules_per_page = PAGE_SIZE / 32;
-        /* Protect each granule in the page */
-        for (int granule = 0; granule < granules_per_page; granule++) {
-                // TODO: It may be possible to simplify this to be more efficient using the addg imm offset
-                uint64_t tagged_ptr = insert_tag((uint64_t)page_base + (granule * granule_sz), tag);
-                set_tag(tagged_ptr);
-        }
-    }
-    return 0;
+  }
+  return 0;
 }
 #endif
 
@@ -343,9 +390,9 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
       uint64_t after_untrusted_region_len = end - after_untrusted_region_start;
       if (after_untrusted_region_len > 0) {
         int mprotect_err = ia2_mprotect_with_tag(
-          (void *)after_untrusted_region_start,
-          after_untrusted_region_len,
-          PROT_READ | PROT_WRITE, pkey);
+            (void *)after_untrusted_region_start,
+            after_untrusted_region_len,
+            PROT_READ | PROT_WRITE, pkey);
         if (mprotect_err != 0) {
           printf("ia2_mprotect_with_tag failed: %s\n", strerror(errno));
           exit(-1);
@@ -359,8 +406,8 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
     } else {
       int mprotect_err =
           ia2_mprotect_with_tag(
-            (void *)start_round_down, len_round_up,
-            PROT_READ | PROT_WRITE, pkey);
+              (void *)start_round_down, len_round_up,
+              PROT_READ | PROT_WRITE, pkey);
       if (mprotect_err != 0) {
         printf("ia2_mprotect_with_tag failed: %s\n", strerror(errno));
         exit(-1);
@@ -515,8 +562,8 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
         // TODO: Inline ia2_mprotect_with_tag call and make sure the pkey is in a
         // register here so we can disallow calls to the libc function
         int mprotect_err = ia2_mprotect_with_tag(
-          (void *)start, cur_end - start,
-          access_flags, (int)search_args->pkey);
+            (void *)start, cur_end - start,
+            access_flags, (int)search_args->pkey);
         if (mprotect_err != 0) {
           printf("ia2_mprotect_with_tag failed: %s\n", strerror(errno));
           exit(-1);

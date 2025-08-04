@@ -12,27 +12,27 @@ INIT_RUNTIME(1);
 #include <ia2_compartment_init.inc>
 
 void ia2_main(void) {
-    ia2_register_compartment("main", 1, NULL);
+  ia2_register_compartment("main", 1, NULL);
 }
 
 Test(permissive_mode, main) {
-    char* buffer = NULL;
-    cr_assert(ia2_get_tag() == 0xFFFFFFF0);
+  char *buffer = NULL;
+  cr_assert(ia2_get_tag() == 0xFFFFFFF0);
 
-    buffer = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+  buffer = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
 
-    pkey_mprotect(buffer, 4096, PROT_READ | PROT_WRITE, 1);
-    buffer[0] = 'a';
+  pkey_mprotect(buffer, 4096, PROT_READ | PROT_WRITE, 1);
+  buffer[0] = 'a';
 
-    pkey_mprotect(buffer, 4096, PROT_READ | PROT_WRITE, 2);
-    buffer[0] = 'b';
+  pkey_mprotect(buffer, 4096, PROT_READ | PROT_WRITE, 2);
+  buffer[0] = 'b';
 
-    cr_assert(ia2_get_tag() == 0xFFFFFFF0);
+  cr_assert(ia2_get_tag() == 0xFFFFFFF0);
 }
 
 Test(permissive_mode, alloc) {
-    // Alloc and free so that partition-alloc allocates its compartment heaps.
-    free(malloc(1024));
+  // Alloc and free so that partition-alloc allocates its compartment heaps.
+  free(malloc(1024));
 }
 
 __thread int tls;

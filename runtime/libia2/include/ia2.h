@@ -30,8 +30,8 @@
 /// Any functions declared between this macro and IA2_END_NO_WRAP will not be
 /// wrapped by the rewriter and any calls to these functions and function
 /// pointers will execute in the caller's compartment.
-#define IA2_BEGIN_NO_WRAP                                                      \
-  _Pragma(                                                                     \
+#define IA2_BEGIN_NO_WRAP \
+  _Pragma(                \
       "clang attribute push(__attribute__((annotate(\"ia2_skip_wrap\"))), apply_to = hasType(functionType))");
 
 #define IA2_END_NO_WRAP _Pragma("clang attribute pop");
@@ -82,7 +82,7 @@
 #define IA2_AS_PTR(opaque) opaque
 #define IA2_FN(func) func
 #define IA2_CALL(opaque, id, ...) opaque(__VA_ARGS__)
-#define IA2_CAST(func, ty) (ty) (void *) func
+#define IA2_CAST(func, ty) (ty)(void *) func
 #else
 #define IA2_DEFINE_WRAPPER(func) IA2_DEFINE_WRAPPER_##func
 #define IA2_SIGHANDLER(func) ia2_sighandler_##func
@@ -95,8 +95,8 @@
 ///
 /// Creates a new function with `ia2_sighandler_` prepended to the given
 /// function name which should be registered with sigaction().
-#define IA2_DEFINE_SIGACTION(function, pkey)                                   \
-  void ia2_sighandler_##function(int, siginfo_t *, void *);                    \
+#define IA2_DEFINE_SIGACTION(function, pkey)                \
+  void ia2_sighandler_##function(int, siginfo_t *, void *); \
   _IA2_DEFINE_SIGNAL_HANDLER(function, pkey)
 
 /// Create a wrapped signal handler for `sa_handler`
@@ -108,8 +108,8 @@
 ///
 /// Creates a new function with `ia2_sighandler_` prepended to the given
 /// function name which should be registered with sigaction().
-#define IA2_DEFINE_SIGHANDLER(function, pkey)                                  \
-  void ia2_sighandler_##function(int);                                         \
+#define IA2_DEFINE_SIGHANDLER(function, pkey) \
+  void ia2_sighandler_##function(int);        \
   _IA2_DEFINE_SIGNAL_HANDLER(function, pkey)
 
 /// Initialize the IA2 runtime, must only be invoked once per in a process
@@ -167,7 +167,7 @@
 #define IA2_AS_PTR(opaque) (opaque).ptr
 
 /// Get an IA2 opaque function pointer for the wrapped version of `func`
-#define IA2_FN(func)                                                           \
+#define IA2_FN(func) \
   (typeof(__ia2_##func)) { (void *)&__ia2_##func }
 
 /// Call an IA2 opaque function pointer, which should be in target compartment
@@ -180,7 +180,8 @@
 /// parameter. Note that it is the user's responsibility to ensure that `ty` and
 /// the type of `IA2_FN(func)` are ABI-compatible since no extra type-checking is
 /// done.
-#define IA2_CAST(func, ty) (ty) { (void *)IA2_FN_ADDR(func) }
+#define IA2_CAST(func, ty) \
+  (ty) { (void *)IA2_FN_ADDR(func) }
 #endif // !IA2_ENABLE
 
 #define IA2_MAX_COMPARTMENTS 16

@@ -26,7 +26,7 @@
  * Section 13.1).
  */
 #define XFEATURE_PKRU 9
-#define XFEATURE_MASK_PKRU		(1 << XFEATURE_PKRU)
+#define XFEATURE_MASK_PKRU (1 << XFEATURE_PKRU)
 
 /*
  * Offset of the XSAVE header in bytes from the XSAVE area base (Intel SDM
@@ -310,7 +310,7 @@ int elfaddr(const void *addr, Dl_info *info) {
     // Find and read the .strtab section.
     i = sections[i].sh_link;
     strtab = (char *)mmap(NULL, sections[i].sh_size, PROT_READ, MAP_PRIVATE, fd,
-                  sections[i].sh_offset);
+                          sections[i].sh_offset);
     if (strtab == MAP_FAILED)
       return 0;
 
@@ -356,7 +356,7 @@ void print_address(FILE *log, const char *identifier, void *addr) {
               addr);
     }
   } else {
-      fprintf(log, "%s: %p, ", identifier, addr);
+    fprintf(log, "%s: %p, ", identifier, addr);
   }
 }
 

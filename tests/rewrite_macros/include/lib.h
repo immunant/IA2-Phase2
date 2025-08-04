@@ -4,10 +4,10 @@
 struct event;
 
 struct event_actions {
-    bool (*add)(struct event *evt);
-    bool (*del)(struct event *evt);
-    void (*enable)(struct event *evt);
-    void (*disable)(struct event *evt);
+  bool (*add)(struct event *evt);
+  bool (*del)(struct event *evt);
+  void (*enable)(struct event *evt);
+  void (*disable)(struct event *evt);
 };
 
 extern struct event_actions actions;

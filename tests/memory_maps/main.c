@@ -9,10 +9,10 @@ INIT_RUNTIME(4);
 #include <ia2_compartment_init.inc>
 
 void ia2_main(void) {
-    ia2_register_compartment("main", 1, NULL);
-    ia2_register_compartment("lib2.so", 2, NULL);
-    ia2_register_compartment("lib3.so", 3, NULL);
-    ia2_register_compartment("lib4.so", 4, NULL);
+  ia2_register_compartment("main", 1, NULL);
+  ia2_register_compartment("lib2.so", 2, NULL);
+  ia2_register_compartment("lib3.so", 3, NULL);
+  ia2_register_compartment("lib4.so", 4, NULL);
 }
 
 Test(memory_maps, alloc) {
@@ -59,7 +59,7 @@ Test(memory_maps, multithreaded) {
   // since it interleaves with other concurrent output.
   char *buf = NULL;
   size_t buf_len = 0;
-  FILE* const log = open_memstream(&buf, &buf_len);
+  FILE *const log = open_memstream(&buf, &buf_len);
 
   // Log before joining threads.
   // We want to inspect the labeled memory map with all of the threads,

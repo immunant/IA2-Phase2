@@ -2,11 +2,11 @@
 #include <stdint.h>
 
 // CHECK: typedef struct IA2_fnptr__ZTSPFjjjE binary_op;
-typedef uint32_t(*binary_op)(uint32_t, uint32_t);
+typedef uint32_t (*binary_op)(uint32_t, uint32_t);
 
 typedef struct function_s {
-    binary_op op;
-    const char *name;
+  binary_op op;
+  const char *name;
 } function_t;
 
 void swap_function(void);

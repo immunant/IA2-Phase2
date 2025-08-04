@@ -2,8 +2,8 @@
 #include "core.h"
 
 struct tuple {
-    uint32_t first;
-    uint32_t second;
+  uint32_t first;
+  uint32_t second;
 };
 
 // Get the config option for a given entry name.

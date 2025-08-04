@@ -17,9 +17,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include <stdio.h>
-#include <stdint.h>
 #include <ia2.h>
+#include <stdint.h>
+#include <stdio.h>
 
 #include "libusb.h"
 #include "usb-1.0_fn_ptr_ia2.h"
@@ -29,56 +29,54 @@ INIT_RUNTIME(1);
 #include <ia2_compartment_init.inc>
 
 void ia2_main(void) {
-    ia2_register_compartment("main", 1, NULL);
+  ia2_register_compartment("main", 1, NULL);
 }
 
-static void print_devs(libusb_device **devs)
-{
-	libusb_device *dev;
-	int i = 0, j = 0;
-	uint8_t path[8]; 
+static void print_devs(libusb_device **devs) {
+  libusb_device *dev;
+  int i = 0, j = 0;
+  uint8_t path[8];
 
-	while ((dev = devs[i++]) != NULL) {
-		struct libusb_device_descriptor desc;
-		int r = libusb_get_device_descriptor(dev, &desc);
-		if (r < 0) {
-			fprintf(stderr, "failed to get device descriptor");
-			return;
-		}
+  while ((dev = devs[i++]) != NULL) {
+    struct libusb_device_descriptor desc;
+    int r = libusb_get_device_descriptor(dev, &desc);
+    if (r < 0) {
+      fprintf(stderr, "failed to get device descriptor");
+      return;
+    }
 
-		printf("%04x:%04x (bus %d, device %d)",
-			desc.idVendor, desc.idProduct,
-			libusb_get_bus_number(dev), libusb_get_device_address(dev));
+    printf("%04x:%04x (bus %d, device %d)",
+           desc.idVendor, desc.idProduct,
+           libusb_get_bus_number(dev), libusb_get_device_address(dev));
 
-		r = libusb_get_port_numbers(dev, path, sizeof(path));
-		if (r > 0) {
-			printf(" path: %d", path[0]);
-			for (j = 1; j < r; j++)
-				printf(".%d", path[j]);
-		}
-		printf("\n");
-	}
+    r = libusb_get_port_numbers(dev, path, sizeof(path));
+    if (r > 0) {
+      printf(" path: %d", path[0]);
+      for (j = 1; j < r; j++)
+        printf(".%d", path[j]);
+    }
+    printf("\n");
+  }
 }
 
-int main(void)
-{
-	libusb_device **devs;
-	int r;
-	ssize_t cnt;
+int main(void) {
+  libusb_device **devs;
+  int r;
+  ssize_t cnt;
 
-	r = libusb_init(NULL);
-	if (r < 0)
-		return r;
+  r = libusb_init(NULL);
+  if (r < 0)
+    return r;
 
-	cnt = libusb_get_device_list(NULL, &devs);
-	if (cnt < 0){
-		libusb_exit(NULL);
-		return (int) cnt;
-	}
+  cnt = libusb_get_device_list(NULL, &devs);
+  if (cnt < 0) {
+    libusb_exit(NULL);
+    return (int)cnt;
+  }
 
-	print_devs(devs);
-	libusb_free_device_list(devs, 1);
+  print_devs(devs);
+  libusb_free_device_list(devs, 1);
 
-	libusb_exit(NULL);
-	return 0;
+  libusb_exit(NULL);
+  return 0;
 }

@@ -20,7 +20,7 @@ INIT_RUNTIME(2);
 
 void ia2_main(void) {
 #if IA2_ENABLE
-    ia2_register_compartment("main", 1, NULL);
+  ia2_register_compartment("main", 1, NULL);
 #endif
 }
 

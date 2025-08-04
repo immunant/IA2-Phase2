@@ -13,8 +13,8 @@ INIT_RUNTIME(2);
 #include <ia2_compartment_init.inc>
 
 void ia2_main(void) {
-    ia2_register_compartment("main", 1, NULL);
-    ia2_register_compartment("libtls_protected_lib.so", 2, NULL);
+  ia2_register_compartment("main", 1, NULL);
+  ia2_register_compartment("libtls_protected_lib.so", 2, NULL);
 }
 
 thread_local uint32_t main_secret = 0xdeadbeef;
@@ -30,9 +30,9 @@ void run_test(bool access_lib_secret) {
   errno = 5;
   const char *tag_register =
 #ifdef __x86_64__
-    "pkru";
+      "pkru";
 #else
-    "x18";
+      "x18";
 #endif
   cr_log_info("errno=%d, %s=%08zx\n", errno, tag_register, ia2_get_tag());
 

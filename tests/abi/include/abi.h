@@ -25,5 +25,5 @@ void arg_in_memory(struct in_memory im);
 
 struct in_memory ret_in_memory(int x);
 
-typedef struct in_memory(*fn_ptr_ret_in_mem)(int);
-typedef void(*fn_ptr_many_args)(int, int, int, int, int, int, int, int, int, int);
+typedef struct in_memory (*fn_ptr_ret_in_mem)(int);
+typedef void (*fn_ptr_many_args)(int, int, int, int, int, int, int, int, int, int);

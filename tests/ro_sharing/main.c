@@ -3,11 +3,9 @@ RUN: sh -c 'if [ ! -s "ro_sharing_call_gates_0.ld" ]; then echo "No link args as
 */
 #include <ia2_test_runner.h>
 
-#include <plugin.h>
 #include <ia2.h>
+#include <plugin.h>
 #include <stdio.h>
-
-
 
 // This test checks that all RO data mapped in from executable files is shared.
 // This is needed so that the dynamic linker can read ELF metadata. Read-only
@@ -20,8 +18,8 @@ INIT_RUNTIME(2);
 #include <ia2_compartment_init.inc>
 
 void ia2_main(void) {
-    ia2_register_compartment("main", 1, NULL);
-    ia2_register_compartment("libro_sharing_lib.so", 2, NULL);
+  ia2_register_compartment("main", 1, NULL);
+  ia2_register_compartment("libro_sharing_lib.so", 2, NULL);
 }
 
 // All string literals should be in .rodata

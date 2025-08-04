@@ -1,8 +1,8 @@
 #include "ia2_internal.h"
 #include "lib_1/lib_1.h"
 #include "lib_2/lib_2.h"
-#include <ia2_test_runner.h>
 #include <ia2.h>
+#include <ia2_test_runner.h>
 
 INIT_RUNTIME(3);
 #define IA2_COMPARTMENT 1
@@ -10,14 +10,11 @@ INIT_RUNTIME(3);
 #include <ia2_compartment_init.inc>
 #include <threads.h>
 
-
-
 void ia2_main(void) {
-    ia2_register_compartment("main", 1, NULL);
-    ia2_register_compartment("liblib_2.so", 2, NULL);
-    ia2_register_compartment("liblib_1.so", 3, NULL);
+  ia2_register_compartment("main", 1, NULL);
+  ia2_register_compartment("liblib_2.so", 2, NULL);
+  ia2_register_compartment("liblib_1.so", 3, NULL);
 }
-
 
 void main_noop(void) {
 }

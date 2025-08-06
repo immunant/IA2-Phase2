@@ -6,7 +6,7 @@
 // This reduces the trusted codebase and avoids runtime overhead.
 #if IA2_DEBUG_MEMORY
 
-// Moved `IA2_MAX_THREADS` and `ia2_all_threads_metadata` from here to `ia2.h`
+// Moved `IA2_MAX_THREADS` and `ia2_all_threads_metadata` from here to `ia2_internal.h`
 // so that it can be used in `ia2_internal.h` within `_IA2_INIT_RUNTIME`
 // to only initialize the `ia2_threads_metadata` global once.
 

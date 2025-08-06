@@ -4,12 +4,12 @@
 #define IA2_ENABLE 0
 #endif
 
-// This must come first so that we define `_GNU_SOURCE` before including standard headers.
-// `ia2_internal.h` requires GNU-specific headers.
-// Used for `pkey_mprotect`.
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
+#if IA2_ENABLE
+// Include this before anything else as it defines `_GNU_SOURCE`.
+#include "ia2_internal.h"
 #endif
+
+#include "ia2_common.h"
 
 #include <errno.h>
 #include <pthread.h>
@@ -186,56 +186,8 @@
   (ty) { (void *)IA2_FN_ADDR(func) }
 #endif // !IA2_ENABLE
 
-#define IA2_MAX_COMPARTMENTS 16
-
 /// Convert a compartment pkey to a PKRU register value
 #define PKRU(pkey) (~((3U << (2 * pkey)) | 3))
-
-// Moved `ia2_thread_metadata` from `memory_maps.h`
-// and `IA2_MAX_THREADS` and `ia2_all_threads_metadata`
-// from `memory_maps.c` to here
-// so that it can be used in `ia2_internal.h` within `_IA2_INIT_RUNTIME`
-// to only initialize the `ia2_threads_metadata` global once.
-
-/// The data here is shared, so it should not be trusted for use as a pointer,
-/// but it can be used best effort for non-trusted purposes.
-struct ia2_thread_metadata {
-  pid_t tid;
-  pthread_t thread;
-
-  /// The start function passed to `pthread_create`.
-  void *(*start_fn)(void *arg);
-
-  /// The addresses of each compartment's stack for this thread.
-  uintptr_t stack_addrs[IA2_MAX_COMPARTMENTS];
-
-  /// The addresses of each compartment's TLS region for this thread,
-  /// except for compartment 1, which has split TLS regions (see below).
-  uintptr_t tls_addrs[IA2_MAX_COMPARTMENTS];
-
-  /// The TLS region is split only for the first compartment,
-  /// so we need two addresses for just that one.
-  ///
-  /// Compartment 1's TLS region is split because there is a page of
-  /// unprotected data for `ia2_stackptr_0` (in compartment 0), plus padding,
-  /// as we don't have a general implementation of shared TLS yet,
-  /// but `ia2_stackptr_0` is special-cased for now
-  /// as it must be stored in TLS and unprotected.
-  uintptr_t tls_addr_compartment1_first;
-  uintptr_t tls_addr_compartment1_second;
-};
-
-// It's much simpler to only support a static number of created threads,
-// especially because we want to have very few dependencies.
-// If a program needs more threads, you can just increase this number.
-#define IA2_MAX_THREADS 512
-
-struct ia2_all_threads_metadata {
-  pthread_mutex_t lock;
-  size_t num_threads;
-  pid_t tids[IA2_MAX_THREADS];
-  struct ia2_thread_metadata thread_metadata[IA2_MAX_THREADS];
-};
 
 #ifdef __cplusplus
 extern "C" {
@@ -275,8 +227,4 @@ extern void ia2_main(void);
 
 #ifdef __cplusplus
 }
-#endif
-
-#if IA2_ENABLE
-#include "ia2_internal.h"
 #endif

@@ -1,15 +1,13 @@
 #pragma once
 
-#include "ia2.h"
 #include "ia2_memory_maps.h"
-
-#include <pthread.h>
+#include "ia2_internal.h"
 
 // Only enable this code that stores these addresses when debug logging is enabled.
 // This reduces the trusted codebase and avoids runtime overhead.
 #if IA2_DEBUG_MEMORY
 
-// Moved `ia2_thread_metadata` from here to `ia2.h`
+// Moved `ia2_thread_metadata` from here to `ia2_internal.h`
 // so that it can be used in `ia2_internal.h` within `_IA2_INIT_RUNTIME`
 // to only initialize the `ia2_threads_metadata` global once.
 

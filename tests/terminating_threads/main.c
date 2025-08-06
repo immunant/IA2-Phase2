@@ -115,11 +115,11 @@ static void *start_wrapper(void *arg) {
   const char *start_name = "?";
   if (start == start_return) {
     start_name = "return";
-  } else if (false /* start == start_exit */) {
+  } else if (start == start_exit) {
     start_name = "exit";
   } else if (start == start_abort) {
     start_name = "abort";
-  } else if (false /* start == start_pthread_exit */) {
+  } else if (start == start_pthread_exit) {
     start_name = "pthread_exit";
   } else if (start == start_pause) {
     start_name = "pause";

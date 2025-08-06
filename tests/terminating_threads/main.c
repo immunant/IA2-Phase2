@@ -269,13 +269,9 @@ Test(terminating_threads, threads_11_other_threads_return) {
 
 #endif
 
-#ifndef __x86_64__
-
 Test(terminating_threads, threads_11_other_threads_exit) {
   run_test(10, start_exit, end_join, start_return);
 }
-
-#endif
 
 Test(terminating_threads, threads_11_other_threads_abort, .signal = SIGABRT) {
   run_test(10, start_abort, end_join, start_return);

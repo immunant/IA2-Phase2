@@ -14,12 +14,12 @@ __asm__(
     "__wrap_main:\n"
 #if defined(__x86_64__)
     "pushq %rbp\n"
+    "movq %rsp, %rbp\n"
     // Push an arbitrary scratch register which will be preserved across
     // function calls
     "pushq %r12\n"
     "pushq %r13\n"
     "pushq %r14\n"
-    "movq %rsp, %rbp\n"
 
     // Call ia2_start making sure to preserve/restore the original arguments to main
     "pushq %rdi\n"

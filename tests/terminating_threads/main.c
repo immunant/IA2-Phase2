@@ -41,7 +41,14 @@ static void *start_return(void *_arg) {
   return NULL;
 }
 
-static void *start_exit(void *_arg) {
+// Takes either an int * to the thread index or NULL if called from the main thread.
+static void *start_exit(void *arg_index) {
+  // `exit` is not thread-safe so only call it from the main thread or the first thread created
+  // (index 0)
+  int *index = (int *)arg_index;
+  if (index && *index != 0) {
+    return NULL;
+  }
   exit(0);
 }
 
@@ -50,12 +57,14 @@ static void *start_abort(void *_arg) {
   return NULL;
 }
 
+// pthread_exit triggers a signal handler defined by libc/may cause libc to call exit (which does
+// not go through our wrapper) so tests using this function are currently disabled (see issue #605).
+#if 0
 static void *start_pthread_exit(void *_arg) {
-  exit(0); // TODO Skip for now, as `pthread_exit` `SIGILL`s (#605).
-
   pthread_exit(NULL);
   return NULL;
 }
+#endif
 
 static void *start_pause(void *_arg) {
   pause();
@@ -119,8 +128,10 @@ static void *start_wrapper(void *arg) {
     start_name = "exit";
   } else if (start == start_abort) {
     start_name = "abort";
+#if 0
   } else if (start == start_pthread_exit) {
     start_name = "pthread_exit";
+#endif
   } else if (start == start_pause) {
     start_name = "pause";
   } else if (start == start_sleep_100_us) {
@@ -136,7 +147,7 @@ static void *start_wrapper(void *arg) {
   cr_log_info("thread %ld is named %s", (long)gettid(), thread_name);
 
   pthread_barrier_wait(args->barrier);
-  return start(NULL);
+  return start((void*)&args->index);
 }
 
 static void run_test(size_t num_threads, start_fn start, end_fn end, start_fn main) {
@@ -193,9 +204,11 @@ Test(terminating_threads, threads_1_abort, .signal = SIGABRT) {
   run_test(0, start_pause, end_none, start_abort);
 }
 
+#if 0
 Test(terminating_threads, threads_1_pthread_exit) {
   run_test(0, start_pause, end_none, start_pthread_exit);
 }
+#endif
 
 // 2 threads, main thread
 
@@ -211,9 +224,11 @@ Test(terminating_threads, threads_2_main_thread_abort, .signal = SIGABRT) {
   run_test(1, start_pause, end_none, start_abort);
 }
 
+#if 0
 Test(terminating_threads, threads_2_main_thread_pthread_exit) {
   run_test(1, start_pause, end_none, start_pthread_exit);
 }
+#endif
 
 // 11 threads, main thread
 
@@ -229,9 +244,11 @@ Test(terminating_threads, threads_11_main_thread_abort, .signal = SIGABRT) {
   run_test(10, start_pause, end_none, start_abort);
 }
 
+#if 0
 Test(terminating_threads, threads_11_main_thread_pthread_exit) {
   run_test(10, start_pause, end_none, start_pthread_exit);
 }
+#endif
 
 // 2 threads, other thread
 
@@ -247,9 +264,11 @@ Test(terminating_threads, threads_2_other_thread_abort, .signal = SIGABRT) {
   run_test(1, start_abort, end_join, start_return);
 }
 
+#if 0
 Test(terminating_threads, threads_2_other_thread_pthread_exit) {
   run_test(1, start_pthread_exit, end_join, start_return);
 }
+#endif
 
 Test(terminating_threads, threads_2_other_thread_pthread_join) {
   run_test(1, start_sleep_100_us, end_join, start_return);
@@ -277,9 +296,11 @@ Test(terminating_threads, threads_11_other_threads_abort, .signal = SIGABRT) {
   run_test(10, start_abort, end_join, start_return);
 }
 
+#if 0
 Test(terminating_threads, threads_11_other_threads_pthread_exit) {
   run_test(10, start_pthread_exit, end_join, start_return);
 }
+#endif
 
 Test(terminating_threads, threads_11_other_threads_pthread_join) {
   run_test(10, start_sleep_100_us, end_join, start_return);

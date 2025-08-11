@@ -7,6 +7,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/syscall.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -68,11 +69,19 @@ void print_mpk_message(int sig) {
     }
     /* Write directly to stdout since printf is not async-signal-safe */
     write(1, msg, strlen(msg));
+    /*
+     * None of the various wrappers libia2.a defines for exit are
+     * async-signal-safe because they access thread-locals via the %fs segment
+     * register or call dlopen and other functions that are not
+     * async-signal-safe. Instead we just use a syscall since we just care about
+     * terminating the process without trying to do any other clean up at this
+     * point
+     */
     if (!expect_fault) {
-      _exit(-1);
+      syscall(SYS_exit, -1);
     }
   }
-  _exit(0);
+  syscall(SYS_exit, 0);
 }
 
 int main() {

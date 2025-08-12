@@ -425,12 +425,12 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
 
 static bool is_syslib(struct dl_phdr_info *info, int32_t pkey) {
   const char *libname = basename(info->dlpi_name);
-  bool is_libc = !strcmp(libname, "libc.so.6");
+  //bool is_libc = !strcmp(libname, "libc.so.6");
   bool is_ldso = !strcmp(libname, "ld-linux-x86-64.so.2");
   // TODO: Check for C++ standard library
   // Always put C standard library and dynamic linker in compartment 1. This is an arbitrary choice.
   const int32_t syslib_pkey = 1;
-  return (is_libc || is_ldso) && (pkey == syslib_pkey);
+  return (is_ldso) && (pkey == syslib_pkey);
 }
 
 int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {

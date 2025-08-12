@@ -1,5 +1,9 @@
 #include "ia2.h"
 
+void ia2_compartment_destructor_1(void);
+void __wrap_ia2_compartment_destructor_1(void) {
+    ia2_compartment_destructor_1();
+}
 int __real_main(int argc, char **argv);
 
 /* Stores the stack pointer to return to after main() is called. */
@@ -46,10 +50,10 @@ __asm__(
     // Save return value
     "mov %rax,%r10\n"
     // Switch pkey to untrusted compartment
-    "xor %ecx,%ecx\n"
-    "xor %edx,%edx\n"
-    "mov_pkru_eax 0\n"
-    "wrpkru\n"
+    //"xor %ecx,%ecx\n"
+    //"xor %edx,%edx\n"
+    //"mov_pkru_eax 0\n"
+    //"wrpkru\n"
     // Restore return value
     "mov %r10,%rax\n"
     "popq %rbp\n"

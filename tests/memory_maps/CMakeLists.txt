@@ -22,5 +22,4 @@ define_test(
   LIBS 2 3 4
   NEEDS_LD_WRAP
   CRITERION_TEST
-  WITHOUT_SANDBOX # tracer forbids reading `/proc/self/maps`
 )

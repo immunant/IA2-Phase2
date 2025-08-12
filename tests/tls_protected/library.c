@@ -22,6 +22,13 @@ void lib_print_main_secret() {
   cr_assert(false); // should not reach here
 }
 
+#if IA2_REWRITING
+void * __tls_get_addr(size_t m, size_t offset);
+#endif
+
 void lib_print_lib_secret() {
+#if IA2_REWRITING
+    __tls_get_addr(0, 0);
+#endif
   cr_log_info("library: lib secret is %x\n", lib_secret);
 }

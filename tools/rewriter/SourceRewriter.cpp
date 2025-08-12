@@ -1291,6 +1291,7 @@ int main(int argc, const char **argv) {
     }
     // Insert extra args from command line
     new_args.insert(double_hyphen_pos, ExtraArgs.begin(), ExtraArgs.end());
+    new_args.push_back("-DIA2_REWRITING=1"s);
     return new_args;
   });
 

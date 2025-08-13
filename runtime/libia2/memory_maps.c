@@ -6,17 +6,9 @@
 // This reduces the trusted codebase and avoids runtime overhead.
 #if IA2_DEBUG_MEMORY
 
-// It's much simpler to only support a static number of created threads,
-// especially because we want to have very few dependencies.
-// If a program needs more threads, you can just increase this number.
-#define MAX_THREADS 512
-
-struct ia2_all_threads_metadata {
-  pthread_mutex_t lock;
-  size_t num_threads;
-  pid_t tids[MAX_THREADS];
-  struct ia2_thread_metadata thread_metadata[MAX_THREADS];
-};
+// Moved `IA2_MAX_THREADS` and `ia2_all_threads_metadata` from here to `ia2_internal.h`
+// so that it can be used in `ia2_internal.h` within `_IA2_INIT_RUNTIME`
+// to only initialize the `ia2_threads_metadata` global once.
 
 #define array_len(a) (sizeof(a) / sizeof(*(a)))
 
@@ -35,7 +27,7 @@ struct ia2_thread_metadata *ia2_all_threads_metadata_lookup(struct ia2_all_threa
     }
   }
   if (this->num_threads >= array_len(this->thread_metadata)) {
-    fprintf(stderr, "created %zu threads, but can't store them all (max is MAX_THREADS)\n", this->num_threads);
+    fprintf(stderr, "created %zu threads, but can't store them all (max is IA2_MAX_THREADS)\n", this->num_threads);
     goto unlock;
   }
 
@@ -101,19 +93,17 @@ ret:
   return location;
 }
 
-// All zeroed, so this should go in `.bss` and only have pages lazily allocated.
-static struct ia2_all_threads_metadata IA2_SHARED_DATA threads = {
-    .lock = PTHREAD_MUTEX_INITIALIZER,
-    .num_threads = 0,
-    .thread_metadata = {0},
-};
+// Moved `ia2_threads_metadata` from here to `ia2_internal.h`
+// so that it can be used in `_IA2_INIT_RUNTIME`
+// to only initialize the `ia2_threads_metadata` global once.
+extern struct ia2_all_threads_metadata ia2_threads_metadata;
 
 struct ia2_thread_metadata *ia2_thread_metadata_get_current_thread(void) {
-  return ia2_all_threads_metadata_lookup(&threads);
+  return ia2_all_threads_metadata_lookup(&ia2_threads_metadata);
 }
 
 struct ia2_addr_location ia2_addr_location_find(const uintptr_t addr) {
-  return ia2_all_threads_metadata_find_addr(&threads, addr);
+  return ia2_all_threads_metadata_find_addr(&ia2_threads_metadata, addr);
 }
 
 extern uintptr_t (*partition_alloc_thread_isolated_pool_base_address)[IA2_MAX_COMPARTMENTS];

@@ -4,13 +4,15 @@
 #define IA2_ENABLE 0
 #endif
 
-// This include must come first so we define _GNU_SOURCE before including
-// standard headers. ia2_internal.h requires GNU-specific headers.
 #if IA2_ENABLE
+// Include this before anything else as it defines `_GNU_SOURCE`.
 #include "ia2_internal.h"
 #endif
 
+#include "ia2_common.h"
+
 #include <errno.h>
+#include <pthread.h>
 #include <stdint.h>
 #include <unistd.h>
 
@@ -183,8 +185,6 @@
 #define IA2_CAST(func, ty) \
   (ty) { (void *)IA2_FN_ADDR(func) }
 #endif // !IA2_ENABLE
-
-#define IA2_MAX_COMPARTMENTS 16
 
 /// Convert a compartment pkey to a PKRU register value
 #define PKRU(pkey) (~((3U << (2 * pkey)) | 3))

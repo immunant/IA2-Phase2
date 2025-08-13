@@ -70,3 +70,9 @@ Test(tls_protected, no_access_lib_secret) {
 Test(tls_protected, access_lib_secret) {
   run_test(true);
 }
+
+#if IA2_REWRITING
+void *__tls_get_addr(size_t m, size_t offset) {
+    return NULL;
+}
+#endif

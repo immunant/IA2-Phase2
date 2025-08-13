@@ -1291,6 +1291,7 @@ int main(int argc, const char **argv) {
     }
     // Insert extra args from command line
     new_args.insert(double_hyphen_pos, ExtraArgs.begin(), ExtraArgs.end());
+    new_args.push_back("-DIA2_REWRITING=1"s);
     return new_args;
   });
 
@@ -1587,7 +1588,7 @@ int main(int argc, const char **argv) {
   }
 
   // Create wrapper for compartment destructor
-  for (int compartment_pkey = 1; compartment_pkey < num_pkeys; compartment_pkey++) {
+  for (int compartment_pkey = 2; compartment_pkey < num_pkeys; compartment_pkey++) {
     std::string fn_name = "ia2_compartment_destructor_" + std::to_string(compartment_pkey);
     FnSignature fn_sig;
     try {
@@ -1600,7 +1601,7 @@ int main(int argc, const char **argv) {
     std::string wrapper_name = "__wrap_"s + fn_name;
     std::string asm_wrapper =
         emit_asm_wrapper(ctx, fn_sig, std::nullopt, wrapper_name, fn_name, WrapperKind::Direct,
-                         0, compartment_pkey, Target);
+                         1, compartment_pkey, Target);
     wrapper_out << asm_wrapper;
 
     write_to_file(ld_args_out, compartment_pkey,

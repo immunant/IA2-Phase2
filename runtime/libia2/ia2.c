@@ -423,6 +423,16 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
   return 0;
 }
 
+static bool is_syslib(struct dl_phdr_info *info, int32_t pkey) {
+  const char *libname = basename(info->dlpi_name);
+  //bool is_libc = !strcmp(libname, "libc.so.6");
+  bool is_ldso = !strcmp(libname, "ld-linux-x86-64.so.2");
+  // TODO: Check for C++ standard library
+  // Always put C standard library and dynamic linker in compartment 1. This is an arbitrary choice.
+  const int32_t syslib_pkey = 1;
+  return (is_ldso) && (pkey == syslib_pkey);
+}
+
 int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
   if (!data || !info) {
     printf("Passed invalid args to dl_iterate_phdr callback\n");
@@ -433,7 +443,9 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
 
   Elf64_Addr address = (Elf64_Addr)search_args->address;
   bool extra = in_extra_libraries(info, search_args->extra_libraries);
-  if (!in_loaded_segment(info, address) && !extra) {
+  const int32_t syslib_pkey = 1;
+  bool syslib = is_syslib(info, search_args->pkey);
+  if (!in_loaded_segment(info, address) && !extra && !syslib) {
     // Continue iterating to check the next object
     return 0;
   }

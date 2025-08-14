@@ -89,8 +89,10 @@ Test(three_keys_minimal, direct_calls) {
 #define CHECK_VIOLATION_VOID(expr) \
   {                                \
     expect_fault = true;           \
+    asm volatile("" : : : "memory");                            \
     expr;                          \
     expect_fault = false;          \
+    asm volatile("" : : : "memory");                            \
   }
 
 /*

@@ -20,7 +20,7 @@ struct ia2_all_threads_metadata {
 
 #define array_len(a) (sizeof(a) / sizeof(*(a)))
 
-struct ia2_thread_metadata *ia2_all_threads_metadata_get_for_current_thread(struct ia2_all_threads_metadata *const this) {
+static struct ia2_thread_metadata *ia2_all_threads_metadata_get_for_current_thread(struct ia2_all_threads_metadata *const this) {
   const pid_t tid = gettid();
 
   if (pthread_mutex_lock(&this->lock) != 0) {
@@ -57,7 +57,7 @@ unlock:
   return metadata;
 }
 
-struct ia2_addr_location ia2_all_threads_metadata_find_addr(struct ia2_all_threads_metadata *const this, const uintptr_t addr) {
+static struct ia2_addr_location ia2_all_threads_metadata_find_addr(struct ia2_all_threads_metadata *const this, const uintptr_t addr) {
   struct ia2_addr_location location = {
       .name = NULL,
       .thread_metadata = NULL,

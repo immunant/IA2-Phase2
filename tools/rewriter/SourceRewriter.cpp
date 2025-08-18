@@ -1280,9 +1280,7 @@ int main(int argc, const char **argv) {
   tool.appendArgumentsAdjuster([&](const CommandLineArguments &args, llvm::StringRef filename) {
     CommandLineArguments new_args(args);
     // Try to remove existing definition from command line to avoid warnings.
-    new_args.erase(std::remove_if(new_args.begin(), new_args.end(),
-                                  [](std::string &x) { return x.starts_with("-DIA2_ENABLE="); }),
-                   new_args.end());
+    std::erase_if(new_args, [](const std::string &arg) { return arg.starts_with("-DIA2_ENABLE="); });
     // Insert prior to the "end of flags" double hyphen; if not present, append
     auto double_hyphen_pos = std::find(new_args.begin(), new_args.end(), "--");
     double_hyphen_pos = new_args.insert(double_hyphen_pos, "-DIA2_ENABLE=0"s) + 1;

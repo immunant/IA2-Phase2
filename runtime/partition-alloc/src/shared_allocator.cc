@@ -75,4 +75,13 @@ SHIM_ALWAYS_EXPORT int shared_posix_memalign(void **res, size_t alignment, size_
   *res = ptr;
   return ptr ? 0 : ENOMEM;
 }
+
+SHIM_ALWAYS_EXPORT char* shared_strdup(const char* str) {
+  size_t length = strlen(str) + 1;
+  void* buffer = shared_malloc(length);
+  if (!buffer) {
+    return nullptr;
+  }
+  return (char*)memcpy(buffer, str, length);
+}
 }

@@ -7,3 +7,4 @@ void *shared_realloc(void *ptr, size_t size);
 void *shared_calloc(size_t num, size_t size);
 void *shared_memalign(size_t algin, size_t size);
 int shared_posix_memalign(void **res, size_t align, size_t size);
+char* shared_strdup(const char* str);

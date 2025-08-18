@@ -49,6 +49,8 @@ struct dl_phdr_info;
 
 /// The data here is shared, so it should not be trusted for use as a pointer,
 /// but it can be used best effort for non-trusted purposes.
+///
+/// All fields should be used atomically.
 struct ia2_thread_metadata {
   pid_t tid;
   pthread_t thread;
@@ -81,9 +83,16 @@ struct ia2_thread_metadata {
 #define IA2_MAX_THREADS 512
 
 struct ia2_all_threads_metadata {
-  pthread_mutex_t lock;
-  size_t num_threads;
+  /// This is the number of threads registered,
+  /// and it is monotonically increasing by 1.
+  ///
+  /// It may be transiently higher than `IA2_MAX_THREADS`,
+  /// but will `abort` if that happens (other threads may observe a higher value).
+  _Atomic size_t num_threads;
+
   pid_t tids[IA2_MAX_THREADS];
+
+  /// Should be initialized to 0.
   struct ia2_thread_metadata thread_metadata[IA2_MAX_THREADS];
 };
 
@@ -493,7 +502,6 @@ __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
   /* All zeroed, so this should go in `.bss` */                                                       \
   /* and only have pages lazily allocated. */                                                         \
   struct ia2_all_threads_metadata ia2_threads_metadata IA2_SHARED_DATA = {                            \
-      .lock = PTHREAD_MUTEX_INITIALIZER,                                                              \
       .num_threads = 0,                                                                               \
       .thread_metadata = {0},                                                                         \
   };

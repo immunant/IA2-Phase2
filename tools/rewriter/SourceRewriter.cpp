@@ -1285,12 +1285,12 @@ int main(int argc, const char **argv) {
                    new_args.end());
     // Insert prior to the "end of flags" double hyphen; if not present, append
     auto double_hyphen_pos = std::find(new_args.begin(), new_args.end(), "--");
-    new_args.insert(double_hyphen_pos, "-DIA2_ENABLE=0"s);
+    double_hyphen_pos = new_args.insert(double_hyphen_pos, "-DIA2_ENABLE=0"s);
     if (Target == Arch::Aarch64) {
-      new_args.insert(double_hyphen_pos, "--target=aarch64-linux-gnu"s);
+      double_hyphen_pos = new_args.insert(double_hyphen_pos, "--target=aarch64-linux-gnu"s);
     }
     // Insert extra args from command line
-    new_args.insert(double_hyphen_pos, ExtraArgs.begin(), ExtraArgs.end());
+    double_hyphen_pos = new_args.insert(double_hyphen_pos, ExtraArgs.begin(), ExtraArgs.end());
     return new_args;
   });
 

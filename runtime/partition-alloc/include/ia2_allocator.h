@@ -1,6 +1,10 @@
 #pragma once
 #include <stddef.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 __attribute__((visibility("default"), noinline))
 void *shared_malloc(size_t bytes);
 
@@ -18,4 +22,10 @@ void *shared_memalign(size_t algin, size_t size);
 
 __attribute__((visibility("default"), noinline))
 int shared_posix_memalign(void **res, size_t align, size_t size);
+
+__attribute__((visibility("default"), noinline))
 char* shared_strdup(const char* str);
+
+#ifdef __cplusplus
+} // extern "C"
+#endif

@@ -75,4 +75,20 @@ SHIM_ALWAYS_EXPORT int shared_posix_memalign(void **res, size_t alignment, size_
   *res = ptr;
   return ptr ? 0 : ENOMEM;
 }
+
+// TODO: This does not handle errno correctly.
+//
+// If strdup fails, it returns NULL and sets errno. This re-implementation is
+// built on top of shared_malloc, and as a result does not set errno the way
+// that strdup does.
+//
+// See also https://man7.org/linux/man-pages/man3/strdup.3.html
+SHIM_ALWAYS_EXPORT char* shared_strdup(const char* str) {
+  size_t length = strlen(str) + 1;
+  void* buffer = shared_malloc(length);
+  if (!buffer) {
+    return nullptr;
+  }
+  return (char*)memcpy(buffer, str, length);
+}
 }

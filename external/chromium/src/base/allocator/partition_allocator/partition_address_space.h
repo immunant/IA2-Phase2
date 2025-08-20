@@ -307,7 +307,9 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionAddressSpace {
   static_assert(base::bits::IsPowerOfTwo(kRegularPoolSize));
   static_assert(base::bits::IsPowerOfTwo(kBRPPoolSize));
 #if BUILDFLAG(ENABLE_THREAD_ISOLATION)
-  static constexpr size_t kThreadIsolatedPoolSize = kGiB / 4;
+  // IA2: Increase size of thread isolated pool since those are our main pools
+  // when compartmentalized.
+  static constexpr size_t kThreadIsolatedPoolSize = kPoolMaxSize;
   static_assert(base::bits::IsPowerOfTwo(kThreadIsolatedPoolSize));
 #endif
   static constexpr size_t kConfigurablePoolMaxSize = kPoolMaxSize;

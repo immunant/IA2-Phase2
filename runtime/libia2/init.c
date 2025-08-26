@@ -283,7 +283,8 @@ void ia2_register_compartment(const char *dso, int compartment, const char *extr
  * This function is called from __wrap_main before handing off control to user code. It calls
  * ia2_main which is the user-defined compartment config code.
  */
-void ia2_start(void) {
+uint64_t ia2_start(void) {
+  uint64_t init_compartment = 0;
   ia2_log("initializing ia2 runtime\n");
   /* Get the user config before doing anything else */
   ia2_main();
@@ -307,6 +308,15 @@ void ia2_start(void) {
       printf("%s: failed to initialize runtime (%d)\n", __func__, rc);
       exit(rc);
     }
+        if (!strcmp(user_config[i].dso, "main")) {
+            ia2_log("set initial compartment to %d\n", i);
+            init_compartment = i;
+        }
   }
   mark_init_finished();
+#if defined(__x86_64__)
+    return PKRU(init_compartment);
+#elif defined(__aarch64__)
+    return init_compartment << 56;
+#endif
 }

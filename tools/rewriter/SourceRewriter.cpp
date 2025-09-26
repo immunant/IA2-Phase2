@@ -2,6 +2,7 @@
 #include "Context.h"
 #include "DetermineAbi.h"
 #include "GenCallAsm.h"
+#include "LdsoRegistry.h"
 #include "TypeOps.h"
 #include "clang/AST/AST.h"
 #include "clang/AST/Type.h"
@@ -1477,6 +1478,24 @@ int main(int argc, const char **argv) {
                         fn_decl_pass.defined_fns[caller_pkey].end(),
                         std::inserter(undefined_fns, undefined_fns.begin()));
     for (const auto &fn_name : undefined_fns) {
+      // Check if this is an ld.so function that needs a callgate to compartment 1
+      if (LdsoFunctionRegistry::is_ldso_function(fn_name) && caller_pkey != 1) {
+        std::cout << "DEBUG: Found ld.so function '" << fn_name
+                  << "' called from compartment " << caller_pkey
+                  << " -> creating callgate to compartment 1" << std::endl;
+
+        // Force create a callgate from this compartment to compartment 1
+        // where ld.so functions should run
+        direct_call_wrappers[fn_name] = caller_pkey; // Caller's compartment
+
+        // Add to ld args for wrapping
+        write_to_file(ld_args_out, caller_pkey,
+                      "--wrap="s + fn_name + '\n', ".ld");
+        std::cout << "DEBUG: Added --wrap=" << fn_name
+                  << " to ld args for compartment " << caller_pkey << std::endl;
+        continue; // Skip normal processing
+      }
+
       if (direct_call_wrappers.contains(fn_name)) {
         // If previous iterations found only one compartment that calls
         // fn_name, make sure it's not already in the multicaller set
@@ -1548,9 +1567,42 @@ int main(int argc, const char **argv) {
     }
   }
 
+  // Add function signatures for ld.so functions that may not have been parsed from source
+  std::cout << "DEBUG: Checking ld.so functions for signature injection..." << std::endl;
+  for (const std::string& ldso_fn : LdsoFunctionRegistry::get_ldso_functions()) {
+    if (direct_call_wrappers.contains(ldso_fn)) {
+      // Always set pkey for ld.so functions to compartment 1
+      fn_decl_pass.fn_pkeys[ldso_fn] = 1; // ld.so functions run in compartment 1
+      std::cout << "DEBUG: Set pkey=1 for ld.so function: " << ldso_fn << std::endl;
+
+      if (!fn_decl_pass.fn_signatures.contains(ldso_fn)) {
+        std::cout << "DEBUG: Injecting signature for ld.so function: " << ldso_fn << std::endl;
+        FnSignature ldso_sig;
+        if (ldso_fn == "_dl_debug_state") {
+          // void _dl_debug_state(void) - simple function with no parameters
+          ldso_sig.api.ret.name = ""; // Return value has no name
+          ldso_sig.api.ret.type = 0; // Use TypeId 0 for void (basic type)
+          ldso_sig.abi.ret = {}; // No return slots for void
+          ldso_sig.variadic = false; // Not variadic
+          // No parameters so args remain empty
+          std::cout << "DEBUG: Created signature for _dl_debug_state: void(void)" << std::endl;
+        }
+        fn_decl_pass.fn_signatures[ldso_fn] = ldso_sig;
+      } else {
+        std::cout << "DEBUG: ld.so function " << ldso_fn << " already has signature" << std::endl;
+      }
+    }
+  }
+
   // At this point direct_call_wrappers has both single-caller and multicaller
   // functions so we just need to generate the callgates
+  std::cout << "DEBUG: Starting callgate generation for " << direct_call_wrappers.size() << " functions" << std::endl;
   for (const auto &[fn_name, caller_pkey] : direct_call_wrappers) {
+    bool is_ldso = LdsoFunctionRegistry::is_ldso_function(fn_name);
+    if (is_ldso) {
+      std::cout << "DEBUG: Generating callgate for ld.so function: " << fn_name 
+                << " (caller_pkey=" << caller_pkey << ")" << std::endl;
+    }
     FnSignature fn_sig;
     try {
       fn_sig = fn_decl_pass.fn_signatures.at(fn_name);
@@ -1580,6 +1632,11 @@ int main(int argc, const char **argv) {
         emit_asm_wrapper(ctx, fn_sig, std::nullopt, wrapper_name, target_fn,
                          WrapperKind::Direct, caller_pkey, target_pkey, Target);
     wrapper_out << asm_wrapper;
+    
+    if (is_ldso) {
+      std::cout << "DEBUG: Generated assembly wrapper: " << wrapper_name 
+                << " (caller=" << caller_pkey << " -> target=" << target_pkey << ")" << std::endl;
+    }
 
     write_to_file(ld_args_out, caller_pkey, "--wrap="s + fn_name + '\n', ".ld");
   }

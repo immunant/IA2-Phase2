@@ -947,8 +947,11 @@ public:
 
     Function fn_name = fn_node->getNameAsString();
 
-    // Ignore declarations in libc and libia2 headers
-    if (ignore_function(*fn_node, fn_node->getLocation(), sm)) {
+    // For system headers, we want to track the declarations but not modify them
+    bool is_system_header = sm.isInSystemHeader(fn_node->getLocation());
+
+    // Skip if we should ignore (but still track system library declarations)
+    if (!is_system_header && ignore_function(*fn_node, fn_node->getLocation(), sm)) {
       return;
     }
 
@@ -959,6 +962,13 @@ public:
     }
 
     if (fn_node->isVariadic()) {
+      // Track variadic system functions for special handling
+      if (sm.isInSystemHeader(fn_node->getLocation())) {
+        variadic_system_fns.insert(fn_name);
+        llvm::errs() << "Tracking variadic system function: " << fn_name
+                     << " (will not assign to compartment 1)\n";
+      }
+
       static std::set<Function> variadic_warnings_printed = {};
       if (variadic_warnings_printed.contains(fn_name)) {
         return;
@@ -986,6 +996,13 @@ public:
       fn_definitions[fn_name] = filename;
     } else {
       declared_fns[pkey].insert(fn_name);
+
+      // Track if this is from a system header for later use
+      if (fn_node && sm.isInSystemHeader(fn_node->getLocation())) {
+        system_header_fns.insert(fn_name);
+      }
+      // Don't automatically assign system functions to compartment 1 here
+      // We'll only assign them if they're actually called (tracked by CallTracker)
     }
   }
 
@@ -995,9 +1012,54 @@ private:
 public:
   std::set<Function> defined_fns[MAX_PKEYS];
   std::set<Function> declared_fns[MAX_PKEYS];
+  std::set<Function> called_fns[MAX_PKEYS];  // Track functions that are actually called
+  std::set<Function> system_header_fns;  // Track functions declared in system headers
+  std::set<Function> variadic_system_fns;  // Track variadic functions from system headers
   std::map<Function, FnSignature> fn_signatures;
   std::map<Function, Pkey> fn_pkeys;
   std::map<Function, Filename> fn_definitions;
+};
+
+// Track function calls to determine which functions are actually used
+class CallTracker : public RefactoringCallback {
+public:
+  CallTracker(Context &ctx,
+              ASTMatchRefactorer &refactorer,
+              FnDecl &fn_decl_pass,
+              std::map<std::string, Replacements> &replacements)
+      : ctx(ctx), fn_decl_pass(fn_decl_pass) {
+    // Match direct function calls
+    StatementMatcher call_matcher =
+        callExpr(callee(functionDecl().bind("calledFunction"))).bind("call");
+    refactorer.addMatcher(call_matcher, this);
+  }
+
+  virtual void run(const MatchFinder::MatchResult &result) {
+    auto *call = result.Nodes.getNodeAs<clang::CallExpr>("call");
+    auto *fn = result.Nodes.getNodeAs<clang::FunctionDecl>("calledFunction");
+
+    if (!call || !fn) return;
+
+    auto &sm = *result.SourceManager;
+
+    // Get the compartment of the caller
+    Pkey pkey = get_file_pkey(sm);
+
+    // Track this function as being called from this compartment
+    std::string fn_name = fn->getNameAsString();
+    fn_decl_pass.called_fns[pkey].insert(fn_name);
+
+    // Also track if this is a variadic system function call
+    if (fn->isVariadic() && sm.isInSystemHeader(fn->getLocation())) {
+      fn_decl_pass.variadic_system_fns.insert(fn_name);
+      llvm::errs() << "CallTracker: Found call to variadic system function " << fn_name
+                   << " from compartment " << pkey << "\n";
+    }
+  }
+
+private:
+  Context &ctx;
+  FnDecl &fn_decl_pass;
 };
 
 static void create_file(llvm::raw_fd_ostream *file[MAX_PKEYS], int i, const char *extension) {
@@ -1397,6 +1459,7 @@ int main(int argc, const char **argv) {
 
   ASTMatchRefactorer refactorer(tool.getReplacements());
   FnDecl fn_decl_pass(ctx, refactorer, tool.getReplacements());
+  CallTracker call_tracker_pass(ctx, refactorer, fn_decl_pass, tool.getReplacements());
   FnPtrTypes ptr_types_pass(refactorer, tool.getReplacements());
   FnPtrExpr ptr_expr_pass(refactorer, tool.getReplacements());
   FnPtrCall ptr_call_pass(ctx, refactorer, tool.getReplacements());
@@ -1467,6 +1530,21 @@ int main(int argc, const char **argv) {
   // caller compartment then those that are called from multiple compartments.
   std::map<Function, Pkey> direct_call_wrappers = {};
 
+  // Debug: print what was collected by FnDecl pass
+  for (int i = 0; i < num_pkeys; i++) {
+    llvm::errs() << "Compartment " << i << " defined functions: ";
+    for (const auto &fn : fn_decl_pass.defined_fns[i]) {
+      llvm::errs() << fn << " ";
+    }
+    llvm::errs() << "\n";
+
+    llvm::errs() << "Compartment " << i << " declared functions: ";
+    for (const auto &fn : fn_decl_pass.declared_fns[i]) {
+      llvm::errs() << fn << " ";
+    }
+    llvm::errs() << "\n";
+  }
+
   for (int caller_pkey = 0; caller_pkey < num_pkeys; caller_pkey++) {
     create_ld_file(ld_args_out, caller_pkey);
     create_file(objcopy_redefine_syms_args, caller_pkey, ".objcopy");
@@ -1477,7 +1555,47 @@ int main(int argc, const char **argv) {
                         fn_decl_pass.defined_fns[caller_pkey].begin(),
                         fn_decl_pass.defined_fns[caller_pkey].end(),
                         std::inserter(undefined_fns, undefined_fns.begin()));
+
+    // Debug output
+    if (undefined_fns.size() > 0) {
+      llvm::errs() << "Compartment " << caller_pkey << " has "
+                   << undefined_fns.size() << " undefined functions:\n";
+      for (const auto &fn : undefined_fns) {
+        llvm::errs() << "  - " << fn << "\n";
+      }
+    }
+
+    // Debug: Show which functions are actually called
+    llvm::errs() << "Compartment " << caller_pkey << " calls "
+                 << fn_decl_pass.called_fns[caller_pkey].size() << " functions:\n";
+    for (const auto &fn : fn_decl_pass.called_fns[caller_pkey]) {
+      llvm::errs() << "  - " << fn << "\n";
+    }
+
     for (const auto &fn_name : undefined_fns) {
+      // Only process functions that are actually called from this compartment
+      if (!fn_decl_pass.called_fns[caller_pkey].contains(fn_name)) {
+        continue;  // Skip functions that aren't actually called
+      }
+
+      // First check if this function has a pkey assigned
+      if (!fn_decl_pass.fn_pkeys.contains(fn_name)) {
+        // Check if this is a variadic system function - don't assign to compartment 1
+        if (fn_decl_pass.variadic_system_fns.contains(fn_name)) {
+          llvm::errs() << "Variadic system function " << fn_name
+                       << " (called from compartment " << caller_pkey
+                       << ") will NOT be assigned to compartment 1\n";
+          // Don't assign a pkey - let it run unprotected
+        }
+        // Check if this is a system header function that should go to compartment 1
+        else if (fn_decl_pass.system_header_fns.contains(fn_name)) {
+          fn_decl_pass.fn_pkeys[fn_name] = 1;  // Assign to compartment 1
+          llvm::errs() << "System library function " << fn_name
+                       << " (called from compartment " << caller_pkey
+                       << ") assigned to compartment 1\n";
+        }
+        // Otherwise, let it fall through to existing logic
+      }
       // Check if this is an ld.so function that needs a callgate to compartment 1
       if (LdsoFunctionRegistry::is_ldso_function(fn_name) && caller_pkey != 1) {
         std::cout << "DEBUG: Found ld.so function '" << fn_name
@@ -1526,7 +1644,28 @@ int main(int argc, const char **argv) {
   // now we'll add the multicaller ones (with their renamed symbols) to allow
   // generating call gates with a single loop through direct_call_wrappers
   for (const auto &[fn_name, caller_pkey_set] : multicaller_fns) {
+    FnSignature fn_sig;
+    try {
+      fn_sig = fn_decl_pass.fn_signatures.at(fn_name);
+    } catch (std::out_of_range const &exc) {
+      llvm::errs() << "ABI signature not known for function " << fn_name << "\n";
+      abort();
+    }
+
+    Pkey target_pkey;
+    try {
+      target_pkey = fn_decl_pass.fn_pkeys.at(fn_name);
+    } catch (std::out_of_range const &exc) {
+      llvm::errs() << "pkey not known for function " << fn_name << "\n";
+      abort();
+    }
+
     for (int caller_pkey : caller_pkey_set) {
+      if (caller_pkey == target_pkey) {
+        // Same-compartment calls don't need renamed symbols or wrappers.
+        continue;
+      }
+
       std::string new_fn_name = fn_name + "_from_" + std::to_string(caller_pkey);
       // The contents of the objcopy args file
       std::string contents = fn_name + " " + new_fn_name + '\n';
@@ -1542,23 +1681,8 @@ int main(int argc, const char **argv) {
       // original entries in these maps for the renamed symbols. While we could
       // avoid this duplication if necessary, this simplifies the call gate
       // generation.
-      FnSignature fn_sig;
-      try {
-        fn_sig = fn_decl_pass.fn_signatures.at(fn_name);
-      } catch (std::out_of_range const &exc) {
-        llvm::errs() << "ABI signature not known for function " << fn_name << "\n";
-        abort();
-      }
       fn_decl_pass.fn_signatures.insert({new_fn_name, fn_sig});
-
-      Pkey pkey;
-      try {
-        pkey = fn_decl_pass.fn_pkeys.at(fn_name);
-      } catch (std::out_of_range const &exc) {
-        llvm::errs() << "pkey not known for function " << fn_name << "\n";
-        abort();
-      }
-      fn_decl_pass.fn_pkeys.insert({new_fn_name, pkey});
+      fn_decl_pass.fn_pkeys.insert({new_fn_name, target_pkey});
 
       // The target functions for multicaller function call gates don't have
       // matching symbol names (since their symbols are renamed) so let's keep
@@ -1628,13 +1752,23 @@ int main(int argc, const char **argv) {
                    << ") since its definition was not found by FnDecl pass\n";
       continue;
     }
+
+    // Skip generating wrapper if caller and target are in the same compartment
+    if (caller_pkey == target_pkey) {
+      if (is_ldso) {
+        std::cout << "DEBUG: Skipping callgate for ld.so function " << fn_name
+                  << " (same compartment: " << caller_pkey << ")" << std::endl;
+      }
+      continue;
+    }
+
     std::string asm_wrapper =
         emit_asm_wrapper(ctx, fn_sig, std::nullopt, wrapper_name, target_fn,
                          WrapperKind::Direct, caller_pkey, target_pkey, Target);
     wrapper_out << asm_wrapper;
-    
+
     if (is_ldso) {
-      std::cout << "DEBUG: Generated assembly wrapper: " << wrapper_name 
+      std::cout << "DEBUG: Generated assembly wrapper: " << wrapper_name
                 << " (caller=" << caller_pkey << " -> target=" << target_pkey << ")" << std::endl;
     }
 

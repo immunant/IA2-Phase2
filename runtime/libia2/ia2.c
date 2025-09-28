@@ -427,13 +427,25 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
 
   Elf64_Addr address = (Elf64_Addr)search_args->address;
   bool extra = in_extra_libraries(info, search_args->extra_libraries);
-  if (!in_loaded_segment(info, address) && !extra) {
+  // Check if this is a system library that should be in compartment 1
+  const char *libname = basename(info->dlpi_name);
+  bool is_ldso = !strcmp(libname, "ld-linux-x86-64.so.2") ||
+                  !strcmp(libname, "ld-linux-aarch64.so.1");
+  bool is_libc = strstr(libname, "libc.so") != NULL;
+  const int32_t syslib_pkey = 1;
+  bool syslib = (is_ldso || is_libc) && (search_args->pkey == syslib_pkey);
+
+  if (!in_loaded_segment(info, address) && !extra && !syslib) {
     // Continue iterating to check the next object
     return 0;
   }
 
   if (extra) {
     search_args->found_library_count++;
+  }
+
+  if (syslib) {
+    printf("IA2: Protecting system library %s in compartment 1\n", libname);
   }
 
   ia2_log("protecting library: %s\n", basename(info->dlpi_name));

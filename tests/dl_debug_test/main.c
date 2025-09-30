@@ -28,6 +28,15 @@ Test(dl_debug, libc_compartment_inheritance) {
 
     cr_assert_eq(result, 0);
     cr_log_info("Main: Test complete - iconv conversion succeeded, dl_debug_state inherited compartment 1");
+
+    /* TESTING FIX: Set PKRU=0 before test exits to allow destructors to run */
+    __asm__ volatile(
+        "xor %%eax, %%eax\n"
+        "xor %%ecx, %%ecx\n"
+        "xor %%edx, %%edx\n"
+        "wrpkru\n"
+        ::: "eax", "ecx", "edx"
+    );
 }
 
 // Simple test to verify compartments are working

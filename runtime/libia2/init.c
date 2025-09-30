@@ -287,7 +287,10 @@ void ia2_start(void) {
   ia2_log("initializing ia2 runtime\n");
   /* Get the user config before doing anything else */
   ia2_main();
-  ia2_setup_destructors();
+  // DISABLED FOR TESTING: Compartment destructors cause exit handler violations
+  // when libc is protected in compartment 1. The destructor wrappers switch
+  // to compartment 0, causing SEGV_PKUERR when accessing libc's .bss
+  // ia2_setup_destructors();
   /* Set up global resources. */
   ia2_set_up_tags();
   create_thread_keys();

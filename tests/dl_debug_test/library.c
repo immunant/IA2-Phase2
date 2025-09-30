@@ -3,6 +3,7 @@
  */
 
 #include <ia2.h>
+#include <ia2_allocator.h>
 #include <iconv.h>
 #include <string.h>
 #include <stdio.h>
@@ -30,17 +31,62 @@ int trigger_iconv_dlopen(void) {
 
     /* Do a simple conversion to verify it works */
     const char* input = "test";
-    char output[100];
-    char* inptr = (char*)input;
-    char* outptr = output;
-    size_t inleft = strlen(input);
-    size_t outleft = sizeof(output);
 
-    size_t result = iconv(converter, &inptr, &inleft, &outptr, &outleft);
+    /* Allocate buffers in shared memory so iconv can access them */
+    char* shared_input = shared_malloc(strlen(input) + 1);
+    char* shared_output = shared_malloc(100);
+    strcpy(shared_input, input);
+
+    char* inptr = shared_input;
+    char* outptr = shared_output;
+    size_t inleft = strlen(input);
+    size_t outleft = 100;
+
+    /* FIX for pointer-to-pointer issue:
+     * iconv takes pointer-to-pointer parameters (char **inbuf, char **outbuf)
+     * which normally live on compartment 2's stack. When iconv (in compartment 1)
+     * tries to dereference these pointers, it cannot access compartment 2's stack.
+     *
+     * SOLUTION: Use shared memory (pkey 0) for the pointer containers.
+     * This allows iconv in compartment 1 to access and modify these pointers.
+     */
+
+    /* Allocate shared memory for pointer containers */
+    char **shared_inptr = shared_malloc(sizeof(char*));
+    char **shared_outptr = shared_malloc(sizeof(char*));
+    size_t *shared_inleft = shared_malloc(sizeof(size_t));
+    size_t *shared_outleft = shared_malloc(sizeof(size_t));
+
+    /* Copy local values to shared memory */
+    *shared_inptr = inptr;
+    *shared_outptr = outptr;
+    *shared_inleft = inleft;
+    *shared_outleft = outleft;
+
+    /* Call iconv with shared memory pointers */
+    size_t result = iconv(converter, shared_inptr, shared_inleft,
+                         shared_outptr, shared_outleft);
+
+    /* Copy results back from shared memory */
+    inptr = *shared_inptr;
+    outptr = *shared_outptr;
+    inleft = *shared_inleft;
+    outleft = *shared_outleft;
+
+    /* Free shared memory */
+    shared_free(shared_inptr);
+    shared_free(shared_outptr);
+    shared_free(shared_inleft);
+    shared_free(shared_outleft);
+
     if (result != (size_t)-1) {
         *outptr = '\0';
         /* Success - conversion worked */
     }
+
+    /* Free the shared buffers */
+    shared_free(shared_input);
+    shared_free(shared_output);
 
     iconv_close(converter);
     /* Operations complete */

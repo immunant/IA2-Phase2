@@ -49,6 +49,9 @@ function(add_ia2_compartment NAME TYPE)
     IA2_ENABLE=1
     PKEY=${ARG_PKEY}
   )
+  if(IA2_TRACE_EXIT)
+    target_compile_definitions(${NAME} PRIVATE IA2_TRACE_EXIT=1)
+  endif()
   set_target_properties(${NAME} PROPERTIES PKEY ${ARG_PKEY})
   target_compile_options(${NAME} PRIVATE
     "-Werror=incompatible-pointer-types"
@@ -147,6 +150,9 @@ function(create_compile_commands NAME TYPE)
     IA2_ENABLE=0
     PKEY=${ARG_PKEY}
   )
+  if(IA2_TRACE_EXIT)
+    target_compile_definitions(${COMPILE_COMMAND_TARGET} PRIVATE IA2_TRACE_EXIT=1)
+  endif()
   # Copy target properties from the real target. We might need to add more properties.
   target_link_libraries(${COMPILE_COMMAND_TARGET} PRIVATE $<TARGET_PROPERTY:${NAME},LINK_LIBRARIES>)
   target_include_directories(${COMPILE_COMMAND_TARGET} PRIVATE ${INCLUDE_DIRECTORIES})

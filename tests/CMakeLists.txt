@@ -74,6 +74,8 @@ if (NOT LIBIA2_AARCH64)
     add_subdirectory(two_shared_ranges)
     add_subdirectory(trusted_indirect)
     add_subdirectory(dl_debug_test)
+    add_subdirectory(dl_debug_getpwnam)
+    add_subdirectory(dl_debug_mbstowcs_test)
 
     # test calls PKRU-specific functions
     add_subdirectory(mmap_loop)

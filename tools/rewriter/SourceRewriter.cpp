@@ -20,6 +20,7 @@
 #include "clang/Tooling/Tooling.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FormatVariadic.h"
+#include "llvm/Support/JSON.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 #include <clang/AST/Decl.h>
@@ -31,6 +32,7 @@
 #include <map>
 #include <optional>
 #include <string>
+#include <sstream>
 #include <sys/stat.h>
 #include <sys/types.h>
 
@@ -1476,10 +1478,12 @@ int main(int argc, const char **argv) {
 
   header_out << "#include <ia2.h>\n";
   header_out << "#include <scrub_registers.h>\n";
+  header_out << "#include <ia2_destructor_runtime.h>\n";
   header_out << '\n';
 
   wrapper_out << "#include <ia2.h>\n";
   wrapper_out << "#include <scrub_registers.h>\n";
+  wrapper_out << "#include <ia2_destructor_runtime.h>\n";
 
   /*
    * Define wrappers for IA2_CALL. These switch from the caller's pkey to pkey 0
@@ -1775,6 +1779,17 @@ int main(int argc, const char **argv) {
     write_to_file(ld_args_out, caller_pkey, "--wrap="s + fn_name + '\n', ".ld");
   }
 
+  constexpr int ExitCompartmentPkey = 1;
+
+  struct DestructorRecord {
+    int compartment_pkey;
+    std::string wrapper;
+    std::string target;
+    bool uses_union_pkru;
+  };
+  llvm::json::Array destructor_metadata;
+  std::vector<DestructorRecord> destructor_records;
+
   // Create wrapper for compartment destructor
   for (int compartment_pkey = 1; compartment_pkey < num_pkeys; compartment_pkey++) {
     std::string fn_name = "ia2_compartment_destructor_" + std::to_string(compartment_pkey);
@@ -1787,14 +1802,102 @@ int main(int argc, const char **argv) {
       abort();
     }
     std::string wrapper_name = "__wrap_"s + fn_name;
-    std::string asm_wrapper =
-        emit_asm_wrapper(ctx, fn_sig, std::nullopt, wrapper_name, fn_name, WrapperKind::Direct,
-                         0, compartment_pkey, Target);
-    wrapper_out << asm_wrapper;
+
+#ifdef IA2_TRACE_EXIT
+    std::optional<int> trace_target = compartment_pkey;
+#else
+    std::optional<int> trace_target;
+#endif
+
+    const bool is_exit_compartment = compartment_pkey == ExitCompartmentPkey;
+
+    if (is_exit_compartment) {
+      std::ostringstream trivial;
+      trivial << "asm(\n";
+      trivial << "    \".text\\n\"\n";
+      trivial << "    \".global " << wrapper_name << "\\n\"\n";
+      trivial << "    \".type " << wrapper_name << ", @function\\n\"\n";
+      trivial << "    \"" << wrapper_name << ":\\n\"\n";
+      if (Target == Arch::X86) {
+        trivial << "    \".ifdef IA2_TRACE_EXIT\\n\"\n";
+        trivial << "    \"pushq %rax\\n\"\n";
+        trivial << "    \"pushq %rcx\\n\"\n";
+        trivial << "    \"pushq %rdx\\n\"\n";
+        trivial << "    \"pushq %rdi\\n\"\n";
+        trivial << "    \"pushq %rsi\\n\"\n";
+        trivial << "    \"subq $8, %rsp\\n\"\n";
+        trivial << "    \"xor %ecx, %ecx\\n\"\n";
+        trivial << "    \"rdpkru\\n\"\n";
+        trivial << "    \"mov %eax, %edx\\n\"\n";
+        trivial << "    \"mov $" << ExitCompartmentPkey << ", %edi\\n\"\n";
+        trivial << "    \"mov $" << compartment_pkey << ", %esi\\n\"\n";
+        trivial << "    \"call ia2_trace_exit_record\\n\"\n";
+        trivial << "    \"addq $8, %rsp\\n\"\n";
+        trivial << "    \"popq %rsi\\n\"\n";
+        trivial << "    \"popq %rdi\\n\"\n";
+        trivial << "    \"popq %rdx\\n\"\n";
+        trivial << "    \"popq %rcx\\n\"\n";
+        trivial << "    \"popq %rax\\n\"\n";
+        trivial << "    \".endif\\n\"\n";
+      }
+      trivial << "    \"jmp " << fn_name << "\\n\"\n";
+      trivial << "    \".size " << wrapper_name << ", .-" << wrapper_name << "\\n\"\n";
+      trivial << "    \".previous\\n\"\n";
+      trivial << ");\n";
+      wrapper_out << trivial.str();
+    } else {
+      std::string asm_wrapper =
+          emit_asm_wrapper(ctx, fn_sig, std::nullopt, wrapper_name, fn_name, WrapperKind::Direct,
+                           ExitCompartmentPkey, compartment_pkey, Target, false, trace_target,
+                           true /* use_union_pkru for destructors */);
+      wrapper_out << asm_wrapper;
+    }
 
     write_to_file(ld_args_out, compartment_pkey,
                   "--wrap="s + fn_name + '\n', ".ld");
+
+    llvm::json::Object record;
+    record["compartment_pkey"] = compartment_pkey;
+    record["wrapper"] = wrapper_name;
+    record["target"] = fn_name;
+    record["uses_union_pkru"] = !is_exit_compartment;
+    destructor_metadata.push_back(std::move(record));
+
+    destructor_records.push_back(
+        {.compartment_pkey = compartment_pkey,
+         .wrapper = wrapper_name,
+         .target = fn_name,
+         .uses_union_pkru = !is_exit_compartment});
   }
+
+  {
+    std::error_code json_ec;
+    llvm::raw_fd_ostream json_out(OutputPrefix + "_destructors.json", json_ec);
+    if (json_ec) {
+      llvm::errs() << "Failed to open destructor metadata file: " << json_ec.message() << '\n';
+      abort();
+    }
+    llvm::json::Object root;
+    root["exit_compartment_pkey"] = ExitCompartmentPkey;
+    root["destructors"] = std::move(destructor_metadata);
+    json_out << llvm::formatv("{0:2}\n", llvm::json::Value(std::move(root)));
+  }
+
+  wrapper_out << "__attribute__((visibility(\"default\"))) const struct ia2_destructor_metadata_record ia2_destructor_metadata[] = {\n";
+  for (size_t i = 0; i < destructor_records.size(); ++i) {
+    const auto &rec = destructor_records[i];
+    wrapper_out << "    { \"" << rec.wrapper << "\", \"" << rec.target << "\", "
+                << rec.compartment_pkey << ", " << (rec.uses_union_pkru ? 1 : 0) << " }";
+    if (i + 1 != destructor_records.size()) {
+      wrapper_out << ",";
+    }
+    wrapper_out << "\n";
+  }
+  wrapper_out << "};\n";
+  wrapper_out << "__attribute__((visibility(\"default\"))) const unsigned int ia2_destructor_metadata_count = "
+              << destructor_records.size() << ";\n";
+  wrapper_out << "__attribute__((visibility(\"default\"))) const int ia2_destructor_exit_pkey = "
+              << ExitCompartmentPkey << ";\n";
 
   std::cout << "Generating function pointer wrappers\n";
   std::string macros_defining_wrappers;

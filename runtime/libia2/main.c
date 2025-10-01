@@ -48,7 +48,6 @@ __asm__(
     // NOTE: Removed switch to compartment 0 to allow exit handlers to run
     // in compartment 1 (where libc lives). This prevents SEGV_PKUERR when
     // exit() tries to acquire __exit_funcs_lock in libc's .bss section.
-    // See: tests/dl_debug_test/*_ANALYSIS.md for details
     // "xor %ecx,%ecx\n"
     // "xor %edx,%edx\n"
     // "mov_pkru_eax 0\n"

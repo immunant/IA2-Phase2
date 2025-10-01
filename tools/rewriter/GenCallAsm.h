@@ -45,4 +45,6 @@ std::string emit_asm_wrapper(
     int caller_pkey,
     int target_pkey,
     Arch arch,
-    bool as_macro = false);
+    bool as_macro = false,
+    std::optional<int> trace_target_pkey = std::nullopt,
+    bool use_union_pkru = false);

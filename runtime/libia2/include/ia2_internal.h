@@ -18,6 +18,7 @@ struct dl_phdr_info;
 #include <link.h>
 #include <locale.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -448,3 +449,4 @@ __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
 void **ia2_stackptr_for_tag(size_t tag);
 void **ia2_stackptr_for_compartment(int compartment);
 void ia2_setup_destructors(void);
+void ia2_trace_exit_record(int caller_pkey, int target_pkey, uint32_t pkru_value);

@@ -20,14 +20,5 @@ Test(dl_debug_mbstowcs_test, conversion_crosses_compartments) {
   }
   cr_assert(locale);
   cr_assert_eq(trigger_mbstowcs_dlopen(), 0);
-
-  // TESTING FIX: Set PKRU=0 before test exits to allow destructors to run
-  // This works around the compartment protection issues during cleanup
-  __asm__ volatile(
-    "xor %%eax, %%eax\n"
-    "xor %%ecx, %%ecx\n"
-    "xor %%edx, %%edx\n"
-    "wrpkru\n"
-    ::: "eax", "ecx", "edx"
-  );
+  // Runtime now handles destructor PKRU via ia2_destructor_enter/leave
 }

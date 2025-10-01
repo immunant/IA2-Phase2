@@ -683,15 +683,23 @@ static void emit_copy_args(AsmWriter &aw, const std::vector<ArgLocation> &args,
   }
 }
 
-static void emit_set_pkru(AsmWriter &aw, uint32_t target_pkey, Arch arch) {
+static void emit_set_pkru(AsmWriter &aw, uint32_t target_pkey, Arch arch, std::optional<uint32_t> union_pkey = std::nullopt) {
   if (arch == Arch::X86) {
-    // Change pkru to the compartment's value
-    add_comment_line(aw, "Set PKRU to the compartment's value");
+    // Change pkru to the compartment's value (or union value for destructors)
+    if (union_pkey.has_value()) {
+      add_comment_line(aw, "Set PKRU to union value (both exit and target compartments)");
+    } else {
+      add_comment_line(aw, "Set PKRU to the compartment's value");
+    }
     // wrpkru requires zeroing rcx and rdx, but they may have arguments so use r10
     // and r11 as scratch registers
     add_asm_line(aw, "movq %rcx, %r10");
     add_asm_line(aw, "movq %rdx, %r11");
-    emit_wrpkru(aw, target_pkey);
+    if (union_pkey.has_value()) {
+      emit_mixed_wrpkru(aw, *union_pkey, target_pkey);
+    } else {
+      emit_wrpkru(aw, target_pkey);
+    }
     add_asm_line(aw, "movq %r10, %rcx");
     add_asm_line(aw, "movq %r11, %rdx");
   } else if (arch == Arch::Aarch64) {
@@ -1042,7 +1050,9 @@ std::string emit_asm_wrapper(
     int caller_pkey,
     int target_pkey,
     Arch arch,
-    bool as_macro) {
+    bool as_macro,
+    std::optional<int> trace_target_pkey,
+    bool use_union_pkru) {
 
   // Small sanity check
   assert(caller_pkey != target_pkey);
@@ -1207,6 +1217,36 @@ std::string emit_asm_wrapper(
 
   emit_prologue(aw, caller_pkey, target_pkey, arch);
 
+  if (trace_target_pkey.has_value()) {
+    if (arch == Arch::X86) {
+      add_asm_line(aw, ".ifdef IA2_TRACE_EXIT");
+      add_comment_line(aw, "Trace wrapper entry before PKRU transition");
+      add_asm_line(aw, "pushq %rax");
+      add_asm_line(aw, "pushq %rcx");
+      add_asm_line(aw, "pushq %rdx");
+      add_asm_line(aw, "pushq %rdi");
+      add_asm_line(aw, "pushq %rsi");
+      add_asm_line(aw, "subq $8, %rsp");
+      add_asm_line(aw, "xor %ecx, %ecx");
+      add_asm_line(aw, "rdpkru");
+      add_asm_line(aw, "mov %eax, %edx");
+      add_asm_line(aw, llvm::formatv("mov ${0}, %edi", caller_pkey));
+      add_asm_line(aw, llvm::formatv("mov ${0}, %esi", *trace_target_pkey));
+      add_asm_line(aw, "call ia2_trace_exit_record");
+      add_asm_line(aw, "addq $8, %rsp");
+      add_asm_line(aw, "popq %rsi");
+      add_asm_line(aw, "popq %rdi");
+      add_asm_line(aw, "popq %rdx");
+      add_asm_line(aw, "popq %rcx");
+      add_asm_line(aw, "popq %rax");
+      add_asm_line(aw, ".endif");
+    } else if (arch == Arch::Aarch64) {
+      add_asm_line(aw, ".ifdef IA2_TRACE_EXIT");
+      add_comment_line(aw, "Trace wrapper entry logging is currently x86-only");
+      add_asm_line(aw, ".endif");
+    }
+  }
+
   emit_type_registry_checks(ctx, sig, target_name, arch, aw);
 
   // Call the pre-condition functions for this target function.
@@ -1257,11 +1297,26 @@ std::string emit_asm_wrapper(
 
   emit_switch_stacks(aw, caller_pkey, target_pkey, arch);
 
+  if (use_union_pkru && arch == Arch::X86) {
+    add_comment_line(aw, "Lookup runtime PKRU for destructor wrapper");
+    add_asm_line(aw, "leaq "s + wrapper_name + "@GOTPCREL(%rip), %rdi");
+    add_asm_line(aw, "movq (%rdi), %rdi");
+    add_asm_line(aw, llvm::formatv("mov ${0}, %esi", target_pkey));
+    add_asm_line(aw, "call ia2_destructor_enter");
+    add_asm_line(aw, "movq %rax, %r15");
+  }
+
   emit_copy_args(aw, args, wrapper_args, stack_return_size, stack_return_padding, indirect_arg_size, indirect_arg_padding, stack_alignment, stack_arg_size, stack_arg_padding, wrapper_stack_arg_size, caller_pkey, arch);
 
   emit_scrub_regs(aw, caller_pkey, args, kind == WrapperKind::IndirectCallsite, arch);
 
-  emit_set_pkru(aw, target_pkey, arch);
+  if (!(use_union_pkru && arch == Arch::X86)) {
+    // For destructor wrappers on non-x86 targets we still fall back to the
+    // static union behaviour.
+    std::optional<uint32_t> union_pkey_value =
+        use_union_pkru ? std::optional<uint32_t>(caller_pkey) : std::nullopt;
+    emit_set_pkru(aw, target_pkey, arch, union_pkey_value);
+  }
 
   emit_fn_call(target_name, kind, aw, arch);
 
@@ -1275,9 +1330,17 @@ std::string emit_asm_wrapper(
 
   emit_switch_stacks(aw, target_pkey, caller_pkey, arch);
 
+  if (use_union_pkru && arch == Arch::X86) {
+    add_comment_line(aw, "Restore PKRU saved for destructor wrapper");
+    add_asm_line(aw, "movq %r15, %rdi");
+    add_asm_line(aw, "call ia2_destructor_leave");
+  }
+
   emit_scrub_regs(aw, target_pkey, rets, false, arch);
 
-  emit_set_return_pkru(aw, caller_pkey, arch);
+  if (!(use_union_pkru && arch == Arch::X86)) {
+    emit_set_return_pkru(aw, caller_pkey, arch);
+  }
 
   // Call the post-condition functions for this target function.
   // The calls happens in the caller's compartment.

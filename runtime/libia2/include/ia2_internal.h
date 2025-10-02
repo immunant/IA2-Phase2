@@ -450,3 +450,24 @@ void **ia2_stackptr_for_tag(size_t tag);
 void **ia2_stackptr_for_compartment(int compartment);
 void ia2_setup_destructors(void);
 void ia2_trace_exit_record(int caller_pkey, int target_pkey, uint32_t pkru_value);
+void ia2_trace_exit_callgate_enter(int compartment, const char *symbol, uint32_t pkru);
+void ia2_trace_exit_callgate_exit(int compartment, const char *symbol, uint32_t pkru);
+
+// Shared PKRU read/write helpers
+static inline uint32_t ia2_read_pkru(void) {
+#if defined(__x86_64__)
+  uint32_t pkru;
+  __asm__ volatile("rdpkru" : "=a"(pkru) : "c"(0), "d"(0));
+  return pkru;
+#else
+  return 0;
+#endif
+}
+
+static inline void ia2_write_pkru(uint32_t pkru) {
+#if defined(__x86_64__)
+  __asm__ volatile("wrpkru" : : "a"(pkru), "c"(0), "d"(0) : "memory");
+#else
+  (void)pkru;
+#endif
+}

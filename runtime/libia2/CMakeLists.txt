@@ -8,6 +8,9 @@ add_library(libia2
     threads.c
     main.c
     exit.c
+    exit_callgates.c
+    exit_finalize_callgate.c
+    exit_policy.c
     memory_maps.c
     thread_name.c
     trace_exit.c)
@@ -40,6 +43,7 @@ target_link_options(libia2
         "-Wl,--wrap=pthread_create"
         "-Wl,--wrap=main"
         "-Wl,--wrap=free" # Because we use `__real_free` in `memory_maps.c`.
+        "-Wl,--wrap=__cxa_finalize"
 
         # Eagerly resolve GOT relocations
         "-Wl,-z,now"

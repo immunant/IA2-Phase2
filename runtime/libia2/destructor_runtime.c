@@ -6,6 +6,7 @@
 
 #include "ia2.h"
 #include "ia2_internal.h"
+#include "ia2_exit_policy.h"
 
 #include <dlfcn.h>
 #include <stdbool.h>
@@ -100,57 +101,46 @@ bool ia2_destructor_metadata_lookup(void (*wrapper)(void),
 }
 
 uint32_t ia2_destructor_pkru_for(void (*wrapper)(void), int target_compartment_pkey) {
+  const struct ia2_destructor_metadata_record *record = NULL;
   uint32_t pkru_value;
-  if (ia2_destructor_metadata_lookup(wrapper, NULL, &pkru_value)) {
-    return pkru_value;
+  bool has_metadata = ia2_destructor_metadata_lookup(wrapper, &record, &pkru_value);
+  ia2_exit_policy_t policy = ia2_exit_policy_get();
+
+  switch (policy) {
+  case IA2_EXIT_POLICY_UNION:
+    return compute_union_pkru(ia2_destructor_exit_pkey, target_compartment_pkey);
+  case IA2_EXIT_POLICY_CALLGATE:
+    if (has_metadata && record->uses_union_pkru) {
+      fprintf(stderr,
+              "IA2_EXIT_POLICY=callgate: destructor wrapper '%s' still requires union PKRU; aborting.\n",
+              record->wrapper);
+      abort();
+    }
+    return PKRU(target_compartment_pkey);
+  case IA2_EXIT_POLICY_AUTO:
+  default:
+    if (has_metadata) {
+      if (record->uses_union_pkru) {
+        return compute_union_pkru(ia2_destructor_exit_pkey, record->compartment_pkey);
+      }
+      return PKRU(record->compartment_pkey);
+    }
+    return PKRU(target_compartment_pkey);
   }
-  return PKRU(target_compartment_pkey);
 }
-
-// Helper to read/write PKRU, guarded for non-x86 architectures.
-#if defined(__x86_64__)
-static inline uint32_t read_pkru(void) {
-  uint32_t pkru;
-  __asm__ volatile("xor %%ecx, %%ecx\n"
-                   "rdpkru\n"
-                   : "=a"(pkru)
-                   :
-                   : "ecx", "edx");
-  return pkru;
-}
-
-static inline void write_pkru(uint32_t pkru) {
-  __asm__ volatile("xor %%ecx, %%ecx\n"
-                   "xor %%edx, %%edx\n"
-                   "wrpkru\n"
-                   :
-                   : "a"(pkru)
-                   : "ecx", "edx");
-}
-#endif
 
 uint32_t ia2_destructor_enter(void *wrapper_addr, int target_pkey) {
-#if defined(__x86_64__)
-  uint32_t original_pkru = read_pkru();
+  uint32_t original_pkru = ia2_read_pkru();
   uint32_t desired_pkru = ia2_destructor_pkru_for((void (*)(void))wrapper_addr, target_pkey);
   if (desired_pkru != original_pkru) {
-    write_pkru(desired_pkru);
+    ia2_write_pkru(desired_pkru);
 #ifdef IA2_TRACE_EXIT
     ia2_trace_exit_record((int)ia2_get_compartment(), target_pkey, desired_pkru);
 #endif
   }
   return original_pkru;
-#else
-  (void)wrapper_addr;
-  (void)target_pkey;
-  return 0;
-#endif
 }
 
 void ia2_destructor_leave(uint32_t original_pkru) {
-#if defined(__x86_64__)
-  write_pkru(original_pkru);
-#else
-  (void)original_pkru;
-#endif
+  ia2_write_pkru(original_pkru);
 }

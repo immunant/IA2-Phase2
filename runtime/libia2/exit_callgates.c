@@ -8,15 +8,10 @@
 // Exit compartment is always pkey 1 (libc compartment)
 #define EXIT_COMPARTMENT_PKEY 1
 
-static uint64_t callgate_enter_count;
-static uint64_t callgate_exit_count;
-
 ia2_callgate_cookie ia2_callgate_enter(int compartment, const char *symbol) {
   ia2_callgate_cookie cookie;
   cookie.saved_pkru = ia2_read_pkru();
   cookie.saved_sp = NULL;
-
-  __atomic_fetch_add(&callgate_enter_count, 1, __ATOMIC_RELAXED);
 
   (void)compartment;
   (void)symbol;
@@ -47,7 +42,6 @@ ia2_callgate_cookie ia2_callgate_enter(int compartment, const char *symbol) {
 }
 
 void ia2_callgate_exit(ia2_callgate_cookie cookie) {
-  __atomic_fetch_add(&callgate_exit_count, 1, __ATOMIC_RELAXED);
 #if defined(__x86_64__)
   if (cookie.saved_sp) {
     __asm__ volatile("mov %0, %%rsp" : : "r"(cookie.saved_sp) : "memory");
@@ -60,12 +54,4 @@ void ia2_callgate_exit(ia2_callgate_cookie cookie) {
     assert(observed_pkru == cookie.saved_pkru && "exit call gate failed to restore caller PKRU");
   }
 #endif
-}
-
-uint64_t ia2_exit_callgate_enter_count(void) {
-  return __atomic_load_n(&callgate_enter_count, __ATOMIC_RELAXED);
-}
-
-uint64_t ia2_exit_callgate_exit_count(void) {
-  return __atomic_load_n(&callgate_exit_count, __ATOMIC_RELAXED);
 }

@@ -14,9 +14,6 @@ typedef struct ia2_callgate_cookie {
 ia2_callgate_cookie ia2_callgate_enter(int compartment, const char *symbol);
 void ia2_callgate_exit(ia2_callgate_cookie cookie);
 
-uint64_t ia2_exit_callgate_enter_count(void);
-uint64_t ia2_exit_callgate_exit_count(void);
-
 #ifdef __cplusplus
 }
 #endif

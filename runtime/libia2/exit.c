@@ -34,11 +34,10 @@ __asm__(
     // Load the stack pointer for the shared compartment's stack.
     "mov ia2_stackptr_0@GOTTPOFF(%rip), %r11\n"
     "mov %fs:(%r11), %rsp\n"
-    // TESTING FIX: Set PKRU=0 to allow all access during exit cleanup
-    // This allows library destructors to access their own .bss sections
+    // Switch pkey to the appropriate compartment.
     "xor %ecx,%ecx\n"
-    "xor %edx,%edx\n"
-    "xor %eax,%eax\n"
+    "mov %ecx,%edx\n"
+    "mov_pkru_eax 0\n"
     "wrpkru\n"
     // Align the stack before continuing
     "subq $8, %rsp\n"

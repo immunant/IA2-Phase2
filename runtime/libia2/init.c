@@ -4,6 +4,7 @@
 #include "ia2.h"
 #include "ia2_internal.h"
 #include "ia2_destructor_runtime.h"
+#include "ia2_exit_policy.h"
 #include "memory_maps.h"
 #include "thread_name.h"
 #include <dlfcn.h>
@@ -309,6 +310,8 @@ void ia2_start(void) {
       exit(rc);
     }
   }
+  // Initialize exit policy early so pthread_once completes before exit()
+  (void)ia2_exit_policy_get();
   ia2_destructor_runtime_init();
   mark_init_finished();
 }

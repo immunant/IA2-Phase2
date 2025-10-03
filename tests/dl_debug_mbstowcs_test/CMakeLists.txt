@@ -8,13 +8,13 @@
 # - Uses stack switching to exit compartment (pkey 1, same as libc)
 # - Test should pass without segfaults when wrapper is present
 # - Test will segfault during exit if wrapper is removed from libia2 CMakeLists.txt
-# set(EXIT_MODE "callgate")
+set(EXIT_MODE "callgate")
 
 # Option 2: Union mode (default) - uses union PKRU for destructors (legacy)
 # - Destructors run with union of target compartment + libc permissions
 # - No stack switching required, no __cxa_finalize wrapper needed
 # - Currently used for this test due to known working behavior with gconv
-set(EXIT_MODE "union")
+# set(EXIT_MODE "union")
 
 # This test stresses gconv module loading during mbstowcs conversion
 #
@@ -50,6 +50,6 @@ define_test(
 )
 
 # Set runtime exit policy for test execution
-set_tests_properties(${TEST_NAME} PROPERTIES
+set_tests_properties(dl_debug_mbstowcs_test PROPERTIES
     ENVIRONMENT "IA2_EXIT_POLICY=${EXIT_POLICY}"
 )

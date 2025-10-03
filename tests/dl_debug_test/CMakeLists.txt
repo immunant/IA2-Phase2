@@ -48,6 +48,6 @@ define_test(
 )
 
 # Set runtime exit policy for test execution
-set_tests_properties(${TEST_NAME} PROPERTIES
+set_tests_properties(dl_debug_test PROPERTIES
     ENVIRONMENT "IA2_EXIT_POLICY=${EXIT_POLICY}"
 )

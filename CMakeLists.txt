@@ -8,8 +8,6 @@ include(cmake/qemu-command.cmake)
 
 find_package(PkgConfig REQUIRED)
 
-option(IA2_TRACE_EXIT "Enable IA2 exit-path tracing instrumentation" OFF)
-
 set(EXTERNAL_DIR ${PROJECT_SOURCE_DIR}/external)
 
 enable_testing()
@@ -40,5 +38,4 @@ ExternalProject_Add(tools
         -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
         -DClang_DIR=${Clang_DIR}
         -DLLVM_DIR=${LLVM_DIR}
-        -DIA2_TRACE_EXIT=${IA2_TRACE_EXIT}
     INSTALL_COMMAND "")

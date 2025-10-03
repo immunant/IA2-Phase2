@@ -16,7 +16,6 @@ set(EXIT_MODE "callgate")
 # set(EXIT_MODE "union")
 
 # Useful debugging flags (set via cmake -D<FLAG>=ON):
-# - IA2_TRACE_EXIT=ON: callgate mode logs TRACE_EXIT_CALLGATE enter/exit messages to stderr
 # - IA2_DEBUG=ON: adds PKRU assertions at call-gate entry/exit, crashes on mismatch (SIGILL/ud2)
 # - IA2_DEBUG_MEMORY=ON: enables ia2_log_memory_maps() for annotated /proc/self/maps output
 #

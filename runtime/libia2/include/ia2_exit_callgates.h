@@ -9,10 +9,6 @@ extern "C" {
 typedef struct ia2_callgate_cookie {
   uint32_t saved_pkru;
   void *saved_sp;
-#ifdef IA2_TRACE_EXIT
-  int compartment;
-  const char *symbol;
-#endif
 } ia2_callgate_cookie;
 
 ia2_callgate_cookie ia2_callgate_enter(int compartment, const char *symbol);

@@ -449,9 +449,6 @@ __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
 void **ia2_stackptr_for_tag(size_t tag);
 void **ia2_stackptr_for_compartment(int compartment);
 void ia2_setup_destructors(void);
-void ia2_trace_exit_record(int caller_pkey, int target_pkey, uint32_t pkru_value);
-void ia2_trace_exit_callgate_enter(int compartment, const char *symbol, uint32_t pkru);
-void ia2_trace_exit_callgate_exit(int compartment, const char *symbol, uint32_t pkru);
 
 // Shared PKRU read/write helpers
 static inline uint32_t ia2_read_pkru(void) {

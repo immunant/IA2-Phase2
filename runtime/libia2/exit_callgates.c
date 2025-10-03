@@ -16,14 +16,8 @@ ia2_callgate_cookie ia2_callgate_enter(int compartment, const char *symbol) {
 
   __atomic_fetch_add(&callgate_enter_count, 1, __ATOMIC_RELAXED);
 
-#ifdef IA2_TRACE_EXIT
-  cookie.compartment = compartment;
-  cookie.symbol = symbol;
-  ia2_trace_exit_callgate_enter(compartment, symbol, cookie.saved_pkru);
-#else
   (void)compartment;
   (void)symbol;
-#endif
 
 #if defined(__x86_64__)
   void *saved_sp = NULL;
@@ -56,9 +50,6 @@ void ia2_callgate_exit(ia2_callgate_cookie cookie) {
   if (cookie.saved_sp) {
     __asm__ volatile("mov %0, %%rsp" : : "r"(cookie.saved_sp) : "memory");
   }
-#endif
-#ifdef IA2_TRACE_EXIT
-  ia2_trace_exit_callgate_exit(cookie.compartment, cookie.symbol, cookie.saved_pkru);
 #endif
   ia2_write_pkru(cookie.saved_pkru);
 #if IA2_DEBUG && defined(__x86_64__)

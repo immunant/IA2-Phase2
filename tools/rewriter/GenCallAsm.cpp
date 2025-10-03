@@ -1051,7 +1051,6 @@ std::string emit_asm_wrapper(
     int target_pkey,
     Arch arch,
     bool as_macro,
-    std::optional<int> trace_target_pkey,
     bool use_union_pkru) {
 
   // Small sanity check
@@ -1216,34 +1215,6 @@ std::string emit_asm_wrapper(
   add_asm_line(aw, wrapper_name + ":");
 
   emit_prologue(aw, caller_pkey, target_pkey, arch);
-
-#if defined(IA2_TRACE_EXIT)
-  if (trace_target_pkey.has_value()) {
-    if (arch == Arch::X86) {
-      add_comment_line(aw, "Trace wrapper entry before PKRU transition");
-      add_asm_line(aw, "pushq %rax");
-      add_asm_line(aw, "pushq %rcx");
-      add_asm_line(aw, "pushq %rdx");
-      add_asm_line(aw, "pushq %rdi");
-      add_asm_line(aw, "pushq %rsi");
-      add_asm_line(aw, "subq $8, %rsp");
-      add_asm_line(aw, "xor %ecx, %ecx");
-      add_asm_line(aw, "rdpkru");
-      add_asm_line(aw, "mov %eax, %edx");
-      add_asm_line(aw, llvm::formatv("mov ${0}, %edi", caller_pkey));
-      add_asm_line(aw, llvm::formatv("mov ${0}, %esi", *trace_target_pkey));
-      add_asm_line(aw, "call ia2_trace_exit_record");
-      add_asm_line(aw, "addq $8, %rsp");
-      add_asm_line(aw, "popq %rsi");
-      add_asm_line(aw, "popq %rdi");
-      add_asm_line(aw, "popq %rdx");
-      add_asm_line(aw, "popq %rcx");
-      add_asm_line(aw, "popq %rax");
-    } else if (arch == Arch::Aarch64) {
-      add_comment_line(aw, "Trace wrapper entry logging is currently x86-only");
-    }
-  }
-#endif
 
   emit_type_registry_checks(ctx, sig, target_name, arch, aw);
 

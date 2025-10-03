@@ -35,7 +35,3 @@ target_link_libraries(ia2-rewriter PRIVATE
     clang-cpp
     LLVM
     )
-
-if(IA2_TRACE_EXIT)
-    target_compile_definitions(ia2-rewriter PRIVATE IA2_TRACE_EXIT=1)
-endif()

@@ -12,8 +12,7 @@ add_library(libia2
     exit_finalize_callgate.c
     exit_policy.c
     memory_maps.c
-    thread_name.c
-    trace_exit.c)
+    thread_name.c)
 target_compile_options(libia2 PRIVATE "-fPIC")
 
 if (LIBIA2_AARCH64)
@@ -31,10 +30,6 @@ endif()
 
 if(IA2_DEBUG_MEMORY)
     target_compile_definitions(libia2 PRIVATE IA2_DEBUG_MEMORY=1)
-endif()
-
-if(IA2_TRACE_EXIT)
-    target_compile_definitions(libia2 PUBLIC IA2_TRACE_EXIT=1)
 endif()
 
 target_link_options(libia2

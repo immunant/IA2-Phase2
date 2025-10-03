@@ -1807,12 +1807,6 @@ int main(int argc, const char **argv) {
     }
     std::string wrapper_name = "__wrap_"s + fn_name;
 
-#ifdef IA2_TRACE_EXIT
-    std::optional<int> trace_target = compartment_pkey;
-#else
-    std::optional<int> trace_target;
-#endif
-
     const bool is_exit_compartment = compartment_pkey == ExitCompartmentPkey;
 
     // Determine PKRU mode based on command-line exit mode flag
@@ -1834,28 +1828,6 @@ int main(int argc, const char **argv) {
       trivial << "    \".global " << wrapper_name << "\\n\"\n";
       trivial << "    \".type " << wrapper_name << ", @function\\n\"\n";
       trivial << "    \"" << wrapper_name << ":\\n\"\n";
-#if defined(IA2_TRACE_EXIT)
-      if (Target == Arch::X86) {
-        trivial << "    \"pushq %rax\\n\"\n";
-        trivial << "    \"pushq %rcx\\n\"\n";
-        trivial << "    \"pushq %rdx\\n\"\n";
-        trivial << "    \"pushq %rdi\\n\"\n";
-        trivial << "    \"pushq %rsi\\n\"\n";
-        trivial << "    \"subq $8, %rsp\\n\"\n";
-        trivial << "    \"xor %ecx, %ecx\\n\"\n";
-        trivial << "    \"rdpkru\\n\"\n";
-        trivial << "    \"mov %eax, %edx\\n\"\n";
-        trivial << "    \"mov $" << ExitCompartmentPkey << ", %edi\\n\"\n";
-        trivial << "    \"mov $" << compartment_pkey << ", %esi\\n\"\n";
-        trivial << "    \"call ia2_trace_exit_record\\n\"\n";
-        trivial << "    \"addq $8, %rsp\\n\"\n";
-        trivial << "    \"popq %rsi\\n\"\n";
-        trivial << "    \"popq %rdi\\n\"\n";
-        trivial << "    \"popq %rdx\\n\"\n";
-        trivial << "    \"popq %rcx\\n\"\n";
-        trivial << "    \"popq %rax\\n\"\n";
-      }
-#endif
       trivial << "    \"jmp " << fn_name << "\\n\"\n";
       trivial << "    \".size " << wrapper_name << ", .-" << wrapper_name << "\\n\"\n";
       trivial << "    \".previous\\n\"\n";
@@ -1864,7 +1836,7 @@ int main(int argc, const char **argv) {
     } else {
       std::string asm_wrapper =
           emit_asm_wrapper(ctx, fn_sig, std::nullopt, wrapper_name, fn_name, WrapperKind::Direct,
-                           ExitCompartmentPkey, compartment_pkey, Target, false, trace_target,
+                           ExitCompartmentPkey, compartment_pkey, Target, false,
                            needs_union_pkru);
       wrapper_out << asm_wrapper;
     }

@@ -134,9 +134,6 @@ uint32_t ia2_destructor_enter(void *wrapper_addr, int target_pkey) {
   uint32_t desired_pkru = ia2_destructor_pkru_for((void (*)(void))wrapper_addr, target_pkey);
   if (desired_pkru != original_pkru) {
     ia2_write_pkru(desired_pkru);
-#ifdef IA2_TRACE_EXIT
-    ia2_trace_exit_record((int)ia2_get_compartment(), target_pkey, desired_pkru);
-#endif
   }
   return original_pkru;
 }

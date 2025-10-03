@@ -1834,8 +1834,8 @@ int main(int argc, const char **argv) {
       trivial << "    \".global " << wrapper_name << "\\n\"\n";
       trivial << "    \".type " << wrapper_name << ", @function\\n\"\n";
       trivial << "    \"" << wrapper_name << ":\\n\"\n";
+#if defined(IA2_TRACE_EXIT)
       if (Target == Arch::X86) {
-        trivial << "    \".ifdef IA2_TRACE_EXIT\\n\"\n";
         trivial << "    \"pushq %rax\\n\"\n";
         trivial << "    \"pushq %rcx\\n\"\n";
         trivial << "    \"pushq %rdx\\n\"\n";
@@ -1854,8 +1854,8 @@ int main(int argc, const char **argv) {
         trivial << "    \"popq %rdx\\n\"\n";
         trivial << "    \"popq %rcx\\n\"\n";
         trivial << "    \"popq %rax\\n\"\n";
-        trivial << "    \".endif\\n\"\n";
       }
+#endif
       trivial << "    \"jmp " << fn_name << "\\n\"\n";
       trivial << "    \".size " << wrapper_name << ", .-" << wrapper_name << "\\n\"\n";
       trivial << "    \".previous\\n\"\n";

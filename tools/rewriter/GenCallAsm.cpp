@@ -1217,9 +1217,9 @@ std::string emit_asm_wrapper(
 
   emit_prologue(aw, caller_pkey, target_pkey, arch);
 
+#if defined(IA2_TRACE_EXIT)
   if (trace_target_pkey.has_value()) {
     if (arch == Arch::X86) {
-      add_asm_line(aw, ".ifdef IA2_TRACE_EXIT");
       add_comment_line(aw, "Trace wrapper entry before PKRU transition");
       add_asm_line(aw, "pushq %rax");
       add_asm_line(aw, "pushq %rcx");
@@ -1239,13 +1239,11 @@ std::string emit_asm_wrapper(
       add_asm_line(aw, "popq %rdx");
       add_asm_line(aw, "popq %rcx");
       add_asm_line(aw, "popq %rax");
-      add_asm_line(aw, ".endif");
     } else if (arch == Arch::Aarch64) {
-      add_asm_line(aw, ".ifdef IA2_TRACE_EXIT");
       add_comment_line(aw, "Trace wrapper entry logging is currently x86-only");
-      add_asm_line(aw, ".endif");
     }
   }
+#endif
 
   emit_type_registry_checks(ctx, sig, target_name, arch, aw);
 

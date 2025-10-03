@@ -57,6 +57,7 @@ static Arch Target = Arch::X86;
 static std::string RootDirectory;
 static std::string OutputDirectory;
 static std::string OutputPrefix;
+static std::string ExitMode = "callgate"; // Default to callgate mode
 
 // Map each translation unit's filename to its pkey.
 static std::map<Filename, Pkey> file_pkeys;
@@ -1315,6 +1316,9 @@ int main(int argc, const char **argv) {
   app.add_option("--extra-arg", ExtraArgs, "Arguments to add to compilation of each source file")
       ->option_text("<CFLAG>")
       ->allow_extra_args(false); // Do not consume positional args
+  app.add_option("--exit-mode", ExitMode, "Exit policy for destructor wrappers (callgate or union)")
+      ->option_text("callgate|union")
+      ->check(CLI::IsMember({"callgate", "union"}));
   app.add_option("source-files", SourceFiles, "List of source files to process")
       ->option_text("<FILES>")
       ->check(CLI::ExistingFile);
@@ -1811,6 +1815,18 @@ int main(int argc, const char **argv) {
 
     const bool is_exit_compartment = compartment_pkey == ExitCompartmentPkey;
 
+    // Determine PKRU mode based on command-line exit mode flag
+    bool needs_union_pkru;
+    if (ExitMode == "callgate") {
+      // Callgate mode: all non-exit compartments use single PKRU
+      // Requires __cxa_finalize wrapper for libc access during exit
+      needs_union_pkru = false;
+    } else {
+      // Union mode: all non-exit compartments use union PKRU
+      // Can access libc directly, no __cxa_finalize wrapper needed
+      needs_union_pkru = !is_exit_compartment;
+    }
+
     if (is_exit_compartment) {
       std::ostringstream trivial;
       trivial << "asm(\n";
@@ -1818,8 +1834,8 @@ int main(int argc, const char **argv) {
       trivial << "    \".global " << wrapper_name << "\\n\"\n";
       trivial << "    \".type " << wrapper_name << ", @function\\n\"\n";
       trivial << "    \"" << wrapper_name << ":\\n\"\n";
+#if defined(IA2_TRACE_EXIT)
       if (Target == Arch::X86) {
-        trivial << "    \".ifdef IA2_TRACE_EXIT\\n\"\n";
         trivial << "    \"pushq %rax\\n\"\n";
         trivial << "    \"pushq %rcx\\n\"\n";
         trivial << "    \"pushq %rdx\\n\"\n";
@@ -1838,8 +1854,8 @@ int main(int argc, const char **argv) {
         trivial << "    \"popq %rdx\\n\"\n";
         trivial << "    \"popq %rcx\\n\"\n";
         trivial << "    \"popq %rax\\n\"\n";
-        trivial << "    \".endif\\n\"\n";
       }
+#endif
       trivial << "    \"jmp " << fn_name << "\\n\"\n";
       trivial << "    \".size " << wrapper_name << ", .-" << wrapper_name << "\\n\"\n";
       trivial << "    \".previous\\n\"\n";
@@ -1849,7 +1865,7 @@ int main(int argc, const char **argv) {
       std::string asm_wrapper =
           emit_asm_wrapper(ctx, fn_sig, std::nullopt, wrapper_name, fn_name, WrapperKind::Direct,
                            ExitCompartmentPkey, compartment_pkey, Target, false, trace_target,
-                           true /* use_union_pkru for destructors */);
+                           needs_union_pkru);
       wrapper_out << asm_wrapper;
     }
 
@@ -1860,14 +1876,14 @@ int main(int argc, const char **argv) {
     record["compartment_pkey"] = compartment_pkey;
     record["wrapper"] = wrapper_name;
     record["target"] = fn_name;
-    record["uses_union_pkru"] = !is_exit_compartment;
+    record["uses_union_pkru"] = needs_union_pkru;
     destructor_metadata.push_back(std::move(record));
 
     destructor_records.push_back(
         {.compartment_pkey = compartment_pkey,
          .wrapper = wrapper_name,
          .target = fn_name,
-         .uses_union_pkru = !is_exit_compartment});
+         .uses_union_pkru = needs_union_pkru});
   }
 
   {

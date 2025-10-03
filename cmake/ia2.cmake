@@ -23,7 +23,7 @@ function(add_ia2_compartment NAME TYPE)
   # Parse options
   set(options ENABLE_UBSAN)
   set(oneValueArgs PKEY)
-  set(multiValueArgs LIBRARIES SOURCES INCLUDE_DIRECTORIES EXTRA_REWRITER_ARGS)
+  set(multiValueArgs LIBRARIES SOURCES INCLUDE_DIRECTORIES)
   cmake_parse_arguments(ARG "${options}" "${oneValueArgs}"
     "${multiValueArgs}" ${ARGN})
 
@@ -49,9 +49,6 @@ function(add_ia2_compartment NAME TYPE)
     IA2_ENABLE=1
     PKEY=${ARG_PKEY}
   )
-  if(IA2_TRACE_EXIT)
-    target_compile_definitions(${NAME} PRIVATE IA2_TRACE_EXIT=1)
-  endif()
   set_target_properties(${NAME} PROPERTIES PKEY ${ARG_PKEY})
   target_compile_options(${NAME} PRIVATE
     "-Werror=incompatible-pointer-types"
@@ -80,7 +77,7 @@ function(add_ia2_compartment NAME TYPE)
 
   if("${TYPE}" STREQUAL "EXECUTABLE")
     # Create and link call gates
-    add_ia2_call_gates(${NAME} LIBRARIES ${ARG_LIBRARIES} EXTRA_REWRITER_ARGS ${ARG_EXTRA_REWRITER_ARGS})
+    add_ia2_call_gates(${NAME} LIBRARIES ${ARG_LIBRARIES})
   endif()
 endfunction()
 
@@ -150,9 +147,6 @@ function(create_compile_commands NAME TYPE)
     IA2_ENABLE=0
     PKEY=${ARG_PKEY}
   )
-  if(IA2_TRACE_EXIT)
-    target_compile_definitions(${COMPILE_COMMAND_TARGET} PRIVATE IA2_TRACE_EXIT=1)
-  endif()
   # Copy target properties from the real target. We might need to add more properties.
   target_link_libraries(${COMPILE_COMMAND_TARGET} PRIVATE $<TARGET_PROPERTY:${NAME},LINK_LIBRARIES>)
   target_include_directories(${COMPILE_COMMAND_TARGET} PRIVATE ${INCLUDE_DIRECTORIES})

@@ -1,10 +1,12 @@
 #include "ia2_exit_callgates.h"
 
 #include "ia2.h"
-#include "ia2_destructor_runtime.h"
 #include "ia2_internal.h"
 
 #include <assert.h>
+
+// Exit compartment is always pkey 1 (libc compartment)
+#define EXIT_COMPARTMENT_PKEY 1
 
 static uint64_t callgate_enter_count;
 static uint64_t callgate_exit_count;
@@ -24,7 +26,7 @@ ia2_callgate_cookie ia2_callgate_enter(int compartment, const char *symbol) {
   __asm__ volatile("mov %%rsp, %0" : "=r"(saved_sp));
   cookie.saved_sp = saved_sp;
 
-  void **exit_stack_slot = ia2_stackptr_for_compartment(ia2_destructor_exit_pkey);
+  void **exit_stack_slot = ia2_stackptr_for_compartment(EXIT_COMPARTMENT_PKEY);
   void *exit_sp = exit_stack_slot ? *exit_stack_slot : NULL;
   assert(exit_sp && "exit compartment stack must be initialized");
   if (exit_sp) {
@@ -32,7 +34,7 @@ ia2_callgate_cookie ia2_callgate_enter(int compartment, const char *symbol) {
   }
 #endif
 
-  uint32_t exit_pkru = PKRU(ia2_destructor_exit_pkey);
+  uint32_t exit_pkru = PKRU(EXIT_COMPARTMENT_PKEY);
   ia2_write_pkru(exit_pkru);
 #if IA2_DEBUG && defined(__x86_64__)
   {

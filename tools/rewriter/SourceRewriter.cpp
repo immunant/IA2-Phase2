@@ -57,7 +57,6 @@ static Arch Target = Arch::X86;
 static std::string RootDirectory;
 static std::string OutputDirectory;
 static std::string OutputPrefix;
-static std::string ExitMode = "callgate"; // Default to callgate mode
 
 // Map each translation unit's filename to its pkey.
 static std::map<Filename, Pkey> file_pkeys;
@@ -1316,9 +1315,6 @@ int main(int argc, const char **argv) {
   app.add_option("--extra-arg", ExtraArgs, "Arguments to add to compilation of each source file")
       ->option_text("<CFLAG>")
       ->allow_extra_args(false); // Do not consume positional args
-  app.add_option("--exit-mode", ExitMode, "Exit policy for destructor wrappers (callgate or union)")
-      ->option_text("callgate|union")
-      ->check(CLI::IsMember({"callgate", "union"}));
   app.add_option("source-files", SourceFiles, "List of source files to process")
       ->option_text("<FILES>")
       ->check(CLI::ExistingFile);
@@ -1482,12 +1478,10 @@ int main(int argc, const char **argv) {
 
   header_out << "#include <ia2.h>\n";
   header_out << "#include <scrub_registers.h>\n";
-  header_out << "#include <ia2_destructor_runtime.h>\n";
   header_out << '\n';
 
   wrapper_out << "#include <ia2.h>\n";
   wrapper_out << "#include <scrub_registers.h>\n";
-  wrapper_out << "#include <ia2_destructor_runtime.h>\n";
 
   /*
    * Define wrappers for IA2_CALL. These switch from the caller's pkey to pkey 0
@@ -1785,15 +1779,6 @@ int main(int argc, const char **argv) {
 
   constexpr int ExitCompartmentPkey = 1;
 
-  struct DestructorRecord {
-    int compartment_pkey;
-    std::string wrapper;
-    std::string target;
-    bool uses_union_pkru;
-  };
-  llvm::json::Array destructor_metadata;
-  std::vector<DestructorRecord> destructor_records;
-
   // Create wrapper for compartment destructor
   for (int compartment_pkey = 1; compartment_pkey < num_pkeys; compartment_pkey++) {
     std::string fn_name = "ia2_compartment_destructor_" + std::to_string(compartment_pkey);
@@ -1809,18 +1794,6 @@ int main(int argc, const char **argv) {
 
     const bool is_exit_compartment = compartment_pkey == ExitCompartmentPkey;
 
-    // Determine PKRU mode based on command-line exit mode flag
-    bool needs_union_pkru;
-    if (ExitMode == "callgate") {
-      // Callgate mode: all non-exit compartments use single PKRU
-      // Requires __cxa_finalize wrapper for libc access during exit
-      needs_union_pkru = false;
-    } else {
-      // Union mode: all non-exit compartments use union PKRU
-      // Can access libc directly, no __cxa_finalize wrapper needed
-      needs_union_pkru = !is_exit_compartment;
-    }
-
     if (is_exit_compartment) {
       std::ostringstream trivial;
       trivial << "asm(\n";
@@ -1834,58 +1807,16 @@ int main(int argc, const char **argv) {
       trivial << ");\n";
       wrapper_out << trivial.str();
     } else {
+      // Callgate mode: standard PKRU switching for all non-exit compartments
       std::string asm_wrapper =
           emit_asm_wrapper(ctx, fn_sig, std::nullopt, wrapper_name, fn_name, WrapperKind::Direct,
-                           ExitCompartmentPkey, compartment_pkey, Target, false,
-                           needs_union_pkru);
+                           ExitCompartmentPkey, compartment_pkey, Target, false);
       wrapper_out << asm_wrapper;
     }
 
     write_to_file(ld_args_out, compartment_pkey,
                   "--wrap="s + fn_name + '\n', ".ld");
-
-    llvm::json::Object record;
-    record["compartment_pkey"] = compartment_pkey;
-    record["wrapper"] = wrapper_name;
-    record["target"] = fn_name;
-    record["uses_union_pkru"] = needs_union_pkru;
-    destructor_metadata.push_back(std::move(record));
-
-    destructor_records.push_back(
-        {.compartment_pkey = compartment_pkey,
-         .wrapper = wrapper_name,
-         .target = fn_name,
-         .uses_union_pkru = needs_union_pkru});
   }
-
-  {
-    std::error_code json_ec;
-    llvm::raw_fd_ostream json_out(OutputPrefix + "_destructors.json", json_ec);
-    if (json_ec) {
-      llvm::errs() << "Failed to open destructor metadata file: " << json_ec.message() << '\n';
-      abort();
-    }
-    llvm::json::Object root;
-    root["exit_compartment_pkey"] = ExitCompartmentPkey;
-    root["destructors"] = std::move(destructor_metadata);
-    json_out << llvm::formatv("{0:2}\n", llvm::json::Value(std::move(root)));
-  }
-
-  wrapper_out << "__attribute__((visibility(\"default\"))) const struct ia2_destructor_metadata_record ia2_destructor_metadata[] = {\n";
-  for (size_t i = 0; i < destructor_records.size(); ++i) {
-    const auto &rec = destructor_records[i];
-    wrapper_out << "    { \"" << rec.wrapper << "\", \"" << rec.target << "\", "
-                << rec.compartment_pkey << ", " << (rec.uses_union_pkru ? 1 : 0) << " }";
-    if (i + 1 != destructor_records.size()) {
-      wrapper_out << ",";
-    }
-    wrapper_out << "\n";
-  }
-  wrapper_out << "};\n";
-  wrapper_out << "__attribute__((visibility(\"default\"))) const unsigned int ia2_destructor_metadata_count = "
-              << destructor_records.size() << ";\n";
-  wrapper_out << "__attribute__((visibility(\"default\"))) const int ia2_destructor_exit_pkey = "
-              << ExitCompartmentPkey << ";\n";
 
   std::cout << "Generating function pointer wrappers\n";
   std::string macros_defining_wrappers;

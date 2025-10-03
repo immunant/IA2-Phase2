@@ -4,13 +4,11 @@ project(libia2)
 add_library(libia2
     ia2.c
     init.c
-    destructor_runtime.c
     threads.c
     main.c
     exit.c
     exit_callgates.c
     exit_finalize_callgate.c
-    exit_policy.c
     memory_maps.c
     thread_name.c)
 target_compile_options(libia2 PRIVATE "-fPIC")

@@ -1050,8 +1050,7 @@ std::string emit_asm_wrapper(
     int caller_pkey,
     int target_pkey,
     Arch arch,
-    bool as_macro,
-    bool use_union_pkru) {
+    bool as_macro) {
 
   // Small sanity check
   assert(caller_pkey != target_pkey);
@@ -1266,26 +1265,11 @@ std::string emit_asm_wrapper(
 
   emit_switch_stacks(aw, caller_pkey, target_pkey, arch);
 
-  if (use_union_pkru && arch == Arch::X86) {
-    add_comment_line(aw, "Lookup runtime PKRU for destructor wrapper");
-    add_asm_line(aw, "leaq "s + wrapper_name + "@GOTPCREL(%rip), %rdi");
-    add_asm_line(aw, "movq (%rdi), %rdi");
-    add_asm_line(aw, llvm::formatv("mov ${0}, %esi", target_pkey));
-    add_asm_line(aw, "call ia2_destructor_enter");
-    add_asm_line(aw, "movq %rax, %r15");
-  }
-
   emit_copy_args(aw, args, wrapper_args, stack_return_size, stack_return_padding, indirect_arg_size, indirect_arg_padding, stack_alignment, stack_arg_size, stack_arg_padding, wrapper_stack_arg_size, caller_pkey, arch);
 
   emit_scrub_regs(aw, caller_pkey, args, kind == WrapperKind::IndirectCallsite, arch);
 
-  if (!(use_union_pkru && arch == Arch::X86)) {
-    // For destructor wrappers on non-x86 targets we still fall back to the
-    // static union behaviour.
-    std::optional<uint32_t> union_pkey_value =
-        use_union_pkru ? std::optional<uint32_t>(caller_pkey) : std::nullopt;
-    emit_set_pkru(aw, target_pkey, arch, union_pkey_value);
-  }
+  emit_set_pkru(aw, target_pkey, arch, std::nullopt);
 
   emit_fn_call(target_name, kind, aw, arch);
 
@@ -1299,17 +1283,9 @@ std::string emit_asm_wrapper(
 
   emit_switch_stacks(aw, target_pkey, caller_pkey, arch);
 
-  if (use_union_pkru && arch == Arch::X86) {
-    add_comment_line(aw, "Restore PKRU saved for destructor wrapper");
-    add_asm_line(aw, "movq %r15, %rdi");
-    add_asm_line(aw, "call ia2_destructor_leave");
-  }
-
   emit_scrub_regs(aw, target_pkey, rets, false, arch);
 
-  if (!(use_union_pkru && arch == Arch::X86)) {
-    emit_set_return_pkru(aw, caller_pkey, arch);
-  }
+  emit_set_return_pkru(aw, caller_pkey, arch);
 
   // Call the post-condition functions for this target function.
   // The calls happens in the caller's compartment.

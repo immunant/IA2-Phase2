@@ -1795,6 +1795,8 @@ int main(int argc, const char **argv) {
     const bool is_exit_compartment = compartment_pkey == ExitCompartmentPkey;
 
     if (is_exit_compartment) {
+      // Exit compartment destructor is already in the exit compartment,
+      // so it doesn't need PKRU switching - just a trivial jmp wrapper
       std::ostringstream trivial;
       trivial << "asm(\n";
       trivial << "    \".text\\n\"\n";
@@ -1807,7 +1809,7 @@ int main(int argc, const char **argv) {
       trivial << ");\n";
       wrapper_out << trivial.str();
     } else {
-      // Callgate mode: standard PKRU switching for all non-exit compartments
+      // Non-exit compartments need full call gates to switch from exit compartment
       std::string asm_wrapper =
           emit_asm_wrapper(ctx, fn_sig, std::nullopt, wrapper_name, fn_name, WrapperKind::Direct,
                            ExitCompartmentPkey, compartment_pkey, Target, false);

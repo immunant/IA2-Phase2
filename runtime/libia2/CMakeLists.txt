@@ -1,16 +1,19 @@
 cmake_minimum_required(VERSION 4.0)
 project(libia2)
 
-add_library(libia2
+set(LIBIA2_SOURCES
     ia2.c
     init.c
     threads.c
     main.c
     exit.c
     exit_callgates.c
+    exit_callgates_x86_64.c
     exit_finalize_callgate.c
     memory_maps.c
     thread_name.c)
+
+add_library(libia2 ${LIBIA2_SOURCES})
 target_compile_options(libia2 PRIVATE "-fPIC")
 
 if (LIBIA2_AARCH64)

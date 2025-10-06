@@ -1777,6 +1777,7 @@ int main(int argc, const char **argv) {
     write_to_file(ld_args_out, caller_pkey, "--wrap="s + fn_name + '\n', ".ld");
   }
 
+  // Exit compartment is always pkey 1 (matches IA2_EXIT_COMPARTMENT_PKEY in ia2_internal.h)
   constexpr int ExitCompartmentPkey = 1;
 
   // Create wrapper for compartment destructor

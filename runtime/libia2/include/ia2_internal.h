@@ -104,6 +104,9 @@ struct dl_phdr_info;
 
 #define STACK_SIZE (4 * 1024 * 1024)
 
+// The exit compartment always uses pkey 1 (the libc/ld.so compartment)
+#define IA2_EXIT_COMPARTMENT_PKEY 1
+
 /* clang-format can't handle inline asm in macros */
 /* clang-format off */
 #if defined(__x86_64__)

@@ -21,7 +21,7 @@ typedef struct ia2_callgate_cookie {
  * caller's PKRU and stack pointer so that the original compartment can resume
  * once the exit call gate completes.
  */
-ia2_callgate_cookie ia2_callgate_enter(int compartment, const char *symbol);
+ia2_callgate_cookie ia2_callgate_enter(void);
 
 /**
  * Restores the PKRU and stack pointer recorded in the provided cookie,

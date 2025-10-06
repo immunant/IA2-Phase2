@@ -8,13 +8,10 @@
 // Exit compartment is always pkey 1 (libc compartment)
 #define EXIT_COMPARTMENT_PKEY 1
 
-ia2_callgate_cookie ia2_callgate_enter(int compartment, const char *symbol) {
+ia2_callgate_cookie ia2_callgate_enter(void) {
   ia2_callgate_cookie cookie;
   cookie.saved_pkru = ia2_read_pkru();
   cookie.saved_sp = NULL;
-
-  (void)compartment;
-  (void)symbol;
 
 #if defined(__x86_64__)
   void *saved_sp = NULL;

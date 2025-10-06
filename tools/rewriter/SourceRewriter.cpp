@@ -967,8 +967,6 @@ public:
       // Track variadic system functions for special handling
       if (sm.isInSystemHeader(fn_node->getLocation())) {
         variadic_system_fns.insert(fn_name);
-        llvm::errs() << "Tracking variadic system function: " << fn_name
-                     << " (will not assign to compartment 1)\n";
       }
 
       static std::set<Function> variadic_warnings_printed = {};
@@ -1025,11 +1023,8 @@ public:
 // Track function calls to determine which functions are actually used
 class CallTracker : public RefactoringCallback {
 public:
-  CallTracker(Context &ctx,
-              ASTMatchRefactorer &refactorer,
-              FnDecl &fn_decl_pass,
-              std::map<std::string, Replacements> &replacements)
-      : ctx(ctx), fn_decl_pass(fn_decl_pass) {
+  CallTracker(ASTMatchRefactorer &refactorer, FnDecl &fn_decl_pass)
+      : fn_decl_pass(fn_decl_pass) {
     // Match direct function calls
     StatementMatcher call_matcher =
         callExpr(callee(functionDecl().bind("calledFunction"))).bind("call");
@@ -1054,13 +1049,10 @@ public:
     // Also track if this is a variadic system function call
     if (fn->isVariadic() && sm.isInSystemHeader(fn->getLocation())) {
       fn_decl_pass.variadic_system_fns.insert(fn_name);
-      llvm::errs() << "CallTracker: Found call to variadic system function " << fn_name
-                   << " from compartment " << pkey << "\n";
     }
   }
 
 private:
-  Context &ctx;
   FnDecl &fn_decl_pass;
 };
 
@@ -1461,7 +1453,7 @@ int main(int argc, const char **argv) {
 
   ASTMatchRefactorer refactorer(tool.getReplacements());
   FnDecl fn_decl_pass(ctx, refactorer, tool.getReplacements());
-  CallTracker call_tracker_pass(ctx, refactorer, fn_decl_pass, tool.getReplacements());
+  CallTracker call_tracker_pass(refactorer, fn_decl_pass);
   FnPtrTypes ptr_types_pass(refactorer, tool.getReplacements());
   FnPtrExpr ptr_expr_pass(refactorer, tool.getReplacements());
   FnPtrCall ptr_call_pass(ctx, refactorer, tool.getReplacements());
@@ -1532,21 +1524,6 @@ int main(int argc, const char **argv) {
   // caller compartment then those that are called from multiple compartments.
   std::map<Function, Pkey> direct_call_wrappers = {};
 
-  // Debug: print what was collected by FnDecl pass
-  for (int i = 0; i < num_pkeys; i++) {
-    llvm::errs() << "Compartment " << i << " defined functions: ";
-    for (const auto &fn : fn_decl_pass.defined_fns[i]) {
-      llvm::errs() << fn << " ";
-    }
-    llvm::errs() << "\n";
-
-    llvm::errs() << "Compartment " << i << " declared functions: ";
-    for (const auto &fn : fn_decl_pass.declared_fns[i]) {
-      llvm::errs() << fn << " ";
-    }
-    llvm::errs() << "\n";
-  }
-
   for (int caller_pkey = 0; caller_pkey < num_pkeys; caller_pkey++) {
     create_ld_file(ld_args_out, caller_pkey);
     create_file(objcopy_redefine_syms_args, caller_pkey, ".objcopy");
@@ -1557,22 +1534,6 @@ int main(int argc, const char **argv) {
                         fn_decl_pass.defined_fns[caller_pkey].begin(),
                         fn_decl_pass.defined_fns[caller_pkey].end(),
                         std::inserter(undefined_fns, undefined_fns.begin()));
-
-    // Debug output
-    if (undefined_fns.size() > 0) {
-      llvm::errs() << "Compartment " << caller_pkey << " has "
-                   << undefined_fns.size() << " undefined functions:\n";
-      for (const auto &fn : undefined_fns) {
-        llvm::errs() << "  - " << fn << "\n";
-      }
-    }
-
-    // Debug: Show which functions are actually called
-    llvm::errs() << "Compartment " << caller_pkey << " calls "
-                 << fn_decl_pass.called_fns[caller_pkey].size() << " functions:\n";
-    for (const auto &fn : fn_decl_pass.called_fns[caller_pkey]) {
-      llvm::errs() << "  - " << fn << "\n";
-    }
 
     for (const auto &fn_name : undefined_fns) {
       // Only process functions that are actually called from this compartment
@@ -1600,10 +1561,6 @@ int main(int argc, const char **argv) {
       }
       // Check if this is an ld.so function that needs a callgate to compartment 1
       if (LdsoFunctionRegistry::is_ldso_function(fn_name) && caller_pkey != 1) {
-        std::cout << "DEBUG: Found ld.so function '" << fn_name
-                  << "' called from compartment " << caller_pkey
-                  << " -> creating callgate to compartment 1" << std::endl;
-
         // Force create a callgate from this compartment to compartment 1
         // where ld.so functions should run
         direct_call_wrappers[fn_name] = caller_pkey; // Caller's compartment
@@ -1611,8 +1568,6 @@ int main(int argc, const char **argv) {
         // Add to ld args for wrapping
         write_to_file(ld_args_out, caller_pkey,
                       "--wrap="s + fn_name + '\n', ".ld");
-        std::cout << "DEBUG: Added --wrap=" << fn_name
-                  << " to ld args for compartment " << caller_pkey << std::endl;
         continue; // Skip normal processing
       }
 
@@ -1694,15 +1649,12 @@ int main(int argc, const char **argv) {
   }
 
   // Add function signatures for ld.so functions that may not have been parsed from source
-  std::cout << "DEBUG: Checking ld.so functions for signature injection..." << std::endl;
   for (const std::string& ldso_fn : LdsoFunctionRegistry::get_ldso_functions()) {
     if (direct_call_wrappers.contains(ldso_fn)) {
       // Always set pkey for ld.so functions to compartment 1
       fn_decl_pass.fn_pkeys[ldso_fn] = 1; // ld.so functions run in compartment 1
-      std::cout << "DEBUG: Set pkey=1 for ld.so function: " << ldso_fn << std::endl;
 
       if (!fn_decl_pass.fn_signatures.contains(ldso_fn)) {
-        std::cout << "DEBUG: Injecting signature for ld.so function: " << ldso_fn << std::endl;
         FnSignature ldso_sig;
         if (ldso_fn == "_dl_debug_state") {
           // void _dl_debug_state(void) - simple function with no parameters
@@ -1711,24 +1663,15 @@ int main(int argc, const char **argv) {
           ldso_sig.abi.ret = {}; // No return slots for void
           ldso_sig.variadic = false; // Not variadic
           // No parameters so args remain empty
-          std::cout << "DEBUG: Created signature for _dl_debug_state: void(void)" << std::endl;
         }
         fn_decl_pass.fn_signatures[ldso_fn] = ldso_sig;
-      } else {
-        std::cout << "DEBUG: ld.so function " << ldso_fn << " already has signature" << std::endl;
       }
     }
   }
 
   // At this point direct_call_wrappers has both single-caller and multicaller
   // functions so we just need to generate the callgates
-  std::cout << "DEBUG: Starting callgate generation for " << direct_call_wrappers.size() << " functions" << std::endl;
   for (const auto &[fn_name, caller_pkey] : direct_call_wrappers) {
-    bool is_ldso = LdsoFunctionRegistry::is_ldso_function(fn_name);
-    if (is_ldso) {
-      std::cout << "DEBUG: Generating callgate for ld.so function: " << fn_name 
-                << " (caller_pkey=" << caller_pkey << ")" << std::endl;
-    }
     FnSignature fn_sig;
     try {
       fn_sig = fn_decl_pass.fn_signatures.at(fn_name);
@@ -1757,10 +1700,6 @@ int main(int argc, const char **argv) {
 
     // Skip generating wrapper if caller and target are in the same compartment
     if (caller_pkey == target_pkey) {
-      if (is_ldso) {
-        std::cout << "DEBUG: Skipping callgate for ld.so function " << fn_name
-                  << " (same compartment: " << caller_pkey << ")" << std::endl;
-      }
       continue;
     }
 
@@ -1769,18 +1708,23 @@ int main(int argc, const char **argv) {
                          WrapperKind::Direct, caller_pkey, target_pkey, Target);
     wrapper_out << asm_wrapper;
 
-    if (is_ldso) {
-      std::cout << "DEBUG: Generated assembly wrapper: " << wrapper_name
-                << " (caller=" << caller_pkey << " -> target=" << target_pkey << ")" << std::endl;
-    }
-
     write_to_file(ld_args_out, caller_pkey, "--wrap="s + fn_name + '\n', ".ld");
   }
 
-  // Exit compartment is always pkey 1 (matches IA2_EXIT_COMPARTMENT_PKEY in ia2_internal.h)
+  // Exit compartment constant. Must match IA2_EXIT_COMPARTMENT_PKEY in
+  // runtime/libia2/include/ia2_internal.h (duplicated here because the
+  // rewriter doesn't include runtime headers).
   constexpr int ExitCompartmentPkey = 1;
 
-  // Create wrapper for compartment destructor
+  // Generate destructor wrappers for every compartment.
+  // Each ia2_compartment_destructor_N() does the real teardown, and
+  // ia2_compartment_init.inc rewrites DT_FINI/.fini_array to call the matching
+  // __wrap_ symbol instead.
+  // Compartment 1 (the exit slot) already runs on pkey 1 via __wrap___cxa_finalize,
+  // so we keep a one-instruction jmp wrapper to satisfy the header’s symbol
+  // expectations (see ia2_compartment_init.inc:95,167-172) without tripping the
+  // emit_asm_wrapper same-pkey assert. Other compartments still need full call
+  // gates that jump from the exit compartment into their own pkey before cleanup.
   for (int compartment_pkey = 1; compartment_pkey < num_pkeys; compartment_pkey++) {
     std::string fn_name = "ia2_compartment_destructor_" + std::to_string(compartment_pkey);
     FnSignature fn_sig;
@@ -1796,8 +1740,11 @@ int main(int argc, const char **argv) {
     const bool is_exit_compartment = compartment_pkey == ExitCompartmentPkey;
 
     if (is_exit_compartment) {
-      // Exit compartment destructor is already in the exit compartment,
-      // so it doesn't need PKRU switching - just a trivial jmp wrapper
+      // __wrap___cxa_finalize already switches into pkey 1, so the exit-compartment
+      // destructor runs with the right PKRU/stack. emit_asm_wrapper would assert on
+      // caller == target, yet ia2_compartment_init.inc still points both
+      // compartment_destructor_ptr (line 95) and the DT_FINI rewrites (lines 167-172)
+      // at __wrap_ia2_compartment_destructor_1. Keep the symbol alive with a single jmp.
       std::ostringstream trivial;
       trivial << "asm(\n";
       trivial << "    \".text\\n\"\n";

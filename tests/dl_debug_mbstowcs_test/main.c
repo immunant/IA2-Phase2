@@ -20,5 +20,4 @@ Test(dl_debug_mbstowcs_test, conversion_crosses_compartments) {
   }
   cr_assert(locale);
   cr_assert_eq(trigger_mbstowcs_dlopen(), 0);
-  // Runtime now handles destructor PKRU via ia2_destructor_enter/leave
 }

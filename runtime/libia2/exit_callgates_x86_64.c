@@ -20,13 +20,15 @@ __asm__(
     ".globl ia2_callgate_enter\n"
     ".type ia2_callgate_enter,@function\n"
 "ia2_callgate_enter:\n"
-    "subq $24, %rsp\n"
+    "movq %rsp, %r9\n"               // cache caller stack pointer for cookie
+    "pushq %rbp\n"
+    "movq %rsp, %rbp\n"
+    "subq $32, %rsp\n"               // reserve cookie storage and keep 16-byte alignment
 
     "xorl %ecx, %ecx\n"
     "xorl %edx, %edx\n"
     "rdpkru\n"
     "movl %eax, 0(%rsp)\n"              // save caller PKRU
-    "leaq 24(%rsp), %r9\n"
     "movq %r9, 8(%rsp)\n"               // save caller stack pointer
 
     "movl $" XSTR(IA2_EXIT_COMPARTMENT_PKEY) ", %edi\n"
@@ -35,12 +37,13 @@ __asm__(
     "movq (%rax), %r10\n"               // load exit stack pointer
     "testq %r10, %r10\n"
     "jne 1f\n"
-    "addq $24, %rsp\n"
+    "addq $32, %rsp\n"
+    "popq %rbp\n"
     "ud2\n"                             // trap if exit stack uninitialized
 "1:\n"
     "movl 0(%rsp), %r8d\n"              // reload saved PKRU
     "movq 8(%rsp), %r9\n"               // reload saved SP
-    "addq $24, %rsp\n"
+    "addq $32, %rsp\n"
 
     "movl $" XSTR(IA2_EXIT_PKRU) ", %r11d\n"
     "movl %r11d, %eax\n"
@@ -50,6 +53,7 @@ __asm__(
 
     ASSERT_PKRU(IA2_EXIT_PKRU)
 
+    "popq %rbp\n"
     "movq %r10, %rsp\n"                 // switch to exit stack
     "movq %r9, %rdx\n"                  // return saved SP
     "movl %r8d, %eax\n"                 // return saved PKRU

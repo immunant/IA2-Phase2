@@ -59,6 +59,8 @@ __asm__(
     "movl %r8d, %eax\n"                 // return saved PKRU
     "ret\n"
 
+    ".size ia2_callgate_enter, .-ia2_callgate_enter\n"
+
     ".globl ia2_callgate_exit\n"
     ".type ia2_callgate_exit,@function\n"
 "ia2_callgate_exit:\n"
@@ -75,7 +77,6 @@ __asm__(
 
     "ret\n"
 
-    ".size ia2_callgate_enter, .-ia2_callgate_enter\n"
     ".size ia2_callgate_exit, .-ia2_callgate_exit\n"
 );
 

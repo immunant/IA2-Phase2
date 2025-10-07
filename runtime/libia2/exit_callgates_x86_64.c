@@ -23,7 +23,10 @@ __asm__(
     "movq %rsp, %r9\n"               // cache caller stack pointer for cookie
     "pushq %rbp\n"
     "movq %rsp, %rbp\n"
-    "subq $32, %rsp\n"               // reserve cookie storage and keep 16-byte alignment
+    "subq $32, %rsp\n"               // reserve cookie storage and keep 16 byte alignment
+
+    "movq (%r9), %rdi\n"             // grab caller return address before PKRU switch
+    "movq %rdi, 16(%rsp)\n"          // stash for later push onto exit stack
 
     "xorl %ecx, %ecx\n"
     "xorl %edx, %edx\n"
@@ -43,7 +46,10 @@ __asm__(
 "1:\n"
     "movl 0(%rsp), %r8d\n"              // reload saved PKRU
     "movq 8(%rsp), %r9\n"               // reload saved SP
+    "movq 16(%rsp), %rdi\n"             // reload caller return address
     "addq $32, %rsp\n"
+
+    "popq %rbp\n"
 
     "movl $" XSTR(IA2_EXIT_PKRU) ", %r11d\n"
     "movl %r11d, %eax\n"
@@ -53,8 +59,8 @@ __asm__(
 
     ASSERT_PKRU(IA2_EXIT_PKRU)
 
-    "popq %rbp\n"
     "movq %r10, %rsp\n"                 // switch to exit stack
+    "pushq %rdi\n"                       // install caller return address on exit stack
     "movq %r9, %rdx\n"                  // return saved SP
     "movl %r8d, %eax\n"                 // return saved PKRU
     "ret\n"
@@ -78,6 +84,38 @@ __asm__(
     "ret\n"
 
     ".size ia2_callgate_exit, .-ia2_callgate_exit\n"
+
+    ".globl __wrap___cxa_finalize\n"
+    ".type __wrap___cxa_finalize,@function\n"
+"__wrap___cxa_finalize:\n"
+    "pushq %rbp\n"
+    "movq %rsp, %rbp\n"
+    "pushq %rbx\n"
+    "pushq %r12\n"
+    "pushq %r13\n"
+    "pushq %r14\n"
+    "pushq %r15\n"
+    "movq %rdi, %r12\n"                // preserve dso_handle
+    "call ia2_callgate_enter\n"
+    "movl %eax, %r13d\n"               // saved PKRU
+    "movq %rdx, %r14\n"                // saved SP
+    "movq %r12, %rdi\n"
+    "subq $8, %rsp\n"                  // maintain 16-byte alignment
+    "call __real___cxa_finalize@PLT\n"
+    "addq $8, %rsp\n"
+    "movl %r13d, %edi\n"
+    "movq %r14, %rsi\n"
+    "subq $8, %rsp\n"
+    "call ia2_callgate_exit\n"
+    "popq %r15\n"
+    "popq %r14\n"
+    "popq %r13\n"
+    "popq %r12\n"
+    "popq %rbx\n"
+    "popq %rbp\n"
+    "ret\n"
+
+    ".size __wrap___cxa_finalize, .-__wrap___cxa_finalize\n"
 );
 
 #endif // defined(__x86_64__)

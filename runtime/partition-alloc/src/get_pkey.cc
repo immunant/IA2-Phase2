@@ -1,4 +1,5 @@
 #include "get_pkey.h"
+#include <ia2_loader.h>
 
 // These functions are duplicated here from libia2 so that we don't have to link
 // the allocator against libia2 itself. We want users with libia2 disabled to
@@ -16,6 +17,13 @@ ia2_get_pkru() {
 __attribute__((__visibility__("hidden")))
 size_t
 ia2_get_pkey() {
+  // Phase 1: Check if we're in loader gate - if so, force pkey 1
+  // This routes loader allocations to compartment 1 PartitionAlloc
+  if (ia2_in_loader_gate) {
+    ia2_loader_alloc_count.fetch_add(1, std::memory_order_relaxed);
+    return 1;
+  }
+
   uint32_t pkru;
   __asm__("rdpkru" : "=a"(pkru) : "a"(0), "d"(0), "c"(0));
   switch (pkru) {
@@ -84,6 +92,12 @@ ia2_get_pkey() {
 __attribute__((__visibility__("hidden")))
 size_t
 ia2_get_pkey() {
+  // Phase 1: Check if we're in loader gate - if so, force pkey 1
+  if (ia2_in_loader_gate) {
+    ia2_loader_alloc_count.fetch_add(1, std::memory_order_relaxed);
+    return 1;
+  }
+
   size_t x18;
   asm("mov %0, x18" : "=r"(x18));
   return x18 >> 56;

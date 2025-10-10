@@ -11,7 +11,10 @@ set(LIBIA2_SOURCES
     exit_callgates_x86_64.c
     exit_finalize_callgate.c
     memory_maps.c
-    thread_name.c)
+    thread_name.c
+    loader_gate.c
+    dlopen_wrapper.c
+    mmap_wrapper.c)
 
 add_library(libia2 ${LIBIA2_SOURCES})
 target_compile_options(libia2 PRIVATE "-fPIC")
@@ -40,6 +43,17 @@ target_link_options(libia2
         "-Wl,--wrap=main"
         "-Wl,--wrap=free" # Because we use `__real_free` in `memory_maps.c`.
         "-Wl,--wrap=__cxa_finalize"
+
+        # Loader entry point wrappers
+        "-Wl,--wrap=dlopen"
+        "-Wl,--wrap=dlmopen"
+        "-Wl,--wrap=dlsym"
+        "-Wl,--wrap=dlvsym"
+
+        # Memory mapping wrappers (tag loader mmaps with pkey 1)
+        "-Wl,--wrap=mmap"
+        "-Wl,--wrap=mmap64"
+        "-Wl,--wrap=mremap"
 
         # Eagerly resolve GOT relocations
         "-Wl,-z,now"

@@ -4,6 +4,9 @@
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
+#include <stdlib.h>
+#include <dlfcn.h>
+#include <link.h>
 #include "library.h"
 
 #define IA2_COMPARTMENT 2
@@ -63,4 +66,47 @@ int trigger_iconv_dlopen(void) {
 }
 
 void test_compartment_boundary(void) {
+}
+
+// Probe to test if plugin compartment can write to ld.so's _r_debug structure
+// This tests whether ld.so/libc isolation is working correctly
+//
+// When IA2_PROBE_LDSO=1 is set:
+//   Expected: Process terminates with SIGSEGV (protection key fault) when attempting
+//             to write _r_debug from compartment 2 (which blocks pkey 1).
+//   Test harness: loader_isolation_faults test forks a child, sets the env var,
+//                 and asserts the child exits via SIGSEGV.
+void probe_loader_isolation(void) {
+    // Only run if IA2_PROBE_LDSO environment variable is set
+    const char *probe_env = getenv("IA2_PROBE_LDSO");
+    if (!probe_env || probe_env[0] != '1') {
+        return;  // Skip probe
+    }
+
+    // Note: We can't use cr_log_info here because that would access stdout,
+    // which is in libc's data on pkey 1 (blocked by this compartment).
+    // The test framework in main will print results.
+
+    // Attempt to find _r_debug symbol from ld.so
+    struct r_debug *ldso_debug =
+        (struct r_debug *)dlvsym(RTLD_DEFAULT, "_r_debug", "GLIBC_2.2.5");
+
+    if (!ldso_debug) {
+        // Can't find symbol - test cannot proceed
+        // We'll just return; main will detect if we didn't crash
+        return;
+    }
+
+    // This is the critical test: attempt to WRITE to _r_debug->r_state
+    // Expected behavior with proper isolation:
+    //   - _r_debug is in ld.so's memory, protected by pkey 1
+    //   - This compartment (2) runs with PKRU=0xffffffcc which blocks pkey 1
+    //   - Therefore this write should trigger a protection key fault and the process
+    //     will be terminated by SIGSEGV (caught by the test harness)
+
+    // Attempt the write - this should fault if isolation is working
+    ldso_debug->r_state = 0xabad1dea;
+
+    // If we reach here, the write SUCCEEDED - loader isolation is broken!
+    // The test harness will detect this and fail the test
 }

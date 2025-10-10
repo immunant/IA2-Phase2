@@ -595,3 +595,82 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
   // library
   return 0;
 }
+
+// Callback data for ia2_tag_link_map_callback
+struct TagLinkMapArgs {
+  Elf64_Addr base_addr;  // Base address to match
+  int pkey;              // Target pkey to apply
+  bool found;            // Set to true when DSO is found and retagged
+};
+
+// dl_iterate_phdr callback for retagging a specific DSO
+static int ia2_tag_link_map_callback(struct dl_phdr_info *info, size_t size, void *data) {
+  struct TagLinkMapArgs *args = (struct TagLinkMapArgs *)data;
+
+  // Match by base address
+  if (info->dlpi_addr != args->base_addr) {
+    return 0;  // Continue searching
+  }
+
+  const char *name = info->dlpi_name[0] ? basename(info->dlpi_name) : "(main)";
+  ia2_log("Retagging DSO %s (base 0x%lx) to pkey %d\n", name, info->dlpi_addr, args->pkey);
+
+  // Walk program headers and retag writable PT_LOAD segments
+  for (size_t i = 0; i < info->dlpi_phnum; i++) {
+    const Elf64_Phdr *phdr = &info->dlpi_phdr[i];
+
+    // Only process PT_LOAD segments
+    if (phdr->p_type != PT_LOAD) {
+      continue;
+    }
+
+    // Only retag writable segments - read-only segments are shared by default
+    if ((phdr->p_flags & PF_W) == 0) {
+      continue;
+    }
+
+    int access_flags = segment_flags_to_access_flags(phdr->p_flags);
+
+    // Calculate page-aligned segment boundaries
+    Elf64_Addr start = (info->dlpi_addr + phdr->p_vaddr) & ~0xFFFUL;
+    Elf64_Addr end = (info->dlpi_addr + phdr->p_vaddr + phdr->p_memsz + 0xFFFUL) & ~0xFFFUL;
+
+    ia2_log("  Segment %zu: 0x%lx-0x%lx (flags: %s%s%s)\n", i, start, end,
+            (phdr->p_flags & PF_R) ? "R" : "-",
+            (phdr->p_flags & PF_W) ? "W" : "-",
+            (phdr->p_flags & PF_X) ? "X" : "-");
+
+    int err = ia2_mprotect_with_tag((void *)start, end - start, access_flags, args->pkey);
+    if (err != 0) {
+      printf("ia2_tag_link_map: Failed to retag segment at %p for %s: %s\n",
+             (void *)start, name, strerror(errno));
+      exit(-1);
+    }
+  }
+
+  ia2_log("Successfully retagged %s to pkey %d\n", name, args->pkey);
+  args->found = true;
+  return 1;  // Stop iterating
+}
+
+/// Retag all writable PT_LOAD segments of a loaded DSO with the specified pkey.
+/// This is used to enforce compartment 1 ownership of loader/libc segments,
+/// ensuring they remain isolated from other compartments.
+void ia2_tag_link_map(struct link_map *map, int pkey) {
+  if (!map) {
+    return;
+  }
+
+  struct TagLinkMapArgs args = {
+    .base_addr = map->l_addr,
+    .pkey = pkey,
+    .found = false
+  };
+
+  dl_iterate_phdr(ia2_tag_link_map_callback, &args);
+
+  if (!args.found) {
+    printf("ia2_tag_link_map: Failed to find DSO with base address 0x%lx\n", map->l_addr);
+    exit(-1);
+  }
+}

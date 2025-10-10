@@ -219,6 +219,17 @@ void ia2_get_compartment_stack(void **stack_base_ptr, size_t *stack_size);
 /// protected compartment.
 void ia2_register_compartment(const char *lib, int compartment, const char *extra_libraries);
 
+/// Retag all writable PT_LOAD segments of a loaded DSO with the specified protection key.
+///
+/// This function walks the program headers of the given link_map and applies pkey_mprotect
+/// to all writable segments, ensuring they are tagged with the specified compartment's pkey.
+/// This is primarily used to enforce compartment 1 ownership of loader/libc segments.
+///
+/// `map` must be a valid link_map pointer obtained via dlopen or _r_debug->r_map.
+/// `pkey` must be a valid protection key (1-15).
+struct link_map;
+void ia2_tag_link_map(struct link_map *map, int pkey);
+
 /// The prototype for the user-defined config function which will be called before main.
 ///
 /// This function must be defined in the main executable and should primarily be used to call

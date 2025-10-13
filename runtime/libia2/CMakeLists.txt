@@ -47,11 +47,17 @@ target_link_options(libia2
         "-Wl,--wrap=free" # Because we use `__real_free` in `memory_maps.c`.
         $<$<BOOL:${IA2_LIBC_COMPARTMENT}>:-Wl,--wrap=__cxa_finalize>
 
-        # Loader entry point wrappers
+        # Loader entry point wrappers (complete libdl surface)
         "-Wl,--wrap=dlopen"
         "-Wl,--wrap=dlmopen"
         "-Wl,--wrap=dlsym"
         "-Wl,--wrap=dlvsym"
+        "-Wl,--wrap=dlclose"
+        "-Wl,--wrap=dladdr"
+        "-Wl,--wrap=dladdr1"
+        "-Wl,--wrap=dlinfo"
+        "-Wl,--wrap=dlerror"
+        "-Wl,--wrap=dl_iterate_phdr"
 
         # Memory mapping wrappers (tag loader mmaps with pkey 1)
         "-Wl,--wrap=mmap"

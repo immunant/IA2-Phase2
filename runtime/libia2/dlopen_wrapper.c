@@ -21,6 +21,7 @@ extern int __real_dlinfo(void *handle, int request, void *arg);
 extern char *__real_dlerror(void);
 extern int __real_dl_iterate_phdr(int (*callback)(struct dl_phdr_info *info, size_t size, void *data), void *data);
 
+
 // Check if a DSO is a system/loader library that should be retagged to pkey 1
 // Returns true for ld.so, libc, libpthread, etc. - false for application libraries
 static bool is_loader_dso(const char *dso_name) {
@@ -96,32 +97,68 @@ static void ia2_retag_loaded_dso(void *handle) {
     ia2_log("Successfully retagged DSO at base 0x%lx to loader compartment\n", map->l_addr);
 }
 
-// Wrapped dlopen: enter loader gate, call real dlopen, exit gate, then retag DSO
+// Wrapped dlopen: enter gate, call real dlopen, exit gate, then retag
+//
+// SECURITY NOTE: This implementation prioritizes loader isolation over constructor
+// isolation. With the gate active during __real_dlopen:
+//
+// CORRECT BEHAVIOR (loader isolation preserved):
+// - ld.so's internal allocations (link_map, symbol tables, etc.) use pkey 1
+// - Loader metadata is protected from arbitrary compartment access
+// - Core security invariant maintained: loader allocations on loader compartment
+//
+// KNOWN ISSUE (constructor privilege escalation - tracked for future fix):
+// - ELF constructors run before __real_dlopen returns
+// - Constructors see ia2_in_loader_gate = true
+// - Constructor allocations go to pkey 1 (loader compartment) via ia2_get_pkey()
+// - Constructors can access loader-protected memory
+//
+// RATIONALE: Loader isolation is the fundamental security property. Without it,
+// any compartment calling dlopen can read/write loader internals (link_map chains,
+// symbol tables, etc.), completely breaking compartment isolation. Constructor
+// privilege escalation is a real issue but less critical than losing loader isolation.
+//
+// TODO: Investigate finer-grained gate toggling via:
+// - LD_AUDIT interface hooks
+// - Glibc PLT-reachable helpers we can wrap
+// - Worst case: glibc patchset to expose _dl_init or constructor hooks
 void *__wrap_dlopen(const char *filename, int flags) {
     ia2_loader_gate_enter();
     #ifdef IA2_DEBUG
     ia2_dlopen_count++;
     #endif
+
+    // Call real dlopen with gate active:
+    // 1. Map DSO (loader work, gate active → allocations on pkey 1) ✓
+    // 2. Resolve relocations (loader work, gate active → pkey 1) ✓
+    // 3. Run ELF constructors (user code, gate active → pkey 1) ✗ KNOWN ISSUE
+    // 4. Return handle
     void *handle = __real_dlopen(filename, flags);
+
     ia2_loader_gate_exit();
 
-    // Automatically retag loader/system DSOs to compartment 1
-    // Application libraries are skipped to preserve their compartment assignments
+    // Retag loader/system DSOs to compartment 1
     ia2_retag_loaded_dso(handle);
 
     return handle;
 }
 
-// Wrapped dlmopen: enter loader gate, call real dlmopen, exit gate, then retag DSO
+// Wrapped dlmopen: enter gate, call real dlmopen, exit gate, then retag
+//
+// SECURITY NOTE: Same tradeoff as dlopen - gate active to preserve loader isolation,
+// with constructor privilege escalation as a known issue to be addressed in future work.
 void *__wrap_dlmopen(Lmid_t lmid, const char *filename, int flags) {
     ia2_loader_gate_enter();
     #ifdef IA2_DEBUG
     ia2_dlmopen_count++;
     #endif
+
+    // Call real dlmopen with gate active (same tradeoffs as dlopen)
     void *handle = __real_dlmopen(lmid, filename, flags);
+
     ia2_loader_gate_exit();
 
-    // Automatically retag newly loaded DSO to loader compartment
+    // Retag loader/system DSOs to compartment 1
     ia2_retag_loaded_dso(handle);
 
     return handle;
@@ -204,13 +241,52 @@ char *__wrap_dlerror(void) {
     return result;
 }
 
-// Wrapped dl_iterate_phdr: enter loader gate, call real dl_iterate_phdr, exit gate
+// Wrapper state for dl_iterate_phdr callback interposition
+struct dl_iterate_callback_wrapper_state {
+    int (*user_callback)(struct dl_phdr_info *info, size_t size, void *data);
+    void *user_data;
+};
+
+// Trampoline callback that exits the loader gate, invokes user callback, then re-enters
+static int dl_iterate_callback_trampoline(struct dl_phdr_info *info, size_t size, void *data) {
+    struct dl_iterate_callback_wrapper_state *state = (struct dl_iterate_callback_wrapper_state *)data;
+
+    // Exit loader gate before invoking user callback
+    // This ensures user code runs with its original PKRU, not loader privileges
+    ia2_loader_gate_exit();
+
+    // Invoke the user's callback with their data
+    int result = state->user_callback(info, size, state->user_data);
+
+    // Re-enter loader gate for next iteration or return to wrapper
+    ia2_loader_gate_enter();
+
+    return result;
+}
+
+// Wrapped dl_iterate_phdr: interpose on callbacks to prevent privilege escalation
+//
+// SECURITY: User callbacks must NOT run with ia2_in_loader_gate=true, as that:
+// 1. Forces malloc/ia2_get_pkey to use pkey 1 (loader compartment)
+// 2. Grants arbitrary user code loader privileges
+// 3. Causes PKU faults when the caller resumes on its original PKRU
+//
+// Solution: Wrap the callback with a trampoline that temporarily exits the gate
 int __wrap_dl_iterate_phdr(int (*callback)(struct dl_phdr_info *info, size_t size, void *data), void *data) {
     ia2_loader_gate_enter();
     #ifdef IA2_DEBUG
     ia2_dl_iterate_phdr_count++;
     #endif
-    int result = __real_dl_iterate_phdr(callback, data);
+
+    // Package user callback and data into wrapper state
+    struct dl_iterate_callback_wrapper_state wrapper_state = {
+        .user_callback = callback,
+        .user_data = data
+    };
+
+    // Call real dl_iterate_phdr with our trampoline, which will exit/enter gate around user callback
+    int result = __real_dl_iterate_phdr(dl_iterate_callback_trampoline, &wrapper_state);
+
     ia2_loader_gate_exit();
     return result;
 }

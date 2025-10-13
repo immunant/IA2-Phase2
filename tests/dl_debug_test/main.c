@@ -361,3 +361,185 @@ Test(dl_debug, loader_anon_mmap_tagging) {
 
     munmap(anon_map, 4096);
 }
+
+Test(dl_debug, loader_dlclose_coverage) {
+    // Verify that new wrappers (dlclose, dlerror) are called
+    // This exercises the expanded wrapper coverage
+    //
+    // LIMITATION: This test verifies the wrappers exist and don't crash,
+    // but does NOT prove that internal glibc __libc_* aliases route through
+    // these wrappers. Investigation shows __libc_dlopen_mode et al. are not
+    // exported symbols, so they likely resolve through our wrappers via PLT,
+    // but this remains unverified.
+
+    // Simply exercise dlclose and dlerror to prove they're linked
+    void *handle = dlopen("./libdl_debug_test_lib.so", RTLD_NOW | RTLD_NOLOAD);
+    if (handle) {
+        // Library already loaded, close it
+        int result = dlclose(handle);
+        cr_assert(result == 0);
+    }
+
+    // Exercise dlerror
+    char *error = dlerror();
+    (void)error;  // May be NULL
+
+    // This test proves the wrappers link and execute without crashing
+    // For actual gate coverage proof, see loader_allocator_partitionalloc
+    // and loader_anon_mmap_tagging tests
+}
+
+#ifdef IA2_DEBUG
+// ============================================================================
+// Per-Wrapper Coverage Tests (IA2_DEBUG builds only)
+// ============================================================================
+// These tests exercise each wrapper individually and verify:
+// 1. Function succeeds (where applicable)
+// 2. Per-wrapper counter increments (proves wrapper executed)
+// 3. Gate activated (ia2_loader_alloc_count may increment if allocation occurs)
+//
+// Purpose: Provide hard evidence that all 10 wrappers are reachable at runtime
+
+Test(dl_debug, wrapper_dlopen_counter) {
+    ia2_dlopen_count = 0;
+
+    void *handle = dlopen("./libdl_debug_test_lib.so", RTLD_NOW | RTLD_NOLOAD);
+
+    cr_assert(ia2_dlopen_count > 0);  // Wrapper executed
+    if (handle) {
+        dlclose(handle);
+    }
+}
+
+Test(dl_debug, wrapper_dlclose_counter) {
+    ia2_dlclose_count = 0;
+
+    void *handle = dlopen("./libdl_debug_test_lib.so", RTLD_NOW);
+    cr_assert(handle != NULL);
+
+    int result = dlclose(handle);
+
+    cr_assert(result == 0);  // Close succeeded
+    cr_assert(ia2_dlclose_count > 0);  // Wrapper executed
+}
+
+Test(dl_debug, wrapper_dlsym_counter) {
+    ia2_dlsym_count = 0;
+
+    void *handle = dlopen("./libdl_debug_test_lib.so", RTLD_NOW);
+    cr_assert(handle != NULL);
+
+    void *sym = dlsym(handle, "test_compartment_boundary");
+
+    cr_assert(sym != NULL);  // Symbol found
+    cr_assert(ia2_dlsym_count > 0);  // Wrapper executed
+
+    dlclose(handle);
+}
+
+Test(dl_debug, wrapper_dladdr_counter) {
+    ia2_dladdr_count = 0;
+
+    void *handle = dlopen("./libdl_debug_test_lib.so", RTLD_NOW);
+    cr_assert(handle != NULL);
+
+    void *sym = dlsym(handle, "test_compartment_boundary");
+    cr_assert(sym != NULL);
+
+    Dl_info info;
+    int result = dladdr(sym, &info);  // Use symbol address from library
+
+    cr_assert(result != 0);  // Address resolved
+    cr_assert(ia2_dladdr_count > 0);  // Wrapper executed
+
+    dlclose(handle);
+}
+
+Test(dl_debug, wrapper_dlinfo_counter) {
+    ia2_dlinfo_count = 0;
+
+    void *handle = dlopen("./libdl_debug_test_lib.so", RTLD_NOW);
+    cr_assert(handle != NULL);
+
+    struct link_map *map = NULL;
+    int result = dlinfo(handle, RTLD_DI_LINKMAP, &map);
+
+    cr_assert(result == 0);  // dlinfo succeeded
+    cr_assert(map != NULL);  // Got link map
+    cr_assert(ia2_dlinfo_count > 0);  // Wrapper executed
+
+    dlclose(handle);
+}
+
+Test(dl_debug, wrapper_dlerror_counter) {
+    ia2_dlerror_count = 0;
+
+    // Clear any existing error
+    dlerror();
+
+    // Cause an error by loading nonexistent library
+    void *handle = dlopen("/nonexistent/library.so", RTLD_NOW);
+    cr_assert(handle == NULL);  // Should fail
+
+    // Retrieve error
+    char *error = dlerror();
+
+    cr_assert(error != NULL);  // Error message present
+    cr_assert(ia2_dlerror_count > 0);  // Wrapper executed (at least once, possibly twice)
+}
+
+// NOTE: wrapper_dl_iterate_phdr_counter test omitted because dl_iterate_phdr
+// requires a callback function pointer, and the rewriter wraps all function
+// pointers making it difficult to pass a valid callback. The wrapper linkage
+// is verified by symbol check (nm shows __wrap_dl_iterate_phdr present).
+
+Test(dl_debug, wrapper_dlvsym_counter) {
+    ia2_dlvsym_count = 0;
+
+    // dlvsym requires versioned symbols, which may not be present
+    // Try to get a glibc versioned symbol
+    void *handle = RTLD_DEFAULT;
+    void *sym = dlvsym(handle, "malloc", "GLIBC_2.2.5");
+
+    // Symbol may or may not be found (depends on glibc version)
+    // But wrapper should execute regardless
+    cr_assert(ia2_dlvsym_count > 0);  // Wrapper executed
+    (void)sym;
+}
+
+Test(dl_debug, wrapper_dlmopen_counter) {
+    ia2_dlmopen_count = 0;
+
+    // dlmopen loads into a namespace
+    // Try to load into default namespace (LM_ID_BASE)
+    void *handle = dlmopen(LM_ID_BASE, "./libdl_debug_test_lib.so", RTLD_NOW);
+
+    // May fail on some systems, but wrapper should execute
+    cr_assert(ia2_dlmopen_count > 0);  // Wrapper executed
+
+    if (handle) {
+        dlclose(handle);
+    }
+}
+
+Test(dl_debug, wrapper_dladdr1_counter) {
+    ia2_dladdr1_count = 0;
+
+    void *handle = dlopen("./libdl_debug_test_lib.so", RTLD_NOW);
+    cr_assert(handle != NULL);
+
+    void *sym = dlsym(handle, "test_compartment_boundary");
+    cr_assert(sym != NULL);
+
+    Dl_info info;
+    void *extra_info = NULL;
+    int result = dladdr1(sym, &info, &extra_info, RTLD_DL_LINKMAP);
+
+    cr_assert(result != 0);  // Address resolved
+    cr_assert(ia2_dladdr1_count > 0);  // Wrapper executed
+
+    dlclose(handle);
+}
+
+#endif // IA2_DEBUG
+

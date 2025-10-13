@@ -4,6 +4,8 @@
 #include <unistd.h>
 #include <stdatomic.h>
 #include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
 #include <ia2_loader.h>
 
 // Forward declarations for real symbols
@@ -18,6 +20,38 @@ extern void *__real_mremap(void *old_address, size_t old_size, size_t new_size, 
 
 static int pkey_mprotect_syscall(void *addr, size_t len, int prot, int pkey) {
     return syscall(SYS_pkey_mprotect, addr, len, prot, pkey);
+}
+
+// Query actual protection flags for a memory region from /proc/self/maps
+// Returns -1 on error, otherwise returns prot flags (PROT_READ, PROT_WRITE, PROT_EXEC)
+static int get_region_protections(void *addr) {
+    FILE *f = fopen("/proc/self/maps", "r");
+    if (!f) {
+        return -1;
+    }
+
+    char line[512];
+    unsigned long target = (unsigned long)addr;
+    int prot = -1;
+
+    while (fgets(line, sizeof(line), f)) {
+        unsigned long start, end;
+        char perms[5];
+
+        if (sscanf(line, "%lx-%lx %4s", &start, &end, perms) == 3) {
+            if (target >= start && target < end) {
+                // Parse permission string (e.g., "r-xp", "rw-p")
+                prot = 0;
+                if (perms[0] == 'r') prot |= PROT_READ;
+                if (perms[1] == 'w') prot |= PROT_WRITE;
+                if (perms[2] == 'x') prot |= PROT_EXEC;
+                break;
+            }
+        }
+    }
+
+    fclose(f);
+    return prot;
 }
 
 // Wrapped mmap: tag anonymous mappings with pkey 1 when loader gate is active
@@ -98,17 +132,24 @@ void *__wrap_mremap(void *old_address, size_t old_size, size_t new_size, int fla
     }
 
     // If mapping grew, retag the new portion with pkey 1
-    // Note: We can't easily determine original protections here, so we assume RW
-    // which is typical for anonymous mappings that get remapped
+    // We must preserve the original protection bits to avoid breaking W^X or
+    // making read-only regions writable
     if (new_size > old_size) {
         size_t growth = new_size - old_size;
         void *new_portion = (char *)result + old_size;
 
-        // Try to retag new portion - if this fails, the mapping is still valid
-        // but may not have the correct pkey. This is a best-effort approach.
-        if (pkey_mprotect_syscall(new_portion, growth, PROT_READ | PROT_WRITE, 1) == 0) {
-            atomic_fetch_add(&ia2_loader_mmap_count, 1);
+        // Query the actual protections from /proc/self/maps
+        // The kernel copies protections from the original region when growing
+        int prot = get_region_protections(new_portion);
+
+        if (prot >= 0) {
+            // Successfully retrieved protections - retag with correct flags
+            if (pkey_mprotect_syscall(new_portion, growth, prot, 1) == 0) {
+                atomic_fetch_add(&ia2_loader_mmap_count, 1);
+            }
+            // If pkey_mprotect fails, mapping is still valid but untagged
         }
+        // If get_region_protections fails, skip tagging to avoid applying wrong protections
     }
 
     return result;

@@ -33,11 +33,51 @@ extern std::atomic<unsigned long> ia2_loader_mmap_count;
 extern _Atomic unsigned long ia2_loader_mmap_count;
 #endif
 
+#ifdef IA2_DEBUG
+// Per-wrapper telemetry counters (debug builds only)
+#ifdef __cplusplus
+extern std::atomic<unsigned long> ia2_dlopen_count;
+extern std::atomic<unsigned long> ia2_dlmopen_count;
+extern std::atomic<unsigned long> ia2_dlclose_count;
+extern std::atomic<unsigned long> ia2_dlsym_count;
+extern std::atomic<unsigned long> ia2_dlvsym_count;
+extern std::atomic<unsigned long> ia2_dladdr_count;
+extern std::atomic<unsigned long> ia2_dladdr1_count;
+extern std::atomic<unsigned long> ia2_dlinfo_count;
+extern std::atomic<unsigned long> ia2_dlerror_count;
+extern std::atomic<unsigned long> ia2_dl_iterate_phdr_count;
+#else
+extern _Atomic unsigned long ia2_dlopen_count;
+extern _Atomic unsigned long ia2_dlmopen_count;
+extern _Atomic unsigned long ia2_dlclose_count;
+extern _Atomic unsigned long ia2_dlsym_count;
+extern _Atomic unsigned long ia2_dlvsym_count;
+extern _Atomic unsigned long ia2_dladdr_count;
+extern _Atomic unsigned long ia2_dladdr1_count;
+extern _Atomic unsigned long ia2_dlinfo_count;
+extern _Atomic unsigned long ia2_dlerror_count;
+extern _Atomic unsigned long ia2_dl_iterate_phdr_count;
+#endif
+
+// Internal callback counters (for glibc→ld.so paths)
+unsigned long ia2_get_dl_catch_exception_count(void);
+unsigned long ia2_get_dl_catch_error_count(void);
+#endif // IA2_DEBUG
+
 // Enter loader gate (future: swap PKRU to allow loader access)
 void ia2_loader_gate_enter(void);
 
 // Exit loader gate (future: restore PKRU)
 void ia2_loader_gate_exit(void);
+
+#if 0
+// DEPRECATED: Patch _rtld_global_ro to intercept internal glibc→ld.so calls
+// This approach was attempted but failed due to internal recursion in ld.so
+// (_dl_catch_error calls _dl_catch_exception internally, creating infinite loop)
+// See tests/dl_debug_test/RTLD_GLOBAL_RO_PATCHING_ATTEMPT.md for details
+#include <stdbool.h>
+bool ia2_patch_rtld_global_ro(void);
+#endif
 
 #ifdef __cplusplus
 }

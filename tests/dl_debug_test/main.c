@@ -541,5 +541,46 @@ Test(dl_debug, wrapper_dladdr1_counter) {
     dlclose(handle);
 }
 
+// Test: Verify automatic DSO retagging for system libraries
+//
+// Run with:
+//   IA2_TEST_NAME=loader_auto_retag ./dl_debug_test
+//
+// Validates:
+//   - System libraries (libc, ld.so) are automatically retagged to pkey 1
+//   - Application libraries preserve their original compartment
+//   - dlopen wrapper correctly filters DSOs by name
+Test(dl_debug, loader_auto_retag) {
+    cr_log_info("Main: Testing automatic DSO retagging");
+
+    // Verify ld.so is on pkey 1 (system library)
+    int ldso_pkey = get_ldso_pkey();
+    cr_log_info("Main: ld.so protection key: %d", ldso_pkey);
+    cr_assert(ldso_pkey == 1);
+
+    // Verify libc is on pkey 1 (system library)
+    int libc_pkey = get_dso_pkey("libc.so");
+    cr_log_info("Main: libc.so protection key: %d", libc_pkey);
+    cr_assert(libc_pkey == 1);
+
+    // Test 1: Load a system library (libm.so) via dlopen
+    // It should be automatically retagged to pkey 1
+    void *libm_handle = dlopen("libm.so.6", RTLD_NOW | RTLD_GLOBAL);
+    if (libm_handle) {
+        int libm_pkey = get_dso_pkey("libm.so");
+        cr_log_info("Main: libm.so protection key after dlopen: %d", libm_pkey);
+        cr_assert(libm_pkey == 1);  // Should be retagged to pkey 1
+        dlclose(libm_handle);
+    }
+
+    // Test 2: Verify application library (libdl_debug_test_lib.so) is on pkey 2
+    // This library was loaded at startup and should preserve its original compartment
+    int app_pkey = get_dso_pkey("libdl_debug_test_lib.so");
+    cr_log_info("Main: libdl_debug_test_lib.so protection key: %d", app_pkey);
+    cr_assert(app_pkey == 2);  // Must be 2, proving it wasn't retagged
+
+    cr_log_info("Main: Automatic DSO retagging verified - system libs on pkey 1, app libs preserve compartment");
+}
+
 #endif // IA2_DEBUG
 

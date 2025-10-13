@@ -6,6 +6,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 #include <ia2_loader.h>
 
 // Forward declarations for real symbols
@@ -70,7 +71,10 @@ void *__wrap_mmap(void *addr, size_t length, int prot, int flags, int fd, off_t 
     // Apply original protections with pkey 1
     if (pkey_mprotect_syscall(result, length, prot, 1) != 0) {
         // Failed to set pkey - unmap to avoid leaking wrongly-tagged memory
+        // Save errno before munmap, which may clobber it
+        int saved_errno = errno;
         munmap(result, length);
+        errno = saved_errno;
         return MAP_FAILED;
     }
 
@@ -91,7 +95,10 @@ void *__wrap_mmap64(void *addr, size_t length, int prot, int flags, int fd, off6
     }
 
     if (pkey_mprotect_syscall(result, length, prot, 1) != 0) {
+        // Save errno before munmap, which may clobber it
+        int saved_errno = errno;
         munmap(result, length);
+        errno = saved_errno;
         return MAP_FAILED;
     }
 

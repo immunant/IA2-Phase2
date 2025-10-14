@@ -14,6 +14,8 @@ extern void *__real_mmap(void *addr, size_t length, int prot, int flags, int fd,
 extern void *__real_mmap64(void *addr, size_t length, int prot, int flags, int fd, off64_t offset);
 extern void *__real_mremap(void *old_address, size_t old_size, size_t new_size, int flags, ...);
 
+#if defined(__x86_64__)
+
 // pkey_mprotect syscall (not always in libc headers)
 #ifndef SYS_pkey_mprotect
 #define SYS_pkey_mprotect 329
@@ -161,3 +163,27 @@ void *__wrap_mremap(void *old_address, size_t old_size, size_t new_size, int fla
 
     return result;
 }
+
+#else  // non-x86_64 builds: pass through to real libc symbols
+
+void *__wrap_mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset) {
+    return __real_mmap(addr, length, prot, flags, fd, offset);
+}
+
+void *__wrap_mmap64(void *addr, size_t length, int prot, int flags, int fd, off64_t offset) {
+    return __real_mmap64(addr, length, prot, flags, fd, offset);
+}
+
+void *__wrap_mremap(void *old_address, size_t old_size, size_t new_size, int flags, ...) {
+    void *new_address = NULL;
+    if (flags & MREMAP_FIXED) {
+        va_list args;
+        va_start(args, flags);
+        new_address = va_arg(args, void *);
+        va_end(args);
+        return __real_mremap(old_address, old_size, new_size, flags, new_address);
+    }
+    return __real_mremap(old_address, old_size, new_size, flags);
+}
+
+#endif  // defined(__x86_64__)

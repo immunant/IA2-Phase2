@@ -57,6 +57,44 @@ static int get_region_protections(void *addr) {
     return prot;
 }
 
+// Check if a memory region is file-backed (has a pathname in /proc/self/maps)
+// Returns 1 if file-backed, 0 if anonymous, -1 on error
+static int is_file_backed_mapping(void *addr) {
+    FILE *f = fopen("/proc/self/maps", "r");
+    if (!f) {
+        return -1;
+    }
+
+    char line[512];
+    unsigned long target = (unsigned long)addr;
+    int result = -1;
+
+    while (fgets(line, sizeof(line), f)) {
+        unsigned long start, end;
+        char perms[5], device[32], rest[256];
+        unsigned long offset, inode;
+
+        // Parse: start-end perms offset dev:maj:min inode [pathname]
+        int parsed = sscanf(line, "%lx-%lx %4s %lx %31s %lu %255[^\n]",
+                           &start, &end, perms, &offset, device, &inode, rest);
+
+        if (parsed >= 6 && target >= start && target < end) {
+            // File-backed mappings have either:
+            // 1. A non-zero inode with a pathname (parsed == 7)
+            // 2. Device other than 00:00
+            if (strcmp(device, "00:00") != 0 || (parsed == 7 && rest[0] != '[')) {
+                result = 1;  // File-backed
+            } else {
+                result = 0;  // Anonymous
+            }
+            break;
+        }
+    }
+
+    fclose(f);
+    return result;
+}
+
 // Wrapped mmap: tag anonymous mappings with pkey 1 when loader gate is active
 void *__wrap_mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset) {
     // Fast path: gate not active, use real mmap
@@ -64,7 +102,14 @@ void *__wrap_mmap(void *addr, size_t length, int prot, int flags, int fd, off_t 
         return __real_mmap(addr, length, prot, flags, fd, offset);
     }
 
-    // Loader gate active: create mapping with PROT_NONE first, then retag
+    // Only retag anonymous mappings - file-backed mappings should inherit
+    // the compartment pkey configured by ia2_register_compartment
+    if ((flags & MAP_ANONYMOUS) == 0) {
+        // File-backed mapping: pass through without retagging
+        return __real_mmap(addr, length, prot, flags, fd, offset);
+    }
+
+    // Anonymous mapping in loader gate: create mapping with PROT_NONE first, then retag to pkey 1
     void *result = __real_mmap(addr, length, PROT_NONE, flags, fd, offset);
     if (result == MAP_FAILED) {
         return result;
@@ -87,16 +132,27 @@ void *__wrap_mmap(void *addr, size_t length, int prot, int flags, int fd, off_t 
 
 // Wrapped mmap64: same logic as mmap
 void *__wrap_mmap64(void *addr, size_t length, int prot, int flags, int fd, off64_t offset) {
+    // Fast path: gate not active, use real mmap64
     if (!ia2_in_loader_gate) {
         return __real_mmap64(addr, length, prot, flags, fd, offset);
     }
 
+    // Only retag anonymous mappings - file-backed mappings should inherit
+    // the compartment pkey configured by ia2_register_compartment
+    if ((flags & MAP_ANONYMOUS) == 0) {
+        // File-backed mapping: pass through without retagging
+        return __real_mmap64(addr, length, prot, flags, fd, offset);
+    }
+
+    // Anonymous mapping in loader gate: create mapping with PROT_NONE first, then retag to pkey 1
     void *result = __real_mmap64(addr, length, PROT_NONE, flags, fd, offset);
     if (result == MAP_FAILED) {
         return result;
     }
 
+    // Apply original protections with pkey 1
     if (pkey_mprotect_syscall(result, length, prot, 1) != 0) {
+        // Failed to set pkey - unmap to avoid leaking wrongly-tagged memory
         // Save errno before munmap, which may clobber it
         int saved_errno = errno;
         munmap(result, length);
@@ -104,6 +160,7 @@ void *__wrap_mmap64(void *addr, size_t length, int prot, int flags, int fd, off6
         return MAP_FAILED;
     }
 
+    // Successfully tagged - increment counter
     atomic_fetch_add(&ia2_loader_mmap_count, 1);
     return result;
 }
@@ -140,25 +197,36 @@ void *__wrap_mremap(void *old_address, size_t old_size, size_t new_size, int fla
         return result;
     }
 
-    // If mapping grew, retag the new portion with pkey 1
-    // We must preserve the original protection bits to avoid breaking W^X or
-    // making read-only regions writable
+    // If mapping grew, retag the new portion with pkey 1, but only for anonymous mappings
+    // File-backed mappings should keep their original compartment pkey
     if (new_size > old_size) {
         size_t growth = new_size - old_size;
         void *new_portion = (char *)result + old_size;
 
-        // Query the actual protections from /proc/self/maps
-        // The kernel copies protections from the original region when growing
-        int prot = get_region_protections(new_portion);
+        // IMPORTANT: Check the NEW mapping location (result), not old_address!
+        // When mremap moves the mapping (MREMAP_MAYMOVE/MREMAP_FIXED), old_address
+        // no longer exists in /proc/self/maps, so we must probe the live VMA at result.
+        int is_file_backed = is_file_backed_mapping(result);
 
-        if (prot >= 0) {
-            // Successfully retrieved protections - retag with correct flags
-            if (pkey_mprotect_syscall(new_portion, growth, prot, 1) == 0) {
-                atomic_fetch_add(&ia2_loader_mmap_count, 1);
+        if (is_file_backed == 0) {
+            // Anonymous mapping: retag growth with pkey 1
+            // We must preserve the original protection bits to avoid breaking W^X or
+            // making read-only regions writable
+
+            // Query the actual protections from /proc/self/maps
+            // The kernel copies protections from the original region when growing
+            int prot = get_region_protections(new_portion);
+
+            if (prot >= 0) {
+                // Successfully retrieved protections - retag with correct flags
+                if (pkey_mprotect_syscall(new_portion, growth, prot, 1) == 0) {
+                    atomic_fetch_add(&ia2_loader_mmap_count, 1);
+                }
+                // If pkey_mprotect fails, mapping is still valid but untagged
             }
-            // If pkey_mprotect fails, mapping is still valid but untagged
+            // If get_region_protections fails, skip tagging to avoid applying wrong protections
         }
-        // If get_region_protections fails, skip tagging to avoid applying wrong protections
+        // If file-backed (is_file_backed == 1) or error (is_file_backed == -1), skip retagging
     }
 
     return result;

@@ -124,9 +124,6 @@ static void ia2_retag_loaded_dso(void *handle) {
 // - Worst case: glibc patchset to expose _dl_init or constructor hooks
 void *__wrap_dlopen(const char *filename, int flags) {
     ia2_loader_gate_enter();
-    #ifdef IA2_DEBUG
-    ia2_dlopen_count++;
-    #endif
 
     // Call real dlopen with gate active:
     // 1. Map DSO (loader work, gate active → allocations on pkey 1) ✓
@@ -136,6 +133,10 @@ void *__wrap_dlopen(const char *filename, int flags) {
     void *handle = __real_dlopen(filename, flags);
 
     ia2_loader_gate_exit();
+
+    #ifdef IA2_DEBUG
+    ia2_dlopen_count++;
+    #endif
 
     // Retag loader/system DSOs to compartment 1
     ia2_retag_loaded_dso(handle);
@@ -149,14 +150,15 @@ void *__wrap_dlopen(const char *filename, int flags) {
 // with constructor privilege escalation as a known issue to be addressed in future work.
 void *__wrap_dlmopen(Lmid_t lmid, const char *filename, int flags) {
     ia2_loader_gate_enter();
-    #ifdef IA2_DEBUG
-    ia2_dlmopen_count++;
-    #endif
 
     // Call real dlmopen with gate active (same tradeoffs as dlopen)
     void *handle = __real_dlmopen(lmid, filename, flags);
 
     ia2_loader_gate_exit();
+
+    #ifdef IA2_DEBUG
+    ia2_dlmopen_count++;
+    #endif
 
     // Retag loader/system DSOs to compartment 1
     ia2_retag_loaded_dso(handle);
@@ -167,77 +169,77 @@ void *__wrap_dlmopen(Lmid_t lmid, const char *filename, int flags) {
 // Wrapped dlsym: enter loader gate, call real dlsym, exit gate
 void *__wrap_dlsym(void *handle, const char *symbol) {
     ia2_loader_gate_enter();
+    void *result = __real_dlsym(handle, symbol);
+    ia2_loader_gate_exit();
     #ifdef IA2_DEBUG
     ia2_dlsym_count++;
     #endif
-    void *result = __real_dlsym(handle, symbol);
-    ia2_loader_gate_exit();
     return result;
 }
 
 // Wrapped dlvsym: enter loader gate, call real dlvsym, exit gate
 void *__wrap_dlvsym(void *handle, const char *symbol, const char *version) {
     ia2_loader_gate_enter();
+    void *result = __real_dlvsym(handle, symbol, version);
+    ia2_loader_gate_exit();
     #ifdef IA2_DEBUG
     ia2_dlvsym_count++;
     #endif
-    void *result = __real_dlvsym(handle, symbol, version);
-    ia2_loader_gate_exit();
     return result;
 }
 
 // Wrapped dlclose: enter loader gate, call real dlclose, exit gate
 int __wrap_dlclose(void *handle) {
     ia2_loader_gate_enter();
+    int result = __real_dlclose(handle);
+    ia2_loader_gate_exit();
     #ifdef IA2_DEBUG
     ia2_dlclose_count++;
     #endif
-    int result = __real_dlclose(handle);
-    ia2_loader_gate_exit();
     return result;
 }
 
 // Wrapped dladdr: enter loader gate, call real dladdr, exit gate
 int __wrap_dladdr(const void *addr, Dl_info *info) {
     ia2_loader_gate_enter();
+    int result = __real_dladdr(addr, info);
+    ia2_loader_gate_exit();
     #ifdef IA2_DEBUG
     ia2_dladdr_count++;
     #endif
-    int result = __real_dladdr(addr, info);
-    ia2_loader_gate_exit();
     return result;
 }
 
 // Wrapped dladdr1: enter loader gate, call real dladdr1, exit gate
 int __wrap_dladdr1(const void *addr, Dl_info *info, void **extra_info, int flags) {
     ia2_loader_gate_enter();
+    int result = __real_dladdr1(addr, info, extra_info, flags);
+    ia2_loader_gate_exit();
     #ifdef IA2_DEBUG
     ia2_dladdr1_count++;
     #endif
-    int result = __real_dladdr1(addr, info, extra_info, flags);
-    ia2_loader_gate_exit();
     return result;
 }
 
 // Wrapped dlinfo: enter loader gate, call real dlinfo, exit gate
 int __wrap_dlinfo(void *handle, int request, void *arg) {
     ia2_loader_gate_enter();
+    int result = __real_dlinfo(handle, request, arg);
+    ia2_loader_gate_exit();
     #ifdef IA2_DEBUG
     ia2_dlinfo_count++;
     #endif
-    int result = __real_dlinfo(handle, request, arg);
-    ia2_loader_gate_exit();
     return result;
 }
 
 // Wrapped dlerror: enter loader gate, call real dlerror, exit gate
 char *__wrap_dlerror(void) {
     ia2_loader_gate_enter();
+    char *result = __real_dlerror();
+    ia2_loader_gate_exit();
     #ifdef IA2_DEBUG
     ia2_dlerror_count++;
     #endif
-    char *result = __real_dlerror();
-    ia2_loader_gate_exit();
     return result;
 }
 
@@ -274,9 +276,6 @@ static int dl_iterate_callback_trampoline(struct dl_phdr_info *info, size_t size
 // Solution: Wrap the callback with a trampoline that temporarily exits the gate
 int __wrap_dl_iterate_phdr(int (*callback)(struct dl_phdr_info *info, size_t size, void *data), void *data) {
     ia2_loader_gate_enter();
-    #ifdef IA2_DEBUG
-    ia2_dl_iterate_phdr_count++;
-    #endif
 
     // Package user callback and data into wrapper state
     struct dl_iterate_callback_wrapper_state wrapper_state = {
@@ -288,6 +287,9 @@ int __wrap_dl_iterate_phdr(int (*callback)(struct dl_phdr_info *info, size_t siz
     int result = __real_dl_iterate_phdr(dl_iterate_callback_trampoline, &wrapper_state);
 
     ia2_loader_gate_exit();
+    #ifdef IA2_DEBUG
+    ia2_dl_iterate_phdr_count++;
+    #endif
     return result;
 }
 

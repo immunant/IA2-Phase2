@@ -62,6 +62,23 @@ static int get_ldso_pkey(void) {
     return get_dso_pkey("ld-linux");
 }
 
+// Locate the first link_map whose basename contains `needle`. This mirrors the
+// logic in ia2_retag_loaded_dso so the test inspects the same DSO instance.
+static struct link_map *find_link_map(const char *needle) {
+    struct r_debug *debug = (struct r_debug *)dlsym(RTLD_DEFAULT, "_r_debug");
+    if (!debug) {
+        return NULL;
+    }
+
+    for (struct link_map *map = debug->r_map; map; map = map->l_next) {
+        const char *name = map->l_name && map->l_name[0] ? basename(map->l_name) : "(main)";
+        if (strstr(name, needle)) {
+            return map;
+        }
+    }
+    return NULL;
+}
+
 Test(dl_debug, libc_compartment_inheritance) {
     cr_log_info("Main: Starting test in compartment 1");
 
@@ -613,3 +630,56 @@ Test(dl_debug, loader_auto_retag) {
 }
 
 #endif // IA2_DEBUG
+
+Test(dl_debug, loader_allowlist_respects_registration) {
+    // Step 1: Load libpthread.so.0 to ensure it's in the process
+    // Initially it will be on pkey 1 (system library default)
+    void *initial_handle = dlopen("libpthread.so.0", RTLD_NOW | RTLD_LOCAL);
+    cr_assert(initial_handle != NULL);
+
+    // Step 2: Find libpthread in the link map
+    struct link_map *pthread_map = find_link_map("libpthread.so");
+    cr_assert(pthread_map != NULL);
+
+    // Step 3: Verify it starts on pkey 1 (system library)
+    int original_pkey = get_dso_pkey("libpthread");
+    cr_assert(original_pkey == 1);
+
+    // Step 4: Register libpthread as belonging to compartment 2
+    ia2_register_compartment("libpthread.so.0", 2, NULL);
+
+    // Step 5: Manually retag libpthread to compartment 2
+    ia2_tag_link_map(pthread_map, 2);
+    cr_assert(get_dso_pkey("libpthread") == 2);
+
+    // Step 6: Call dlopen again (with RTLD_NOLOAD since already loaded)
+    // This triggers the loader's allowlist logic
+    // BUG: Without a guard, the loader will blindly retag to pkey 1 (system lib)
+    // FIX: With a guard, the loader should check registration and keep it on pkey 2
+    void *handle = dlopen("libpthread.so.0", RTLD_NOW | RTLD_NOLOAD);
+    cr_assert(handle != NULL);
+
+    // Step 7: Check if libpthread stayed on pkey 2
+    int pthread_after = get_dso_pkey("libpthread");
+
+    // Step 8: Cleanup - restore libpthread to pkey 1 to avoid leaking state
+    ia2_tag_link_map(pthread_map, 1);
+
+    // Optional future enhancement: temporarily disable access to pkey 2 with
+    // pkey_set()/WRPKRU and assert that writes fault with SEGV_PKERR. The Linux
+    // pkey selftests (tools/testing/selftests/mm/protection_keys.c) use this
+    // pattern alongside /proc/self/smaps audits; the man page documents both
+    // approaches: https://www.man7.org/linux/man-pages/man7/pkeys.7.html
+
+    // Close both handles
+    dlclose(handle);
+    dlclose(initial_handle);
+
+    // Step 9: Verify libc is still on pkey 1 (sanity check)
+    int libc_pkey = get_dso_pkey("libc.so");
+    cr_assert(libc_pkey == 1);
+
+    // Step 10: Assert that libpthread stayed on pkey 2
+    // This will FAIL until the runtime guard is implemented
+    cr_assert(pthread_after == 2);
+}

@@ -5,9 +5,12 @@
 #include "ia2_internal.h"
 #include "memory_maps.h"
 #include "thread_name.h"
+
+#include <ctype.h>
 #include <dlfcn.h>
 #include <elf.h>
 #include <link.h>
+#include <string.h>
 
 #include <pthread.h>
 #include <sys/auxv.h>
@@ -264,6 +267,68 @@ struct CompartmentConfig {
  */
 static struct CompartmentConfig user_config[IA2_MAX_COMPARTMENTS] IA2_SHARED_DATA = {0};
 
+// Return a pointer to the basename portion of `path`, or NULL when the input is
+// empty. We intentionally avoid heap allocations so the helper stays safe for
+// early runtime use.
+static const char *strip_directory(const char *path) {
+  if (!path) {
+    return NULL;
+  }
+  const char *slash = strrchr(path, '/');
+  return slash ? slash + 1 : path;
+}
+
+// Returns true when a semicolon-delimited token from the extra-library list
+// identifies the same DSO as `target_base`. Tokens are treated loosely so that
+// manifest entries such as "libpthread.so" match versioned filenames like
+// "libpthread.so.0".
+static bool token_matches_basename(const char *token_start, size_t token_len,
+                                   const char *target_base) {
+  if (!token_start || token_len == 0 || !target_base || target_base[0] == '\0') {
+    return false;
+  }
+
+  while (token_len > 0 && isspace((unsigned char)token_start[0])) {
+    token_start++;
+    token_len--;
+  }
+  while (token_len > 0 && isspace((unsigned char)token_start[token_len - 1])) {
+    token_len--;
+  }
+  if (token_len == 0) {
+    return false;
+  }
+
+  if (strncmp(token_start, target_base, token_len) != 0) {
+    return false;
+  }
+
+  char next = target_base[token_len];
+  return next == '\0' || next == '.' || next == '-';
+}
+
+// Compare a primary registration entry against the target basename using the
+// same relaxed matching that accepts versioned suffixes.
+static bool name_matches_basename(const char *registered_name,
+                                  const char *target_base) {
+  if (!registered_name || !target_base || registered_name[0] == '\0' || target_base[0] == '\0') {
+    return false;
+  }
+
+  const char *reg_base = strip_directory(registered_name);
+  if (!reg_base || reg_base[0] == '\0') {
+    return false;
+  }
+
+  size_t reg_len = strlen(reg_base);
+  if (strncmp(reg_base, target_base, reg_len) != 0) {
+    return false;
+  }
+
+  char next = target_base[reg_len];
+  return next == '\0' || next == '.' || next == '-';
+}
+
 /*
  * Stores the main DSO and extra libraries (if any) for the specified compartment. This should only
  * be called for protected compartments (calls specifying compartment 0 are forbidden).
@@ -277,6 +342,52 @@ void ia2_register_compartment(const char *dso, int compartment, const char *extr
   assert(compartment < IA2_MAX_COMPARTMENTS);
   user_config[compartment].dso = dso;
   user_config[compartment].extra_libraries = extra_libraries;
+}
+
+// Look up the compartment explicitly assigned to `dso_name` (either via a
+// primary `ia2_register_compartment` entry or one of its semicolon-delimited
+// extra libraries). Returns -1 when the runtime has no explicit ownership.
+int ia2_lookup_registered_compartment(const char *dso_name) {
+  const char *target_base = strip_directory(dso_name);
+  if (!target_base || target_base[0] == '\0') {
+    return -1;
+  }
+
+  for (int compartment = 1; compartment < IA2_MAX_COMPARTMENTS; compartment++) {
+    const struct CompartmentConfig *config = &user_config[compartment];
+    if (!config->dso) {
+      continue;
+    }
+
+    if (name_matches_basename(config->dso, target_base)) {
+      return compartment;
+    }
+
+    const char *extra = config->extra_libraries;
+    if (!extra) {
+      continue;
+    }
+
+    const char *cursor = extra;
+    while (cursor && *cursor) {
+      const char *token_start = cursor;
+      while (*cursor && *cursor != ';') {
+        cursor++;
+      }
+      size_t token_len = (size_t)(cursor - token_start);
+      if (token_matches_basename(token_start, token_len, target_base)) {
+        return compartment;
+      }
+      if (*cursor == ';') {
+        cursor++;
+      }
+      while (*cursor == ';') {
+        cursor++;
+      }
+    }
+  }
+
+  return -1;
 }
 
 /*

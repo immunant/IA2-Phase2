@@ -219,6 +219,11 @@ void ia2_get_compartment_stack(void **stack_base_ptr, size_t *stack_size);
 /// protected compartment.
 void ia2_register_compartment(const char *lib, int compartment, const char *extra_libraries);
 
+/// Returns the compartment id explicitly assigned to a DSO via
+/// ia2_register_compartment/extra libraries, or -1 if the runtime has no
+/// explicit ownership for the given basename.
+int ia2_lookup_registered_compartment(const char *lib);
+
 /// Retag all writable PT_LOAD segments of a loaded DSO with the specified protection key.
 ///
 /// This function walks the program headers of the given link_map and applies pkey_mprotect

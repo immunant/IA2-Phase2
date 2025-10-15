@@ -87,6 +87,15 @@ static void ia2_retag_loaded_dso(void *handle) {
         return;
     }
 
+    // Honor explicit compartment assignments: if the runtime registered this
+    // system library for some other compartment, leave the mapping alone.
+    int assigned_compartment = ia2_lookup_registered_compartment(dso_name);
+    if (assigned_compartment > 0 && assigned_compartment != ia2_loader_compartment) {
+        ia2_log("Skipping loader retag for %s; registered to compartment %d\n",
+                dso_name && dso_name[0] ? dso_name : "(unknown)", assigned_compartment);
+        return;
+    }
+
     // Loader/system DSO - retag writable segments to loader compartment (pkey 1)
     // Note: ia2_tag_link_map currently calls exit(-1) on failure.
     // This is intentional - memory tagging failures are considered fatal
@@ -292,4 +301,3 @@ int __wrap_dl_iterate_phdr(int (*callback)(struct dl_phdr_info *info, size_t siz
     #endif
     return result;
 }
-

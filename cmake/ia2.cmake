@@ -32,21 +32,15 @@ function(add_ia2_compartment NAME TYPE)
     message(FATAL_ERROR "${TYPE} is not a valid type, expected one of ${VALID_TYPES}")
   endif()
 
-  # Convert relative paths to absolute
-  relative_to_absolute(ABS_SOURCES ${CMAKE_CURRENT_SOURCE_DIR} ${ARG_SOURCES})
-
   if("${TYPE}" STREQUAL "EXECUTABLE")
-    # Executables get sources added later via target_sources in add_ia2_call_gates
     add_executable(${NAME})
   elseif("${ARG_PKEY}" GREATER "0")
-    # Libraries need sources immediately since they may not be linked to an executable
-    # (e.g., loaded via dlopen) and thus won't go through add_ia2_call_gates
     set(UNPADDED_LIB ${NAME}_unpadded)
-    add_library(${UNPADDED_LIB} SHARED ${ABS_SOURCES})
+    add_library(${UNPADDED_LIB} SHARED)
     pad_tls_library(${UNPADDED_LIB} ${NAME})
     set(NAME ${UNPADDED_LIB})
   else()
-    add_library(${NAME} SHARED ${ABS_SOURCES})
+    add_library(${NAME} SHARED)
   endif()
 
   target_include_directories(${NAME} PRIVATE
@@ -279,8 +273,7 @@ function(add_ia2_call_gates NAME)
       list(APPEND SOURCES ${target_original_srcs})
       relative_to_absolute(target_rewritten_srcs ${target_binary_dir} ${target_srcs})
       list(APPEND REWRITTEN_SOURCES ${target_rewritten_srcs})
-      # Replace sources with rewritten versions (libraries may have original sources from creation)
-      set_target_properties(${target} PROPERTIES SOURCES "${target_rewritten_srcs}")
+      target_sources(${target} PRIVATE ${target_rewritten_srcs})
 
       get_target_property(target_include_dirs ${target} ORIGINAL_INCLUDE_DIRECTORIES)
       if(target_include_dirs)

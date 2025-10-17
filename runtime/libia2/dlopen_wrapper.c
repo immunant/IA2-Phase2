@@ -87,12 +87,14 @@ static void ia2_retag_loaded_dso(void *handle) {
         return;
     }
 
+    const char *display_name = (dso_name && dso_name[0]) ? dso_name : "(main)";
+
     // Honor explicit compartment assignments: if the runtime registered this
     // system library for some other compartment, leave the mapping alone.
     int assigned_compartment = ia2_lookup_registered_compartment(dso_name);
     if (assigned_compartment > 0 && assigned_compartment != ia2_loader_compartment) {
         ia2_log("Skipping loader retag for %s; registered to compartment %d\n",
-                dso_name && dso_name[0] ? dso_name : "(unknown)", assigned_compartment);
+                display_name, assigned_compartment);
         return;
     }
 
@@ -100,7 +102,6 @@ static void ia2_retag_loaded_dso(void *handle) {
     // Note: ia2_tag_link_map currently calls exit(-1) on failure.
     // This is intentional - memory tagging failures are considered fatal
     // as they compromise the security boundary between compartments.
-    const char *display_name = dso_name && dso_name[0] ? dso_name : "(main)";
     ia2_log("Automatically retagging loader DSO %s to compartment 1\n", display_name);
     ia2_tag_link_map(map, ia2_loader_compartment);
     ia2_log("Successfully retagged DSO at base 0x%lx to loader compartment\n", map->l_addr);

@@ -316,9 +316,6 @@ static bool name_matches_basename(const char *registered_name,
   }
 
   const char *reg_base = strip_directory(registered_name);
-  if (!reg_base || reg_base[0] == '\0') {
-    return false;
-  }
 
   size_t reg_len = strlen(reg_base);
   if (strncmp(reg_base, target_base, reg_len) != 0) {
@@ -369,7 +366,7 @@ int ia2_lookup_registered_compartment(const char *dso_name) {
     }
 
     const char *cursor = extra;
-    while (cursor && *cursor) {
+    while (*cursor) {
       const char *token_start = cursor;
       while (*cursor && *cursor != ';') {
         cursor++;
@@ -377,9 +374,6 @@ int ia2_lookup_registered_compartment(const char *dso_name) {
       size_t token_len = (size_t)(cursor - token_start);
       if (token_matches_basename(token_start, token_len, target_base)) {
         return compartment;
-      }
-      if (*cursor == ';') {
-        cursor++;
       }
       while (*cursor == ';') {
         cursor++;

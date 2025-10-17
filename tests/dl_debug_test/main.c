@@ -206,27 +206,12 @@ Test(dl_debug, manual_retag_loader) {
 }
 
 Test(dl_debug, mistag_and_fix) {
-    // Find ld.so
+    struct link_map *ldso = find_link_map("ld-linux");
+    cr_assert(ldso != NULL);
+
+    // Get _r_debug for state manipulation
     struct r_debug *debug = (struct r_debug *)dlsym(RTLD_DEFAULT, "_r_debug");
-    if (!debug) {
-        cr_assert(0);
-    }
-
-    struct link_map *ldso = debug->r_map;
-    bool found_ldso = false;
-
-    while (ldso) {
-        const char *name = ldso->l_name[0] ? basename(ldso->l_name) : "(main)";
-        if (strstr(name, "ld-linux") != NULL) {
-            found_ldso = true;
-            break;
-        }
-        ldso = ldso->l_next;
-    }
-
-    if (!found_ldso) {
-        cr_assert(0);
-    }
+    cr_assert(debug != NULL);
 
     // Save original _r_debug state value
     int original_state = debug->r_state;
@@ -664,12 +649,6 @@ Test(dl_debug, loader_allowlist_respects_registration) {
 
     // Step 8: Cleanup - restore libpthread to pkey 1 to avoid leaking state
     ia2_tag_link_map(pthread_map, 1);
-
-    // Optional future enhancement: temporarily disable access to pkey 2 with
-    // pkey_set()/WRPKRU and assert that writes fault with SEGV_PKERR. The Linux
-    // pkey selftests (tools/testing/selftests/mm/protection_keys.c) use this
-    // pattern alongside /proc/self/smaps audits; the man page documents both
-    // approaches: https://www.man7.org/linux/man-pages/man7/pkeys.7.html
 
     // Close both handles
     dlclose(handle);

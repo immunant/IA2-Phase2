@@ -97,23 +97,6 @@ __asm__(
     "xorl %edx, %edx\n"
     "wrpkru\n"
 
-    /*
-     * ASSERT_PKRU expects an immediate operand (it stringifies the argument
-     * into `cmpl $<imm>, %eax`). Passing a register like %r13d expands to
-     * `cmpl $%r13d, %eax`, which triggers "illegal immediate register operand
-     * %r13d" during assembly. The manual check below saves caller-saved state,
-     * reads PKRU with `rdpkru`, and compares the result against %r13d.
-     */
-#ifdef IA2_DEBUG
-    "movq %rcx, %r10\n"                // save rcx (clobbered by rdpkru)
-    "rdpkru\n"
-    "cmpl %r13d, %eax\n"               // compare requested PKRU vs actual
-    "je 2f\n"
-    "ud2\n"                            // trap if mismatch
-"2:\n"
-    "movq %r10, %rcx\n"                // restore rcx
-#endif
-
     // Restore callee-saved registers and return
     "popq %r15\n"
     "popq %r14\n"

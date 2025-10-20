@@ -39,6 +39,10 @@ if(IA2_DEBUG_MEMORY)
     target_compile_definitions(libia2 PRIVATE IA2_DEBUG_MEMORY=1)
 endif()
 
+if(IA2_USE_PKRU_GATES)
+    target_compile_definitions(libia2 PUBLIC IA2_USE_PKRU_GATES=1)
+endif()
+
 target_link_options(libia2
     INTERFACE
         "-pthread"
@@ -96,6 +100,35 @@ target_link_options(libia2 INTERFACE
     "-Wl,--dynamic-list=${CMAKE_CURRENT_BINARY_DIR}/dynsym.syms"
 )
 set_property(TARGET libia2 PROPERTY INTERFACE_LINK_DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/padding.ld ${CMAKE_CURRENT_BINARY_DIR}/dynsym.syms)
+
+# Bootstrap shim: LD_PRELOAD library that intercepts GLIBC_PRIVATE loader calls
+# before main() runs, ensuring all loader operations go through PKRU gates
+if (IA2_USE_PKRU_GATES)
+  add_library(libia2_bootstrap_shim SHARED libia2_bootstrap_shim.c)
+
+  target_link_libraries(libia2_bootstrap_shim PRIVATE dl)
+
+  target_include_directories(libia2_bootstrap_shim PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+  )
+
+  target_compile_definitions(libia2_bootstrap_shim PRIVATE
+    _GNU_SOURCE
+    IA2_ENABLE=1
+    IA2_USE_PKRU_GATES=1
+  )
+
+  # Export GLIBC_PRIVATE symbols with versioning
+  target_link_options(libia2_bootstrap_shim PRIVATE
+    "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/bootstrap_shim.version"
+  )
+
+  set_target_properties(libia2_bootstrap_shim PROPERTIES
+    OUTPUT_NAME "libia2_bootstrap_shim"
+    VERSION 1.0
+    POSITION_INDEPENDENT_CODE ON
+  )
+endif()
 
 if (LIBIA2_AARCH64)
     set(SYSROOT_BIN_DIR ${CMAKE_BINARY_DIR}/external/glibc/sysroot)

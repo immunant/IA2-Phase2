@@ -22,7 +22,11 @@ extern char *__real_dlerror(void);
 extern int __real_dl_iterate_phdr(int (*callback)(struct dl_phdr_info *info, size_t size, void *data), void *data);
 
 
-// Check if a DSO is a system/loader library that should be retagged to pkey 1
+// Check if a DSO is a system/loader library that should be retagged to pkey 1.
+// The prefixes below cover glibc-owned DSOs whose writable regions maintain
+// loader metadata. If glibc adds new loader helpers, extend this allowlist so
+// they continue to land on the loader compartment (see
+// docs/loader_partitionalloc_walkthrough.md).
 // Returns true for ld.so, libc, libpthread, etc. - false for application libraries
 static bool is_loader_dso(const char *dso_name) {
     if (!dso_name || dso_name[0] == '\0') {
@@ -52,7 +56,9 @@ static bool is_loader_dso(const char *dso_name) {
 // Called after successful dlopen/dlmopen to ensure loader-owned memory uses pkey 1
 // Note: Must be called AFTER ia2_loader_gate_exit() to avoid recursion
 static void ia2_retag_loaded_dso(void *handle) {
-    // Skip pseudo-handles - these aren't real DSO handles
+    // Skip pseudo-handles - these aren't real DSO handles. Retagging
+    // RTLD_DEFAULT/RTLD_NEXT would traverse every DSO in the namespace and blow
+    // away explicit compartment assignments the runtime already set up.
     if (!handle || handle == RTLD_DEFAULT || handle == RTLD_NEXT) {
         return;
     }

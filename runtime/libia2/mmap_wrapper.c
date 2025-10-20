@@ -109,7 +109,10 @@ void *__wrap_mmap(void *addr, size_t length, int prot, int flags, int fd, off_t 
         return __real_mmap(addr, length, prot, flags, fd, offset);
     }
 
-    // Anonymous mapping in loader gate: create mapping with PROT_NONE first, then retag to pkey 1
+    // Anonymous mapping in loader gate: create mapping with PROT_NONE first,
+    // then retag to pkey 1. We cannot choose a pkey at mmap time, so this
+    // two-step dance prevents exposing loader pages under the caller's pkey
+    // before pkey_mprotect() fixes them.
     void *result = __real_mmap(addr, length, PROT_NONE, flags, fd, offset);
     if (result == MAP_FAILED) {
         return result;
@@ -144,7 +147,9 @@ void *__wrap_mmap64(void *addr, size_t length, int prot, int flags, int fd, off6
         return __real_mmap64(addr, length, prot, flags, fd, offset);
     }
 
-    // Anonymous mapping in loader gate: create mapping with PROT_NONE first, then retag to pkey 1
+    // Anonymous mapping in loader gate: create mapping with PROT_NONE first,
+    // then retag to pkey 1. Same rationale as mmap() -- avoid a window where the
+    // mapping inherits the caller's pkey and bypasses loader isolation.
     void *result = __real_mmap64(addr, length, PROT_NONE, flags, fd, offset);
     if (result == MAP_FAILED) {
         return result;

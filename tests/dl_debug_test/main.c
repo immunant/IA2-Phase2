@@ -2,6 +2,7 @@
 #include <ia2.h>
 #include <ia2_memory_maps.h>
 #include <ia2_loader.h>
+#include <ia2_test_pkey_utils.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -25,41 +26,9 @@ void ia2_main(void) {
     // libfault_plugin.so (compartment 3) is registered dynamically after dlopen
 }
 
-// Parse /proc/self/smaps to find a DSO's writable VMA protection key
-// dso_name_pattern: substring to match in the VMA line (e.g., "ld-linux", "libc.so", etc.)
-static int get_dso_pkey(const char *dso_name_pattern) {
-    FILE *f = fopen("/proc/self/smaps", "r");
-    if (!f) {
-        return -1;
-    }
-
-    char line[512];
-    bool in_target_rw = false;
-    int pkey = -1;
-
-    while (fgets(line, sizeof(line), f)) {
-        // Check if this is a new VMA line (starts with address range)
-        if (line[0] >= '0' && line[0] <= '9') {
-            // Check if it matches our DSO pattern and is writable
-            if (strstr(line, dso_name_pattern) && strstr(line, "rw")) {
-                in_target_rw = true;
-            } else {
-                in_target_rw = false;
-            }
-        } else if (in_target_rw && strncmp(line, "ProtectionKey:", 14) == 0) {
-            // Extract pkey value
-            sscanf(line, "ProtectionKey: %d", &pkey);
-            break;
-        }
-    }
-
-    fclose(f);
-    return pkey;
-}
-
-// Parse /proc/self/smaps to find ld.so's writable VMA protection key
+// Helper to get ld.so's protection key using shared utility
 static int get_ldso_pkey(void) {
-    return get_dso_pkey("ld-linux");
+    return ia2_test_get_dso_pkey("ld-linux");
 }
 
 // Locate the first link_map whose basename contains `needle`. This mirrors the
@@ -295,7 +264,7 @@ Test(dl_debug, loader_file_backed_faults) {
 
     // Verify plugin is on the default pkey (proves fix works - file-backed mappings are no
     // longer forced to the loader's pkey 1)
-    int pkey = get_dso_pkey("libfault_plugin_dlopen.so");
+    int pkey = ia2_test_get_dso_pkey("libfault_plugin_dlopen.so");
     cr_assert(pkey == 0);
 
     // The call-gate wrapper exists, but it's sufficient for the regression check to
@@ -591,7 +560,7 @@ Test(dl_debug, loader_auto_retag) {
     cr_assert(ldso_pkey == 1);
 
     // Verify libc is on pkey 1 (system library)
-    int libc_pkey = get_dso_pkey("libc.so");
+    int libc_pkey = ia2_test_get_dso_pkey("libc.so");
     cr_log_info("Main: libc.so protection key: %d", libc_pkey);
     cr_assert(libc_pkey == 1);
 
@@ -599,7 +568,7 @@ Test(dl_debug, loader_auto_retag) {
     // It should be automatically retagged to pkey 1
     void *libm_handle = dlopen("libm.so.6", RTLD_NOW | RTLD_GLOBAL);
     if (libm_handle) {
-        int libm_pkey = get_dso_pkey("libm.so");
+        int libm_pkey = ia2_test_get_dso_pkey("libm.so");
         cr_log_info("Main: libm.so protection key after dlopen: %d", libm_pkey);
         cr_assert(libm_pkey == 1);  // Should be retagged to pkey 1
         dlclose(libm_handle);
@@ -607,7 +576,7 @@ Test(dl_debug, loader_auto_retag) {
 
     // Test 2: Verify application library (libdl_debug_test_lib.so) is on pkey 2
     // This library was loaded at startup and should preserve its original compartment
-    int app_pkey = get_dso_pkey("libdl_debug_test_lib.so");
+    int app_pkey = ia2_test_get_dso_pkey("libdl_debug_test_lib.so");
     cr_log_info("Main: libdl_debug_test_lib.so protection key: %d", app_pkey);
     cr_assert(app_pkey == 2);  // Must be 2, proving it wasn't retagged
 
@@ -627,7 +596,7 @@ Test(dl_debug, loader_allowlist_respects_registration) {
     cr_assert(pthread_map != NULL);
 
     // Step 3: Verify it starts on pkey 1 (system library)
-    int original_pkey = get_dso_pkey("libpthread");
+    int original_pkey = ia2_test_get_dso_pkey("libpthread");
     cr_assert(original_pkey == 1);
 
     // Step 4: Register libpthread as belonging to compartment 2
@@ -635,7 +604,7 @@ Test(dl_debug, loader_allowlist_respects_registration) {
 
     // Step 5: Manually retag libpthread to compartment 2
     ia2_tag_link_map(pthread_map, 2);
-    cr_assert(get_dso_pkey("libpthread") == 2);
+    cr_assert(ia2_test_get_dso_pkey("libpthread") == 2);
 
     // Step 6: Call dlopen again (with RTLD_NOLOAD since already loaded)
     // This triggers the loader's allowlist logic
@@ -645,7 +614,7 @@ Test(dl_debug, loader_allowlist_respects_registration) {
     cr_assert(handle != NULL);
 
     // Step 7: Check if libpthread stayed on pkey 2
-    int pthread_after = get_dso_pkey("libpthread");
+    int pthread_after = ia2_test_get_dso_pkey("libpthread");
 
     // Step 8: Cleanup - restore libpthread to pkey 1 to avoid leaking state
     ia2_tag_link_map(pthread_map, 1);
@@ -655,7 +624,7 @@ Test(dl_debug, loader_allowlist_respects_registration) {
     dlclose(initial_handle);
 
     // Step 9: Verify libc is still on pkey 1 (sanity check)
-    int libc_pkey = get_dso_pkey("libc.so");
+    int libc_pkey = ia2_test_get_dso_pkey("libc.so");
     cr_assert(libc_pkey == 1);
 
     // Step 10: Assert that libpthread stayed on pkey 2

@@ -12,21 +12,26 @@ extern "C" {
 // Loader compartment (currently shares compartment 1 with main/exit)
 static const int ia2_loader_compartment = 1;
 
-// Thread-local flag indicating we're inside a loader gate
+// Thread-local flag indicating we're inside a loader gate. PartitionAlloc and
+// the mmap wrappers read this flag (see docs/loader_partitionalloc_walkthrough.md
+// §3.2) because the loader still shares pkey 1 with main, so hardware PKRU
+// alone cannot reveal loader context.
 #ifdef __cplusplus
 extern thread_local bool ia2_in_loader_gate;
 #else
 extern _Thread_local bool ia2_in_loader_gate;
 #endif
 
-// Counter of allocations served by loader PartitionAlloc path
+// Counter of allocations served by loader PartitionAlloc path, exported so the
+// allocator shim can prove loader traffic used the dedicated heap.
 #ifdef __cplusplus
 extern std::atomic<unsigned long> ia2_loader_alloc_count;
 #else
 extern _Atomic unsigned long ia2_loader_alloc_count;
 #endif
 
-// Counter of mmap calls tagged with pkey 1 during loader operations
+// Counter of mmap calls tagged with pkey 1 during loader operations; mmap
+// wrappers increment this to aid tests that verify loader retagging.
 #ifdef __cplusplus
 extern std::atomic<unsigned long> ia2_loader_mmap_count;
 #else

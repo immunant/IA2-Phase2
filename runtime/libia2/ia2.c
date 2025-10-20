@@ -9,6 +9,14 @@
 #include "ia2_internal.h"
 #include "memory_maps.h"
 
+// Extract basename from path using strrchr instead of libgen.h basename()
+// This avoids thread safety issues and input modification behavior of basename()
+static inline const char *ia2_basename(const char *path) {
+  if (!path) return NULL;
+  const char *slash = strrchr(path, '/');
+  return slash ? slash + 1 : path;
+}
+
 void **ia2_stackptr_for_compartment(int compartment) {
 #if defined(__x86_64__)
   return ia2_stackptr_for_tag(PKRU(compartment));
@@ -251,7 +259,7 @@ static bool in_extra_libraries(struct dl_phdr_info *info, const char *extra_libr
   if (!extra_libraries) {
     return false;
   }
-  char *library_name = basename(info->dlpi_name);
+  const char *library_name = ia2_basename(info->dlpi_name);
   size_t library_name_len = strlen(library_name);
   if (library_name_len == 0) {
     return false;
@@ -345,7 +353,7 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
     uint64_t end = start_round_down + len_round_up;
 
     if (len_round_up == 0) {
-      const char *libname = basename(info->dlpi_name);
+      const char *libname = ia2_basename(info->dlpi_name);
       // dlpi_name is "" for the main executable.
       if (libname && libname[0] == '\0') {
         libname = "main";
@@ -433,7 +441,7 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
   // targets pkey 1 we keep them in the protection flow even if the search
   // address misses their LOAD segments; other compartments still ignore them
   // unless they were explicitly listed as shared extras.
-  const char *libname = basename(info->dlpi_name);
+  const char *libname = ia2_basename(info->dlpi_name);
   bool is_ldso = !strcmp(libname, "ld-linux-x86-64.so.2") ||
                   !strcmp(libname, "ld-linux-aarch64.so.1");
   bool is_libc = strstr(libname, "libc.so") != NULL;
@@ -458,7 +466,7 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
   }
 #endif
 
-  ia2_log("protecting library: %s\n", basename(info->dlpi_name));
+  ia2_log("protecting library: %s\n", ia2_basename(info->dlpi_name));
 
   struct AddressRange shared_ranges[NUM_SHARED_RANGES] = {0};
   size_t shared_range_count = 0;
@@ -612,7 +620,7 @@ static int ia2_tag_link_map_callback(struct dl_phdr_info *info, size_t size, voi
     return 0;  // Continue searching
   }
 
-  const char *name = info->dlpi_name[0] ? basename(info->dlpi_name) : "(main)";
+  const char *name = info->dlpi_name[0] ? ia2_basename(info->dlpi_name) : "(main)";
   ia2_log("Retagging DSO %s (base 0x%lx) to pkey %d\n", name, info->dlpi_addr, args->pkey);
 
   // Walk program headers and retag writable PT_LOAD segments

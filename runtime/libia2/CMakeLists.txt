@@ -47,7 +47,10 @@ target_link_options(libia2
         "-Wl,--wrap=free" # Because we use `__real_free` in `memory_maps.c`.
         $<$<BOOL:${IA2_LIBC_COMPARTMENT}>:-Wl,--wrap=__cxa_finalize>
 
-        # Loader entry point wrappers (complete libdl surface)
+        # Loader entry point wrappers: interpose every libdl entry (user-facing
+        # and glibc __libc_* aliases) so the loader gate runs and keeps
+        # allocations on pkey 1; see docs/loader_partitionalloc_walkthrough.md
+        # for the threat model.
         "-Wl,--wrap=dlopen"
         "-Wl,--wrap=dlmopen"
         "-Wl,--wrap=dlsym"

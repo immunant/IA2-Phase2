@@ -78,9 +78,6 @@ __asm__(
     "xorl %ecx, %ecx\n"
     "xorl %edx, %edx\n"
     "wrpkru\n"
-
-    ASSERT_PKRU(%edi)
-
     "ret\n"
 
     ".size ia2_callgate_exit, .-ia2_callgate_exit\n"

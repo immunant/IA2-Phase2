@@ -5,6 +5,7 @@
 #include "ia2_internal.h"
 #include "memory_maps.h"
 #include "thread_name.h"
+#include "ia2_loader.h"
 
 #include <ctype.h>
 #include <dlfcn.h>
@@ -390,6 +391,12 @@ int ia2_lookup_registered_compartment(const char *dso_name) {
  */
 void ia2_start(void) {
   ia2_log("initializing ia2 runtime\n");
+
+#if defined(IA2_USE_PKRU_GATES) && defined(IA2_DEBUG)
+  // Assert PKRU gates are inactive during bootstrap to catch premature activation
+  assert(!ia2_pkru_gates_active && "PKRU gates must be inactive during initialization");
+#endif
+
   /* Get the user config before doing anything else */
   ia2_main();
   ia2_setup_destructors();
@@ -413,5 +420,20 @@ void ia2_start(void) {
       exit(rc);
     }
   }
+
+#ifdef IA2_USE_PKRU_GATES
+  // Activate PKRU gates now that initialization is complete
+  // Memory is fully tagged and stacks are allocated, so PKRU switching is safe
+#ifdef IA2_DEBUG
+  uint32_t pkru_before = ia2_read_pkru();
+  ia2_log("Activating PKRU gates (PKRU before: 0x%x)\n", pkru_before);
+#endif
+  ia2_pkru_gates_active = true;
+#ifdef IA2_DEBUG
+  uint32_t pkru_after = ia2_read_pkru();
+  ia2_log("PKRU gates active (PKRU after: 0x%x)\n", pkru_after);
+#endif
+#endif
+
   mark_init_finished();
 }

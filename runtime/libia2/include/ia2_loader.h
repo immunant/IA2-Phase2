@@ -67,6 +67,34 @@ extern _Atomic unsigned long ia2_dl_iterate_phdr_count;
 // Internal callback counters (for glibc→ld.so paths)
 unsigned long ia2_get_dl_catch_exception_count(void);
 unsigned long ia2_get_dl_catch_error_count(void);
+
+// Per-wrapper telemetry accessors (for bootstrap shim coverage testing)
+unsigned long ia2_get_dlopen_count(void);
+unsigned long ia2_get_dlmopen_count(void);
+unsigned long ia2_get_dlclose_count(void);
+unsigned long ia2_get_dlsym_count(void);
+unsigned long ia2_get_dlvsym_count(void);
+unsigned long ia2_get_dladdr_count(void);
+unsigned long ia2_get_dladdr1_count(void);
+unsigned long ia2_get_dlinfo_count(void);
+unsigned long ia2_get_dlerror_count(void);
+unsigned long ia2_get_dl_iterate_phdr_count(void);
+
+// Debug accessors for gate depth (used in testing)
+unsigned int ia2_get_loader_gate_depth(void);
+
+#ifdef IA2_USE_PKRU_GATES
+// Debug accessors for PKRU-based gates
+unsigned int ia2_get_pkru_gate_depth(void);
+unsigned long ia2_get_pkru_gate_switch_count(void);
+#ifdef __cplusplus
+uint32_t ia2_get_current_pkru(void);
+#else
+#include <stdint.h>
+uint32_t ia2_get_current_pkru(void);
+#endif
+#endif // IA2_USE_PKRU_GATES
+
 #endif // IA2_DEBUG
 
 // Enter loader gate (future: swap PKRU to allow loader access)
@@ -74,6 +102,27 @@ void ia2_loader_gate_enter(void);
 
 // Exit loader gate (future: restore PKRU)
 void ia2_loader_gate_exit(void);
+
+// Telemetry accessors (always available)
+unsigned long ia2_get_loader_alloc_count(void);
+unsigned long ia2_get_loader_mmap_count(void);
+
+#ifdef IA2_USE_PKRU_GATES
+// Global flag: when true, PKRU gates will actively switch PKRU
+// Should be set to true after initialization completes
+#ifdef __cplusplus
+extern std::atomic<bool> ia2_pkru_gates_active;
+#else
+extern _Atomic bool ia2_pkru_gates_active;
+#endif
+
+// Global counter: tracks PKRU gate switches for observability
+#ifdef __cplusplus
+extern std::atomic<unsigned long> ia2_pkru_gate_switch_count;
+#else
+extern _Atomic unsigned long ia2_pkru_gate_switch_count;
+#endif
+#endif // IA2_USE_PKRU_GATES
 
 #if 0
 // DEPRECATED: Patch _rtld_global_ro to intercept internal glibc→ld.so calls

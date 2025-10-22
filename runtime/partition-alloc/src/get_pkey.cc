@@ -16,7 +16,6 @@ ia2_get_pkru() {
   return pkru;
 }
 
-#ifdef IA2_USE_PKRU_GATES
 __attribute__((__visibility__("hidden")))
 size_t
 ia2_get_pkey() {
@@ -85,58 +84,6 @@ ia2_get_pkey() {
   }
   return pkey;
 }
-#else
-__attribute__((__visibility__("hidden")))
-size_t
-ia2_get_pkey() {
-  if (ia2_in_loader_gate) {
-    ia2_loader_alloc_count.fetch_add(1, std::memory_order_relaxed);
-    return 1;
-  }
-
-  uint32_t pkru;
-  __asm__("rdpkru"
-          : "=a"(pkru)
-          : "a"(0), "d"(0), "c"(0));
-
-  switch (pkru) {
-  case 0xFFFFFFFC:
-    return 0;
-  case 0xFFFFFFF0:
-    return 1;
-  case 0xFFFFFFCC:
-    return 2;
-  case 0xFFFFFF3C:
-    return 3;
-  case 0xFFFFFCFC:
-    return 4;
-  case 0xFFFFF3FC:
-    return 5;
-  case 0xFFFFCFFC:
-    return 6;
-  case 0xFFFF3FFC:
-    return 7;
-  case 0xFFFCFFFC:
-    return 8;
-  case 0xFFF3FFFC:
-    return 9;
-  case 0xFFCFFFFC:
-    return 10;
-  case 0xFF3FFFFC:
-    return 11;
-  case 0xFCFFFFFC:
-    return 12;
-  case 0xF3FFFFFC:
-    return 13;
-  case 0xCFFFFFFC:
-    return 14;
-  case 0x3FFFFFFC:
-    return 15;
-  default:
-    return 0;
-  }
-}
-#endif
 #endif
 
 #ifdef __aarch64__

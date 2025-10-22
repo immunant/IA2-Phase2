@@ -421,7 +421,6 @@ void ia2_start(void) {
     }
   }
 
-#ifdef IA2_USE_PKRU_GATES
   // Activate PKRU gates now that initialization is complete
   // Memory is fully tagged and stacks are allocated, so PKRU switching is safe
 #ifdef IA2_DEBUG
@@ -432,7 +431,6 @@ void ia2_start(void) {
 #ifdef IA2_DEBUG
   uint32_t pkru_after = ia2_read_pkru();
   ia2_log("PKRU gates active (PKRU after: 0x%x)\n", pkru_after);
-#endif
 #endif
 
   mark_init_finished();

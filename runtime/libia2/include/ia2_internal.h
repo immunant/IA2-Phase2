@@ -225,7 +225,6 @@ asm(".macro movz_shifted_tag_x18 tag\n"
         :                                                                      \
         :                                                                      \
         : "rax", "rcx", "rdx");                                                \
-    IA2_INVALIDATE_PKRU_CACHE();                                               \
                                                                                \
     register void *stack asm("rax") = allocate_stack(i);                       \
                                                                                \
@@ -370,7 +369,6 @@ __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
         :                                                                      \
         :                                                                      \
         : "rax", "rcx", "rdx");                                                \
-    IA2_INVALIDATE_PKRU_CACHE();                                               \
     goto done;                                                                 \
 
 #define COMPARTMENT_SAVE_AND_RESTORE(body, max)                                \
@@ -455,13 +453,6 @@ void **ia2_stackptr_for_tag(size_t tag);
 void **ia2_stackptr_for_compartment(int compartment);
 void ia2_setup_destructors(void);
 
-// Forward declaration for PKRU cache invalidation (defined in partition-alloc)
-#ifdef IA2_USE_PKRU_GATES
-void ia2_invalidate_pkru_cache(void);
-#define IA2_INVALIDATE_PKRU_CACHE() ia2_invalidate_pkru_cache()
-#else
-#define IA2_INVALIDATE_PKRU_CACHE() ((void)0)
-#endif
 
 // Shared PKRU read/write helpers
 static inline uint32_t ia2_read_pkru(void) {
@@ -477,10 +468,6 @@ static inline uint32_t ia2_read_pkru(void) {
 static inline void ia2_write_pkru(uint32_t pkru) {
 #if defined(__x86_64__)
   __asm__ volatile("wrpkru" : : "a"(pkru), "c"(0), "d"(0) : "memory");
-#ifdef IA2_USE_PKRU_GATES
-  // Invalidate allocator cache after every PKRU write
-  ia2_invalidate_pkru_cache();
-#endif
 #else
   (void)pkru;
 #endif

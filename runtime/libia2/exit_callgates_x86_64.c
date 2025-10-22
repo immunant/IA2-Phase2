@@ -78,6 +78,19 @@ __asm__(
     "xorl %ecx, %ecx\n"
     "xorl %edx, %edx\n"
     "wrpkru\n"
+#ifdef IA2_DEBUG
+    "movq %rcx, %r10\n"
+    "movq %rdx, %r11\n"
+    "xorl %ecx, %ecx\n"
+    "rdpkru\n"
+    "cmpl %edi, %eax\n"
+    "je 4f\n"
+    "ud2\n"
+"4:\n"
+    "movq %r11, %rdx\n"
+    "movq %r10, %rcx\n"
+#endif
+
     "ret\n"
 
     ".size ia2_callgate_exit, .-ia2_callgate_exit\n"

@@ -36,8 +36,6 @@ if(IA2_DEBUG_MEMORY)
     target_compile_definitions(libia2 PRIVATE IA2_DEBUG_MEMORY=1)
 endif()
 
-# PKRU gates are now unconditionally enabled for loader compartmentalization
-target_compile_definitions(libia2 PUBLIC IA2_USE_PKRU_GATES=1)
 
 target_link_options(libia2
     INTERFACE
@@ -110,7 +108,6 @@ target_include_directories(libia2_bootstrap_shim PRIVATE
 target_compile_definitions(libia2_bootstrap_shim PRIVATE
   _GNU_SOURCE
   IA2_ENABLE=1
-  IA2_USE_PKRU_GATES=1
 )
 
 # Export GLIBC_PRIVATE symbols with versioning

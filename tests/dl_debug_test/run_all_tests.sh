@@ -151,8 +151,8 @@
 #   → Solution: cd build && ninja dl_debug_test
 #
 # Bootstrap shim not found:
-#   → Not built (requires IA2_USE_PKRU_GATES=ON)
-#   → Solution: cmake -GNinja -DIA2_USE_PKRU_GATES=ON .. && ninja libia2_bootstrap_shim
+#   → Not built yet (should be auto-built by this script)
+#   → Solution: cd build && ninja libia2_bootstrap_shim
 #
 # Debug tests skipped:
 #   → Not built (requires IA2_DEBUG=ON)
@@ -538,7 +538,7 @@ if [ $SHIM_ONLY -eq 0 ] || [ $SKIP_SHIM -eq 0 ]; then
         echo
         echo -e "${YELLOW}ℹ Bootstrap shim not found - skipping Stage 3 tests${NC}"
         echo "  Location checked: $BOOTSTRAP_SHIM"
-        echo "  To enable: cmake -GNinja -DIA2_USE_PKRU_GATES=ON .. && ninja libia2_bootstrap_shim"
+        echo "  To enable: cd build && ninja libia2_bootstrap_shim"
         echo
         SKIPPED_TESTS=$((SKIPPED_TESTS + 4))
     fi

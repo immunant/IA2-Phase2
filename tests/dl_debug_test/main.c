@@ -672,7 +672,6 @@ Test(dl_debug, nested_loader_gates) {
     unsigned int initial_depth = ia2_get_loader_gate_depth();
     cr_assert(initial_depth == 0);
 
-#ifdef IA2_USE_PKRU_GATES
     // Save initial PKRU (should be compartment 1's PKRU: 0xfffffff0)
     uint32_t initial_pkru = ia2_get_current_pkru();
 
@@ -682,14 +681,12 @@ Test(dl_debug, nested_loader_gates) {
     // PKRU depth should start at 0
     unsigned int initial_pkru_depth = ia2_get_pkru_gate_depth();
     cr_assert(initial_pkru_depth == 0);
-#endif
 
     // Enter first gate
     ia2_loader_gate_enter();
     unsigned int depth1 = ia2_get_loader_gate_depth();
     cr_assert(depth1 == 1);
 
-#ifdef IA2_USE_PKRU_GATES
     // PKRU depth should increment to 1
     unsigned int pkru_depth1 = ia2_get_pkru_gate_depth();
     cr_assert(pkru_depth1 == 1);
@@ -697,14 +694,12 @@ Test(dl_debug, nested_loader_gates) {
     // PKRU should be loader PKRU (0xfffffff0 = allow pkeys 0 and 1)
     uint32_t pkru1 = ia2_get_current_pkru();
     cr_assert(pkru1 == 0xfffffff0);
-#endif
 
     // Enter second gate (nested)
     ia2_loader_gate_enter();
     unsigned int depth2 = ia2_get_loader_gate_depth();
     cr_assert(depth2 == 2);
 
-#ifdef IA2_USE_PKRU_GATES
     // PKRU depth should increment to 2
     unsigned int pkru_depth2 = ia2_get_pkru_gate_depth();
     cr_assert(pkru_depth2 == 2);
@@ -712,14 +707,12 @@ Test(dl_debug, nested_loader_gates) {
     // PKRU should still be loader PKRU
     uint32_t pkru2 = ia2_get_current_pkru();
     cr_assert(pkru2 == 0xfffffff0);
-#endif
 
     // Exit second gate
     ia2_loader_gate_exit();
     unsigned int depth_after_exit1 = ia2_get_loader_gate_depth();
     cr_assert(depth_after_exit1 == 1);
 
-#ifdef IA2_USE_PKRU_GATES
     // PKRU depth should decrement to 1
     unsigned int pkru_depth_after_exit1 = ia2_get_pkru_gate_depth();
     cr_assert(pkru_depth_after_exit1 == 1);
@@ -727,14 +720,12 @@ Test(dl_debug, nested_loader_gates) {
     // PKRU should still be loader PKRU (still inside outer gate)
     uint32_t pkru_after_exit1 = ia2_get_current_pkru();
     cr_assert(pkru_after_exit1 == 0xfffffff0);
-#endif
 
     // Exit first gate - should return to depth 0
     ia2_loader_gate_exit();
     unsigned int final_depth = ia2_get_loader_gate_depth();
     cr_assert(final_depth == 0);
 
-#ifdef IA2_USE_PKRU_GATES
     // PKRU depth should return to 0
     unsigned int final_pkru_depth = ia2_get_pkru_gate_depth();
     cr_assert(final_pkru_depth == 0);
@@ -742,7 +733,6 @@ Test(dl_debug, nested_loader_gates) {
     // PKRU should be restored to initial value
     uint32_t final_pkru = ia2_get_current_pkru();
     cr_assert(final_pkru == initial_pkru);
-#endif
 }
 
 #endif // IA2_DEBUG

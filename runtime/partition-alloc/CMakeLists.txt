@@ -105,10 +105,6 @@ if (LIBIA2_AARCH64)
     )
 endif()
 
-# Propagate IA2_USE_PKRU_GATES define
-if (IA2_USE_PKRU_GATES)
-    target_compile_definitions(partition-alloc_unpadded PRIVATE IA2_USE_PKRU_GATES=1)
-endif()
 
 target_compile_options(partition-alloc_unpadded
 	PRIVATE

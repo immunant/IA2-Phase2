@@ -53,7 +53,7 @@ extern int __wrap_dlclose(void *handle);
 void *__libc_dlopen_mode(const char *filename, int mode) {
     // Forward to our existing dlopen wrapper, which handles:
     // - Loader gate enter/exit
-    // - PKRU switching (when IA2_USE_PKRU_GATES enabled)
+    // - PKRU switching
     // - Telemetry (ia2_dlopen_count++)
     // - Forwarding to __real_dlopen
     return __wrap_dlopen(filename, mode);
@@ -70,7 +70,7 @@ void *__libc_dlopen_mode(const char *filename, int mode) {
 void *__libc_dlsym(void *handle, const char *symbol) {
     // Forward to our existing dlsym wrapper, which handles:
     // - Loader gate enter/exit
-    // - PKRU switching (when IA2_USE_PKRU_GATES enabled)
+    // - PKRU switching
     // - Telemetry (ia2_dlsym_count++)
     // - Forwarding to __real_dlsym
     return __wrap_dlsym(handle, symbol);
@@ -86,7 +86,7 @@ void *__libc_dlsym(void *handle, const char *symbol) {
 int __libc_dlclose(void *handle) {
     // Forward to our existing dlclose wrapper, which handles:
     // - Loader gate enter/exit
-    // - PKRU switching (when IA2_USE_PKRU_GATES enabled)
+    // - PKRU switching
     // - Telemetry (ia2_dlclose_count++)
     // - Forwarding to __real_dlclose
     return __wrap_dlclose(handle);

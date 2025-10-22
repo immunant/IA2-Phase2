@@ -392,7 +392,7 @@ int ia2_lookup_registered_compartment(const char *dso_name) {
 void ia2_start(void) {
   ia2_log("initializing ia2 runtime\n");
 
-#if defined(IA2_USE_PKRU_GATES) && defined(IA2_DEBUG)
+#ifdef IA2_DEBUG
   // Assert PKRU gates are inactive during bootstrap to catch premature activation
   assert(!ia2_pkru_gates_active && "PKRU gates must be inactive during initialization");
 #endif

@@ -94,8 +94,18 @@ __asm__(
 "3:\n"
     "movl %r13d, %eax\n"               // restore PKRU from saved value
     "xorl %ecx, %ecx\n"
-    "xorl %edx, %edx\n"
+   "xorl %edx, %edx\n"
     "wrpkru\n"
+
+#ifdef IA2_DEBUG
+    "movq %rcx, %r10\n"                // save rcx (clobbered by rdpkru)
+    "rdpkru\n"
+    "cmpl %r13d, %eax\n"               // compare requested PKRU vs actual
+    "je 2f\n"
+    "ud2\n"                            // trap if mismatch
+"2:\n"
+    "movq %r10, %rcx\n"                // restore rcx
+#endif
 
     // Restore callee-saved registers and return
     "popq %r15\n"

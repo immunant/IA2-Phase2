@@ -95,9 +95,36 @@ static int is_file_backed_mapping(void *addr) {
     return result;
 }
 
+// Common helper: retag anonymous loader mapping with pkey 1
+// Called after successful mmap/mmap64 of an anonymous region during loader operations
+// Returns MAP_FAILED on pkey_mprotect failure (with mapping cleaned up), otherwise returns result
+static void *ia2_retag_anon_loader_mmap(void *result, size_t length, int prot) {
+    if (result == MAP_FAILED) {
+        return result;
+    }
+
+    // Apply original protections with pkey 1
+    if (pkey_mprotect_syscall(result, length, prot, 1) != 0) {
+        // Failed to set pkey - unmap to avoid leaking wrongly-tagged memory
+        // Save errno before munmap, which may clobber it
+        int saved_errno = errno;
+        munmap(result, length);
+        errno = saved_errno;
+        return MAP_FAILED;
+    }
+
+    // Successfully tagged - increment counter
+    atomic_fetch_add(&ia2_loader_mmap_count, 1);
+    return result;
+}
+
 // Wrapped mmap: tag anonymous mappings with pkey 1 when loader gate is active
 void *__wrap_mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset) {
-    // Fast path: gate not active, use real mmap
+    // Fast path: gate not active, use real mmap.
+    // We cannot rely on PKRU alone here: loader and main share pkey 1 until the
+    // loader moves to its own compartment, so a hardware read would report the
+    // same value for both. The TLS flag keeps the loader-only retagging path
+    // precise even after PKRU gating flips permissions around it.
     if (!ia2_in_loader_gate) {
         return __real_mmap(addr, length, prot, flags, fd, offset);
     }
@@ -114,28 +141,13 @@ void *__wrap_mmap(void *addr, size_t length, int prot, int flags, int fd, off_t 
     // two-step dance prevents exposing loader pages under the caller's pkey
     // before pkey_mprotect() fixes them.
     void *result = __real_mmap(addr, length, PROT_NONE, flags, fd, offset);
-    if (result == MAP_FAILED) {
-        return result;
-    }
-
-    // Apply original protections with pkey 1
-    if (pkey_mprotect_syscall(result, length, prot, 1) != 0) {
-        // Failed to set pkey - unmap to avoid leaking wrongly-tagged memory
-        // Save errno before munmap, which may clobber it
-        int saved_errno = errno;
-        munmap(result, length);
-        errno = saved_errno;
-        return MAP_FAILED;
-    }
-
-    // Successfully tagged - increment counter
-    atomic_fetch_add(&ia2_loader_mmap_count, 1);
-    return result;
+    return ia2_retag_anon_loader_mmap(result, length, prot);
 }
 
-// Wrapped mmap64: same logic as mmap
+// Wrapped mmap64: tag anonymous mappings with pkey 1 when loader gate is active
 void *__wrap_mmap64(void *addr, size_t length, int prot, int flags, int fd, off64_t offset) {
-    // Fast path: gate not active, use real mmap64
+    // Fast path: gate not active, use real mmap64 (see comment in __wrap_mmap
+    // on why we still consult ia2_in_loader_gate despite PKRU gating).
     if (!ia2_in_loader_gate) {
         return __real_mmap64(addr, length, prot, flags, fd, offset);
     }
@@ -151,23 +163,7 @@ void *__wrap_mmap64(void *addr, size_t length, int prot, int flags, int fd, off6
     // then retag to pkey 1. Same rationale as mmap() -- avoid a window where the
     // mapping inherits the caller's pkey and bypasses loader isolation.
     void *result = __real_mmap64(addr, length, PROT_NONE, flags, fd, offset);
-    if (result == MAP_FAILED) {
-        return result;
-    }
-
-    // Apply original protections with pkey 1
-    if (pkey_mprotect_syscall(result, length, prot, 1) != 0) {
-        // Failed to set pkey - unmap to avoid leaking wrongly-tagged memory
-        // Save errno before munmap, which may clobber it
-        int saved_errno = errno;
-        munmap(result, length);
-        errno = saved_errno;
-        return MAP_FAILED;
-    }
-
-    // Successfully tagged - increment counter
-    atomic_fetch_add(&ia2_loader_mmap_count, 1);
-    return result;
+    return ia2_retag_anon_loader_mmap(result, length, prot);
 }
 
 // Wrapped mremap: tag new/expanded regions with pkey 1 when loader gate is active
@@ -181,7 +177,7 @@ void *__wrap_mremap(void *old_address, size_t old_size, size_t new_size, int fla
         va_end(args);
     }
 
-    // Fast path: gate not active
+    // Fast path: gate not active (same rationale as mmap/mmap64).
     if (!ia2_in_loader_gate) {
         if (flags & MREMAP_FIXED) {
             return __real_mremap(old_address, old_size, new_size, flags, new_address);

@@ -78,17 +78,21 @@ __asm__(
     "xorl %ecx, %ecx\n"
     "xorl %edx, %edx\n"
     "wrpkru\n"
+
+    /*
+    Removed ASSERT_PKRU(%edi) because of this error?
+    FAILED: runtime/libia2/CMakeFiles/libia2.dir/exit_callgates_x86_64.c.o
+            /tmp/ccVvafxZ.s: Assembler messages:
+            /tmp/ccVvafxZ.s:82: Error: illegal immediate register operand %edi
+    */
 #ifdef IA2_DEBUG
-    "movq %rcx, %r10\n"
-    "movq %rdx, %r11\n"
-    "xorl %ecx, %ecx\n"
+    "movq %rcx, %r10\n"             // save rcx (clobbered by rdpkru)
     "rdpkru\n"
-    "cmpl %edi, %eax\n"
-    "je 4f\n"
-    "ud2\n"
-"4:\n"
-    "movq %r11, %rdx\n"
-    "movq %r10, %rcx\n"
+    "cmpl %edi, %eax\n"             // compare requested PKRU vs actual
+    "je 2f\n"
+    "ud2\n"                         // trap if mismatch
+"2:\n"
+    "movq %r10, %rcx\n"             // restore rcx
 #endif
 
     "ret\n"

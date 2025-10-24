@@ -94,9 +94,14 @@ __asm__(
 "3:\n"
     "movl %r13d, %eax\n"               // restore PKRU from saved value
     "xorl %ecx, %ecx\n"
-   "xorl %edx, %edx\n"
+    "xorl %edx, %edx\n"
     "wrpkru\n"
 
+    /*
+     * Can't use ASSERT_PKRU here: macro stringifies operand, so passing a
+     * register expands to `cmpl $%r13d, %eax`, which the assembler rejects as
+     * "illegal immediate register operand". Perform the check manually instead.
+     */
 #ifdef IA2_DEBUG
     "movq %rcx, %r10\n"                // save rcx (clobbered by rdpkru)
     "rdpkru\n"

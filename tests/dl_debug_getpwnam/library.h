@@ -4,5 +4,3 @@
 
 int trigger_getpwnam_load(void);
 extern bool ia2_got_pw;
-
-#endif

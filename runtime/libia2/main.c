@@ -42,6 +42,10 @@ __asm__(
     // Call the real main function.
     "call __real_main\n"
     // Restore the old stack pointer before returning.
+    // __libc_start_main owns the frame that called us, so it expects to see the
+    // exact stack pointer it established when __wrap_main returns. We therefore
+    // switch back to the saved kernel-provided stack instead of staying on the
+    // compartment stack.
     "mov main_sp(%rip), %rsp\n"
     // Save return value
     "mov %rax,%r10\n"
@@ -52,6 +56,9 @@ __asm__(
     // "xor %edx,%edx\n"
     // "mov_pkru_eax 0\n"
     // "wrpkru\n"
+    // Leaving PKRU set to compartment 1 is safe because PKRU(1) still permits
+    // access to pkey 0, so the restored stack (tagged with pkey 0) remains
+    // readable and writable during libc teardown.
     // Restore return value
     "mov %r10,%rax\n"
     "popq %rbp\n"

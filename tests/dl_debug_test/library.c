@@ -83,10 +83,6 @@ void probe_loader_isolation(void) {
         return;  // Skip probe
     }
 
-    // Note: We can't use cr_log_info here because that would access stdout,
-    // which is in libc's data on pkey 1 (blocked by this compartment).
-    // The test framework in main will print results.
-
     // Attempt to find _r_debug symbol from ld.so
     struct r_debug *ldso_debug =
         (struct r_debug *)dlvsym(RTLD_DEFAULT, "_r_debug", "GLIBC_2.2.5");

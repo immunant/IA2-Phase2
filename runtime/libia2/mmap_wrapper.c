@@ -1,6 +1,5 @@
 #define _GNU_SOURCE
 #include <sys/mman.h>
-#include <sys/syscall.h>
 #include <unistd.h>
 #include <stdatomic.h>
 #include <stdarg.h>
@@ -15,15 +14,6 @@ extern void *__real_mmap64(void *addr, size_t length, int prot, int flags, int f
 extern void *__real_mremap(void *old_address, size_t old_size, size_t new_size, int flags, ...);
 
 #if defined(__x86_64__)
-
-// pkey_mprotect syscall (not always in libc headers)
-#ifndef SYS_pkey_mprotect
-#define SYS_pkey_mprotect 329
-#endif
-
-static int pkey_mprotect_syscall(void *addr, size_t len, int prot, int pkey) {
-    return syscall(SYS_pkey_mprotect, addr, len, prot, pkey);
-}
 
 // Query actual protection flags for a memory region from /proc/self/maps
 // Returns -1 on error, otherwise returns prot flags (PROT_READ, PROT_WRITE, PROT_EXEC)
@@ -104,7 +94,7 @@ static void *ia2_retag_anon_loader_mmap(void *result, size_t length, int prot) {
     }
 
     // Apply original protections with pkey 1
-    if (pkey_mprotect_syscall(result, length, prot, 1) != 0) {
+    if (pkey_mprotect(result, length, prot, 1) != 0) {
         // Failed to set pkey - unmap to avoid leaking wrongly-tagged memory
         // Save errno before munmap, which may clobber it
         int saved_errno = errno;
@@ -138,7 +128,7 @@ void *__wrap_mmap(void *addr, size_t length, int prot, int flags, int fd, off_t 
 
     // Anonymous mapping in loader gate: create mapping with PROT_NONE first,
     // then retag to pkey 1. We cannot choose a pkey at mmap time, so this
-    // two-step dance prevents exposing loader pages under the caller's pkey
+    // two-step process prevents exposing loader pages under the caller's pkey
     // before pkey_mprotect() fixes them.
     void *result = __real_mmap(addr, length, PROT_NONE, flags, fd, offset);
     return ia2_retag_anon_loader_mmap(result, length, prot);
@@ -220,7 +210,7 @@ void *__wrap_mremap(void *old_address, size_t old_size, size_t new_size, int fla
 
             if (prot >= 0) {
                 // Successfully retrieved protections - retag with correct flags
-                if (pkey_mprotect_syscall(new_portion, growth, prot, 1) == 0) {
+                if (pkey_mprotect(new_portion, growth, prot, 1) == 0) {
                     atomic_fetch_add(&ia2_loader_mmap_count, 1);
                 }
                 // If pkey_mprotect fails, mapping is still valid but untagged

@@ -1,4 +1,5 @@
 #include "ia2.h"
+#include "ia2_internal.h"
 #include "ia2_compartment_ids.h"
 
 #if defined(__x86_64__)
@@ -7,10 +8,6 @@
 // PKRU uses 2 bits per protection key (Access Disable, Write Disable).
 // Result: 0xfffffff0 (pkey 0 and 1 accessible, pkeys 2-15 blocked)
 #define IA2_EXIT_PKRU (~((3U << (2 * IA2_LIBC_COMPARTMENT)) | 3U))
-
-// Stringify helper macros for converting macro values to assembly immediates
-#define STR(x) #x
-#define XSTR(x) STR(x)
 
 __asm__(
     ".text\n"
@@ -42,7 +39,7 @@ __asm__(
     "movl %eax, 0(%rsp)\n"             // save caller PKRU
     "movq %r9, 8(%rsp)\n"              // save caller stack pointer
 
-    "movl $" XSTR(IA2_LIBC_COMPARTMENT) ", %edi\n"
+    "movl $" IA2_STR(IA2_LIBC_COMPARTMENT) ", %edi\n"
     "call ia2_stackptr_for_compartment@PLT\n"
 
     "movq (%rax), %r10\n"              // load exit stack pointer
@@ -59,7 +56,7 @@ __asm__(
 
     "popq %rbp\n"
 
-    "movl $" XSTR(IA2_EXIT_PKRU) ", %r11d\n"
+    "movl $" IA2_STR(IA2_EXIT_PKRU) ", %r11d\n"
     "movl %r11d, %eax\n"
     "xorl %ecx, %ecx\n"
     "xorl %edx, %edx\n"

@@ -14,7 +14,6 @@
 
 __asm__(
     ".text\n"
-    ".p2align 4,,15\n"
     ".globl __wrap___cxa_finalize\n"
     ".type __wrap___cxa_finalize,@function\n"
 "__wrap___cxa_finalize:\n"

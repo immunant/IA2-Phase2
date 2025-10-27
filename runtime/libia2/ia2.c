@@ -656,8 +656,11 @@ static int ia2_tag_link_map_callback(struct dl_phdr_info *info, size_t size, voi
 }
 
 /// Retag all writable PT_LOAD segments of a loaded DSO with the specified pkey.
-/// This is used to enforce compartment 1 ownership of loader/libc segments,
-/// ensuring they remain isolated from other compartments.
+/// `struct link_map` is the glibc loader record for a module; `l_addr` carries
+/// the DSO's load base while `l_name` is empty for the main executable (see the
+/// glibc manual, Dynamic Linker Introspection section 37.2). We match on `l_addr`
+/// and walk program headers so loader/libc segments land in compartment 1 and
+/// stay isolated from application compartments.
 void ia2_tag_link_map(struct link_map *map, int pkey) {
   if (!map) {
     return;

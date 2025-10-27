@@ -15,36 +15,47 @@
 __asm__(
     ".text\n"
     ".p2align 4,,15\n"
-    ".globl ia2_callgate_enter\n"
-    ".type ia2_callgate_enter,@function\n"
-"ia2_callgate_enter:\n"
-    "movq %rsp, %r9\n"               // cache caller stack pointer for cookie
+    ".globl __wrap___cxa_finalize\n"
+    ".type __wrap___cxa_finalize,@function\n"
+"__wrap___cxa_finalize:\n"
+    // Save callee-saved registers
     "pushq %rbp\n"
     "movq %rsp, %rbp\n"
-    "subq $32, %rsp\n"               // reserve cookie storage and keep 16 byte alignment
+    "pushq %rbx\n"
+    "pushq %r12\n"
+    "pushq %r13\n"
+    "pushq %r14\n"
+    "pushq %r15\n"
+    "movq %rdi, %r12\n"                // preserve dso_handle
 
-    "movq (%r9), %rdi\n"             // grab caller return address before PKRU switch
-    "movq %rdi, 16(%rsp)\n"          // stash for later push onto exit stack
+    // Inline ia2_callgate_enter
+    "movq %rsp, %r9\n"                 // cache caller stack pointer for cookie
+    "pushq %rbp\n"
+    "movq %rsp, %rbp\n"
+    "subq $32, %rsp\n"                 // reserve cookie storage and keep 16 byte alignment
+
+    "movq (%r9), %rdi\n"               // grab caller return address before PKRU switch
+    "movq %rdi, 16(%rsp)\n"            // stash for later push onto exit stack
 
     "xorl %ecx, %ecx\n"
     "xorl %edx, %edx\n"
     "rdpkru\n"
-    "movl %eax, 0(%rsp)\n"              // save caller PKRU
-    "movq %r9, 8(%rsp)\n"               // save caller stack pointer
+    "movl %eax, 0(%rsp)\n"             // save caller PKRU
+    "movq %r9, 8(%rsp)\n"              // save caller stack pointer
 
     "movl $" XSTR(IA2_LIBC_COMPARTMENT) ", %edi\n"
     "call ia2_stackptr_for_compartment@PLT\n"
 
-    "movq (%rax), %r10\n"               // load exit stack pointer
+    "movq (%rax), %r10\n"              // load exit stack pointer
     "testq %r10, %r10\n"
     "jne 1f\n"
     "addq $32, %rsp\n"
     "popq %rbp\n"
-    "ud2\n"                             // trap if exit stack uninitialized
+    "ud2\n"                            // trap if exit stack uninitialized
 "1:\n"
-    "movl 0(%rsp), %r8d\n"              // reload saved PKRU
-    "movq 8(%rsp), %r9\n"               // reload saved SP
-    "movq 16(%rsp), %rdi\n"             // reload caller return address
+    "movl 0(%rsp), %r13d\n"            // reload saved PKRU -> r13d
+    "movq 8(%rsp), %r14\n"             // reload saved SP -> r14
+    "movq 16(%rsp), %rdi\n"            // reload caller return address
     "addq $32, %rsp\n"
 
     "popq %rbp\n"
@@ -57,54 +68,43 @@ __asm__(
 
     ASSERT_PKRU(IA2_EXIT_PKRU)
 
-    "movq %r10, %rsp\n"                 // switch to exit stack
-    "pushq %rdi\n"                       // install caller return address on exit stack
-    "movq %r9, %rdx\n"                  // return saved SP
-    "movl %r8d, %eax\n"                 // return saved PKRU
-    "ret\n"
+    "movq %r10, %rsp\n"                // switch to exit stack
+    "pushq %rdi\n"                     // install caller return address on exit stack
 
-    ".size ia2_callgate_enter, .-ia2_callgate_enter\n"
-
-    ".globl ia2_callgate_exit\n"
-    ".type ia2_callgate_exit,@function\n"
-"ia2_callgate_exit:\n"
-    "testq %rsi, %rsi\n"
-    "je 3f\n"
-    "movq %rsi, %rsp\n"
-"3:\n"
-    "movl %edi, %eax\n"
-    "xorl %ecx, %ecx\n"
-    "xorl %edx, %edx\n"
-    "wrpkru\n"
-
-    ASSERT_PKRU(%edi)
-
-    "ret\n"
-
-    ".size ia2_callgate_exit, .-ia2_callgate_exit\n"
-
-    ".globl __wrap___cxa_finalize\n"
-    ".type __wrap___cxa_finalize,@function\n"
-"__wrap___cxa_finalize:\n"
-    "pushq %rbp\n"
-    "movq %rsp, %rbp\n"
-    "pushq %rbx\n"
-    "pushq %r12\n"
-    "pushq %r13\n"
-    "pushq %r14\n"
-    "pushq %r15\n"
-    "movq %rdi, %r12\n"                // preserve dso_handle
-    "call ia2_callgate_enter\n"
-    "movl %eax, %r13d\n"               // saved PKRU
-    "movq %rdx, %r14\n"                // saved SP
+    // Call __real___cxa_finalize with preserved dso_handle
     "movq %r12, %rdi\n"
     "subq $8, %rsp\n"                  // maintain 16-byte alignment
     "call __real___cxa_finalize@PLT\n"
     "addq $8, %rsp\n"
-    "movl %r13d, %edi\n"
-    "movq %r14, %rsi\n"
-    "subq $8, %rsp\n"
-    "call ia2_callgate_exit\n"
+
+    // Inline ia2_callgate_exit
+    "testq %r14, %r14\n"               // check saved SP
+    "je 3f\n"
+    "movq %r14, %rsp\n"                // restore stack pointer
+"3:\n"
+    "movl %r13d, %eax\n"               // restore PKRU from saved value
+    "xorl %ecx, %ecx\n"
+    "xorl %edx, %edx\n"
+    "wrpkru\n"
+
+    /*
+     * ASSERT_PKRU expects an immediate operand (it stringifies the argument
+     * into `cmpl $<imm>, %eax`). Passing a register like %r13d expands to
+     * `cmpl $%r13d, %eax`, which triggers "illegal immediate register operand
+     * %r13d" during assembly. The manual check below saves caller-saved state,
+     * reads PKRU with `rdpkru`, and compares the result against %r13d.
+     */
+#ifdef IA2_DEBUG
+    "movq %rcx, %r10\n"                // save rcx (clobbered by rdpkru)
+    "rdpkru\n"
+    "cmpl %r13d, %eax\n"               // compare requested PKRU vs actual
+    "je 2f\n"
+    "ud2\n"                            // trap if mismatch
+"2:\n"
+    "movq %r10, %rcx\n"                // restore rcx
+#endif
+
+    // Restore callee-saved registers and return
     "popq %r15\n"
     "popq %r14\n"
     "popq %r13\n"

@@ -67,6 +67,11 @@ void ia2_loader_gate_enter(void) {
     // - Block all other pkeys (compartments 2-15)
     // PKRU encoding: 2 bits per pkey, 00 = allow, 11 = deny
     // 0xfffffff0 = ...1111_1111_1111_0000 (allow pkeys 0 and 1, block rest)
+    // We currently share this loader PKRU across threads.
+    // Glibc's loader and the main/libc compartment still run on pkey 1.
+    // Keeping pkeys 0 and 1 enabled maintains loader/libc invariants while
+    // hardware-denying every other compartment until the loader can migrate to
+    // its own pkey.
     ia2_write_pkru(0xfffffff0);
 
     // Increment telemetry

@@ -8,7 +8,6 @@ set(LIBIA2_SOURCES
     main.c
     exit.c
     exit_callgates.c
-    exit_callgates_x86_64.c
     exit_finalize_callgate.c
     memory_maps.c
     thread_name.c

@@ -18,8 +18,8 @@
 
 // PKRU mask for the exit compartment: allow access to pkey 0 and pkey 1 only.
 // PKRU uses 2 bits per protection key (Access Disable, Write Disable).
-// Result: 0xfffffff0 (pkey 0 and 1 accessible, pkeys 2-15 blocked)
-#define IA2_EXIT_PKRU (~((3U << (2 * IA2_LIBC_COMPARTMENT)) | 3U))
+// Result: PKRU(1) == 0xfffffff0 (pkey 0 and 1 accessible, pkeys 2-15 blocked)
+#define IA2_EXIT_PKRU PKRU(IA2_LIBC_COMPARTMENT)
 
 __asm__(
     ".text\n"

@@ -3,6 +3,7 @@
 #endif
 #include "ia2.h"
 #include "ia2_internal.h"
+#include "ia2_path.h"
 #include "memory_maps.h"
 #include "thread_name.h"
 #include "ia2_loader.h"
@@ -268,62 +269,20 @@ struct CompartmentConfig {
  */
 static struct CompartmentConfig user_config[IA2_MAX_COMPARTMENTS] IA2_SHARED_DATA = {0};
 
-// Return a pointer to the basename portion of `path`, or NULL when the input is
-// empty. We intentionally avoid heap allocations so the helper stays safe for
-// early runtime use.
-static const char *strip_directory(const char *path) {
-  if (!path) {
-    return NULL;
-  }
-  const char *slash = strrchr(path, '/');
-  return slash ? slash + 1 : path;
-}
-
-// Returns true when a semicolon-delimited token from the extra-library list
-// identifies the same DSO as `target_base`. Tokens are treated loosely so that
-// manifest entries such as "libpthread.so" match versioned filenames like
-// "libpthread.so.0".
-static bool token_matches_basename(const char *token_start, size_t token_len,
-                                   const char *target_base) {
-  if (!token_start || token_len == 0 || !target_base || target_base[0] == '\0') {
+// Shared relaxed matching: treats version suffixes like ".so.0" or "-debug" as
+// equivalent to the base library name. `candidate` may be a substring that is not
+// null-terminated; it should be trimmed prior to calling this helper.
+static bool ia2_basename_matches_token(const char *candidate, size_t candidate_len,
+                                       const char *target_base) {
+  if (!candidate || candidate_len == 0 || !target_base || target_base[0] == '\0') {
     return false;
   }
 
-  while (token_len > 0 && isspace((unsigned char)token_start[0])) {
-    token_start++;
-    token_len--;
-  }
-  while (token_len > 0 && isspace((unsigned char)token_start[token_len - 1])) {
-    token_len--;
-  }
-  if (token_len == 0) {
+  if (strncmp(candidate, target_base, candidate_len) != 0) {
     return false;
   }
 
-  if (strncmp(token_start, target_base, token_len) != 0) {
-    return false;
-  }
-
-  char next = target_base[token_len];
-  return next == '\0' || next == '.' || next == '-';
-}
-
-// Compare a primary registration entry against the target basename using the
-// same relaxed matching that accepts versioned suffixes.
-static bool name_matches_basename(const char *registered_name,
-                                  const char *target_base) {
-  if (!registered_name || !target_base || registered_name[0] == '\0' || target_base[0] == '\0') {
-    return false;
-  }
-
-  const char *reg_base = strip_directory(registered_name);
-
-  size_t reg_len = strlen(reg_base);
-  if (strncmp(reg_base, target_base, reg_len) != 0) {
-    return false;
-  }
-
-  char next = target_base[reg_len];
+  char next = target_base[candidate_len];
   return next == '\0' || next == '.' || next == '-';
 }
 
@@ -346,7 +305,7 @@ void ia2_register_compartment(const char *dso, int compartment, const char *extr
 // primary `ia2_register_compartment` entry or one of its semicolon-delimited
 // extra libraries). Returns -1 when the runtime has no explicit ownership.
 int ia2_lookup_registered_compartment(const char *dso_name) {
-  const char *target_base = strip_directory(dso_name);
+  const char *target_base = ia2_basename(dso_name);
   if (!target_base || target_base[0] == '\0') {
     return -1;
   }
@@ -357,7 +316,9 @@ int ia2_lookup_registered_compartment(const char *dso_name) {
       continue;
     }
 
-    if (name_matches_basename(config->dso, target_base)) {
+    const char *reg_base = ia2_basename(config->dso);
+    size_t reg_len = reg_base ? strlen(reg_base) : 0;
+    if (ia2_basename_matches_token(reg_base, reg_len, target_base)) {
       return compartment;
     }
 
@@ -373,7 +334,14 @@ int ia2_lookup_registered_compartment(const char *dso_name) {
         cursor++;
       }
       size_t token_len = (size_t)(cursor - token_start);
-      if (token_matches_basename(token_start, token_len, target_base)) {
+      while (token_len > 0 && isspace((unsigned char)token_start[0])) {
+        token_start++;
+        token_len--;
+      }
+      while (token_len > 0 && isspace((unsigned char)token_start[token_len - 1])) {
+        token_len--;
+      }
+      if (ia2_basename_matches_token(token_start, token_len, target_base)) {
         return compartment;
       }
       while (*cursor == ';') {
@@ -391,11 +359,6 @@ int ia2_lookup_registered_compartment(const char *dso_name) {
  */
 void ia2_start(void) {
   ia2_log("initializing ia2 runtime\n");
-
-#ifdef IA2_DEBUG
-  // Assert PKRU gates are inactive during bootstrap to catch premature activation
-  assert(!ia2_pkru_gates_active && "PKRU gates must be inactive during initialization");
-#endif
 
   /* Get the user config before doing anything else */
   ia2_main();

@@ -1,14 +1,12 @@
 #include "ia2.h"
+#include "ia2_compartment_ids.h"
 
 #if defined(__x86_64__)
-
-// Exit compartment is hardcoded to pkey 1 (where libc/ld.so live)
-#define IA2_EXIT_COMPARTMENT_PKEY 1
 
 // PKRU mask for the exit compartment: allow access to pkey 0 and pkey 1 only.
 // PKRU uses 2 bits per protection key (Access Disable, Write Disable).
 // Result: 0xfffffff0 (pkey 0 and 1 accessible, pkeys 2-15 blocked)
-#define IA2_EXIT_PKRU (~((3U << (2 * IA2_EXIT_COMPARTMENT_PKEY)) | 3U))
+#define IA2_EXIT_PKRU (~((3U << (2 * IA2_LIBC_COMPARTMENT)) | 3U))
 
 // Stringify helper macros for converting macro values to assembly immediates
 #define STR(x) #x
@@ -34,7 +32,7 @@ __asm__(
     "movl %eax, 0(%rsp)\n"              // save caller PKRU
     "movq %r9, 8(%rsp)\n"               // save caller stack pointer
 
-    "movl $" XSTR(IA2_EXIT_COMPARTMENT_PKEY) ", %edi\n"
+    "movl $" XSTR(IA2_LIBC_COMPARTMENT) ", %edi\n"
     "call ia2_stackptr_for_compartment@PLT\n"
 
     "movq (%rax), %r10\n"               // load exit stack pointer

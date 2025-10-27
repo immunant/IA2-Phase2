@@ -22,13 +22,16 @@ set_target_properties(ia2-rewriter PROPERTIES
     CXX_STANDARD 20
     CXX_STANDARD_REQUIRED ON)
 
+get_filename_component(IA2_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../.." ABSOLUTE)
+
 target_compile_definitions(ia2-rewriter PRIVATE
     ${CLANG_DEFINITIONS}
     ${LLVM_DEFINITIONS})
 
 target_include_directories(ia2-rewriter PRIVATE
     ${CLANG_INCLUDE_DIRS}
-    ${LLVM_INCLUDE_DIRS})
+    ${LLVM_INCLUDE_DIRS}
+    ${IA2_ROOT}/runtime/libia2/include)
 
 target_compile_options(ia2-rewriter PRIVATE "-Wunused")
 target_link_libraries(ia2-rewriter PRIVATE

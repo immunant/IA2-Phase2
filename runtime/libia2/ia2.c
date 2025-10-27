@@ -449,7 +449,7 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
   }
 
   if (syslib) {
-    printf("IA2: Protecting system library %s in compartment 1\n", libname);
+    ia2_log("IA2: Protecting system library %s in compartment 1\n", libname);
   }
 
   ia2_log("protecting library: %s\n", basename(info->dlpi_name));

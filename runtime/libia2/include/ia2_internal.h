@@ -25,6 +25,8 @@ struct dl_phdr_info;
 #include <sys/mman.h>
 #include <unistd.h>
 
+#include "ia2_compartment_ids.h"
+
 #if __cplusplus
 #define IA2_EXTERN_C extern "C"
 #else
@@ -103,9 +105,6 @@ struct dl_phdr_info;
 #define PAGE_SIZE 4096
 
 #define STACK_SIZE (4 * 1024 * 1024)
-
-// The exit compartment always uses pkey 1 (the libc/ld.so compartment)
-#define IA2_EXIT_COMPARTMENT_PKEY 1
 
 /* clang-format can't handle inline asm in macros */
 /* clang-format off */

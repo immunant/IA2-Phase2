@@ -2,6 +2,7 @@
 #include "Context.h"
 #include "DetermineAbi.h"
 #include "GenCallAsm.h"
+#include "ia2_compartment_ids.h"
 #include "LdsoRegistry.h"
 #include "TypeOps.h"
 #include "clang/AST/AST.h"
@@ -1711,12 +1712,9 @@ int main(int argc, const char **argv) {
     write_to_file(ld_args_out, caller_pkey, "--wrap="s + fn_name + '\n', ".ld");
   }
 
-  // Exit compartment constant. Must match IA2_EXIT_COMPARTMENT_PKEY in
-  // runtime/libia2/include/ia2_internal.h (duplicated here because the
-  // rewriter doesn't include runtime headers).
-  constexpr int ExitCompartmentPkey = 1;
-
   // Generate destructor wrappers for every compartment.
+  // IA2_LIBC_COMPARTMENT is defined in runtime/libia2/include/ia2_compartment_ids.h
+  // so tooling and runtime agree on the libc compartment index.
   // Each ia2_compartment_destructor_N() does the real teardown, and
   // ia2_compartment_init.inc rewrites DT_FINI/.fini_array to call the matching
   // __wrap_ symbol instead.
@@ -1737,9 +1735,9 @@ int main(int argc, const char **argv) {
     }
     std::string wrapper_name = "__wrap_"s + fn_name;
 
-    const bool is_exit_compartment = compartment_pkey == ExitCompartmentPkey;
+    const bool is_libc_compartment = compartment_pkey == IA2_LIBC_COMPARTMENT;
 
-    if (is_exit_compartment) {
+    if (is_libc_compartment) {
       // __wrap___cxa_finalize already switches into pkey 1, so the exit-compartment
       // destructor runs with the right PKRU/stack. emit_asm_wrapper would assert on
       // caller == target, yet ia2_compartment_init.inc still points both
@@ -1757,10 +1755,10 @@ int main(int argc, const char **argv) {
       trivial << ");\n";
       wrapper_out << trivial.str();
     } else {
-      // Non-exit compartments need full call gates to switch from exit compartment
+      // Non-exit compartments need full call gates to switch from the libc compartment
       std::string asm_wrapper =
           emit_asm_wrapper(ctx, fn_sig, std::nullopt, wrapper_name, fn_name, WrapperKind::Direct,
-                           ExitCompartmentPkey, compartment_pkey, Target, false);
+                           IA2_LIBC_COMPARTMENT, compartment_pkey, Target, false);
       wrapper_out << asm_wrapper;
     }
 

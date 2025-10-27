@@ -28,6 +28,8 @@ extern int __real_dl_iterate_phdr(int (*callback)(struct dl_phdr_info *info, siz
 // they continue to land on the loader compartment.
 // Returns true for ld.so, libc, libpthread, etc. - false for application libraries
 static bool is_loader_dso(const char *dso_name) {
+    // glibc manual (Dynamic Linker Introspection section 37.2): "For the main executable,
+    // l_name is "" (the empty string)." We treat that case as non-loader.
     if (!dso_name || dso_name[0] == '\0') {
         return false;  // Main executable, not a loader DSO
     }
@@ -63,8 +65,7 @@ static void ia2_retag_loaded_dso(void *handle) {
     struct link_map *map = NULL;
 
     // Re-enter gate for dlinfo/dlerror (they access loader internals like link_map chain).
-    // Gate was exited after dlopen to avoid recursion during retagging; depth counter
-    // makes this re-entry safe. Same pattern below for dlerror if dlinfo fails.
+    // Gate was exited after dlopen to avoid recursion during retaggingF
     ia2_loader_gate_enter();
     int dlinfo_result = __real_dlinfo(handle, RTLD_DI_LINKMAP, &map);
     ia2_loader_gate_exit();
@@ -115,9 +116,10 @@ static void ia2_retag_loaded_dso(void *handle) {
 //   been dropped yet.
 // - Constructors observe ia2_in_loader_gate = true and the active PKRU, so their
 //   allocations route to pkey 1 via ia2_get_pkey()
-// - The IA2 rewriter now emits a priority-101 constructor that exits the gate
-//   before most IA2-instrumented constructors run, but third-party DSOs (or
-//   IA2 modules with constructors <101) can still execute while the gate is active
+// - The IA2 rewriter emits a priority-101 constructor that exits the gate
+//   before most IA2-instrumented constructors run (see tools/rewriter/SourceRewriter.cpp
+//   for __ia2_pre_user_constructors), but third-party DSOs (or IA2 modules with
+//   constructors <101) can still execute while the gate is active
 // - Those constructors can therefore read or write loader-protected memory until
 //   we find a hook that toggles the gate prior to user constructors
 void *__wrap_dlopen(const char *filename, int flags) {

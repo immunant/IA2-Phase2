@@ -7,15 +7,8 @@
 
 #include "ia2.h"
 #include "ia2_internal.h"
+#include "ia2_path.h"
 #include "memory_maps.h"
-
-// Extract basename from path using strrchr instead of libgen.h basename()
-// This avoids thread safety issues and input modification behavior of basename()
-static inline const char *ia2_basename(const char *path) {
-  if (!path) return NULL;
-  const char *slash = strrchr(path, '/');
-  return slash ? slash + 1 : path;
-}
 
 void **ia2_stackptr_for_compartment(int compartment) {
 #if defined(__x86_64__)
@@ -598,15 +591,19 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
   return 0;
 }
 
-// Callback data for ia2_tag_link_map_callback
+// Callback data for retag_target_dso_callback
 struct TagLinkMapArgs {
   Elf64_Addr base_addr;  // Base address to match
   int pkey;              // Target pkey to apply
   bool found;            // Set to true when DSO is found and retagged
 };
 
-// dl_iterate_phdr callback for retagging a specific DSO
-static int ia2_tag_link_map_callback(struct dl_phdr_info *info, size_t size, void *data) {
+// dl_iterate_phdr callback for retagging a specific DSO. `dl_iterate_phdr`
+// walks every loaded object in the current namespace and invokes this callback
+// per object. We compare the reported base address (`dlpi_addr`) against the
+// link_map target and, when it matches, retag all writable PT_LOAD segments to
+// the requested protection key.
+static int retag_target_dso_callback(struct dl_phdr_info *info, size_t size, void *data) {
   struct TagLinkMapArgs *args = (struct TagLinkMapArgs *)data;
 
   // Match by base address
@@ -672,7 +669,7 @@ void ia2_tag_link_map(struct link_map *map, int pkey) {
     .found = false
   };
 
-  dl_iterate_phdr(ia2_tag_link_map_callback, &args);
+  dl_iterate_phdr(retag_target_dso_callback, &args);
 
   if (!args.found) {
     printf("ia2_tag_link_map: Failed to find DSO with base address 0x%lx\n", map->l_addr);

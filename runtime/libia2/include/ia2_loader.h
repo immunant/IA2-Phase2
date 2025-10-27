@@ -12,10 +12,14 @@ extern "C" {
 // Loader compartment (currently shares compartment 1 with main/exit)
 static const int ia2_loader_compartment = 1;
 
-// Thread-local flag indicating we're inside a loader gate. PartitionAlloc and
-// the mmap wrappers read this flag (see docs/loader_partitionalloc_walkthrough.md
-// §3.2) because the loader still shares pkey 1 with main, so hardware PKRU
-// alone cannot reveal loader context.
+// Thread-local flag indicating we're inside a loader gate. The mmap/mremap
+// wrappers use it to retag anonymous mappings because the loader and the main
+// compartment both run with pkey 1, so observing PKRU alone cannot reveal
+// whether an mmap comes from loader code. On AArch64 the gate does not retag
+// x18 when it enters, so the allocator shim consults this flag before reading
+// the compartment tag from x18. x86-64 PartitionAlloc now infers loader
+// context directly from PKRU, but we keep this flag for subsystems and
+// architectures where hardware state does not distinguish loader vs. caller.
 #ifdef __cplusplus
 extern thread_local bool ia2_in_loader_gate;
 #else
@@ -118,15 +122,6 @@ extern _Atomic bool ia2_pkru_gates_active;
 extern std::atomic<unsigned long> ia2_pkru_gate_switch_count;
 #else
 extern _Atomic unsigned long ia2_pkru_gate_switch_count;
-#endif
-
-#if 0
-// DEPRECATED: Patch _rtld_global_ro to intercept internal glibc→ld.so calls
-// This approach was attempted but failed due to internal recursion in ld.so
-// (_dl_catch_error calls _dl_catch_exception internally, creating infinite loop)
-// See tests/dl_debug_test/RTLD_GLOBAL_RO_PATCHING_ATTEMPT.md for details
-#include <stdbool.h>
-bool ia2_patch_rtld_global_ro(void);
 #endif
 
 #ifdef __cplusplus

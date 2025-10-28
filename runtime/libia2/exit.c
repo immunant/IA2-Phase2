@@ -34,10 +34,10 @@ __asm__(
     // Load the stack pointer for the shared compartment's stack.
     "mov ia2_stackptr_0@GOTTPOFF(%rip), %r11\n"
     "mov %fs:(%r11), %rsp\n"
-    // Switch pkey to the appropriate compartment.
+    // Switch pkey to the exit/libc compartment (enables pkeys 0 and 1).
     "xor %ecx,%ecx\n"
     "mov %ecx,%edx\n"
-    "mov_pkru_eax 0\n"
+    "mov_pkru_eax 1\n"
     "wrpkru\n"
     // Align the stack before continuing
     "subq $8, %rsp\n"

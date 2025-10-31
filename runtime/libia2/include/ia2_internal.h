@@ -25,7 +25,9 @@ struct dl_phdr_info;
 #include <sys/mman.h>
 #include <unistd.h>
 
+#ifdef IA2_LIBC_COMPARTMENT
 #include "ia2_compartment_ids.h"
+#endif
 
 #if __cplusplus
 #define IA2_EXTERN_C extern "C"
@@ -452,6 +454,7 @@ void **ia2_stackptr_for_tag(size_t tag);
 void **ia2_stackptr_for_compartment(int compartment);
 void ia2_setup_destructors(void);
 
+#ifdef IA2_LIBC_COMPARTMENT
 // Shared PKRU read/write helpers
 static inline uint32_t ia2_read_pkru(void) {
 #if defined(__x86_64__)
@@ -470,3 +473,4 @@ static inline void ia2_write_pkru(uint32_t pkru) {
   (void)pkru;
 #endif
 }
+#endif // IA2_LIBC_COMPARTMENT

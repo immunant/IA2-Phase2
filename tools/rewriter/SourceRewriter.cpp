@@ -2,8 +2,10 @@
 #include "Context.h"
 #include "DetermineAbi.h"
 #include "GenCallAsm.h"
+#ifdef IA2_LIBC_COMPARTMENT
 #include "ia2_compartment_ids.h"
 #include "LdsoRegistry.h"
+#endif
 #include "TypeOps.h"
 #include "clang/AST/AST.h"
 #include "clang/AST/Type.h"
@@ -1560,6 +1562,7 @@ int main(int argc, const char **argv) {
         }
         // Otherwise, let it fall through to existing logic
       }
+#ifdef IA2_LIBC_COMPARTMENT
       // Check if this is an ld.so function that needs a callgate to compartment 1
       if (LdsoFunctionRegistry::is_ldso_function(fn_name) && caller_pkey != 1) {
         // Force create a callgate from this compartment to compartment 1
@@ -1571,6 +1574,7 @@ int main(int argc, const char **argv) {
                       "--wrap="s + fn_name + '\n', ".ld");
         continue; // Skip normal processing
       }
+#endif
 
       if (direct_call_wrappers.contains(fn_name)) {
         // If previous iterations found only one compartment that calls
@@ -1649,6 +1653,7 @@ int main(int argc, const char **argv) {
     }
   }
 
+#ifdef IA2_LIBC_COMPARTMENT
   // Add function signatures for ld.so functions that may not have been parsed from source
   for (const std::string& ldso_fn : LdsoFunctionRegistry::get_ldso_functions()) {
     if (direct_call_wrappers.contains(ldso_fn)) {
@@ -1669,6 +1674,7 @@ int main(int argc, const char **argv) {
       }
     }
   }
+#endif
 
   // At this point direct_call_wrappers has both single-caller and multicaller
   // functions so we just need to generate the callgates
@@ -1735,6 +1741,7 @@ int main(int argc, const char **argv) {
     }
     std::string wrapper_name = "__wrap_"s + fn_name;
 
+#ifdef IA2_LIBC_COMPARTMENT
     const bool is_libc_compartment = compartment_pkey == IA2_LIBC_COMPARTMENT;
 
     if (is_libc_compartment) {
@@ -1761,6 +1768,13 @@ int main(int argc, const char **argv) {
                            IA2_LIBC_COMPARTMENT, compartment_pkey, Target, false);
       wrapper_out << asm_wrapper;
     }
+#else
+    // Original behavior: all destructors get call gates from compartment 0
+    std::string asm_wrapper =
+        emit_asm_wrapper(ctx, fn_sig, std::nullopt, wrapper_name, fn_name,
+                        WrapperKind::Direct, 0, compartment_pkey, Target);
+    wrapper_out << asm_wrapper;
+#endif
 
     write_to_file(ld_args_out, compartment_pkey,
                   "--wrap="s + fn_name + '\n', ".ld");

@@ -1,5 +1,7 @@
 #pragma once
 
+#ifdef IA2_LIBC_COMPARTMENT
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -10,3 +12,5 @@ extern "C" {
 #ifdef __cplusplus
 }
 #endif
+
+#endif // IA2_LIBC_COMPARTMENT

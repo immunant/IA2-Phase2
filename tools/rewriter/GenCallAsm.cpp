@@ -685,21 +685,29 @@ static void emit_copy_args(AsmWriter &aw, const std::vector<ArgLocation> &args,
 
 static void emit_set_pkru(AsmWriter &aw, uint32_t target_pkey, Arch arch, std::optional<uint32_t> union_pkey = std::nullopt) {
   if (arch == Arch::X86) {
+#ifdef IA2_LIBC_COMPARTMENT
     // Change pkru to the compartment's value (or union value for destructors)
     if (union_pkey.has_value()) {
       add_comment_line(aw, "Set PKRU to union value (both exit and target compartments)");
     } else {
+#endif
       add_comment_line(aw, "Set PKRU to the compartment's value");
+#ifdef IA2_LIBC_COMPARTMENT
     }
+#endif
     // wrpkru requires zeroing rcx and rdx, but they may have arguments so use r10
     // and r11 as scratch registers
     add_asm_line(aw, "movq %rcx, %r10");
     add_asm_line(aw, "movq %rdx, %r11");
+#ifdef IA2_LIBC_COMPARTMENT
     if (union_pkey.has_value()) {
       emit_mixed_wrpkru(aw, *union_pkey, target_pkey);
     } else {
+#endif
       emit_wrpkru(aw, target_pkey);
+#ifdef IA2_LIBC_COMPARTMENT
     }
+#endif
     add_asm_line(aw, "movq %r10, %rcx");
     add_asm_line(aw, "movq %r11, %rdx");
   } else if (arch == Arch::Aarch64) {

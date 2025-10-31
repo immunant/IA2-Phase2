@@ -427,6 +427,7 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
 
   Elf64_Addr address = (Elf64_Addr)search_args->address;
   bool extra = in_extra_libraries(info, search_args->extra_libraries);
+#ifdef IA2_LIBC_COMPARTMENT
   // Spot the runtime loader/libc pair so we treat them as in-scope while
   // building compartment 1 (the exit/libc compartment). When the current walk
   // targets pkey 1 we keep them in the protection flow even if the search
@@ -440,6 +441,9 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
   bool syslib = (is_ldso || is_libc) && (search_args->pkey == syslib_pkey);
 
   if (!in_loaded_segment(info, address) && !extra && !syslib) {
+#else
+  if (!in_loaded_segment(info, address) && !extra) {
+#endif
     // Continue iterating to check the next object
     return 0;
   }
@@ -448,9 +452,11 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
     search_args->found_library_count++;
   }
 
+#ifdef IA2_LIBC_COMPARTMENT
   if (syslib) {
     ia2_log("IA2: Protecting system library %s in compartment 1\n", libname);
   }
+#endif
 
   ia2_log("protecting library: %s\n", basename(info->dlpi_name));
 

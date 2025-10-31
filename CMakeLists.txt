@@ -1,6 +1,14 @@
 cmake_minimum_required(VERSION 4.0)
 project(IA2Phase2)
 
+# Feature flags
+option(IA2_LIBC_COMPARTMENT "Enable libc/ld.so compartmentalization and exit callgate support" OFF)
+
+if(IA2_LIBC_COMPARTMENT)
+    message(STATUS "IA2: libc compartmentalization enabled")
+    add_compile_definitions(IA2_LIBC_COMPARTMENT=1)
+endif()
+
 include(ExternalProject)
 include(CTest)
 include(cmake/ia2.cmake)

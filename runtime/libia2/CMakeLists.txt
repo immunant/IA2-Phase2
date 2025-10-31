@@ -7,13 +7,17 @@ set(LIBIA2_SOURCES
     threads.c
     main.c
     exit.c
-    exit_callgates.c
-    exit_finalize_callgate.c
     memory_maps.c
     thread_name.c
     loader_gate.c
     dlopen_wrapper.c
     mmap_wrapper.c)
+
+if(IA2_LIBC_COMPARTMENT)
+    list(APPEND LIBIA2_SOURCES
+        exit_callgates.c
+        exit_finalize_callgate.c)
+endif()
 
 add_library(libia2 ${LIBIA2_SOURCES})
 target_compile_options(libia2 PRIVATE "-fPIC")
@@ -42,7 +46,7 @@ target_link_options(libia2
         "-Wl,--wrap=pthread_create"
         "-Wl,--wrap=main"
         "-Wl,--wrap=free" # Because we use `__real_free` in `memory_maps.c`.
-        "-Wl,--wrap=__cxa_finalize"
+        $<$<BOOL:${IA2_LIBC_COMPARTMENT}>:-Wl,--wrap=__cxa_finalize>
 
         # Loader entry point wrappers: interpose every libdl entry 
         # so the loader gate runs and keeps allocations on pkey 1

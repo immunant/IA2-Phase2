@@ -49,16 +49,19 @@ __asm__(
     "mov main_sp(%rip), %rsp\n"
     // Save return value
     "mov %rax,%r10\n"
-    // NOTE: Removed switch to compartment 0 to allow exit handlers to run
-    // in compartment 1 (where libc lives). This prevents SEGV_PKUERR when
-    // exit() tries to acquire __exit_funcs_lock in libc's .bss section.
-    // "xor %ecx,%ecx\n"
-    // "xor %edx,%edx\n"
-    // "mov_pkru_eax 0\n"
-    // "wrpkru\n"
-    // Leaving PKRU set to compartment 1 is safe because PKRU(1) still permits
-    // access to pkey 0, so the restored stack (tagged with pkey 0) remains
-    // readable and writable during libc teardown.
+#ifndef IA2_LIBC_COMPARTMENT
+    // Switch pkey to untrusted compartment (original behavior)
+    "xor %ecx,%ecx\n"
+    "xor %edx,%edx\n"
+    "mov_pkru_eax 0\n"
+    "wrpkru\n"
+#else
+    // NOTE: Leave PKRU in compartment 1 to allow exit handlers to run
+    // in the libc compartment. This prevents SEGV_PKUERR when exit()
+    // tries to acquire __exit_funcs_lock in libc's .bss section.
+    // PKRU(1) still permits access to pkey 0, so the restored stack
+    // (tagged with pkey 0) remains readable and writable during libc teardown.
+#endif
     // Restore return value
     "mov %r10,%rax\n"
     "popq %rbp\n"

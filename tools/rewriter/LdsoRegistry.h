@@ -1,4 +1,7 @@
 #pragma once
+
+#ifdef IA2_LIBC_COMPARTMENT
+
 #include <set>
 #include <string>
 #include <iostream>
@@ -27,3 +30,5 @@ public:
         return result;
     }
 };
+
+#endif // IA2_LIBC_COMPARTMENT

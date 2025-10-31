@@ -28,10 +28,14 @@ target_compile_definitions(ia2-rewriter PRIVATE
     ${CLANG_DEFINITIONS}
     ${LLVM_DEFINITIONS})
 
+if(IA2_LIBC_COMPARTMENT)
+    target_compile_definitions(ia2-rewriter PRIVATE IA2_LIBC_COMPARTMENT=1)
+endif()
+
 target_include_directories(ia2-rewriter PRIVATE
     ${CLANG_INCLUDE_DIRS}
     ${LLVM_INCLUDE_DIRS}
-    ${IA2_ROOT}/runtime/libia2/include)
+    $<$<BOOL:${IA2_LIBC_COMPARTMENT}>:${IA2_ROOT}/runtime/libia2/include>)
 
 target_compile_options(ia2-rewriter PRIVATE "-Wunused")
 target_link_libraries(ia2-rewriter PRIVATE

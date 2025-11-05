@@ -46,4 +46,5 @@ ExternalProject_Add(tools
         -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
         -DClang_DIR=${Clang_DIR}
         -DLLVM_DIR=${LLVM_DIR}
+        -DIA2_LIBC_COMPARTMENT=${IA2_LIBC_COMPARTMENT}
     INSTALL_COMMAND "")

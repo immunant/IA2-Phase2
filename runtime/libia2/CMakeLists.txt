@@ -19,6 +19,12 @@ if(IA2_LIBC_COMPARTMENT)
         exit_finalize_callgate.c)
 endif()
 
+if(IA2_LIBC_COMPARTMENT)
+    list(APPEND LIBIA2_SOURCES
+        exit_callgates.c
+        exit_finalize_callgate.c)
+endif()
+
 add_library(libia2 ${LIBIA2_SOURCES})
 target_compile_options(libia2 PRIVATE "-fPIC")
 

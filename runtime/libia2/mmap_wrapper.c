@@ -194,7 +194,7 @@ void *__wrap_mremap(void *old_address, size_t old_size, size_t new_size, int fla
         size_t growth = new_size - old_size;
         void *new_portion = (char *)result + old_size;
 
-        // IMPORTANT: Check the NEW mapping location (result), not old_address!
+        // Check the NEW mapping location (result), not old_address
         // When mremap moves the mapping (MREMAP_MAYMOVE/MREMAP_FIXED), old_address
         // no longer exists in /proc/self/maps, so we must probe the live VMA at result.
         int is_file_backed = is_file_backed_mapping(result);

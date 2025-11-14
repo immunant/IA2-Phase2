@@ -1725,10 +1725,16 @@ int main(int argc, const char **argv) {
   // ia2_compartment_init.inc rewrites DT_FINI/.fini_array to call the matching
   // __wrap_ symbol instead.
   // Compartment 1 (the exit slot) already runs on pkey 1 via __wrap___cxa_finalize,
-  // so we keep a one-instruction jmp wrapper to satisfy the header’s symbol
-  // expectations (see ia2_compartment_init.inc:95,167-172) without tripping the
-  // emit_asm_wrapper same-pkey assert. Other compartments still need full call
-  // gates that jump from the exit compartment into their own pkey before cleanup.
+  // therefore its destructor executes with the correct PKRU/stack before we ever
+  // enter this code path. emit_asm_wrapper would assert if we tried to build a
+  // gate from pkey 1 to itself, yet ia2_compartment_init.inc still hard-codes
+  // references to __wrap_ia2_compartment_destructor_1 through both
+  // compartment_destructor_ptr (line 95) and the DT_FINI rewrites (lines 167-172).
+  // To avoid an undefined symbol while honoring those rewrites, we keep the
+  // wrapper alive but implement it as the smallest possible body: a single jmp
+  // back to the real ia2_compartment_destructor_1. All other compartments still
+  // need full call gates that jump from the exit compartment into their own pkeys
+  // before cleanup.
   for (int compartment_pkey = 1; compartment_pkey < num_pkeys; compartment_pkey++) {
     std::string fn_name = "ia2_compartment_destructor_" + std::to_string(compartment_pkey);
     FnSignature fn_sig;

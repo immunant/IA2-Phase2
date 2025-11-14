@@ -23,7 +23,7 @@ function(add_ia2_compartment NAME TYPE)
   # Parse options
   set(options ENABLE_UBSAN)
   set(oneValueArgs PKEY)
-  set(multiValueArgs LIBRARIES SOURCES INCLUDE_DIRECTORIES)
+  set(multiValueArgs LIBRARIES SOURCES INCLUDE_DIRECTORIES EXTRA_REWRITER_ARGS)
   cmake_parse_arguments(ARG "${options}" "${oneValueArgs}"
     "${multiValueArgs}" ${ARGN})
 
@@ -77,7 +77,7 @@ function(add_ia2_compartment NAME TYPE)
 
   if("${TYPE}" STREQUAL "EXECUTABLE")
     # Create and link call gates
-    add_ia2_call_gates(${NAME} LIBRARIES ${ARG_LIBRARIES})
+    add_ia2_call_gates(${NAME} LIBRARIES ${ARG_LIBRARIES} EXTRA_REWRITER_ARGS ${ARG_EXTRA_REWRITER_ARGS})
   endif()
 endfunction()
 

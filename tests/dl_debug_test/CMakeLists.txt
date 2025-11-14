@@ -5,6 +5,7 @@ define_shared_lib(
     SRCS library.c
     NEEDS_LD_WRAP
     PKEY 2
+    EXTRA_REWRITER_ARGS --libc-compartment
 )
 
 # Build the main test
@@ -13,4 +14,5 @@ define_test(
     NEEDS_LD_WRAP
     PKEY 1
     CRITERION_TEST
+    EXTRA_REWRITER_ARGS --libc-compartment
 )

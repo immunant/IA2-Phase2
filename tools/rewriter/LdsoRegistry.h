@@ -1,10 +1,8 @@
 #pragma once
 
-#ifdef IA2_LIBC_COMPARTMENT
-
+#include <iostream>
 #include <set>
 #include <string>
-#include <iostream>
 
 // Registry of ld.so functions that need callgates to compartment 1
 // Starting with just _dl_debug_state for proof of concept
@@ -30,5 +28,3 @@ public:
         return result;
     }
 };
-
-#endif // IA2_LIBC_COMPARTMENT

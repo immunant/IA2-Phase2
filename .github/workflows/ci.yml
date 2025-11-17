@@ -156,6 +156,8 @@ jobs:
           find . -maxdepth 1 -mindepth 1 '!' -path ./containerd '!' -path ./actionarchivecache \
           '!' -path ./runner '!' -path ./runner-cache -exec rm -rf '{}' ';'
           df -h /
+          sudo apt clean
+          df -h /
           cd -
           ./build.sh
           # free up space used by libs; our desired clang binary statically links them

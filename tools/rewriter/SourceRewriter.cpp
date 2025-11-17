@@ -1550,6 +1550,14 @@ int main(int argc, const char **argv) {
         continue;  // Skip functions that aren't actually called
       }
 
+      // When libc compartmenting is disabled we should not try to wrap
+      // system/ld.so functions. In the legacy behavior these stayed in
+      // compartment 0 and never received call gates, so skip them entirely.
+      if (!gLibcCompartmentEnabled &&
+          fn_decl_pass.system_header_fns.contains(fn_name)) {
+        continue;
+      }
+
       // First check if this function has a pkey assigned
       if (!fn_decl_pass.fn_pkeys.contains(fn_name)) {
         if (gLibcCompartmentEnabled) {

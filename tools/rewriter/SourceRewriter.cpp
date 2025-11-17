@@ -1545,17 +1545,14 @@ int main(int argc, const char **argv) {
                         std::inserter(undefined_fns, undefined_fns.begin()));
 
     for (const auto &fn_name : undefined_fns) {
-      // Only process functions that are actually called from this compartment
-      if (!fn_decl_pass.called_fns[caller_pkey].contains(fn_name)) {
-        continue;  // Skip functions that aren't actually called
-      }
-
-      // When libc compartmenting is disabled we should not try to wrap
-      // system/ld.so functions. In the legacy behavior these stayed in
-      // compartment 0 and never received call gates, so skip them entirely.
-      if (!gLibcCompartmentEnabled &&
-          fn_decl_pass.system_header_fns.contains(fn_name)) {
-        continue;
+      bool declared_in_system_header = fn_decl_pass.system_header_fns.contains(fn_name);
+      if (declared_in_system_header) {
+        if (!gLibcCompartmentEnabled) {
+          continue;  // Legacy behavior: ignore system/libc functions entirely.
+        }
+        if (!fn_decl_pass.called_fns[caller_pkey].contains(fn_name)) {
+          continue;  // In libc mode, only wrap system functions we actually call.
+        }
       }
 
       // First check if this function has a pkey assigned

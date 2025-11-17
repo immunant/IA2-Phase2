@@ -1,12 +1,12 @@
 /*
  * Bootstrap Shim: LD_PRELOAD library that intercepts GLIBC_PRIVATE loader calls
  *
- * Background: glibc uses internal GLIBC_PRIVATE symbols (__libc_dlopen_mode,
+ * Context: glibc uses internal GLIBC_PRIVATE symbols (__libc_dlopen_mode,
  * __libc_dlsym, __libc_dlclose) for dynamic loading operations that occur
  * before main() runs (e.g., NSS modules, iconv gconv modules). These bypass
  * our normal dlopen/dlsym/dlclose wrappers that enforce PKRU gates.
  *
- * SOLUTION: This LD_PRELOAD shim intercepts the GLIBC_PRIVATE symbols and
+ * Solution: This LD_PRELOAD shim intercepts the GLIBC_PRIVATE symbols and
  * forwards them through our normal loader gate wrappers, ensuring all loader
  * operations (even pre-main) are subject to compartmentalization.
  *

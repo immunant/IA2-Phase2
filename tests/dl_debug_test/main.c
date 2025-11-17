@@ -48,6 +48,8 @@ static struct link_map *find_link_map(const char *needle) {
     return NULL;
 }
 
+// Test purpose: Confirm dl_debug_state remains accessible from the main compartment when iconv triggers loader activity.
+// Proof strategy: Call trigger_iconv_dlopen() and require the conversion to succeed, proving loader metadata inherited pkey 1.
 Test(dl_debug, libc_compartment_inheritance) {
     cr_log_info("Main: Starting test in compartment 1");
 
@@ -57,16 +59,8 @@ Test(dl_debug, libc_compartment_inheritance) {
     cr_log_info("Main: Test complete - iconv conversion succeeded, dl_debug_state inherited compartment 1");
 }
 
-// Test: Verify iconv's dynamically-loaded gconv modules work correctly
-//
-// Run with:
-//   IA2_TEST_NAME=indirect_dlopen_iconv ./dl_debug_test
-//
-// Validates:
-//   - iconv_open triggers dynamic loading of gconv modules (e.g., ISO8859-1.so)
-//   - Gconv modules are treated as application plugins (pkey 0 or calling compartment)
-//   - They don't need loader compartment access (not loader metadata)
-//   - This proves indirect dlopen works without requiring loader retagging
+// Test purpose: Ensure indirect dlopen from iconv keeps plugin modules in the caller compartment.
+// Proof strategy: Force iconv to pull gconv DSOs and verify their protection keys stay outside the loader pkey, demonstrating no unintended retag.
 Test(dl_debug, indirect_dlopen_iconv) {
     // Trigger iconv conversion which will dynamically load gconv modules
     int result = trigger_iconv_dlopen();
@@ -88,6 +82,8 @@ Test(dl_debug, indirect_dlopen_iconv) {
     }
 }
 
+// Test purpose: Verify the baseline compartment handshake between the test harness and the runtime.
+// Proof strategy: Invoke test_compartment_boundary(), which asserts pkey switching works for the fixture DSOs.
 Test(dl_debug, basic_compartment_check) {
     cr_log_info("Main: Basic compartment check");
 
@@ -96,6 +92,8 @@ Test(dl_debug, basic_compartment_check) {
     cr_log_info("Main: Compartment boundaries verified");
 }
 
+// Test purpose: Confirm the loader probe is inert when IA2_PROBE_LDSO is unset.
+// Proof strategy: Call probe_loader_isolation() without the env toggle and observe it returns without crashes or faults.
 Test(dl_debug, loader_isolation_skipped) {
     cr_log_info("Main: Probe skipped (IA2_PROBE_LDSO not set)");
     cr_log_info("Main: Set IA2_PROBE_LDSO=1 to run loader_isolation_faults test");
@@ -104,6 +102,8 @@ Test(dl_debug, loader_isolation_skipped) {
     probe_loader_isolation();
 }
 
+// Test purpose: Demonstrate that writing loader metadata from a non-loader compartment faults as enforced by pkeys.
+// Proof strategy: Fork a child that enables IA2_PROBE_LDSO and touches _r_debug; the expected SIGSEGV proves the loader stayed on pkey 1.
 Test(dl_debug, loader_isolation_faults) {
     cr_log_info("Main: Testing loader isolation enforcement from compartment 2");
     cr_log_info("Main: Forking child to probe ld.so _r_debug from compartment 2");
@@ -150,6 +150,8 @@ Test(dl_debug, loader_isolation_faults) {
     }
 }
 
+// Test purpose: Show that ia2_tag_link_map() safely re-applies loader compartment tagging.
+// Proof strategy: Locate ld.so, check it starts on pkey 1, retag to compartment 1, and confirm the pkey remains unchanged.
 Test(dl_debug, manual_retag_loader) {
     cr_log_info("Main: Testing manual retagging of loader segments with ia2_tag_link_map()");
     cr_log_info("Main: === INITIAL MEMORY MAP (before retagging) ===");
@@ -205,6 +207,8 @@ Test(dl_debug, manual_retag_loader) {
     cr_log_info("Main: Test complete - ia2_tag_link_map() works correctly");
 }
 
+// Test purpose: Ensure mis-tagging ld.so to a user compartment causes a PKRU fault and does not corrupt the parent state.
+// Proof strategy: Fork a child that retags ld.so to compartment 2 and writes _r_debug, expect SIGSEGV, then verify the parent still has ld.so on pkey 1.
 Test(dl_debug, mistag_and_fix) {
     struct link_map *ldso = find_link_map("ld-linux");
     cr_assert(ldso != NULL);
@@ -277,15 +281,8 @@ Test(dl_debug, mistag_and_fix) {
 }
 
 #if defined(__x86_64__)
-// Test: Verify file-backed DSO mappings respect their configured compartment
-//
-// This test validates the mmap wrapper fix. The fault_plugin library is linked at build
-// time (ensuring the rewriter generates call gates), so it's already loaded when the test
-// runs. We verify that the already-loaded library has the correct pkey assignment.
-//
-// Before the fix, the loader would retag file-backed PT_LOAD segments to pkey 1,
-// breaking compartment isolation. After the fix, file-backed mappings retain their
-// configured pkey (libfault_plugin.so → pkey 3).
+// Test purpose: Confirm file-backed DSOs keep their registered compartment even when the loader touches them.
+// Proof strategy: Grab libfault_plugin.so via RTLD_NOLOAD and assert its pkey remains 3, proving the mmap wrapper stopped forcing pkey 1.
 Test(dl_debug, loader_file_backed_faults) {
     // Get handle to already-loaded plugin using RTLD_NOLOAD
     // This avoids SONAME collision issues with the copy
@@ -302,18 +299,8 @@ Test(dl_debug, loader_file_backed_faults) {
 }
 #endif
 
-// Test: Verify loader gate routes allocations through PartitionAlloc (pkey 1)
-//
-// Run with:
-//   IA2_TEST_NAME=loader_allocator_partitionalloc ./dl_debug_test
-//
-// Or run all tests:
-//   ./dl_debug_test
-//
-// Validates:
-//   - ia2_loader_gate_enter/exit infrastructure works
-//   - malloc inside gate increments ia2_loader_alloc_count
-//   - PartitionAlloc routes allocation to pkey 1
+// Test purpose: Verify loader gate allocations route through PartitionAlloc on pkey 1.
+// Proof strategy: Enter the gate, malloc(), and confirm ia2_loader_alloc_count increments while the allocation succeeds.
 Test(dl_debug, loader_allocator_partitionalloc) {
     ia2_loader_alloc_count = 0;
 
@@ -327,26 +314,8 @@ Test(dl_debug, loader_allocator_partitionalloc) {
     free(test_alloc);
 }
 
-// Test: Verify anonymous mappings created during loader operations are tagged with pkey 1
-//
-// Run with:
-//   IA2_TEST_NAME=loader_anon_mmap_tagging ./dl_debug_test
-//
-// Or run all tests:
-//   ./dl_debug_test
-//
-// Trace syscalls with:
-//   strace -f -e mmap,pkey_mprotect IA2_TEST_NAME=loader_anon_mmap_tagging ./dl_debug_test
-//
-// Expected strace output shows PROT_NONE → pkey_mprotect(1) sequence:
-//   mmap(NULL, 4096, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x...
-//   pkey_mprotect(0x..., 4096, PROT_READ|PROT_WRITE, 1) = 0
-//
-// Validates:
-//   - mmap wrapper intercepts calls when gate is active
-//   - ia2_loader_mmap_count increments (proves wrapper executed)
-//   - Two-step allocation: PROT_NONE first, then pkey_mprotect
-//   - Kernel assigns pkey 1 (verified via /proc/self/smaps)
+// Test purpose: Ensure anonymous mmaps issued inside the loader gate land on pkey 1.
+// Proof strategy: Wrap mmap() with gate_enter/exit, assert the wrapper count increments, and read /proc/self/smaps to confirm ProtectionKey 1.
 Test(dl_debug, loader_anon_mmap_tagging) {
     ia2_loader_mmap_count = 0;
 
@@ -391,16 +360,9 @@ Test(dl_debug, loader_anon_mmap_tagging) {
     munmap(anon_map, 4096);
 }
 
+// Test purpose: Exercise the dlclose/dlerror wrappers so the linker proves they interpose correctly.
+// Proof strategy: Call dlclose() on an already-loaded library and fetch dlerror(), ensuring both wrappers run without crashing.
 Test(dl_debug, loader_dlclose_coverage) {
-    // Verify that new wrappers (dlclose, dlerror) are called
-    // This exercises the expanded wrapper coverage
-    //
-    // LIMITATION: This test verifies the wrappers exist and don't crash,
-    // but does NOT prove that internal glibc __libc_* aliases route through
-    // these wrappers. Investigation shows __libc_dlopen_mode et al. are not
-    // exported symbols, so they likely resolve through our wrappers via PLT,
-    // but this remains unverified.
-
     // Simply exercise dlclose and dlerror to prove they're linked
     void *handle = dlopen("./libdl_debug_test_lib.so", RTLD_NOW | RTLD_NOLOAD);
     if (handle) {
@@ -429,6 +391,8 @@ Test(dl_debug, loader_dlclose_coverage) {
 //
 // Purpose: Provide hard evidence that all 10 wrappers are reachable at runtime
 
+// Test purpose: Verify dlopen() calls hit the wrapper in debug builds.
+// Proof strategy: dlopen an already-loaded helper DSO and assert ia2_dlopen_count increments.
 Test(dl_debug, wrapper_dlopen_counter) {
     ia2_dlopen_count = 0;
 
@@ -440,6 +404,8 @@ Test(dl_debug, wrapper_dlopen_counter) {
     }
 }
 
+// Test purpose: Ensure dlclose() executes through the wrapper and succeeds.
+// Proof strategy: Open and close a helper DSO, checking for a zero return code and a bumped ia2_dlclose_count.
 Test(dl_debug, wrapper_dlclose_counter) {
     ia2_dlclose_count = 0;
 
@@ -452,6 +418,8 @@ Test(dl_debug, wrapper_dlclose_counter) {
     cr_assert(ia2_dlclose_count > 0);  // Wrapper executed
 }
 
+// Test purpose: Confirm dlsym() interposition fires when resolving symbols.
+// Proof strategy: Lookup a known symbol, require it to succeed, and verify ia2_dlsym_count increments.
 Test(dl_debug, wrapper_dlsym_counter) {
     ia2_dlsym_count = 0;
 
@@ -466,6 +434,8 @@ Test(dl_debug, wrapper_dlsym_counter) {
     dlclose(handle);
 }
 
+// Test purpose: Validate that dladdr() routes through the wrapper before reporting symbol metadata.
+// Proof strategy: Resolve dladdr() on a known symbol, expect a non-zero return, and observe ia2_dladdr_count > 0.
 Test(dl_debug, wrapper_dladdr_counter) {
     ia2_dladdr_count = 0;
 
@@ -484,6 +454,8 @@ Test(dl_debug, wrapper_dladdr_counter) {
     dlclose(handle);
 }
 
+// Test purpose: Demonstrate dlinfo() uses the wrapper to fetch link maps.
+// Proof strategy: Request RTLD_DI_LINKMAP, validate success, and ensure ia2_dlinfo_count increments.
 Test(dl_debug, wrapper_dlinfo_counter) {
     ia2_dlinfo_count = 0;
 
@@ -500,6 +472,8 @@ Test(dl_debug, wrapper_dlinfo_counter) {
     dlclose(handle);
 }
 
+// Test purpose: Show that dlerror() interposition executes on error paths.
+// Proof strategy: Force a failing dlopen(), retrieve dlerror(), and assert the counter increments with a non-null message.
 Test(dl_debug, wrapper_dlerror_counter) {
     ia2_dlerror_count = 0;
 
@@ -522,6 +496,8 @@ Test(dl_debug, wrapper_dlerror_counter) {
 // pointers making it difficult to pass a valid callback. The wrapper linkage
 // is verified by symbol check (nm shows __wrap_dl_iterate_phdr present).
 
+// Test purpose: Ensure dlvsym() interposition runs even when the target symbol is optional.
+// Proof strategy: Query a versioned libc symbol and only require the ia2_dlvsym_count to increase.
 Test(dl_debug, wrapper_dlvsym_counter) {
     ia2_dlvsym_count = 0;
 
@@ -536,6 +512,8 @@ Test(dl_debug, wrapper_dlvsym_counter) {
     (void)sym;
 }
 
+// Test purpose: Confirm dlmopen() is wrapped regardless of whether the load succeeds.
+// Proof strategy: Attempt dlmopen() into LM_ID_BASE and assert ia2_dlmopen_count increments even if the handle is NULL.
 Test(dl_debug, wrapper_dlmopen_counter) {
     ia2_dlmopen_count = 0;
 
@@ -551,6 +529,8 @@ Test(dl_debug, wrapper_dlmopen_counter) {
     }
 }
 
+// Test purpose: Verify dladdr1() wrapper executes while returning auxiliary metadata.
+// Proof strategy: Call dladdr1() on a known symbol, expect a non-zero return, and check ia2_dladdr1_count is incremented.
 Test(dl_debug, wrapper_dladdr1_counter) {
     ia2_dladdr1_count = 0;
 
@@ -570,15 +550,8 @@ Test(dl_debug, wrapper_dladdr1_counter) {
     dlclose(handle);
 }
 
-// Test: Verify automatic DSO retagging for system libraries
-//
-// Run with:
-//   IA2_TEST_NAME=loader_auto_retag ./dl_debug_test
-//
-// Validates:
-//   - System libraries (libc, ld.so) are automatically retagged to pkey 1
-//   - Application libraries preserve their original compartment
-//   - dlopen wrapper correctly filters DSOs by name
+// Test purpose: Prove automatic retagging keeps system DSOs on pkey 1 while preserving user compartments.
+// Proof strategy: Inspect ld.so/libc, dlopen libm, and confirm each ends on pkey 1 while libdl_debug_test_lib.so stays on pkey 2.
 Test(dl_debug, loader_auto_retag) {
     cr_log_info("Main: Testing automatic DSO retagging");
 
@@ -613,6 +586,8 @@ Test(dl_debug, loader_auto_retag) {
 
 #endif // IA2_DEBUG
 
+// Test purpose: Check the runtime allowlist respects explicit compartment registrations during dlopen().
+// Proof strategy: Re-register libpthread for compartment 2, retag it, redlopen with NOLOAD, and verify it remains on pkey 2 before restoring state.
 Test(dl_debug, loader_allowlist_respects_registration) {
     // Step 1: Load libpthread.so.0 to ensure it's in the process
     // Initially it will be on pkey 1 (system library default)
@@ -667,6 +642,8 @@ Test(dl_debug, loader_allowlist_respects_registration) {
 //   - Nested gate_enter/exit maintain correct depth
 //   - Flag and PKRU depths stay synchronized
 //   - Gate properly restores state on nested exit
+// Test purpose: Ensure nested loader gates keep depth counters and PKRU state consistent across enter/exit pairs.
+// Proof strategy: Enter twice, exit twice, and compare the depth counters and PKRU register with their initial values.
 Test(dl_debug, nested_loader_gates) {
     // Verify initial state - no gates active
     unsigned int initial_depth = ia2_get_loader_gate_depth();

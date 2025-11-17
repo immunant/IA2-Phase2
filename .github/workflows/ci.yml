@@ -146,19 +146,23 @@ jobs:
           repository: immunant/llvm-project
           ref: fw/tweak-tagging
           path: ${{ github.workspace }}/llvm-project
-      - name: Build Clang
+      - name: Clear space to build Clang
         if: steps.cache-clang.outputs.cache-hit != 'true'
         working-directory: ${{ github.workspace }}/llvm-project
         run: |
-          # first free up space used by unnecessary host tool cache to make room to build clang
+          # free up space used by unnecessary host tool cache to make room to build clang
           df -h /
           cd /opt
           find . -maxdepth 1 -mindepth 1 '!' -path ./containerd '!' -path ./actionarchivecache \
           '!' -path ./runner '!' -path ./runner-cache -exec rm -rf '{}' ';'
           df -h /
+          # free up space used by apt package archives
           sudo apt clean
           df -h /
-          cd -
+      - name: Build Clang
+        if: steps.cache-clang.outputs.cache-hit != 'true'
+        working-directory: ${{ github.workspace }}/llvm-project
+        run: |
           ./build.sh
           # free up space used by libs; our desired clang binary statically links them
           rm -rf build/lib/*.a

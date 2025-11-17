@@ -1552,19 +1552,21 @@ int main(int argc, const char **argv) {
 
       // First check if this function has a pkey assigned
       if (!fn_decl_pass.fn_pkeys.contains(fn_name)) {
-        // Check if this is a variadic system function - don't assign to compartment 1
-        if (fn_decl_pass.variadic_system_fns.contains(fn_name)) {
-          llvm::errs() << "Variadic system function " << fn_name
-                       << " (called from compartment " << caller_pkey
-                       << ") will NOT be assigned to compartment 1\n";
-          // Don't assign a pkey - let it run unprotected
-        }
-        // Check if this is a system header function that should go to compartment 1
-        else if (fn_decl_pass.system_header_fns.contains(fn_name)) {
-          fn_decl_pass.fn_pkeys[fn_name] = 1;  // Assign to compartment 1
-          llvm::errs() << "System library function " << fn_name
-                       << " (called from compartment " << caller_pkey
-                       << ") assigned to compartment 1\n";
+        if (gLibcCompartmentEnabled) {
+          // Check if this is a variadic system function - don't assign to compartment 1
+          if (fn_decl_pass.variadic_system_fns.contains(fn_name)) {
+            llvm::errs() << "Variadic system function " << fn_name
+                         << " (called from compartment " << caller_pkey
+                         << ") will NOT be assigned to compartment 1\n";
+            // Don't assign a pkey - let it run unprotected
+          }
+          // Check if this is a system header function that should go to compartment 1
+          else if (fn_decl_pass.system_header_fns.contains(fn_name)) {
+            fn_decl_pass.fn_pkeys[fn_name] = 1;  // Assign to compartment 1
+            llvm::errs() << "System library function " << fn_name
+                         << " (called from compartment " << caller_pkey
+                         << ") assigned to compartment 1\n";
+          }
         }
         // Otherwise, let it fall through to existing logic
       }

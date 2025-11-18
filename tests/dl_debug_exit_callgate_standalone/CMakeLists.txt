@@ -5,6 +5,7 @@ define_shared_lib(
     SRCS library.c
     NEEDS_LD_WRAP
     PKEY 2
+    EXTRA_REWRITER_ARGS --libc-compartment
 )
 
 # Build the standalone test (no Criterion, just calls exit(0))
@@ -12,4 +13,5 @@ define_test(
     SRCS main.c
     NEEDS_LD_WRAP
     PKEY 1
+    EXTRA_REWRITER_ARGS --libc-compartment
 )

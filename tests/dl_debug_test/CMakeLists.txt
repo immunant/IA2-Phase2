@@ -5,6 +5,7 @@ define_shared_lib(
     SRCS library.c
     NEEDS_LD_WRAP
     PKEY 2
+    EXTRA_REWRITER_ARGS --libc-compartment
 )
 
 define_shared_lib(
@@ -23,6 +24,7 @@ define_test(
     PKEY 1
     CRITERION_TEST
     LIBS dl_debug_test_lib fault_plugin
+    EXTRA_REWRITER_ARGS --libc-compartment
 )
 
 # Produce a dlopen-only copy of the plugin after the padded library is created

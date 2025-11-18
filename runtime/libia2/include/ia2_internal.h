@@ -454,8 +454,9 @@ void **ia2_stackptr_for_tag(size_t tag);
 void **ia2_stackptr_for_compartment(int compartment);
 void ia2_setup_destructors(void);
 
-#ifdef IA2_LIBC_COMPARTMENT
-// Shared PKRU read/write helpers
+// Shared PKRU read/write helpers.
+// These are required even when IA2_LIBC_COMPARTMENT is disabled because the
+// loader gate always references them once PKRU gating is activated.
 static inline uint32_t ia2_read_pkru(void) {
 #if defined(__x86_64__)
   uint32_t pkru;
@@ -473,4 +474,3 @@ static inline void ia2_write_pkru(uint32_t pkru) {
   (void)pkru;
 #endif
 }
-#endif // IA2_LIBC_COMPARTMENT

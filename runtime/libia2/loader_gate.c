@@ -1,3 +1,4 @@
+#include <ia2.h>
 #include <ia2_internal.h>
 #include <ia2_loader.h>
 #include <stdatomic.h>
@@ -20,29 +21,30 @@ _Thread_local unsigned int ia2_pkru_gate_depth = 0;
 
 // Global flag: defer PKRU switching until initialization completes
 // During early initialization, memory isn't tagged yet, so PKRU switching would break
-_Atomic bool ia2_pkru_gates_active = false;
+// Marked as shared data so it's accessible during exit when PKRU restricts compartment access
+_Atomic bool ia2_pkru_gates_active IA2_SHARED_DATA = false;
 
 // Global counter: tracks allocations served via loader PartitionAlloc path
-_Atomic unsigned long ia2_loader_alloc_count = 0;
+_Atomic unsigned long ia2_loader_alloc_count IA2_SHARED_DATA = 0;
 
 // Global counter: tracks mmap calls tagged with pkey 1 during loader operations
-_Atomic unsigned long ia2_loader_mmap_count = 0;
+_Atomic unsigned long ia2_loader_mmap_count IA2_SHARED_DATA = 0;
 
 // Global counter: tracks PKRU gate switches (for observability)
-_Atomic unsigned long ia2_pkru_gate_switch_count = 0;
+_Atomic unsigned long ia2_pkru_gate_switch_count IA2_SHARED_DATA = 0;
 
 #ifdef IA2_DEBUG
 // Per-wrapper telemetry counters (debug builds only)
-_Atomic unsigned long ia2_dlopen_count = 0;
-_Atomic unsigned long ia2_dlmopen_count = 0;
-_Atomic unsigned long ia2_dlclose_count = 0;
-_Atomic unsigned long ia2_dlsym_count = 0;
-_Atomic unsigned long ia2_dlvsym_count = 0;
-_Atomic unsigned long ia2_dladdr_count = 0;
-_Atomic unsigned long ia2_dladdr1_count = 0;
-_Atomic unsigned long ia2_dlinfo_count = 0;
-_Atomic unsigned long ia2_dlerror_count = 0;
-_Atomic unsigned long ia2_dl_iterate_phdr_count = 0;
+_Atomic unsigned long ia2_dlopen_count IA2_SHARED_DATA = 0;
+_Atomic unsigned long ia2_dlmopen_count IA2_SHARED_DATA = 0;
+_Atomic unsigned long ia2_dlclose_count IA2_SHARED_DATA = 0;
+_Atomic unsigned long ia2_dlsym_count IA2_SHARED_DATA = 0;
+_Atomic unsigned long ia2_dlvsym_count IA2_SHARED_DATA = 0;
+_Atomic unsigned long ia2_dladdr_count IA2_SHARED_DATA = 0;
+_Atomic unsigned long ia2_dladdr1_count IA2_SHARED_DATA = 0;
+_Atomic unsigned long ia2_dlinfo_count IA2_SHARED_DATA = 0;
+_Atomic unsigned long ia2_dlerror_count IA2_SHARED_DATA = 0;
+_Atomic unsigned long ia2_dl_iterate_phdr_count IA2_SHARED_DATA = 0;
 #endif
 
 // Enter loader gate

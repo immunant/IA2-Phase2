@@ -159,6 +159,9 @@ jobs:
           # free up space used by apt package archives
           sudo apt clean
           df -h /
+          # delete unused SDKs
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          df -h /
       - name: Build Clang
         if: steps.cache-clang.outputs.cache-hit != 'true'
         working-directory: ${{ github.workspace }}/llvm-project

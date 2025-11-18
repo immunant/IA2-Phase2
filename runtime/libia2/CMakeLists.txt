@@ -8,21 +8,17 @@ set(LIBIA2_SOURCES
     main.c
     exit.c
     memory_maps.c
-    thread_name.c
-    loader_gate.c
-    dlopen_wrapper.c
-    mmap_wrapper.c)
+    thread_name.c)
 
 if(IA2_LIBC_COMPARTMENT)
     list(APPEND LIBIA2_SOURCES
+        loader_gate.c
+        dlopen_wrapper.c
+        mmap_wrapper.c
         exit_callgates.c
         exit_finalize_callgate.c)
-endif()
-
-if(IA2_LIBC_COMPARTMENT)
-    list(APPEND LIBIA2_SOURCES
-        exit_callgates.c
-        exit_finalize_callgate.c)
+else()
+    list(APPEND LIBIA2_SOURCES loader_gate_stub.c)
 endif()
 
 add_library(libia2 ${LIBIA2_SOURCES})
@@ -52,32 +48,36 @@ target_link_options(libia2
         "-Wl,--wrap=pthread_create"
         "-Wl,--wrap=main"
         "-Wl,--wrap=free" # Because we use `__real_free` in `memory_maps.c`.
-        $<$<BOOL:${IA2_LIBC_COMPARTMENT}>:-Wl,--wrap=__cxa_finalize>
-
-        # Loader entry point wrappers: interpose every libdl entry 
-        # so the loader gate runs and keeps allocations on pkey 1
-        # for the threat model.
-        "-Wl,--wrap=dlopen"
-        "-Wl,--wrap=dlmopen"
-        "-Wl,--wrap=dlsym"
-        "-Wl,--wrap=dlvsym"
-        "-Wl,--wrap=dlclose"
-        "-Wl,--wrap=dladdr"
-        "-Wl,--wrap=dladdr1"
-        "-Wl,--wrap=dlinfo"
-        "-Wl,--wrap=dlerror"
-        "-Wl,--wrap=dl_iterate_phdr"
-
-        # Memory mapping wrappers (tag loader mmaps with pkey 1)
-        "-Wl,--wrap=mmap"
-        "-Wl,--wrap=mmap64"
-        "-Wl,--wrap=mremap"
-
-        # Eagerly resolve GOT relocations
         "-Wl,-z,now"
         # So that we can mark all relocatable data as read-only after relocation
         "-Wl,-z,relro"
 )
+
+if(IA2_LIBC_COMPARTMENT)
+    target_link_options(libia2
+        INTERFACE
+            "-Wl,--wrap=__cxa_finalize"
+
+            # Loader entry point wrappers: interpose every libdl entry
+            # so the loader gate runs and keeps allocations on pkey 1
+            # for the threat model.
+            "-Wl,--wrap=dlopen"
+            "-Wl,--wrap=dlmopen"
+            "-Wl,--wrap=dlsym"
+            "-Wl,--wrap=dlvsym"
+            "-Wl,--wrap=dlclose"
+            "-Wl,--wrap=dladdr"
+            "-Wl,--wrap=dladdr1"
+            "-Wl,--wrap=dlinfo"
+            "-Wl,--wrap=dlerror"
+            "-Wl,--wrap=dl_iterate_phdr"
+
+            # Memory mapping wrappers (tag loader mmaps with pkey 1)
+            "-Wl,--wrap=mmap"
+            "-Wl,--wrap=mmap64"
+            "-Wl,--wrap=mremap"
+    )
+endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
 set(CARGO_PROFILE "dev")
@@ -103,31 +103,33 @@ target_link_options(libia2 INTERFACE
 )
 set_property(TARGET libia2 PROPERTY INTERFACE_LINK_DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/padding.ld ${CMAKE_CURRENT_BINARY_DIR}/dynsym.syms)
 
-# Bootstrap shim: LD_PRELOAD library that intercepts GLIBC_PRIVATE loader calls
-# before main() runs, ensuring all loader operations go through PKRU gates
-add_library(libia2_bootstrap_shim SHARED libia2_bootstrap_shim.c)
+if(IA2_LIBC_COMPARTMENT)
+    # Bootstrap shim: LD_PRELOAD library that intercepts GLIBC_PRIVATE loader calls
+    # before main() runs, ensuring all loader operations go through PKRU gates
+    add_library(libia2_bootstrap_shim SHARED libia2_bootstrap_shim.c)
 
-target_link_libraries(libia2_bootstrap_shim PRIVATE dl)
+    target_link_libraries(libia2_bootstrap_shim PRIVATE dl)
 
-target_include_directories(libia2_bootstrap_shim PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
+    target_include_directories(libia2_bootstrap_shim PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}/include
+    )
 
-target_compile_definitions(libia2_bootstrap_shim PRIVATE
-  _GNU_SOURCE
-  IA2_ENABLE=1
-)
+    target_compile_definitions(libia2_bootstrap_shim PRIVATE
+      _GNU_SOURCE
+      IA2_ENABLE=1
+    )
 
-# Export GLIBC_PRIVATE symbols with versioning
-target_link_options(libia2_bootstrap_shim PRIVATE
-  "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/bootstrap_shim.version"
-)
+    # Export GLIBC_PRIVATE symbols with versioning
+    target_link_options(libia2_bootstrap_shim PRIVATE
+      "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/bootstrap_shim.version"
+    )
 
-set_target_properties(libia2_bootstrap_shim PROPERTIES
-  OUTPUT_NAME "libia2_bootstrap_shim"
-  VERSION 1.0
-  POSITION_INDEPENDENT_CODE ON
-)
+    set_target_properties(libia2_bootstrap_shim PROPERTIES
+      OUTPUT_NAME "libia2_bootstrap_shim"
+      VERSION 1.0
+      POSITION_INDEPENDENT_CODE ON
+    )
+endif()
 
 if (LIBIA2_AARCH64)
     set(SYSROOT_BIN_DIR ${CMAKE_BINARY_DIR}/external/glibc/sysroot)

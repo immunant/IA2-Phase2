@@ -1,5 +1,8 @@
 #include "get_pkey.h"
+
+#if IA2_ENABLE
 #include <ia2_loader.h>
+#endif
 
 // These functions are duplicated here from libia2 so that we don't have to link
 // the allocator against libia2 itself. We want users with libia2 disabled to
@@ -80,7 +83,9 @@ ia2_get_pkey() {
   }
 
   if (pkey == 1) {
+#if IA2_ENABLE
     ia2_loader_alloc_count.fetch_add(1, std::memory_order_relaxed);
+#endif
   }
   return pkey;
 }
@@ -90,10 +95,12 @@ ia2_get_pkey() {
 __attribute__((__visibility__("hidden")))
 size_t
 ia2_get_pkey() {
+#if IA2_ENABLE
   if (ia2_in_loader_gate) {
     ia2_loader_alloc_count.fetch_add(1, std::memory_order_relaxed);
     return 1;
   }
+#endif
 
   size_t x18;
   asm("mov %0, x18"

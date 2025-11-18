@@ -1,6 +1,6 @@
 #include "get_pkey.h"
 
-#if IA2_ENABLE
+#if IA2_ENABLE && defined(__aarch64__)
 #include <ia2_loader.h>
 #endif
 
@@ -82,11 +82,6 @@ ia2_get_pkey() {
     break;
   }
 
-  if (pkey == 1) {
-#if IA2_ENABLE
-    ia2_loader_alloc_count.fetch_add(1, std::memory_order_relaxed);
-#endif
-  }
   return pkey;
 }
 #endif
@@ -97,7 +92,6 @@ size_t
 ia2_get_pkey() {
 #if IA2_ENABLE
   if (ia2_in_loader_gate) {
-    ia2_loader_alloc_count.fetch_add(1, std::memory_order_relaxed);
     return 1;
   }
 #endif

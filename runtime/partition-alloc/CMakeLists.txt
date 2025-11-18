@@ -94,8 +94,7 @@ target_include_directories(partition-alloc_unpadded BEFORE
     PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     PRIVATE
-    ${EXTERNAL_DIR}/chromium/src
-    ${CMAKE_SOURCE_DIR}/runtime/libia2/include)
+    ${EXTERNAL_DIR}/chromium/src)
 
 # Propagage ARM64 define
 if (LIBIA2_AARCH64)

@@ -300,16 +300,17 @@ Test(dl_debug, loader_file_backed_faults) {
 #endif
 
 // Test purpose: Verify loader gate allocations route through PartitionAlloc on pkey 1.
-// Proof strategy: Enter the gate, malloc(), and confirm ia2_loader_alloc_count increments while the allocation succeeds.
+// Proof strategy: Enter the gate, malloc(), and confirm the returned address resides
+// on a mapping tagged with ProtectionKey 1.
 Test(dl_debug, loader_allocator_partitionalloc) {
-    ia2_loader_alloc_count = 0;
-
     ia2_loader_gate_enter();
     void *test_alloc = malloc(64);
     ia2_loader_gate_exit();
 
     cr_assert(test_alloc != NULL);
-    cr_assert(ia2_loader_alloc_count > 0);
+
+    int alloc_pkey = ia2_test_get_addr_pkey(test_alloc);
+    cr_assert(alloc_pkey == 1);
 
     free(test_alloc);
 }
@@ -387,7 +388,7 @@ Test(dl_debug, loader_dlclose_coverage) {
 // These tests exercise each wrapper individually and verify:
 // 1. Function succeeds (where applicable)
 // 2. Per-wrapper counter increments (proves wrapper executed)
-// 3. Gate activated (ia2_loader_alloc_count may increment if allocation occurs)
+// 3. Gate activated (loader allocation lands on pkey 1)
 //
 // Purpose: Provide hard evidence that all 10 wrappers are reachable at runtime
 

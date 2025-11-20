@@ -9,7 +9,7 @@
 #   2. Core Functionality Tests (12 tests) - Validates runtime loader isolation
 #   3. Debug Telemetry Tests (11 tests) - Validates wrapper coverage (IA2_DEBUG builds)
 #
-# TOTAL: 27 tests (4 bootstrap + 12 core + 11 debug)
+# TOTAL: 28 tests (4 bootstrap + 12 core + 11 debug + 1 shared-compartment sanity)
 #
 # ============================================================================
 # WHAT IS BEING TESTED
@@ -62,7 +62,7 @@
 #   - Detects LLVM/Clang installation (tries llvm-18 down to llvm-11)
 #   - Configures with -DIA2_DEBUG=ON for full telemetry testing
 #   - Builds dl_debug_test and libia2_bootstrap_shim (always included)
-#   - Runs all 27 tests (4 bootstrap + 12 core + 11 debug)
+#   - Runs all 28 tests (4 bootstrap + 12 core + 11 debug + 1 shared-compartment sanity)
 #
 # PKRU gates are unconditionally enabled for hardware-enforced loader isolation.
 # No manual configuration required! Just run the script.
@@ -94,7 +94,7 @@
 #     - Enables -DIA2_DEBUG=ON for debug telemetry (11 tests)
 #     - PKRU gates always enabled (hardware loader isolation + bootstrap shim)
 #     - Builds all required targets (dl_debug_test, libia2_bootstrap_shim)
-#     - Result: All 27 tests available
+#     - Result: All 28 tests available
 #
 #   Just run: ./run_all_tests.sh
 #
@@ -115,15 +115,15 @@
 #     CMAKE_ARGS="-DIA2_DEBUG=OFF" ./run_all_tests.sh
 #
 # Test availability by configuration:
-#   Standard (no debug):        16 tests (12 core + 4 bootstrap shim)
-#   + IA2_DEBUG=ON (default):   27 tests (all)
+#   Standard (no debug):        17 tests (12 core + 4 bootstrap shim + shared-compartment sanity)
+#   + IA2_DEBUG=ON (default):   28 tests (all)
 #
 # ============================================================================
 # EXPECTED OUTPUT
 # ============================================================================
 #
 # Success:
-#   ✓ All 27 tests pass
+#   ✓ All 28 tests pass
 #   ✓ Exit code 0
 #
 # Partial success (non-debug build):
@@ -204,6 +204,10 @@ TEST_BINARY="$BUILD_TEST_DIR/dl_debug_test"
 
 # Bootstrap shim library
 BOOTSTRAP_SHIM="$PROJECT_ROOT/build/runtime/libia2/liblibia2_bootstrap_shim.so"
+# Shared-compartment regression binary
+LIBC_DEFAULT_TEST_DIR="$PROJECT_ROOT/build/tests/libc_default_compartment"
+LIBC_DEFAULT_TEST_BINARY="$LIBC_DEFAULT_TEST_DIR/libc_default_compartment"
+LIBC_DEFAULT_TEST_NAME="library_stays_in_pkey0"
 
 
 # ============================================================================
@@ -224,6 +228,20 @@ detect_llvm_paths() {
     echo ""
 }
 
+cache_flag_matches() {
+    local cache_file=$1
+    local flag=$2
+    local expected=$3
+
+    if [ ! -f "$cache_file" ]; then
+        return 1
+    fi
+
+    local value
+    value=$(grep "^${flag}:" "$cache_file" 2>/dev/null | head -n1 | cut -d'=' -f2)
+    [ "$value" = "$expected" ]
+}
+
 # Configure project with optimal settings for comprehensive testing
 ensure_project_configured() {
     local build_dir="$PROJECT_ROOT/build"
@@ -232,11 +250,31 @@ ensure_project_configured() {
         mkdir -p "$build_dir"
     fi
 
-    if [ ! -f "$build_dir/CMakeCache.txt" ] || [ ! -f "$build_dir/build.ninja" ]; then
+    local cache_file="$build_dir/CMakeCache.txt"
+    local needs_reconfigure=0
+
+    if [ ! -f "$cache_file" ] || [ ! -f "$build_dir/build.ninja" ]; then
+        needs_reconfigure=1
+    fi
+
+    if [ "$needs_reconfigure" -eq 0 ] && ! cache_flag_matches "$cache_file" "IA2_DEBUG" "ON"; then
+        echo "[build] Existing build missing IA2_DEBUG=ON - reconfiguring"
+        needs_reconfigure=1
+    fi
+
+    if [ "$needs_reconfigure" -eq 0 ] && ! cache_flag_matches "$cache_file" "IA2_LIBC_COMPARTMENT" "ON"; then
+        echo "[build] Existing build missing IA2_LIBC_COMPARTMENT=ON - reconfiguring"
+        needs_reconfigure=1
+    fi
+
+    if [ "$needs_reconfigure" -eq 0 ]; then
+        return
+    fi
+
         # Auto-detect LLVM paths
         local llvm_args=$(detect_llvm_paths)
 
-        # Build with debug enabled for all 27 tests
+        # Build with debug enabled for all 28 tests
         # PKRU gates are now unconditionally enabled in the codebase
         # User can override by setting CMAKE_ARGS environment variable
         local default_args="-DIA2_DEBUG=ON -DIA2_LIBC_COMPARTMENT=ON ${llvm_args}"
@@ -244,7 +282,6 @@ ensure_project_configured() {
 
         echo "[build] Configuring project (cmake -GNinja $cmake_args ..)"
         (cd "$build_dir" && cmake -GNinja $cmake_args ..)
-    fi
 }
 
 ninja_target_exists() {
@@ -307,7 +344,7 @@ for arg in "$@"; do
             echo "  • Auto-detects LLVM/Clang installation"
             echo "  • Configures with -DIA2_DEBUG=ON (PKRU gates always enabled)"
             echo "  • Builds dl_debug_test and libia2_bootstrap_shim"
-            echo "  • Runs all 27 tests (4 bootstrap + 12 core + 11 debug)"
+            echo "  • Runs all 28 tests (4 bootstrap + 12 core + 11 debug + 1 shared-compartment sanity)"
             echo
             echo "Options:"
             echo "  --verbose       Show full test output"
@@ -468,6 +505,53 @@ run_test() {
     fi
 }
 
+run_libc_default_compartment_test() {
+    echo
+    echo "======================================================================"
+    echo -e "${BLUE}Shared Compartment Sanity Test${NC}"
+    echo "======================================================================"
+
+    ensure_target_built libc_default_compartment
+
+    TOTAL_TESTS=$((TOTAL_TESTS + 1))
+    printf "[shared] %-45s ... " "$LIBC_DEFAULT_TEST_NAME"
+
+    if [ ! -x "$LIBC_DEFAULT_TEST_BINARY" ]; then
+        echo -e "${RED}✗ MISSING${NC}"
+        FAILED_TESTS=$((FAILED_TESTS + 1))
+        FAILED_TEST_NAMES+=("libc_default_compartment")
+        return 1
+    fi
+
+    local log_file="/tmp/libc_default_compartment_$$.log"
+
+    if [ $VERBOSE -eq 1 ]; then
+        if (cd "$LIBC_DEFAULT_TEST_DIR" && IA2_TEST_NAME="$LIBC_DEFAULT_TEST_NAME" ./libc_default_compartment); then
+            echo -e "${GREEN}✓ PASS${NC}"
+            PASSED_TESTS=$((PASSED_TESTS + 1))
+            return 0
+        fi
+    else
+        if (cd "$LIBC_DEFAULT_TEST_DIR" && IA2_TEST_NAME="$LIBC_DEFAULT_TEST_NAME" ./libc_default_compartment > "$log_file" 2>&1); then
+            echo -e "${GREEN}✓ PASS${NC}"
+            PASSED_TESTS=$((PASSED_TESTS + 1))
+            rm -f "$log_file"
+            return 0
+        fi
+    fi
+
+    echo -e "${RED}✗ FAIL${NC}"
+    FAILED_TESTS=$((FAILED_TESTS + 1))
+    FAILED_TEST_NAMES+=("libc_default_compartment")
+    if [ $VERBOSE -eq 0 ] && [ -f "$log_file" ]; then
+        echo -e "${RED}--- Test Output ---${NC}"
+        tail -20 "$log_file"
+        echo -e "${RED}--- End Output ---${NC}"
+        rm -f "$log_file"
+    fi
+    return 1
+}
+
 # ============================================================================
 # BOOTSTRAP SHIM TESTS (Stage 3)
 # ============================================================================
@@ -590,10 +674,12 @@ DEBUG_TESTS=(
     "nested_loader_gates"
 )
 
-# Check debug build
+# Check debug build (look for PKRU assertions in call gates library)
 DEBUG_AVAILABLE=0
-if nm ./dl_debug_test | grep -q "ia2_dlopen_count"; then
-    DEBUG_AVAILABLE=1
+if [ -f "./libdl_debug_test_call_gates.so" ]; then
+    if objdump -d ./libdl_debug_test_call_gates.so | grep -q "rdpkru"; then
+        DEBUG_AVAILABLE=1
+    fi
 fi
 
 # Calculate total
@@ -637,6 +723,14 @@ if [ $DEBUG_AVAILABLE -eq 1 ]; then
     done
 else
     SKIPPED_TESTS=$((SKIPPED_TESTS + ${#DEBUG_TESTS[@]}))
+fi
+
+# ============================================================================
+# SHARED COMPARTMENT SANITY TEST
+# ============================================================================
+
+if ! run_libc_default_compartment_test; then
+    [ $STOP_ON_FAIL -eq 1 ] && exit 1
 fi
 
 # ============================================================================
@@ -687,6 +781,7 @@ if [ $FAILED_TESTS -eq 0 ]; then
     echo "  ✓ PartitionAlloc integration with loader gate"
     echo "  ✓ All 10 dlopen-family wrappers functional"
     echo "  ✓ MPK hardware enforcement working correctly"
+    echo "  ✓ Shared-compartment libraries (pkey 0) can call libc safely"
     if [ $DEBUG_AVAILABLE -eq 1 ]; then
         echo "  ✓ Per-wrapper telemetry counters functional"
         echo "  ✓ Nested loader gate depth tracking"

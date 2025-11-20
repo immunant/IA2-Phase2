@@ -2,7 +2,12 @@ cmake_minimum_required(VERSION 4.0)
 project(IA2Phase2)
 
 # Feature flags
+option(IA2_DEBUG "Enable debug telemetry and runtime checks" OFF)
 option(IA2_LIBC_COMPARTMENT "Enable libc/ld.so compartmentalization and exit callgate support" OFF)
+
+if(IA2_DEBUG)
+    message(STATUS "IA2: debug mode enabled")
+endif()
 
 if(IA2_LIBC_COMPARTMENT)
     message(STATUS "IA2: libc compartmentalization enabled")

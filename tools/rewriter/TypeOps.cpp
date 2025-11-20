@@ -114,14 +114,17 @@ std::vector<TypeInfo>::const_iterator TypeInfoInterner::end() const {
 
 TypeId TypeInfoInterner::intern(clang::QualType type) {
   const auto canonical_name = type.getUnqualifiedType().getCanonicalType().getAsString();
+  const auto name = type.getAsString();
+  return intern_from_strings(canonical_name, name);
+}
+
+TypeId TypeInfoInterner::intern_from_strings(const std::string &canonical_name, const std::string &name) {
   auto iter = ids.find(canonical_name);
   if (iter != ids.end()) {
-    const TypeId id = iter->second;
-    return id;
+    return iter->second;
   }
 
   const auto id = static_cast<TypeId>(infos.size());
-  const auto name = type.getAsString();
   ids[canonical_name] = id;
   infos.emplace_back((TypeInfo){
       .id = id,

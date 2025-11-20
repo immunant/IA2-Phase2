@@ -52,6 +52,10 @@ public:
   /// based on the canonical name, interned as `TypeId`.
   TypeId intern(clang::QualType type);
 
+  /// Manual interning helper for synthetic types (e.g., ld.so stubs) that
+  /// don't originate from a clang::QualType.
+  TypeId intern_from_strings(const std::string &canonical_name, const std::string &name);
+
   const TypeInfo &get(TypeId index) const;
 
   TypeInfo &get(TypeId index);

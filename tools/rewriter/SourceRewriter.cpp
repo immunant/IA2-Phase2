@@ -1684,6 +1684,11 @@ int main(int argc, const char **argv) {
   }
 
   if (gLibcCompartmentEnabled) {
+    // The TypeInfo interner assigns TypeIds in discovery order, so we need to
+    // explicitly intern the canonical "void" type before synthesizing any
+    // ld.so signatures. Otherwise we might assign the wrong ID (or crash) when
+    // trying to reference a type that never appeared in user code.
+    const TypeId void_type_id = ctx.types.intern_from_strings("void", "void");
     // Add function signatures for ld.so functions that may not have been parsed from source
     for (const std::string &ldso_fn : LdsoFunctionRegistry::get_ldso_functions()) {
       if (direct_call_wrappers.contains(ldso_fn)) {
@@ -1695,7 +1700,7 @@ int main(int argc, const char **argv) {
           if (ldso_fn == "_dl_debug_state") {
             // void _dl_debug_state(void) - simple function with no parameters
             ldso_sig.api.ret.name = ""; // Return value has no name
-            ldso_sig.api.ret.type = 0;   // Use TypeId 0 for void (basic type)
+            ldso_sig.api.ret.type = void_type_id;
             ldso_sig.abi.ret = {};       // No return slots for void
             ldso_sig.variadic = false;   // Not variadic
             // No parameters so args remain empty

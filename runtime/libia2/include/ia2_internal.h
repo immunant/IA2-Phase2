@@ -455,22 +455,6 @@ void **ia2_stackptr_for_compartment(int compartment);
 void ia2_setup_destructors(void);
 
 #ifdef IA2_LIBC_COMPARTMENT
-// Shared PKRU read/write helpers
-static inline uint32_t ia2_read_pkru(void) {
-#if defined(__x86_64__)
-  uint32_t pkru;
-  __asm__ volatile("rdpkru" : "=a"(pkru) : "c"(0), "d"(0));
-  return pkru;
-#else
-  return 0;
-#endif
-}
-
-static inline void ia2_write_pkru(uint32_t pkru) {
-#if defined(__x86_64__)
-  __asm__ volatile("wrpkru" : : "a"(pkru), "c"(0), "d"(0) : "memory");
-#else
-  (void)pkru;
-#endif
-}
+uint32_t ia2_read_pkru(void);
+void ia2_write_pkru(uint32_t pkru);
 #endif // IA2_LIBC_COMPARTMENT

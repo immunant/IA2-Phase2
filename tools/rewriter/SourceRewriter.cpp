@@ -959,6 +959,24 @@ public:
     // For system headers, we want to track the declarations but not modify them
     bool is_system_header = sm.isInSystemHeader(fn_node->getLocation());
 
+    if (is_system_header &&
+        (Target != Arch::X86 || !gLibcCompartmentEnabled)) {
+      // For ARM (and generic x86 builds without libc support):
+      // when we enabled libc compartment tracking we started parsing every
+      // system header declaration, which on ARM triggers ABI kinds such as
+      // Expand/CoerceAndExpand that we still treat as fatal. Those aborts show
+      // up as exit(134) in CI. Until we implement the full ARM lowering for
+      // those kinds, keep the historic behavior—skip system headers entirely
+      // unless we are explicitly in the x86+libc-compartment configuration.
+      //
+      // Next steps once ARM support is ready:
+      //   1. Teach DetermineAbi.cpp to lower Expand/CoerceAndExpand (documented
+      //      in the LLVM ARM backend) into IA2 ArgLocations.
+      //   2. Flip this guard per-architecture so ARM can opt in incrementally.
+      //   3. Drop the early return after the new lowering is battle-tested.
+      return;
+    }
+
     // Skip if we should ignore (but still track system library declarations)
     if (!is_system_header && ignore_function(*fn_node, fn_node->getLocation(), sm)) {
       return;

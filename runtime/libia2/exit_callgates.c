@@ -125,6 +125,8 @@ __asm__(
     ".size __wrap___cxa_finalize, .-__wrap___cxa_finalize\n"
 );
 
+#else
+#error "IA2 exit callgates are only supported on x86_64 for now."
 #endif // defined(__x86_64__)
 
 #endif // IA2_LIBC_COMPARTMENT

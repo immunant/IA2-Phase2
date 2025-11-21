@@ -1740,7 +1740,11 @@ int main(int argc, const char **argv) {
       continue;
     }
 
-    // Skip generating wrapper if caller and target are in the same compartment
+    // Libc-compartment mode adds system/ld.so symbols into direct_call_wrappers.
+    // That can yield caller==target entries (for example, one libc source file
+    // calling another libc symbol in the same compartment), which would hit
+    // emit_asm_wrapper's caller!=target assertion and also produce a useless
+    // wrapper. Skip same-compartment entries here.
     if (caller_pkey == target_pkey) {
       continue;
     }

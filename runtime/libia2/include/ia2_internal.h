@@ -25,7 +25,7 @@ struct dl_phdr_info;
 #include <sys/mman.h>
 #include <unistd.h>
 
-#ifdef IA2_LIBC_COMPARTMENT
+#if defined(IA2_LIBC_COMPARTMENT) && IA2_LIBC_COMPARTMENT
 #include "ia2_compartment_ids.h"
 #endif
 
@@ -454,7 +454,7 @@ void **ia2_stackptr_for_tag(size_t tag);
 void **ia2_stackptr_for_compartment(int compartment);
 void ia2_setup_destructors(void);
 
-#ifdef IA2_LIBC_COMPARTMENT
+#if defined(IA2_LIBC_COMPARTMENT) && IA2_LIBC_COMPARTMENT
 uint32_t ia2_read_pkru(void);
 void ia2_write_pkru(uint32_t pkru);
 #endif // IA2_LIBC_COMPARTMENT

@@ -1,6 +1,6 @@
 #pragma once
 
-#ifdef IA2_LIBC_COMPARTMENT
+#if defined(IA2_LIBC_COMPARTMENT) && IA2_LIBC_COMPARTMENT
 
 #ifdef __cplusplus
 extern "C" {

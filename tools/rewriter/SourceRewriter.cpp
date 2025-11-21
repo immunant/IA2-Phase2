@@ -4,7 +4,7 @@
 #include "GenCallAsm.h"
 #include "LdsoRegistry.h"
 
-#ifdef IA2_LIBC_COMPARTMENT
+#if defined(IA2_LIBC_COMPARTMENT) && IA2_LIBC_COMPARTMENT
 static constexpr int kLibcCompartmentPkey = IA2_LIBC_COMPARTMENT;
 #else
 static constexpr int kLibcCompartmentPkey = 1;

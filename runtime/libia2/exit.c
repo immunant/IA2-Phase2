@@ -34,14 +34,14 @@ __asm__(
     // Load the stack pointer for the shared compartment's stack.
     "mov ia2_stackptr_0@GOTTPOFF(%rip), %r11\n"
     "mov %fs:(%r11), %rsp\n"
-#ifdef IA2_LIBC_COMPARTMENT
+#if defined(IA2_LIBC_COMPARTMENT) && IA2_LIBC_COMPARTMENT
     // Switch pkey to the exit/libc compartment (enables pkeys 0 and 1).
 #else
     // Switch pkey to the appropriate compartment.
 #endif
     "xor %ecx,%ecx\n"
     "mov %ecx,%edx\n"
-#ifdef IA2_LIBC_COMPARTMENT
+#if defined(IA2_LIBC_COMPARTMENT) && IA2_LIBC_COMPARTMENT
     "mov_pkru_eax 1\n"
 #else
     "mov_pkru_eax 0\n"

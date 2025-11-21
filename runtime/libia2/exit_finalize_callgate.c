@@ -1,6 +1,4 @@
 #if defined(IA2_LIBC_COMPARTMENT) && IA2_LIBC_COMPARTMENT
-
-#include "ia2_exit_callgates.h"
 #include "ia2_internal.h"
 
 #include <stddef.h>

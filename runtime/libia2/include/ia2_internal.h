@@ -25,10 +25,6 @@ struct dl_phdr_info;
 #include <sys/mman.h>
 #include <unistd.h>
 
-#if defined(IA2_LIBC_COMPARTMENT) && IA2_LIBC_COMPARTMENT
-#include "ia2_compartment_ids.h"
-#endif
-
 #if __cplusplus
 #define IA2_EXTERN_C extern "C"
 #else

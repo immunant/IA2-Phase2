@@ -1758,8 +1758,8 @@ int main(int argc, const char **argv) {
   }
 
   // Generate destructor wrappers for every compartment.
-  // IA2_LIBC_COMPARTMENT is defined in runtime/libia2/include/ia2_compartment_ids.h
-  // so tooling and runtime agree on the libc compartment index.
+  // IA2_LIBC_COMPARTMENT is set by the build (CMake add_compile_definitions);
+  // both tooling and runtime treat the libc compartment as protection key 1.
   // Each ia2_compartment_destructor_N() does the real teardown, and
   // ia2_compartment_init.inc rewrites DT_FINI/.fini_array to call the matching
   // __wrap_ symbol instead.

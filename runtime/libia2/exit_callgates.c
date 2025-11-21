@@ -14,7 +14,6 @@
 
 #include "ia2.h"
 #include "ia2_internal.h"
-#include "ia2_compartment_ids.h"
 
 #if defined(__x86_64__)
 

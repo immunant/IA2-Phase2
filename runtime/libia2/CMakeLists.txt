@@ -13,7 +13,6 @@ set(LIBIA2_SOURCES
 if(IA2_LIBC_COMPARTMENT)
     list(APPEND LIBIA2_SOURCES
         exit_callgates.c
-        exit_finalize_callgate.c
         pkru_helpers.c)
 endif()
 

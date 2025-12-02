@@ -13,7 +13,7 @@ set(LIBIA2_SOURCES
 if(IA2_LIBC_COMPARTMENT)
     list(APPEND LIBIA2_SOURCES
         exit_callgates.c
-        pkru_helpers.c)
+    )
 endif()
 
 add_library(libia2 ${LIBIA2_SOURCES})

@@ -450,7 +450,8 @@ void **ia2_stackptr_for_tag(size_t tag);
 void **ia2_stackptr_for_compartment(int compartment);
 void ia2_setup_destructors(void);
 
-#if defined(IA2_LIBC_COMPARTMENT) && IA2_LIBC_COMPARTMENT
+#if defined(__x86_64__)
+uint32_t ia2_get_pkru(void);
 uint32_t ia2_read_pkru(void);
 void ia2_write_pkru(uint32_t pkru);
-#endif // IA2_LIBC_COMPARTMENT
+#endif

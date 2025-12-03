@@ -21,14 +21,17 @@ if(IA2_LIBC_COMPARTMENT)
             dlopen_wrapper.c
             mmap_wrapper.c
         )
-    endif()
-else()
-    # Stub provides symbols when libc compartmentalization is disabled
-    if(NOT LIBIA2_AARCH64)
+    else()
+        # AArch64 still needs the loader gate symbols even though PKRU gates are disabled
         list(APPEND LIBIA2_SOURCES
             loader_gate_stub.c
         )
     endif()
+else()
+    # Stub provides symbols when libc compartmentalization is disabled
+    list(APPEND LIBIA2_SOURCES
+        loader_gate_stub.c
+    )
 endif()
 
 add_library(libia2 ${LIBIA2_SOURCES})

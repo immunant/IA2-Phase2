@@ -37,7 +37,11 @@ __asm__(
     // Switch pkey to the appropriate compartment.
     "xor %ecx,%ecx\n"
     "mov %ecx,%edx\n"
+#if defined(IA2_LIBC_COMPARTMENT) && IA2_LIBC_COMPARTMENT
+    "mov_pkru_eax 1\n"
+#else
     "mov_pkru_eax 0\n"
+#endif
     "wrpkru\n"
     // Align the stack before continuing
     "subq $8, %rsp\n"

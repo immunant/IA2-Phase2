@@ -1,7 +1,22 @@
 cmake_minimum_required(VERSION 4.0)
 project(libia2)
 
-add_library(libia2 ia2.c init.c threads.c main.c exit.c memory_maps.c thread_name.c)
+set(LIBIA2_SOURCES
+    ia2.c
+    init.c
+    threads.c
+    main.c
+    exit.c
+    memory_maps.c
+    thread_name.c)
+
+if(IA2_LIBC_COMPARTMENT)
+    list(APPEND LIBIA2_SOURCES
+        exit_callgates.c
+    )
+endif()
+
+add_library(libia2 ${LIBIA2_SOURCES})
 target_compile_options(libia2 PRIVATE "-fPIC")
 
 if (LIBIA2_AARCH64)
@@ -27,6 +42,7 @@ target_link_options(libia2
         "-Wl,--wrap=pthread_create"
         "-Wl,--wrap=main"
         "-Wl,--wrap=free" # Because we use `__real_free` in `memory_maps.c`.
+        $<$<BOOL:${IA2_LIBC_COMPARTMENT}>:-Wl,--wrap=__cxa_finalize>
 
         # Eagerly resolve GOT relocations
         "-Wl,-z,now"

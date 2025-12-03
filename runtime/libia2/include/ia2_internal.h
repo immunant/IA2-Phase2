@@ -18,6 +18,7 @@ struct dl_phdr_info;
 #include <link.h>
 #include <locale.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -448,3 +449,9 @@ __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
 void **ia2_stackptr_for_tag(size_t tag);
 void **ia2_stackptr_for_compartment(int compartment);
 void ia2_setup_destructors(void);
+
+#if defined(__x86_64__)
+uint32_t ia2_get_pkru(void);
+uint32_t ia2_read_pkru(void);
+void ia2_write_pkru(uint32_t pkru);
+#endif

@@ -64,17 +64,25 @@ abiSlotsForArg(const clang::QualType &qt,
 #endif
   // ptr in register
   case Kind::Indirect: {
-    const clang::RecordType *rec = qt->getAsStructureType();
-    if (rec != nullptr) {
-      const clang::RecordDecl *decl = rec->getDecl();
-      const clang::ASTRecordLayout &layout =
-          astContext.getASTRecordLayout(decl);
-      return {ArgLocation::Indirect(
-          layout.getSize().getQuantity(),
-          layout.getAlignment().getQuantity())};
-    } else {
-      llvm::report_fatal_error("indirect argument not a struct");
-    }
+    /*
+     * Historically this path assumed the indirect argument was always a
+     * user-defined struct, so we only asked for `getAsStructureType()` and
+     * crashed otherwise. That worked until we started feeding AVX intrinsics
+     * (e.g. `_mm256_add_pd`) through the rewriter: Clang classifies their
+     * 256-bit vector operands as `Kind::Indirect`, but they are not structs,
+     * which triggered the fatal "indirect argument not a struct" assertion.
+     *
+     * Clang's ABI lowering is agnostic to the surface syntax: any type whose
+     * ABI size crosses the "direct register" threshold gets lowered indirectly,
+     * whether it is a struct, vector, array, or typedef. Therefore the only
+     * correct thing to do here is to measure the QualType's size/alignment
+     * directly from ASTContext and emit an ArgLocation that matches whatever
+     * Clang decided. This keeps structs working and unblocks large vectors,
+     * libavcodec headers, and other intrinsics-heavy code.
+     */
+    auto size = astContext.getTypeSizeInChars(qt);
+    auto align = astContext.getTypeAlignInChars(qt);
+    return {ArgLocation::Indirect(size.getQuantity(), align.getQuantity())};
   }
   // in register with zext/sext
   case Kind::Extend:
@@ -220,11 +228,16 @@ AbiSignature determineAbiSignatureForDecl(
 
   const auto &convention = info.getEffectiveCallingConvention();
 
-  // our ABI computation assumes SysV ABI; bail if another ABI is explicitly
-  // selected
+  // Our ABI computation supports SysV ABI (x86-64) and AAPCS (ARM).
+  // This check was present since the original implementation but was never
+  // updated when ARM support was added in commit 8d3b4ed1f (April 2024).
+  // The omission went unnoticed until changes in this branch triggered the
+  // abort on ARM builds. We now explicitly allow ARM calling conventions.
   if (convention != clang::CallingConv::CC_X86_64SysV &&
+      convention != clang::CallingConv::CC_AAPCS &&
+      convention != clang::CallingConv::CC_AAPCS_VFP &&
       convention != clang::CallingConv::CC_C) {
-    printf("calling convention of %s was not SysV (%d)\n", name.c_str(),
+    printf("calling convention of %s was not SysV or AAPCS (%d)\n", name.c_str(),
            info.getASTCallingConvention());
     abort();
   }

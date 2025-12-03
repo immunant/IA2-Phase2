@@ -17,7 +17,7 @@ function(define_shared_lib)
     set(options NEEDS_LD_WRAP NO_UBSAN)
     set(oneValueArgs LIBNAME PKEY)
     set(multiValueArgs SRCS INCLUDE_DIR UNWRAPPED_INCLUDE_DIRS
-        UNWRAPPED_LIBRARY_DIRS UNWRAPPED_LIBS)
+        UNWRAPPED_LIBRARY_DIRS UNWRAPPED_LIBS EXTRA_REWRITER_ARGS)
     cmake_parse_arguments(SHARED_LIB "${options}" "${oneValueArgs}"
                           "${multiValueArgs}" ${ARGN})
 
@@ -51,6 +51,7 @@ function(define_shared_lib)
         LIBRARIES ${SHARED_LIB_UNWRAPPED_LIBS}
         SOURCES ${SHARED_LIB_SRCS}
         INCLUDE_DIRECTORIES ${SHARED_LIB_UNWRAPPED_INCLUDE_DIRS} ${RELATIVE_INCLUDE_DIR}
+        EXTRA_REWRITER_ARGS ${SHARED_LIB_EXTRA_REWRITER_ARGS}
     )
 
     target_include_directories(${LIBNAME} PUBLIC
@@ -90,7 +91,7 @@ function(define_test)
     set(options NEEDS_LD_WRAP NOT_IN_CHECK_IA2 NO_LIBS NO_UBSAN CRITERION_TEST WITHOUT_SANDBOX TYPE_REGISTRY)
     set(oneValueArgs PKEY NAME)
     set(multiValueArgs LIBS SRCS INCLUDE_DIR
-        UNWRAPPED_INCLUDE_DIRS UNWRAPPED_LIBRARY_DIRS UNWRAPPED_LIBS)
+        UNWRAPPED_INCLUDE_DIRS UNWRAPPED_LIBRARY_DIRS UNWRAPPED_LIBS EXTRA_REWRITER_ARGS)
     cmake_parse_arguments(DEFINE_TEST "${options}" "${oneValueArgs}"
                           "${multiValueArgs}" ${ARGN})
 
@@ -175,6 +176,7 @@ function(define_test)
         LIBRARIES ${DEFINE_TEST_UNWRAPPED_LIBS} ${DEFINE_TEST_LIBS}
         SOURCES ${DEFINE_TEST_SRCS}
         INCLUDE_DIRECTORIES ${DEFINE_TEST_UNWRAPPED_INCLUDE_DIRS} ${RELATIVE_INCLUDE_DIR}
+        EXTRA_REWRITER_ARGS ${DEFINE_TEST_EXTRA_REWRITER_ARGS}
     )
 
     if(ADD_SANDBOX_DEP)

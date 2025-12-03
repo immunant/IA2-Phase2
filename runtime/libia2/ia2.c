@@ -19,13 +19,20 @@ void **ia2_stackptr_for_compartment(int compartment) {
 
 #if defined(__x86_64__)
 
-__attribute__((__used__)) static uint32_t ia2_get_pkru() {
+__attribute__((__used__)) uint32_t ia2_get_pkru() {
   uint32_t pkru = 0;
   __asm__ volatile("rdpkru" : "=a"(pkru) : "a"(0), "d"(0), "c"(0));
   return pkru;
 }
 
-size_t ia2_get_tag(void) __attribute__((alias("ia2_get_pkru")));
+uint32_t ia2_read_pkru(void) __attribute__((alias("ia2_get_pkru")));
+void ia2_write_pkru(uint32_t pkru) {
+  __asm__ volatile("wrpkru" : : "a"(pkru), "c"(0), "d"(0) : "memory");
+}
+
+size_t ia2_get_tag(void) {
+  return ia2_get_pkru();
+}
 
 size_t ia2_get_compartment() {
   uint32_t pkru = ia2_get_pkru();
@@ -427,7 +434,23 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
 
   Elf64_Addr address = (Elf64_Addr)search_args->address;
   bool extra = in_extra_libraries(info, search_args->extra_libraries);
+#if defined(IA2_LIBC_COMPARTMENT) && IA2_LIBC_COMPARTMENT
+  // Spot the runtime loader/libc pair so we treat them as in-scope while
+  // building compartment 1 (the exit/libc compartment). When the current walk
+  // targets pkey 1 we keep them in the protection flow even if the search
+  // address misses their LOAD segments; other compartments still ignore them
+  // unless they were explicitly listed as shared extras.
+  const char *libname = basename(info->dlpi_name);
+  bool is_ldso = !strcmp(libname, "ld-linux-x86-64.so.2") ||
+                  !strcmp(libname, "ld-linux-aarch64.so.1");
+  bool is_libc = strstr(libname, "libc.so") != NULL;
+  const int32_t syslib_pkey = 1;
+  bool syslib = (is_ldso || is_libc) && (search_args->pkey == syslib_pkey);
+
+  if (!in_loaded_segment(info, address) && !extra && !syslib) {
+#else
   if (!in_loaded_segment(info, address) && !extra) {
+#endif
     // Continue iterating to check the next object
     return 0;
   }
@@ -435,6 +458,12 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
   if (extra) {
     search_args->found_library_count++;
   }
+
+#if defined(IA2_LIBC_COMPARTMENT) && IA2_LIBC_COMPARTMENT
+  if (syslib) {
+    ia2_log("IA2: Protecting system library %s in compartment 1\n", libname);
+  }
+#endif
 
   ia2_log("protecting library: %s\n", basename(info->dlpi_name));
 

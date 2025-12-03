@@ -2,6 +2,13 @@
 #include "Context.h"
 #include "DetermineAbi.h"
 #include "GenCallAsm.h"
+#include "LdsoRegistry.h"
+
+#if defined(IA2_LIBC_COMPARTMENT) && IA2_LIBC_COMPARTMENT
+static constexpr int kLibcCompartmentPkey = IA2_LIBC_COMPARTMENT;
+#else
+static constexpr int kLibcCompartmentPkey = 1;
+#endif
 #include "TypeOps.h"
 #include "clang/AST/AST.h"
 #include "clang/AST/Type.h"
@@ -19,6 +26,7 @@
 #include "clang/Tooling/Tooling.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FormatVariadic.h"
+#include "llvm/Support/JSON.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 #include <clang/AST/Decl.h>
@@ -30,6 +38,7 @@
 #include <map>
 #include <optional>
 #include <string>
+#include <sstream>
 #include <sys/stat.h>
 #include <sys/types.h>
 
@@ -50,6 +59,7 @@ typedef std::string Filename;
 typedef int Pkey;
 typedef std::string OpaqueStruct;
 
+bool gLibcCompartmentEnabled = false;
 static Arch Target = Arch::X86;
 static std::string RootDirectory;
 static std::string OutputDirectory;
@@ -946,8 +956,29 @@ public:
 
     Function fn_name = fn_node->getNameAsString();
 
-    // Ignore declarations in libc and libia2 headers
-    if (ignore_function(*fn_node, fn_node->getLocation(), sm)) {
+    // For system headers, we want to track the declarations but not modify them
+    bool is_system_header = sm.isInSystemHeader(fn_node->getLocation());
+
+    if (is_system_header &&
+        (Target != Arch::X86 || !gLibcCompartmentEnabled)) {
+      // For ARM (and generic x86 builds without libc support):
+      // when we enabled libc compartment tracking we started parsing every
+      // system header declaration, which on ARM triggers ABI kinds such as
+      // Expand/CoerceAndExpand that we still treat as fatal. Those aborts show
+      // up as exit(134) in CI. Until we implement the full ARM lowering for
+      // those kinds, keep the historic behavior—skip system headers entirely
+      // unless we are explicitly in the x86+libc-compartment configuration.
+      //
+      // Next steps once ARM support is ready:
+      //   1. Teach DetermineAbi.cpp to lower Expand/CoerceAndExpand (documented
+      //      in the LLVM ARM backend) into IA2 ArgLocations.
+      //   2. Flip this guard per-architecture so ARM can opt in incrementally.
+      //   3. Drop the early return after the new lowering is battle-tested.
+      return;
+    }
+
+    // Skip if we should ignore (but still track system library declarations)
+    if (!is_system_header && ignore_function(*fn_node, fn_node->getLocation(), sm)) {
       return;
     }
 
@@ -958,6 +989,11 @@ public:
     }
 
     if (fn_node->isVariadic()) {
+      // Track variadic system functions for special handling
+      if (sm.isInSystemHeader(fn_node->getLocation())) {
+        variadic_system_fns.insert(fn_name);
+      }
+
       static std::set<Function> variadic_warnings_printed = {};
       if (variadic_warnings_printed.contains(fn_name)) {
         return;
@@ -985,6 +1021,13 @@ public:
       fn_definitions[fn_name] = filename;
     } else {
       declared_fns[pkey].insert(fn_name);
+
+      // Track if this is from a system header for later use
+      if (fn_node && sm.isInSystemHeader(fn_node->getLocation())) {
+        system_header_fns.insert(fn_name);
+      }
+      // Don't automatically assign system functions to compartment 1 here
+      // We'll only assign them if they're actually called (tracked by CallTracker)
     }
   }
 
@@ -994,9 +1037,48 @@ private:
 public:
   std::set<Function> defined_fns[MAX_PKEYS];
   std::set<Function> declared_fns[MAX_PKEYS];
+  std::set<Function> called_fns[MAX_PKEYS];  // Track functions that are actually called
+  std::set<Function> system_header_fns;  // Track functions declared in system headers
+  std::set<Function> variadic_system_fns;  // Track variadic functions from system headers
   std::map<Function, FnSignature> fn_signatures;
   std::map<Function, Pkey> fn_pkeys;
   std::map<Function, Filename> fn_definitions;
+};
+
+// Track function calls to determine which functions are actually used
+class CallTracker : public RefactoringCallback {
+public:
+  CallTracker(ASTMatchRefactorer &refactorer, FnDecl &fn_decl_pass)
+      : fn_decl_pass(fn_decl_pass) {
+    // Match direct function calls
+    StatementMatcher call_matcher =
+        callExpr(callee(functionDecl().bind("calledFunction"))).bind("call");
+    refactorer.addMatcher(call_matcher, this);
+  }
+
+  virtual void run(const MatchFinder::MatchResult &result) {
+    auto *call = result.Nodes.getNodeAs<clang::CallExpr>("call");
+    auto *fn = result.Nodes.getNodeAs<clang::FunctionDecl>("calledFunction");
+
+    if (!call || !fn) return;
+
+    auto &sm = *result.SourceManager;
+
+    // Get the compartment of the caller
+    Pkey pkey = get_file_pkey(sm);
+
+    // Track this function as being called from this compartment
+    std::string fn_name = fn->getNameAsString();
+    fn_decl_pass.called_fns[pkey].insert(fn_name);
+
+    // Also track if this is a variadic system function call
+    if (fn->isVariadic() && sm.isInSystemHeader(fn->getLocation())) {
+      fn_decl_pass.variadic_system_fns.insert(fn_name);
+    }
+  }
+
+private:
+  FnDecl &fn_decl_pass;
 };
 
 static void create_file(llvm::raw_fd_ostream *file[MAX_PKEYS], int i, const char *extension) {
@@ -1253,6 +1335,8 @@ int main(int argc, const char **argv) {
   app.add_option("source-files", SourceFiles, "List of source files to process")
       ->option_text("<FILES>")
       ->check(CLI::ExistingFile);
+  app.add_flag("--libc-compartment", gLibcCompartmentEnabled,
+               "Enable libc/ld.so compartment call gates and destructor wrappers (requires IA2 runtime built with IA2_LIBC_COMPARTMENT)");
 
   CLI11_PARSE(app, argc, argv);
 
@@ -1396,6 +1480,7 @@ int main(int argc, const char **argv) {
 
   ASTMatchRefactorer refactorer(tool.getReplacements());
   FnDecl fn_decl_pass(ctx, refactorer, tool.getReplacements());
+  CallTracker call_tracker_pass(refactorer, fn_decl_pass);
   FnPtrTypes ptr_types_pass(refactorer, tool.getReplacements());
   FnPtrExpr ptr_expr_pass(refactorer, tool.getReplacements());
   FnPtrCall ptr_call_pass(ctx, refactorer, tool.getReplacements());
@@ -1476,7 +1561,51 @@ int main(int argc, const char **argv) {
                         fn_decl_pass.defined_fns[caller_pkey].begin(),
                         fn_decl_pass.defined_fns[caller_pkey].end(),
                         std::inserter(undefined_fns, undefined_fns.begin()));
+
     for (const auto &fn_name : undefined_fns) {
+      bool declared_in_system_header = fn_decl_pass.system_header_fns.contains(fn_name);
+      if (declared_in_system_header) {
+        if (!gLibcCompartmentEnabled) {
+          continue;  // Legacy behavior: ignore system/libc functions entirely.
+        }
+        if (!fn_decl_pass.called_fns[caller_pkey].contains(fn_name)) {
+          continue;  // In libc mode, only wrap system functions we actually call.
+        }
+      }
+
+      // First check if this function has a pkey assigned
+      if (!fn_decl_pass.fn_pkeys.contains(fn_name)) {
+        if (gLibcCompartmentEnabled) {
+          // Check if this is a variadic system function - don't assign to compartment 1
+          if (fn_decl_pass.variadic_system_fns.contains(fn_name)) {
+            llvm::errs() << "Variadic system function " << fn_name
+                         << " (called from compartment " << caller_pkey
+                         << ") will NOT be assigned to compartment 1\n";
+            // Don't assign a pkey - let it run unprotected
+          }
+          // Check if this is a system header function that should go to compartment 1
+          else if (fn_decl_pass.system_header_fns.contains(fn_name)) {
+            fn_decl_pass.fn_pkeys[fn_name] = 1;  // Assign to compartment 1
+            llvm::errs() << "System library function " << fn_name
+                         << " (called from compartment " << caller_pkey
+                         << ") assigned to compartment 1\n";
+          }
+        }
+        // Otherwise, let it fall through to existing logic
+      }
+      // Check if this is an ld.so function that needs a callgate to compartment 1
+      if (gLibcCompartmentEnabled &&
+          LdsoFunctionRegistry::is_ldso_function(fn_name) &&
+          caller_pkey != kLibcCompartmentPkey) {
+        // Force create a callgate from this compartment to the libc/ld.so compartment
+        direct_call_wrappers[fn_name] = caller_pkey; // Caller's compartment
+
+        // Add to ld args for wrapping
+        write_to_file(ld_args_out, caller_pkey,
+                      "--wrap="s + fn_name + '\n', ".ld");
+        continue; // Skip normal processing
+      }
+
       if (direct_call_wrappers.contains(fn_name)) {
         // If previous iterations found only one compartment that calls
         // fn_name, make sure it's not already in the multicaller set
@@ -1507,7 +1636,28 @@ int main(int argc, const char **argv) {
   // now we'll add the multicaller ones (with their renamed symbols) to allow
   // generating call gates with a single loop through direct_call_wrappers
   for (const auto &[fn_name, caller_pkey_set] : multicaller_fns) {
+    FnSignature fn_sig;
+    try {
+      fn_sig = fn_decl_pass.fn_signatures.at(fn_name);
+    } catch (std::out_of_range const &exc) {
+      llvm::errs() << "ABI signature not known for function " << fn_name << "\n";
+      abort();
+    }
+
+    Pkey target_pkey;
+    try {
+      target_pkey = fn_decl_pass.fn_pkeys.at(fn_name);
+    } catch (std::out_of_range const &exc) {
+      llvm::errs() << "pkey not known for function " << fn_name << "\n";
+      abort();
+    }
+
     for (int caller_pkey : caller_pkey_set) {
+      if (caller_pkey == target_pkey) {
+        // Same-compartment calls don't need renamed symbols or wrappers.
+        continue;
+      }
+
       std::string new_fn_name = fn_name + "_from_" + std::to_string(caller_pkey);
       // The contents of the objcopy args file
       std::string contents = fn_name + " " + new_fn_name + '\n';
@@ -1523,28 +1673,41 @@ int main(int argc, const char **argv) {
       // original entries in these maps for the renamed symbols. While we could
       // avoid this duplication if necessary, this simplifies the call gate
       // generation.
-      FnSignature fn_sig;
-      try {
-        fn_sig = fn_decl_pass.fn_signatures.at(fn_name);
-      } catch (std::out_of_range const &exc) {
-        llvm::errs() << "ABI signature not known for function " << fn_name << "\n";
-        abort();
-      }
       fn_decl_pass.fn_signatures.insert({new_fn_name, fn_sig});
-
-      Pkey pkey;
-      try {
-        pkey = fn_decl_pass.fn_pkeys.at(fn_name);
-      } catch (std::out_of_range const &exc) {
-        llvm::errs() << "pkey not known for function " << fn_name << "\n";
-        abort();
-      }
-      fn_decl_pass.fn_pkeys.insert({new_fn_name, pkey});
+      fn_decl_pass.fn_pkeys.insert({new_fn_name, target_pkey});
 
       // The target functions for multicaller function call gates don't have
       // matching symbol names (since their symbols are renamed) so let's keep
       // track of the original function names for these symbols.
       targets_for_multicaller_fns.insert({new_fn_name, fn_name});
+    }
+  }
+
+  if (gLibcCompartmentEnabled) {
+    // The TypeInfo interner assigns TypeIds in discovery order, so we need to
+    // explicitly intern the canonical "void" type before synthesizing any
+    // ld.so signatures. Otherwise we might assign the wrong ID (or crash) when
+    // trying to reference a type that never appeared in user code.
+    const TypeId void_type_id = ctx.types.intern_from_strings("void", "void");
+    // Add function signatures for ld.so functions that may not have been parsed from source
+    for (const std::string &ldso_fn : LdsoFunctionRegistry::get_ldso_functions()) {
+      if (direct_call_wrappers.contains(ldso_fn)) {
+        // Always set pkey for ld.so functions to compartment 1
+        fn_decl_pass.fn_pkeys[ldso_fn] = kLibcCompartmentPkey; // ld.so functions run in compartment 1
+
+        if (!fn_decl_pass.fn_signatures.contains(ldso_fn)) {
+          FnSignature ldso_sig;
+          if (ldso_fn == "_dl_debug_state") {
+            // void _dl_debug_state(void) - simple function with no parameters
+            ldso_sig.api.ret.name = ""; // Return value has no name
+            ldso_sig.api.ret.type = void_type_id;
+            ldso_sig.abi.ret = {};       // No return slots for void
+            ldso_sig.variadic = false;   // Not variadic
+            // No parameters so args remain empty
+          }
+          fn_decl_pass.fn_signatures[ldso_fn] = ldso_sig;
+        }
+      }
     }
   }
 
@@ -1576,6 +1739,16 @@ int main(int argc, const char **argv) {
                    << ") since its definition was not found by FnDecl pass\n";
       continue;
     }
+
+    // Libc-compartment mode adds system/ld.so symbols into direct_call_wrappers.
+    // That can yield caller==target entries (for example, one libc source file
+    // calling another libc symbol in the same compartment), which would hit
+    // emit_asm_wrapper's caller!=target assertion and also produce a useless
+    // wrapper. Skip same-compartment entries here.
+    if (caller_pkey == target_pkey) {
+      continue;
+    }
+
     std::string asm_wrapper =
         emit_asm_wrapper(ctx, fn_sig, std::nullopt, wrapper_name, target_fn,
                          WrapperKind::Direct, caller_pkey, target_pkey, Target);
@@ -1584,7 +1757,23 @@ int main(int argc, const char **argv) {
     write_to_file(ld_args_out, caller_pkey, "--wrap="s + fn_name + '\n', ".ld");
   }
 
-  // Create wrapper for compartment destructor
+  // Generate destructor wrappers for every compartment.
+  // IA2_LIBC_COMPARTMENT is set by the build (CMake add_compile_definitions);
+  // both tooling and runtime treat the libc compartment as protection key 1.
+  // Each ia2_compartment_destructor_N() does the real teardown, and
+  // ia2_compartment_init.inc rewrites DT_FINI/.fini_array to call the matching
+  // __wrap_ symbol instead.
+  // Compartment 1 (the exit slot) already runs on pkey 1 via __wrap___cxa_finalize,
+  // therefore its destructor executes with the correct PKRU/stack before we ever
+  // enter this code path. emit_asm_wrapper would assert if we tried to build a
+  // gate from pkey 1 to itself, yet ia2_compartment_init.inc still hard-codes
+  // references to __wrap_ia2_compartment_destructor_1 through both
+  // compartment_destructor_ptr (line 95) and the DT_FINI rewrites (lines 167-172).
+  // To avoid an undefined symbol while honoring those rewrites, we keep the
+  // wrapper alive but implement it as the smallest possible body: a single jmp
+  // back to the real ia2_compartment_destructor_1. All other compartments still
+  // need full call gates that jump from the exit compartment into their own pkeys
+  // before cleanup.
   for (int compartment_pkey = 1; compartment_pkey < num_pkeys; compartment_pkey++) {
     std::string fn_name = "ia2_compartment_destructor_" + std::to_string(compartment_pkey);
     FnSignature fn_sig;
@@ -1596,10 +1785,42 @@ int main(int argc, const char **argv) {
       abort();
     }
     std::string wrapper_name = "__wrap_"s + fn_name;
-    std::string asm_wrapper =
-        emit_asm_wrapper(ctx, fn_sig, std::nullopt, wrapper_name, fn_name, WrapperKind::Direct,
-                         0, compartment_pkey, Target);
-    wrapper_out << asm_wrapper;
+
+    const bool libc_path = gLibcCompartmentEnabled;
+    const bool is_libc_compartment = libc_path && compartment_pkey == kLibcCompartmentPkey;
+
+    if (libc_path) {
+      if (is_libc_compartment) {
+        // __wrap___cxa_finalize already switches into pkey 1, so the exit-compartment
+        // destructor runs with the right PKRU/stack. emit_asm_wrapper would assert on
+        // caller == target, yet ia2_compartment_init.inc still points both
+        // compartment_destructor_ptr (line 95) and the DT_FINI rewrites (lines 167-172)
+        // at __wrap_ia2_compartment_destructor_1. Keep the symbol alive with a single jmp.
+        std::ostringstream trivial;
+        trivial << "asm(\n";
+        trivial << "    \".text\\n\"\n";
+        trivial << "    \".global " << wrapper_name << "\\n\"\n";
+        trivial << "    \".type " << wrapper_name << ", @function\\n\"\n";
+        trivial << "    \"" << wrapper_name << ":\\n\"\n";
+        trivial << "    \"jmp " << fn_name << "\\n\"\n";
+        trivial << "    \".size " << wrapper_name << ", .-" << wrapper_name << "\\n\"\n";
+        trivial << "    \".previous\\n\"\n";
+        trivial << ");\n";
+        wrapper_out << trivial.str();
+      } else {
+        // Non-exit compartments need full call gates to switch from the libc compartment
+        std::string asm_wrapper =
+            emit_asm_wrapper(ctx, fn_sig, std::nullopt, wrapper_name, fn_name, WrapperKind::Direct,
+                             kLibcCompartmentPkey, compartment_pkey, Target, false);
+        wrapper_out << asm_wrapper;
+      }
+    } else {
+      // Original behavior: all destructors get call gates from compartment 0
+      std::string asm_wrapper =
+          emit_asm_wrapper(ctx, fn_sig, std::nullopt, wrapper_name, fn_name,
+                           WrapperKind::Direct, 0, compartment_pkey, Target);
+      wrapper_out << asm_wrapper;
+    }
 
     write_to_file(ld_args_out, compartment_pkey,
                   "--wrap="s + fn_name + '\n', ".ld");

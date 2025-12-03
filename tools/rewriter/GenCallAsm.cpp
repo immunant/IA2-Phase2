@@ -11,6 +11,8 @@
 #include "CAbi.h"
 #include "GenCallAsm.h"
 
+extern bool gLibcCompartmentEnabled;
+
 using namespace std::string_literals;
 using std::size_t;
 
@@ -683,15 +685,24 @@ static void emit_copy_args(AsmWriter &aw, const std::vector<ArgLocation> &args,
   }
 }
 
-static void emit_set_pkru(AsmWriter &aw, uint32_t target_pkey, Arch arch) {
+static void emit_set_pkru(AsmWriter &aw, uint32_t target_pkey, Arch arch, std::optional<uint32_t> union_pkey = std::nullopt) {
   if (arch == Arch::X86) {
-    // Change pkru to the compartment's value
-    add_comment_line(aw, "Set PKRU to the compartment's value");
+    const bool use_union_pkru = gLibcCompartmentEnabled && union_pkey.has_value();
+    // Change pkru to the compartment's value (or union value for destructors)
+    if (use_union_pkru) {
+      add_comment_line(aw, "Set PKRU to union value (both exit and target compartments)");
+    } else {
+      add_comment_line(aw, "Set PKRU to the compartment's value");
+    }
     // wrpkru requires zeroing rcx and rdx, but they may have arguments so use r10
     // and r11 as scratch registers
     add_asm_line(aw, "movq %rcx, %r10");
     add_asm_line(aw, "movq %rdx, %r11");
-    emit_wrpkru(aw, target_pkey);
+    if (use_union_pkru) {
+      emit_mixed_wrpkru(aw, *union_pkey, target_pkey);
+    } else {
+      emit_wrpkru(aw, target_pkey);
+    }
     add_asm_line(aw, "movq %r10, %rcx");
     add_asm_line(aw, "movq %r11, %rdx");
   } else if (arch == Arch::Aarch64) {
@@ -1261,7 +1272,7 @@ std::string emit_asm_wrapper(
 
   emit_scrub_regs(aw, caller_pkey, args, kind == WrapperKind::IndirectCallsite, arch);
 
-  emit_set_pkru(aw, target_pkey, arch);
+  emit_set_pkru(aw, target_pkey, arch, std::nullopt);
 
   emit_fn_call(target_name, kind, aw, arch);
 

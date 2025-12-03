@@ -1501,6 +1501,8 @@ int main(int argc, const char **argv) {
 
   wrapper_out << "#include <ia2.h>\n";
   wrapper_out << "#include <scrub_registers.h>\n";
+
+#if defined(IA2_LIBC_COMPARTMENT) && IA2_LIBC_COMPARTMENT
   wrapper_out << '\n';
   wrapper_out << "/* Priority-101 constructor to exit loader gate before user constructors */\n";
   wrapper_out << "#include <stdbool.h>\n";
@@ -1520,6 +1522,7 @@ int main(int argc, const char **argv) {
   wrapper_out << "    }\n";
   wrapper_out << "}\n";
   wrapper_out << '\n';
+#endif
 
   /*
    * Define wrappers for IA2_CALL. These switch from the caller's pkey to pkey 0

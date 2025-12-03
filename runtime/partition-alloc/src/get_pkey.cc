@@ -1,6 +1,6 @@
 #include "get_pkey.h"
 
-#if IA2_ENABLE && defined(__aarch64__)
+#if IA2_ENABLE && defined(__aarch64__) && defined(IA2_LIBC_COMPARTMENT) && IA2_LIBC_COMPARTMENT
 #include <ia2_loader.h>
 #endif
 
@@ -90,7 +90,7 @@ ia2_get_pkey() {
 __attribute__((__visibility__("hidden")))
 size_t
 ia2_get_pkey() {
-#if IA2_ENABLE
+#if IA2_ENABLE && defined(IA2_LIBC_COMPARTMENT) && IA2_LIBC_COMPARTMENT
   if (ia2_in_loader_gate) {
     return 1;
   }

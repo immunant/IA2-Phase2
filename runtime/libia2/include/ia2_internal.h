@@ -25,6 +25,15 @@ struct dl_phdr_info;
 #include <sys/mman.h>
 #include <unistd.h>
 
+/* The libc compartment feature is implemented only for x86_64 today.  If the
+ * build targets AArch64 and the flag was enabled in CMake, force it off here
+ * to avoid pulling in incomplete loader/exit callgate plumbing that segfaults
+ * under QEMU. */
+#if defined(__aarch64__) && defined(IA2_LIBC_COMPARTMENT) && IA2_LIBC_COMPARTMENT
+#undef IA2_LIBC_COMPARTMENT
+#define IA2_LIBC_COMPARTMENT 0
+#endif
+
 #if __cplusplus
 #define IA2_EXTERN_C extern "C"
 #else

@@ -12,6 +12,12 @@ if(DEFINED LIBIA2_AARCH64 AND LIBIA2_AARCH64 AND IA2_LIBC_COMPARTMENT)
     message(WARNING "IA2_LIBC_COMPARTMENT is not supported on AArch64 yet; disabling for this build.")
     set(IA2_LIBC_COMPARTMENT OFF CACHE BOOL "Enable libc/ld.so compartmentalization and exit callgate support" FORCE)
 endif()
+# Also guard based on the configured target processor in case the toolchain
+# variable is missing. Any aarch64 target should disable the feature.
+if(IA2_LIBC_COMPARTMENT AND CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
+    message(WARNING "IA2_LIBC_COMPARTMENT is not supported on AArch64 targets; forcing OFF.")
+    set(IA2_LIBC_COMPARTMENT OFF CACHE BOOL "Enable libc/ld.so compartmentalization and exit callgate support" FORCE)
+endif()
 
 if(IA2_DEBUG)
     message(STATUS "IA2: debug mode enabled")

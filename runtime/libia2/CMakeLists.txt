@@ -13,14 +13,22 @@ set(LIBIA2_SOURCES
 if(IA2_LIBC_COMPARTMENT)
     list(APPEND LIBIA2_SOURCES
         exit_callgates.c
-        loader_gate.c
-        dlopen_wrapper.c
-        mmap_wrapper.c
     )
+    # Loader gate functionality uses x86-specific PKRU instructions
+    if(NOT LIBIA2_AARCH64)
+        list(APPEND LIBIA2_SOURCES
+            loader_gate.c
+            dlopen_wrapper.c
+            mmap_wrapper.c
+        )
+    endif()
 else()
-    list(APPEND LIBIA2_SOURCES
-        loader_gate_stub.c
-    )
+    # Stub provides symbols when libc compartmentalization is disabled
+    if(NOT LIBIA2_AARCH64)
+        list(APPEND LIBIA2_SOURCES
+            loader_gate_stub.c
+        )
+    endif()
 endif()
 
 add_library(libia2 ${LIBIA2_SOURCES})
@@ -57,7 +65,8 @@ target_link_options(libia2
         "-Wl,-z,relro"
 )
 
-if(IA2_LIBC_COMPARTMENT)
+# Loader gate wrap flags (x86-64 only, requires PKRU instructions)
+if(IA2_LIBC_COMPARTMENT AND NOT LIBIA2_AARCH64)
     target_link_options(libia2
         INTERFACE
             # Loader entry point wrappers: interpose every libdl entry

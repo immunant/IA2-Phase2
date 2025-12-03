@@ -25,10 +25,6 @@ struct dl_phdr_info;
 #include <sys/mman.h>
 #include <unistd.h>
 
-#ifdef IA2_LIBC_COMPARTMENT
-#include "ia2_compartment_ids.h"
-#endif
-
 #if __cplusplus
 #define IA2_EXTERN_C extern "C"
 #else
@@ -454,23 +450,8 @@ void **ia2_stackptr_for_tag(size_t tag);
 void **ia2_stackptr_for_compartment(int compartment);
 void ia2_setup_destructors(void);
 
-// Shared PKRU read/write helpers.
-// These are required even when IA2_LIBC_COMPARTMENT is disabled because the
-// loader gate always references them once PKRU gating is activated.
-static inline uint32_t ia2_read_pkru(void) {
 #if defined(__x86_64__)
-  uint32_t pkru;
-  __asm__ volatile("rdpkru" : "=a"(pkru) : "c"(0), "d"(0));
-  return pkru;
-#else
-  return 0;
+uint32_t ia2_get_pkru(void);
+uint32_t ia2_read_pkru(void);
+void ia2_write_pkru(uint32_t pkru);
 #endif
-}
-
-static inline void ia2_write_pkru(uint32_t pkru) {
-#if defined(__x86_64__)
-  __asm__ volatile("wrpkru" : : "a"(pkru), "c"(0), "d"(0) : "memory");
-#else
-  (void)pkru;
-#endif
-}

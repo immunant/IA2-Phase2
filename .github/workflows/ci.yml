@@ -105,6 +105,7 @@ jobs:
             zlib1g-dev
             libcapstone-dev
             libglib2.0-dev
+            qemu-user
           version: 1.0 # version of cache to load
       - name: Install cmake and ninja
         uses: lukka/get-cmake@latest
@@ -114,22 +115,6 @@ jobs:
         uses: actions/checkout@v4
       - name: Init b63 submodule # Can't use checkout@v4 because it unconditionally inits all
         run: git submodule update --init external/b63
-      - name: Cache built QEMU
-        id: cache-qemu
-        uses: actions/cache@v4
-        with:
-          path: qemu/build
-          key: ${{ runner.os }}-qemu
-      - name: Check out QEMU
-        if: steps.cache-qemu.outputs.cache-hit != 'true'
-        uses: actions/checkout@v4
-        with:
-          repository: immunant/qemu
-          path: ${{ github.workspace }}/qemu
-      - name: Build QEMU
-        if: steps.cache-qemu.outputs.cache-hit != 'true'
-        working-directory: ${{ github.workspace }}/qemu
-        run: ./build.sh
       - name: Cache built Clang
         id: cache-clang
         uses: actions/cache@v4
@@ -161,17 +146,26 @@ jobs:
           repository: immunant/llvm-project
           ref: fw/tweak-tagging
           path: ${{ github.workspace }}/llvm-project
-      - name: Build Clang
+      - name: Clear space to build Clang
         if: steps.cache-clang.outputs.cache-hit != 'true'
         working-directory: ${{ github.workspace }}/llvm-project
         run: |
-          # first free up space used by unnecessary host tool cache to make room to build clang
+          # free up space used by unnecessary host tool cache to make room to build clang
           df -h /
           cd /opt
           find . -maxdepth 1 -mindepth 1 '!' -path ./containerd '!' -path ./actionarchivecache \
           '!' -path ./runner '!' -path ./runner-cache -exec rm -rf '{}' ';'
           df -h /
-          cd -
+          # free up space used by apt package archives
+          sudo apt clean
+          df -h /
+          # delete unused SDKs
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          df -h /
+      - name: Build Clang
+        if: steps.cache-clang.outputs.cache-hit != 'true'
+        working-directory: ${{ github.workspace }}/llvm-project
+        run: |
           ./build.sh
           # free up space used by libs; our desired clang binary statically links them
           rm -rf build/lib/*.a
@@ -212,7 +206,7 @@ jobs:
           cmake .. \
             -DLIBIA2_REBUILD_GLIBC=${{ matrix.rebuild-glibc }} \
             -DCMAKE_BUILD_TYPE=${{ matrix.build-type }} \
-            -DCMAKE_CROSSCOMPILING_EMULATOR=${{ github.workspace }}/qemu/build/qemu-aarch64 \
+            -DCMAKE_CROSSCOMPILING_EMULATOR=/usr/bin/qemu-aarch64 \
             -DCMAKE_TOOLCHAIN_FILE=../cmake/aarch64-toolchain.cmake \
             -DCMAKE_C_COMPILER=`pwd`/../llvm-project/build/bin/clang-19 \
             -DCMAKE_CXX_COMPILER=`pwd`/../llvm-project/build/bin/clang-19 \

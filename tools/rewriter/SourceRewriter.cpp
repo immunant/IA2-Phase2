@@ -4,7 +4,7 @@
 #include "GenCallAsm.h"
 #include "LdsoRegistry.h"
 
-#ifdef IA2_LIBC_COMPARTMENT
+#if defined(IA2_LIBC_COMPARTMENT) && IA2_LIBC_COMPARTMENT
 static constexpr int kLibcCompartmentPkey = IA2_LIBC_COMPARTMENT;
 #else
 static constexpr int kLibcCompartmentPkey = 1;
@@ -959,6 +959,24 @@ public:
     // For system headers, we want to track the declarations but not modify them
     bool is_system_header = sm.isInSystemHeader(fn_node->getLocation());
 
+    if (is_system_header &&
+        (Target != Arch::X86 || !gLibcCompartmentEnabled)) {
+      // For ARM (and generic x86 builds without libc support):
+      // when we enabled libc compartment tracking we started parsing every
+      // system header declaration, which on ARM triggers ABI kinds such as
+      // Expand/CoerceAndExpand that we still treat as fatal. Those aborts show
+      // up as exit(134) in CI. Until we implement the full ARM lowering for
+      // those kinds, keep the historic behavior—skip system headers entirely
+      // unless we are explicitly in the x86+libc-compartment configuration.
+      //
+      // Next steps once ARM support is ready:
+      //   1. Teach DetermineAbi.cpp to lower Expand/CoerceAndExpand (documented
+      //      in the LLVM ARM backend) into IA2 ArgLocations.
+      //   2. Flip this guard per-architecture so ARM can opt in incrementally.
+      //   3. Drop the early return after the new lowering is battle-tested.
+      return;
+    }
+
     // Skip if we should ignore (but still track system library declarations)
     if (!is_system_header && ignore_function(*fn_node, fn_node->getLocation(), sm)) {
       return;
@@ -1685,6 +1703,11 @@ int main(int argc, const char **argv) {
   }
 
   if (gLibcCompartmentEnabled) {
+    // The TypeInfo interner assigns TypeIds in discovery order, so we need to
+    // explicitly intern the canonical "void" type before synthesizing any
+    // ld.so signatures. Otherwise we might assign the wrong ID (or crash) when
+    // trying to reference a type that never appeared in user code.
+    const TypeId void_type_id = ctx.types.intern_from_strings("void", "void");
     // Add function signatures for ld.so functions that may not have been parsed from source
     for (const std::string &ldso_fn : LdsoFunctionRegistry::get_ldso_functions()) {
       if (direct_call_wrappers.contains(ldso_fn)) {
@@ -1696,7 +1719,7 @@ int main(int argc, const char **argv) {
           if (ldso_fn == "_dl_debug_state") {
             // void _dl_debug_state(void) - simple function with no parameters
             ldso_sig.api.ret.name = ""; // Return value has no name
-            ldso_sig.api.ret.type = 0;   // Use TypeId 0 for void (basic type)
+            ldso_sig.api.ret.type = void_type_id;
             ldso_sig.abi.ret = {};       // No return slots for void
             ldso_sig.variadic = false;   // Not variadic
             // No parameters so args remain empty
@@ -1736,7 +1759,11 @@ int main(int argc, const char **argv) {
       continue;
     }
 
-    // Skip generating wrapper if caller and target are in the same compartment
+    // Libc-compartment mode adds system/ld.so symbols into direct_call_wrappers.
+    // That can yield caller==target entries (for example, one libc source file
+    // calling another libc symbol in the same compartment), which would hit
+    // emit_asm_wrapper's caller!=target assertion and also produce a useless
+    // wrapper. Skip same-compartment entries here.
     if (caller_pkey == target_pkey) {
       continue;
     }
@@ -1750,8 +1777,8 @@ int main(int argc, const char **argv) {
   }
 
   // Generate destructor wrappers for every compartment.
-  // IA2_LIBC_COMPARTMENT is defined in runtime/libia2/include/ia2_compartment_ids.h
-  // so tooling and runtime agree on the libc compartment index.
+  // IA2_LIBC_COMPARTMENT is set by the build (CMake add_compile_definitions);
+  // both tooling and runtime treat the libc compartment as protection key 1.
   // Each ia2_compartment_destructor_N() does the real teardown, and
   // ia2_compartment_init.inc rewrites DT_FINI/.fini_array to call the matching
   // __wrap_ symbol instead.

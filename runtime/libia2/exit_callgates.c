@@ -1,4 +1,4 @@
-#ifdef IA2_LIBC_COMPARTMENT
+#if defined(IA2_LIBC_COMPARTMENT) && IA2_LIBC_COMPARTMENT
 
 // -----------------------------------------------------------------------------
 // Exit call gates
@@ -14,7 +14,6 @@
 
 #include "ia2.h"
 #include "ia2_internal.h"
-#include "ia2_compartment_ids.h"
 
 #if defined(__x86_64__)
 
@@ -126,6 +125,8 @@ __asm__(
     ".size __wrap___cxa_finalize, .-__wrap___cxa_finalize\n"
 );
 
+#else
+#error "IA2 exit callgates are only supported on x86_64 for now."
 #endif // defined(__x86_64__)
 
 #endif // IA2_LIBC_COMPARTMENT

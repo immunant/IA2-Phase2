@@ -228,11 +228,16 @@ AbiSignature determineAbiSignatureForDecl(
 
   const auto &convention = info.getEffectiveCallingConvention();
 
-  // our ABI computation assumes SysV ABI; bail if another ABI is explicitly
-  // selected
+  // Our ABI computation supports SysV ABI (x86-64) and AAPCS (ARM).
+  // This check was present since the original implementation but was never
+  // updated when ARM support was added in commit 8d3b4ed1f (April 2024).
+  // The omission went unnoticed until changes in this branch triggered the
+  // abort on ARM builds. We now explicitly allow ARM calling conventions.
   if (convention != clang::CallingConv::CC_X86_64SysV &&
+      convention != clang::CallingConv::CC_AAPCS &&
+      convention != clang::CallingConv::CC_AAPCS_VFP &&
       convention != clang::CallingConv::CC_C) {
-    printf("calling convention of %s was not SysV (%d)\n", name.c_str(),
+    printf("calling convention of %s was not SysV or AAPCS (%d)\n", name.c_str(),
            info.getASTCallingConvention());
     abort();
   }

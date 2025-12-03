@@ -1,12 +1,13 @@
 #include <ia2_loader.h>
+#include <ia2.h>
 #include <stdatomic.h>
 #include <stdint.h>
 
 _Thread_local bool ia2_in_loader_gate = false;
-_Atomic bool ia2_pkru_gates_active = false;
-_Atomic unsigned long ia2_loader_alloc_count = 0;
-_Atomic unsigned long ia2_loader_mmap_count = 0;
-_Atomic unsigned long ia2_pkru_gate_switch_count = 0;
+IA2_SHARED_DATA _Atomic bool ia2_pkru_gates_active = false;
+IA2_SHARED_DATA _Atomic unsigned long ia2_loader_alloc_count = 0;
+IA2_SHARED_DATA _Atomic unsigned long ia2_loader_mmap_count = 0;
+IA2_SHARED_DATA _Atomic unsigned long ia2_pkru_gate_switch_count = 0;
 
 void ia2_loader_gate_enter(void) {}
 void ia2_loader_gate_exit(void) {}
@@ -20,16 +21,16 @@ unsigned long ia2_get_loader_mmap_count(void) {
 }
 
 #ifdef IA2_DEBUG
-_Atomic unsigned long ia2_dlopen_count = 0;
-_Atomic unsigned long ia2_dlmopen_count = 0;
-_Atomic unsigned long ia2_dlclose_count = 0;
-_Atomic unsigned long ia2_dlsym_count = 0;
-_Atomic unsigned long ia2_dlvsym_count = 0;
-_Atomic unsigned long ia2_dladdr_count = 0;
-_Atomic unsigned long ia2_dladdr1_count = 0;
-_Atomic unsigned long ia2_dlinfo_count = 0;
-_Atomic unsigned long ia2_dlerror_count = 0;
-_Atomic unsigned long ia2_dl_iterate_phdr_count = 0;
+IA2_SHARED_DATA _Atomic unsigned long ia2_dlopen_count = 0;
+IA2_SHARED_DATA _Atomic unsigned long ia2_dlmopen_count = 0;
+IA2_SHARED_DATA _Atomic unsigned long ia2_dlclose_count = 0;
+IA2_SHARED_DATA _Atomic unsigned long ia2_dlsym_count = 0;
+IA2_SHARED_DATA _Atomic unsigned long ia2_dlvsym_count = 0;
+IA2_SHARED_DATA _Atomic unsigned long ia2_dladdr_count = 0;
+IA2_SHARED_DATA _Atomic unsigned long ia2_dladdr1_count = 0;
+IA2_SHARED_DATA _Atomic unsigned long ia2_dlinfo_count = 0;
+IA2_SHARED_DATA _Atomic unsigned long ia2_dlerror_count = 0;
+IA2_SHARED_DATA _Atomic unsigned long ia2_dl_iterate_phdr_count = 0;
 
 unsigned int ia2_get_loader_gate_depth(void) {
   return 0;

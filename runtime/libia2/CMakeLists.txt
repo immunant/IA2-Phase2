@@ -13,6 +13,13 @@ set(LIBIA2_SOURCES
 if(IA2_LIBC_COMPARTMENT)
     list(APPEND LIBIA2_SOURCES
         exit_callgates.c
+        loader_gate.c
+        dlopen_wrapper.c
+        mmap_wrapper.c
+    )
+else()
+    list(APPEND LIBIA2_SOURCES
+        loader_gate_stub.c
     )
 endif()
 
@@ -49,6 +56,30 @@ target_link_options(libia2
         # So that we can mark all relocatable data as read-only after relocation
         "-Wl,-z,relro"
 )
+
+if(IA2_LIBC_COMPARTMENT)
+    target_link_options(libia2
+        INTERFACE
+            # Loader entry point wrappers: interpose every libdl entry
+            # so the loader gate runs and keeps allocations on pkey 1
+            # for the threat model.
+            "-Wl,--wrap=dlopen"
+            "-Wl,--wrap=dlmopen"
+            "-Wl,--wrap=dlsym"
+            "-Wl,--wrap=dlvsym"
+            "-Wl,--wrap=dlclose"
+            "-Wl,--wrap=dladdr"
+            "-Wl,--wrap=dladdr1"
+            "-Wl,--wrap=dlinfo"
+            "-Wl,--wrap=dlerror"
+            "-Wl,--wrap=dl_iterate_phdr"
+
+            # Memory mapping wrappers (tag loader mmaps with pkey 1)
+            "-Wl,--wrap=mmap"
+            "-Wl,--wrap=mmap64"
+            "-Wl,--wrap=mremap"
+    )
+endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
 set(CARGO_PROFILE "dev")

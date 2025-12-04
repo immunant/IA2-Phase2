@@ -73,10 +73,13 @@ jobs:
           ninja
           popd
       - name: Check
+        # Run libc/ld.so compartment suites directly via ctest label filtering
+        # instead of a bespoke Ninja target. This keeps the build graph stable
+        # while still letting the libc-on matrix row skip the rest of the suite.
         run: |
           pushd build
           if [[ "${{ matrix.ia2-libc }}" == "IA2_LIBC_COMPARTMENT=ON" ]]; then
-            ninja -v libc-check
+            ctest -L libc_compartment --output-on-failure
           else
             ninja -v check
           fi

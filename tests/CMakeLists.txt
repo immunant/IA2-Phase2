@@ -82,17 +82,9 @@ if (NOT LIBIA2_AARCH64)
         # add_subdirectory(dl_debug_mbstowcs_test)
         add_subdirectory(dl_debug_exit_callgate)
         add_subdirectory(dl_debug_exit_callgate_standalone)
-
-        # Dedicated target that only runs the libc/ld.so compartment suites.
-        add_custom_target(libc-check
-          COMMAND ${CMAKE_CTEST_COMMAND}
-                  -L "libc_compartment"
-                  --output-on-failure
-          DEPENDS dl_debug_test dl_debug_getpwnam
-                  dl_debug_exit_callgate dl_debug_exit_callgate_standalone
-                  libc_default_compartment
-          USES_TERMINAL
-        )
+        # Each libc/ld.so test carries the "libc_compartment" label so CI can
+        # run them with `ctest -L libc_compartment` without teaching Ninja a
+        # dedicated target (keeps the build graph simpler for local dev).
     endif()
 
     # test calls PKRU-specific functions

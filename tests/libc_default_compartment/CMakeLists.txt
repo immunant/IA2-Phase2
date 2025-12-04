@@ -15,3 +15,5 @@ define_test(
     CRITERION_TEST
     EXTRA_REWRITER_ARGS --libc-compartment
 )
+
+set_tests_properties(libc_default_compartment PROPERTIES LABELS "libc_compartment")

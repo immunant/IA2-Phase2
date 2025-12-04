@@ -74,13 +74,13 @@ jobs:
           popd
       - name: Check
         run: |
+          pushd build
           if [[ "${{ matrix.ia2-libc }}" == "IA2_LIBC_COMPARTMENT=ON" ]]; then
-            tests/run_all_dl_debug_tests.sh
+            ninja -v libc-check
           else
-            pushd build
             ninja -v check
-            popd
           fi
+          popd
   build-nginx:
     runs-on: self-hosted
     steps:

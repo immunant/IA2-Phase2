@@ -9,9 +9,8 @@ on:
 
 jobs:
   test-on-pkru-enabled-host:
-    # Preserve the stable job key for downstream users, but show matrix details
-    # (including libc-compartment on/off) in the Actions UI so the special row
-    # is easy to spot.
+    # Preserve the stable job key for downstream users, but surface matrix
+    # details (including libc-compartment on/off) in the Actions UI.
     name: >-
       tests (pkru) [${{ matrix.build-type }}, ${{ matrix.c_compiler }},
       ${{ matrix.linker }},

@@ -9,6 +9,11 @@ on:
 
 jobs:
   test-on-pkru-enabled-host:
+    name: >-
+      tests (pkru) [${{ matrix.build-type }}, ${{ matrix.c_compiler }},
+      ${{ matrix.linker }},
+      ${{ matrix.ia2-libc == 'IA2_LIBC_COMPARTMENT=ON' && 'libc-on' || 'libc-off' }},
+      ${{ matrix.ia2-tracer }}, ${{ matrix.ia2-debug }}]
     runs-on: self-hosted
     timeout-minutes: 5
     continue-on-error: ${{ matrix.ia2-tracer == 'ON' }}

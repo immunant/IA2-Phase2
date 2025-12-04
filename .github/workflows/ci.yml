@@ -22,6 +22,16 @@ jobs:
         ia2-tracer: [IA2_TRACER=ON, IA2_TRACER=OFF]
         ia2-verbose: [IA2_VERBOSE=ON]
         ia2-debug-memory: [IA2_DEBUG_MEMORY=ON]
+        ia2-libc: [IA2_LIBC_COMPARTMENT=OFF]
+        include:
+          - build-type: Release
+            c_compiler: clang
+            linker: lld
+            ia2-debug: IA2_DEBUG=ON
+            ia2-tracer: IA2_TRACER=OFF
+            ia2-verbose: IA2_VERBOSE=ON
+            ia2-debug-memory: IA2_DEBUG_MEMORY=ON
+            ia2-libc: IA2_LIBC_COMPARTMENT=ON
     steps:
       - name: Setup Rust
         # We don't use actions-rust-lang/setup-rust-toolchain because it's slower
@@ -50,13 +60,18 @@ jobs:
             -D${{ matrix.ia2-tracer }}                                   \
             -D${{ matrix.ia2-verbose }}                                  \
             -D${{ matrix.ia2-debug-memory }}                             \
+            -D${{ matrix.ia2-libc }}                                     \
             -G Ninja
           ninja
           popd
       - name: Check
         run: |
           pushd build
-          ninja -v check
+          if [[ "${{ matrix.ia2-libc }}" == "IA2_LIBC_COMPARTMENT=ON" ]]; then
+            ninja -v libc-check
+          else
+            ninja -v check
+          fi
           popd
   build-nginx:
     runs-on: self-hosted

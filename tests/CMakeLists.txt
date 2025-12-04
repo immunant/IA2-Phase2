@@ -82,9 +82,8 @@ if (NOT LIBIA2_AARCH64)
         # add_subdirectory(dl_debug_mbstowcs_test)
         add_subdirectory(dl_debug_exit_callgate)
         add_subdirectory(dl_debug_exit_callgate_standalone)
-        # Each libc/ld.so test carries the "libc_compartment" label so CI can
-        # run them with `ctest -L libc_compartment` without teaching Ninja a
-        # dedicated target (keeps the build graph simpler for local dev).
+        # Each libc/ld.so test carries the "libc_compartment" label; CI filters
+        # with `ctest -L libc_compartment` when IA2_LIBC_COMPARTMENT is enabled.
     endif()
 
     # test calls PKRU-specific functions

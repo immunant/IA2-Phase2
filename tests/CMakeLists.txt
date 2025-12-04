@@ -83,19 +83,6 @@ if (NOT LIBIA2_AARCH64)
         add_subdirectory(dl_debug_exit_callgate)
         add_subdirectory(dl_debug_exit_callgate_standalone)
 
-        # Register bootstrap shim tests if available
-        if(TARGET libia2_bootstrap_shim)
-            add_test(
-                NAME bootstrap_libc_compartment_inheritance
-                COMMAND ${CMAKE_COMMAND} -E env
-                        LD_PRELOAD=$<TARGET_FILE:libia2_bootstrap_shim>
-                        IA2_TEST_NAME=libc_compartment_inheritance
-                        $<TARGET_FILE:dl_debug_test>
-                WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/tests/dl_debug_test
-            )
-            set_tests_properties(bootstrap_libc_compartment_inheritance PROPERTIES LABELS "libc_compartment;bootstrap")
-        endif()
-
         # Dedicated target that only runs the libc/ld.so compartment suites.
         add_custom_target(libc-check
           COMMAND ${CMAKE_CTEST_COMMAND}

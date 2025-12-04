@@ -9,6 +9,9 @@ on:
 
 jobs:
   test-on-pkru-enabled-host:
+    # Keep the job key stable for existing needs: edges, but surface the
+    # matrix specifics (including whether the libc compartment flag is on)
+    # directly in the Actions UI so reviewers can spot the special row fast.
     name: >-
       tests (pkru) [${{ matrix.build-type }}, ${{ matrix.c_compiler }},
       ${{ matrix.linker }},

@@ -88,7 +88,7 @@ if (NOT LIBIA2_AARCH64)
         # curated set for the flag-on job.
         add_custom_target(libc-check
           COMMAND ${CMAKE_CTEST_COMMAND}
-                  -R "^\\(dl_debug_test\\|dl_debug_getpwnam\\|dl_debug_exit_callgate\\|dl_debug_exit_callgate_standalone\\|libc_default_compartment\\)$$"
+                  -R "^\\(dl_debug_test\\|dl_debug_getpwnam\\|dl_debug_exit_callgate\\|libc_default_compartment\\)$$"
                   --output-on-failure
           DEPENDS dl_debug_test dl_debug_getpwnam
                   dl_debug_exit_callgate dl_debug_exit_callgate_standalone

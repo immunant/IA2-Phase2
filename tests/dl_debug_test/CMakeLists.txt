@@ -39,3 +39,13 @@ add_custom_target(fault_plugin_dlopen_copy
     DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/libfault_plugin_dlopen.so)
 
 add_dependencies(dl_debug_test fault_plugin_dlopen_copy)
+
+# Register only the test cases that actually exist in main.c
+foreach(test_case IN ITEMS libc_compartment_inheritance basic_compartment_check)
+    add_test(
+        NAME dl_debug_test_${test_case}
+        COMMAND ${CMAKE_COMMAND} -E env IA2_TEST_NAME=${test_case} $<TARGET_FILE:dl_debug_test>
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    )
+    set_tests_properties(dl_debug_test_${test_case} PROPERTIES LABELS "libc_compartment")
+endforeach()

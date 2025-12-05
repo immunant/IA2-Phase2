@@ -31,6 +31,27 @@ if (NOT LIBIA2_AARCH64)
     add_dependencies(check check-ia2)
 endif()
 
+option(IA2_LIBC_TESTS_ONLY "Build only libc/ld.so compartment tests" OFF)
+
+if (IA2_LIBC_TESTS_ONLY)
+    if (NOT IA2_LIBC_COMPARTMENT)
+        message(FATAL_ERROR "IA2_LIBC_TESTS_ONLY requires IA2_LIBC_COMPARTMENT=ON")
+    endif()
+    if (LIBIA2_AARCH64)
+        message(FATAL_ERROR "IA2_LIBC_TESTS_ONLY is not supported on AArch64")
+    endif()
+
+    add_subdirectory(libc_default_compartment)
+    add_subdirectory(dl_debug_test)
+    add_subdirectory(dl_debug_getpwnam)
+    # TODO: Re-enable when rewriter handles glibc inline function aliases (__btowc_alias -> btowc)
+    # add_subdirectory(dl_debug_mbstowcs_test)
+    add_subdirectory(dl_debug_exit_callgate)
+    add_subdirectory(dl_debug_exit_callgate_standalone)
+    # Each libc/ld.so test carries the "libc_compartment" label for ad-hoc filtering.
+    return()
+endif()
+
 add_subdirectory(abi)
 # add_subdirectory(ffmpeg)
 add_subdirectory(header_includes)

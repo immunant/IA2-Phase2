@@ -25,13 +25,16 @@ _Thread_local unsigned int ia2_pkru_gate_depth = 0;
 IA2_SHARED_DATA _Atomic(bool) ia2_pkru_gates_active = false;
 
 // Global counter: tracks allocations served via loader PartitionAlloc path
-_Atomic unsigned long ia2_loader_alloc_count = 0;
+// Must be IA2_SHARED_DATA because wrappers increment them after ia2_loader_gate_enter() switches PKRU
+IA2_SHARED_DATA _Atomic unsigned long ia2_loader_alloc_count = 0;
 
 // Global counter: tracks mmap calls tagged with pkey 1 during loader operations
-_Atomic unsigned long ia2_loader_mmap_count = 0;
+// Must be IA2_SHARED_DATA because wrappers increment them after ia2_loader_gate_enter() switches PKRU
+IA2_SHARED_DATA _Atomic unsigned long ia2_loader_mmap_count = 0;
 
 // Global counter: tracks PKRU gate switches (for observability)
-_Atomic unsigned long ia2_pkru_gate_switch_count = 0;
+// Must be IA2_SHARED_DATA because wrappers increment them after ia2_loader_gate_enter() switches PKRU
+IA2_SHARED_DATA _Atomic unsigned long ia2_pkru_gate_switch_count = 0;
 
 #ifdef IA2_DEBUG
 // Per-wrapper telemetry counters (debug builds only)

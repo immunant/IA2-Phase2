@@ -40,8 +40,32 @@ add_custom_target(fault_plugin_dlopen_copy
 
 add_dependencies(dl_debug_test fault_plugin_dlopen_copy)
 
-# Register only the test cases that actually exist in main.c
-foreach(test_case IN ITEMS libc_compartment_inheritance basic_compartment_check)
+# Register all test cases from main.c
+foreach(test_case IN ITEMS
+    libc_compartment_inheritance
+    basic_compartment_check
+    indirect_dlopen_iconv
+    loader_isolation_skipped
+    loader_isolation_faults
+    manual_retag_loader
+    mistag_and_fix
+    loader_file_backed_faults
+    loader_allocator_partitionalloc
+    loader_anon_mmap_tagging
+    loader_dlclose_coverage
+    wrapper_dlopen_counter
+    wrapper_dlclose_counter
+    wrapper_dlsym_counter
+    wrapper_dladdr_counter
+    wrapper_dlinfo_counter
+    wrapper_dlerror_counter
+    wrapper_dlvsym_counter
+    wrapper_dlmopen_counter
+    wrapper_dladdr1_counter
+    loader_auto_retag
+    loader_allowlist_respects_registration
+    nested_loader_gates
+)
     add_test(
         NAME dl_debug_test_${test_case}
         COMMAND ${CMAKE_COMMAND} -E env IA2_TEST_NAME=${test_case} $<TARGET_FILE:dl_debug_test>

@@ -27,18 +27,13 @@ set_target_properties(check-ia2 PROPERTIES FOLDER "tests")
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-if (NOT LIBIA2_AARCH64)
+if (NOT LIBIA2_AARCH64 AND NOT IA2_LIBC_COMPARTMENT)
     add_dependencies(check check-ia2)
 endif()
 
-option(IA2_LIBC_TESTS_ONLY "Build only libc/ld.so compartment tests" OFF)
-
-if (IA2_LIBC_TESTS_ONLY)
-    if (NOT IA2_LIBC_COMPARTMENT)
-        message(FATAL_ERROR "IA2_LIBC_TESTS_ONLY requires IA2_LIBC_COMPARTMENT=ON")
-    endif()
+if (IA2_LIBC_COMPARTMENT)
     if (LIBIA2_AARCH64)
-        message(FATAL_ERROR "IA2_LIBC_TESTS_ONLY is not supported on AArch64")
+        message(FATAL_ERROR "IA2_LIBC_COMPARTMENT is not supported on AArch64")
     endif()
 
     add_subdirectory(libc_default_compartment)

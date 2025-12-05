@@ -15,8 +15,7 @@ jobs:
       tests (pkru) [${{ matrix.build-type }}, ${{ matrix.c_compiler }},
       ${{ matrix.linker }},
       ${{ matrix.ia2-libc == 'IA2_LIBC_COMPARTMENT=ON' && 'libc-on' || 'libc-off' }},
-      ${{ matrix.ia2-tracer }}, ${{ matrix.ia2-debug }},
-      ${{ matrix.ia2-libc-tests-only }}]
+      ${{ matrix.ia2-tracer }}, ${{ matrix.ia2-debug }}]
     runs-on: self-hosted
     timeout-minutes: 5
     continue-on-error: ${{ matrix.ia2-tracer == 'ON' }}
@@ -31,7 +30,6 @@ jobs:
         ia2-verbose: [IA2_VERBOSE=ON]
         ia2-debug-memory: [IA2_DEBUG_MEMORY=ON]
         ia2-libc: [IA2_LIBC_COMPARTMENT=OFF]
-        ia2-libc-tests-only: [IA2_LIBC_TESTS_ONLY=OFF]
         include:
           - build-type: Release
             c_compiler: clang
@@ -41,7 +39,6 @@ jobs:
             ia2-verbose: IA2_VERBOSE=ON
             ia2-debug-memory: IA2_DEBUG_MEMORY=ON
             ia2-libc: IA2_LIBC_COMPARTMENT=ON
-            ia2-libc-tests-only: IA2_LIBC_TESTS_ONLY=ON
     steps:
       - name: Setup Rust
         # We don't use actions-rust-lang/setup-rust-toolchain because it's slower
@@ -71,7 +68,6 @@ jobs:
             -D${{ matrix.ia2-verbose }}                                  \
             -D${{ matrix.ia2-debug-memory }}                             \
             -D${{ matrix.ia2-libc }}                                     \
-            -D${{ matrix.ia2-libc-tests-only }}                           \
             -G Ninja
           ninja
           popd

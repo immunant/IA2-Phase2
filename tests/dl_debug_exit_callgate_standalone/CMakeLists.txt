@@ -15,3 +15,10 @@ define_test(
     PKEY 1
     EXTRA_REWRITER_ARGS --libc-compartment
 )
+
+add_test(
+    NAME dl_debug_exit_callgate_standalone
+    COMMAND $<TARGET_FILE:dl_debug_exit_callgate_standalone>
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
+set_tests_properties(dl_debug_exit_callgate_standalone PROPERTIES LABELS "libc_compartment")

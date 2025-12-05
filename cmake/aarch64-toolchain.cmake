@@ -1,5 +1,9 @@
 set(LIBIA2_AARCH64 TRUE)
 
+# The libc/loader compartment feature is x86_64-only.  Force the option off
+# for all AArch64 builds to avoid pulling in incomplete loader PKRU paths.
+set(IA2_LIBC_COMPARTMENT OFF CACHE BOOL "Enable libc/ld.so compartmentalization and exit callgate support" FORCE)
+
 set(CMAKE_SYSTEM_NAME Linux)
 set(CMAKE_SYSTEM_PROCESSOR aarch64)
 

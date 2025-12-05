@@ -9,6 +9,13 @@ on:
 
 jobs:
   test-on-pkru-enabled-host:
+    # Preserve the stable job key for downstream users, but surface matrix
+    # details (including libc-compartment on/off) in the Actions UI.
+    name: >-
+      tests (pkru) [${{ matrix.build-type }}, ${{ matrix.c_compiler }},
+      ${{ matrix.linker }},
+      ${{ matrix.ia2-libc == 'IA2_LIBC_COMPARTMENT=ON' && 'libc-on' || 'libc-off' }},
+      ${{ matrix.ia2-tracer }}, ${{ matrix.ia2-debug }}]
     runs-on: self-hosted
     timeout-minutes: 5
     continue-on-error: ${{ matrix.ia2-tracer == 'ON' }}
@@ -22,6 +29,16 @@ jobs:
         ia2-tracer: [IA2_TRACER=ON, IA2_TRACER=OFF]
         ia2-verbose: [IA2_VERBOSE=ON]
         ia2-debug-memory: [IA2_DEBUG_MEMORY=ON]
+        ia2-libc: [IA2_LIBC_COMPARTMENT=OFF]
+        include:
+          - build-type: Release
+            c_compiler: clang
+            linker: lld
+            ia2-debug: IA2_DEBUG=ON
+            ia2-tracer: IA2_TRACER=OFF
+            ia2-verbose: IA2_VERBOSE=ON
+            ia2-debug-memory: IA2_DEBUG_MEMORY=ON
+            ia2-libc: IA2_LIBC_COMPARTMENT=ON
     steps:
       - name: Setup Rust
         # We don't use actions-rust-lang/setup-rust-toolchain because it's slower
@@ -50,6 +67,7 @@ jobs:
             -D${{ matrix.ia2-tracer }}                                   \
             -D${{ matrix.ia2-verbose }}                                  \
             -D${{ matrix.ia2-debug-memory }}                             \
+            -D${{ matrix.ia2-libc }}                                     \
             -G Ninja
           ninja
           popd

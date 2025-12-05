@@ -14,6 +14,24 @@ if(IA2_LIBC_COMPARTMENT)
     list(APPEND LIBIA2_SOURCES
         exit_callgates.c
     )
+    # Loader gate functionality uses x86-specific PKRU instructions
+    if(NOT LIBIA2_AARCH64)
+        list(APPEND LIBIA2_SOURCES
+            loader_gate.c
+            dlopen_wrapper.c
+            mmap_wrapper.c
+        )
+    else()
+        # AArch64 still needs the loader gate symbols even though PKRU gates are disabled
+        list(APPEND LIBIA2_SOURCES
+            loader_gate_stub.c
+        )
+    endif()
+else()
+    # Stub provides symbols when libc compartmentalization is disabled
+    list(APPEND LIBIA2_SOURCES
+        loader_gate_stub.c
+    )
 endif()
 
 add_library(libia2 ${LIBIA2_SOURCES})
@@ -49,6 +67,31 @@ target_link_options(libia2
         # So that we can mark all relocatable data as read-only after relocation
         "-Wl,-z,relro"
 )
+
+# Loader gate wrap flags (x86-64 only, requires PKRU instructions)
+if(IA2_LIBC_COMPARTMENT AND NOT LIBIA2_AARCH64)
+    target_link_options(libia2
+        INTERFACE
+            # Loader entry point wrappers: interpose every libdl entry
+            # so the loader gate runs and keeps allocations on pkey 1
+            # for the threat model.
+            "-Wl,--wrap=dlopen"
+            "-Wl,--wrap=dlmopen"
+            "-Wl,--wrap=dlsym"
+            "-Wl,--wrap=dlvsym"
+            "-Wl,--wrap=dlclose"
+            "-Wl,--wrap=dladdr"
+            "-Wl,--wrap=dladdr1"
+            "-Wl,--wrap=dlinfo"
+            "-Wl,--wrap=dlerror"
+            "-Wl,--wrap=dl_iterate_phdr"
+
+            # Memory mapping wrappers (tag loader mmaps with pkey 1)
+            "-Wl,--wrap=mmap"
+            "-Wl,--wrap=mmap64"
+            "-Wl,--wrap=mremap"
+    )
+endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
 set(CARGO_PROFILE "dev")

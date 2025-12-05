@@ -3,11 +3,16 @@
 #endif
 #include "ia2.h"
 #include "ia2_internal.h"
+#include "ia2_path.h"
 #include "memory_maps.h"
 #include "thread_name.h"
+#include "ia2_loader.h"
+
+#include <ctype.h>
 #include <dlfcn.h>
 #include <elf.h>
 #include <link.h>
+#include <string.h>
 
 #include <pthread.h>
 #include <sys/auxv.h>
@@ -264,6 +269,23 @@ struct CompartmentConfig {
  */
 static struct CompartmentConfig user_config[IA2_MAX_COMPARTMENTS] IA2_SHARED_DATA = {0};
 
+// Shared relaxed matching: treats version suffixes like ".so.0" or "-debug" as
+// equivalent to the base library name. `candidate` may be a substring that is not
+// null-terminated; it should be trimmed prior to calling this helper.
+static bool ia2_basename_matches_token(const char *candidate, size_t candidate_len,
+                                       const char *target_base) {
+  if (!candidate || candidate_len == 0 || !target_base || target_base[0] == '\0') {
+    return false;
+  }
+
+  if (strncmp(candidate, target_base, candidate_len) != 0) {
+    return false;
+  }
+
+  char next = target_base[candidate_len];
+  return next == '\0' || next == '.' || next == '-';
+}
+
 /*
  * Stores the main DSO and extra libraries (if any) for the specified compartment. This should only
  * be called for protected compartments (calls specifying compartment 0 are forbidden).
@@ -279,12 +301,65 @@ void ia2_register_compartment(const char *dso, int compartment, const char *extr
   user_config[compartment].extra_libraries = extra_libraries;
 }
 
+// Look up the compartment explicitly assigned to `dso_name` (either via a
+// primary `ia2_register_compartment` entry or one of its semicolon-delimited
+// extra libraries). Returns -1 when the runtime has no explicit ownership.
+int ia2_lookup_registered_compartment(const char *dso_name) {
+  const char *target_base = ia2_basename(dso_name);
+  if (!target_base || target_base[0] == '\0') {
+    return -1;
+  }
+
+  for (int compartment = 1; compartment < IA2_MAX_COMPARTMENTS; compartment++) {
+    const struct CompartmentConfig *config = &user_config[compartment];
+    if (!config->dso) {
+      continue;
+    }
+
+    const char *reg_base = ia2_basename(config->dso);
+    size_t reg_len = reg_base ? strlen(reg_base) : 0;
+    if (ia2_basename_matches_token(reg_base, reg_len, target_base)) {
+      return compartment;
+    }
+
+    const char *extra = config->extra_libraries;
+    if (!extra) {
+      continue;
+    }
+
+    const char *cursor = extra;
+    while (*cursor) {
+      const char *token_start = cursor;
+      while (*cursor && *cursor != ';') {
+        cursor++;
+      }
+      size_t token_len = (size_t)(cursor - token_start);
+      while (token_len > 0 && isspace((unsigned char)token_start[0])) {
+        token_start++;
+        token_len--;
+      }
+      while (token_len > 0 && isspace((unsigned char)token_start[token_len - 1])) {
+        token_len--;
+      }
+      if (ia2_basename_matches_token(token_start, token_len, target_base)) {
+        return compartment;
+      }
+      while (*cursor == ';') {
+        cursor++;
+      }
+    }
+  }
+
+  return -1;
+}
+
 /*
  * This function is called from __wrap_main before handing off control to user code. It calls
  * ia2_main which is the user-defined compartment config code.
  */
 void ia2_start(void) {
   ia2_log("initializing ia2 runtime\n");
+
   /* Get the user config before doing anything else */
   ia2_main();
   ia2_setup_destructors();
@@ -308,5 +383,20 @@ void ia2_start(void) {
       exit(rc);
     }
   }
+
+  // Activate PKRU gates now that initialization is complete
+  // Memory is fully tagged and stacks are allocated, so PKRU switching is safe
+#if defined(__x86_64__) && defined(IA2_DEBUG)
+  uint32_t pkru_before = ia2_read_pkru();
+  ia2_log("Activating PKRU gates (PKRU before: 0x%x)\n", pkru_before);
+#endif
+#if defined(__x86_64__)
+  ia2_pkru_gates_active = true;
+#endif
+#if defined(__x86_64__) && defined(IA2_DEBUG)
+  uint32_t pkru_after = ia2_read_pkru();
+  ia2_log("PKRU gates active (PKRU after: 0x%x)\n", pkru_after);
+#endif
+
   mark_init_finished();
 }

@@ -104,6 +104,7 @@ if (LIBIA2_AARCH64)
     )
 endif()
 
+
 target_compile_options(partition-alloc_unpadded
 	PRIVATE
 		"-fPIC"

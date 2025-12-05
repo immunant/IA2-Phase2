@@ -44,7 +44,8 @@ function(add_ia2_compartment NAME TYPE)
   endif()
 
   target_include_directories(${NAME} PRIVATE
-      ${CMAKE_SOURCE_DIR}/misc/test_runner/include)
+      ${CMAKE_SOURCE_DIR}/misc/test_runner/include
+      ${CMAKE_SOURCE_DIR}/tests/common)
   target_compile_definitions(${NAME} PRIVATE
     IA2_ENABLE=1
     PKEY=${ARG_PKEY}
@@ -154,7 +155,8 @@ function(create_compile_commands NAME TYPE)
   # the libraries defined by tests and instead just add the include flags for its
   # assertions
   target_include_directories(${COMPILE_COMMAND_TARGET} PRIVATE
-      ${CMAKE_SOURCE_DIR}/misc/test_runner/include)
+      ${CMAKE_SOURCE_DIR}/misc/test_runner/include
+      ${CMAKE_SOURCE_DIR}/tests/common)
   set(CMAKE_EXPORT_COMPILE_COMMANDS OFF)
 endfunction()
 

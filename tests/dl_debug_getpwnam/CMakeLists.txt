@@ -12,3 +12,5 @@ define_test(
     CRITERION_TEST
     EXTRA_REWRITER_ARGS --libc-compartment
 )
+
+set_tests_properties(dl_debug_getpwnam PROPERTIES LABELS "libc_compartment")

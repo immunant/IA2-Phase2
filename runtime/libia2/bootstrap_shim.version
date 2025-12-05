@@ -1,0 +1,8 @@
+GLIBC_PRIVATE {
+  global:
+    __libc_dlopen_mode;
+    __libc_dlsym;
+    __libc_dlclose;
+  local:
+    *;
+};

@@ -1502,6 +1502,28 @@ int main(int argc, const char **argv) {
   wrapper_out << "#include <ia2.h>\n";
   wrapper_out << "#include <scrub_registers.h>\n";
 
+#if defined(IA2_LIBC_COMPARTMENT) && IA2_LIBC_COMPARTMENT
+  wrapper_out << '\n';
+  wrapper_out << "/* Priority-101 constructor to exit loader gate before user constructors */\n";
+  wrapper_out << "#include <stdbool.h>\n";
+  wrapper_out << '\n';
+  wrapper_out << "#ifdef __cplusplus\n";
+  wrapper_out << "extern \"C\" thread_local bool ia2_in_loader_gate __attribute__((weak));\n";
+  wrapper_out << "extern \"C\" void ia2_loader_gate_exit(void) __attribute__((weak));\n";
+  wrapper_out << "#else\n";
+  wrapper_out << "extern _Thread_local bool ia2_in_loader_gate __attribute__((weak));\n";
+  wrapper_out << "extern void ia2_loader_gate_exit(void) __attribute__((weak));\n";
+  wrapper_out << "#endif\n";
+  wrapper_out << '\n';
+  wrapper_out << "__attribute__((constructor(101)))\n";
+  wrapper_out << "static void __ia2_pre_user_constructors(void) {\n";
+  wrapper_out << "    if (ia2_loader_gate_exit && ia2_in_loader_gate) {\n";
+  wrapper_out << "        ia2_loader_gate_exit();\n";
+  wrapper_out << "    }\n";
+  wrapper_out << "}\n";
+  wrapper_out << '\n';
+#endif
+
   /*
    * Define wrappers for IA2_CALL. These switch from the caller's pkey to pkey 0
    * so we don't need to generate them for caller_pkey = 0. When IA2_CALL has

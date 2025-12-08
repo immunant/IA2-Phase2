@@ -7,6 +7,7 @@
 
 #include "ia2.h"
 #include "ia2_internal.h"
+#include "ia2_path.h"
 #include "memory_maps.h"
 
 void **ia2_stackptr_for_compartment(int compartment) {
@@ -258,7 +259,7 @@ static bool in_extra_libraries(struct dl_phdr_info *info, const char *extra_libr
   if (!extra_libraries) {
     return false;
   }
-  char *library_name = basename(info->dlpi_name);
+  const char *library_name = ia2_basename(info->dlpi_name);
   size_t library_name_len = strlen(library_name);
   if (library_name_len == 0) {
     return false;
@@ -352,7 +353,7 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
     uint64_t end = start_round_down + len_round_up;
 
     if (len_round_up == 0) {
-      const char *libname = basename(info->dlpi_name);
+      const char *libname = ia2_basename(info->dlpi_name);
       // dlpi_name is "" for the main executable.
       if (libname && libname[0] == '\0') {
         libname = "main";
@@ -440,7 +441,7 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
   // targets pkey 1 we keep them in the protection flow even if the search
   // address misses their LOAD segments; other compartments still ignore them
   // unless they were explicitly listed as shared extras.
-  const char *libname = basename(info->dlpi_name);
+  const char *libname = ia2_basename(info->dlpi_name);
   bool is_ldso = !strcmp(libname, "ld-linux-x86-64.so.2") ||
                   !strcmp(libname, "ld-linux-aarch64.so.1");
   bool is_libc = strstr(libname, "libc.so") != NULL;
@@ -465,7 +466,7 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
   }
 #endif
 
-  ia2_log("protecting library: %s\n", basename(info->dlpi_name));
+  ia2_log("protecting library: %s\n", ia2_basename(info->dlpi_name));
 
   struct AddressRange shared_ranges[NUM_SHARED_RANGES] = {0};
   size_t shared_range_count = 0;
@@ -601,4 +602,90 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
   // We need to continue, as we might be protecting both dependencies and a main
   // library
   return 0;
+}
+
+// Callback data for retag_target_dso_callback
+struct TagLinkMapArgs {
+  Elf64_Addr base_addr;  // Base address to match
+  int pkey;              // Target pkey to apply
+  bool found;            // Set to true when DSO is found and retagged
+};
+
+// dl_iterate_phdr callback for retagging a specific DSO. `dl_iterate_phdr`
+// walks every loaded object in the current namespace and invokes this callback
+// per object. We compare the reported base address (`dlpi_addr`) against the
+// link_map target and, when it matches, retag all writable PT_LOAD segments to
+// the requested protection key.
+static int retag_target_dso_callback(struct dl_phdr_info *info, size_t size, void *data) {
+  struct TagLinkMapArgs *args = (struct TagLinkMapArgs *)data;
+
+  // Match by base address
+  if (info->dlpi_addr != args->base_addr) {
+    return 0;  // Continue searching
+  }
+
+  const char *name = info->dlpi_name[0] ? ia2_basename(info->dlpi_name) : "(main)";
+  ia2_log("Retagging DSO %s (base 0x%lx) to pkey %d\n", name, info->dlpi_addr, args->pkey);
+
+  // Walk program headers and retag writable PT_LOAD segments
+  for (size_t i = 0; i < info->dlpi_phnum; i++) {
+    const Elf64_Phdr *phdr = &info->dlpi_phdr[i];
+
+    // Only process PT_LOAD segments
+    if (phdr->p_type != PT_LOAD) {
+      continue;
+    }
+
+    // Only retag writable segments - read-only segments are shared by default
+    if ((phdr->p_flags & PF_W) == 0) {
+      continue;
+    }
+
+    int access_flags = segment_flags_to_access_flags(phdr->p_flags);
+
+    // Calculate page-aligned segment boundaries
+    Elf64_Addr start = (info->dlpi_addr + phdr->p_vaddr) & ~0xFFFUL;
+    Elf64_Addr end = (info->dlpi_addr + phdr->p_vaddr + phdr->p_memsz + 0xFFFUL) & ~0xFFFUL;
+
+    ia2_log("  Segment %zu: 0x%lx-0x%lx (flags: %s%s%s)\n", i, start, end,
+            (phdr->p_flags & PF_R) ? "R" : "-",
+            (phdr->p_flags & PF_W) ? "W" : "-",
+            (phdr->p_flags & PF_X) ? "X" : "-");
+
+    int err = ia2_mprotect_with_tag((void *)start, end - start, access_flags, args->pkey);
+    if (err != 0) {
+      printf("ia2_tag_link_map: Failed to retag segment at %p for %s: %s\n",
+             (void *)start, name, strerror(errno));
+      exit(-1);
+    }
+  }
+
+  ia2_log("Successfully retagged %s to pkey %d\n", name, args->pkey);
+  args->found = true;
+  return 1;  // Stop iterating
+}
+
+/// Retag all writable PT_LOAD segments of a loaded DSO with the specified pkey.
+/// `struct link_map` is the glibc loader record for a module; `l_addr` carries
+/// the DSO's load base while `l_name` is empty for the main executable (see the
+/// glibc manual, Dynamic Linker Introspection section 37.2). We match on `l_addr`
+/// and walk program headers so loader/libc segments land in compartment 1 and
+/// stay isolated from application compartments.
+void ia2_tag_link_map(struct link_map *map, int pkey) {
+  if (!map) {
+    return;
+  }
+
+  struct TagLinkMapArgs args = {
+    .base_addr = map->l_addr,
+    .pkey = pkey,
+    .found = false
+  };
+
+  dl_iterate_phdr(retag_target_dso_callback, &args);
+
+  if (!args.found) {
+    printf("ia2_tag_link_map: Failed to find DSO with base address 0x%lx\n", map->l_addr);
+    exit(-1);
+  }
 }

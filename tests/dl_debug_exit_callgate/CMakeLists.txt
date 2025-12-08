@@ -12,3 +12,5 @@ define_test(
     CRITERION_TEST
     EXTRA_REWRITER_ARGS --libc-compartment
 )
+
+set_tests_properties(dl_debug_exit_callgate PROPERTIES LABELS "libc_compartment")

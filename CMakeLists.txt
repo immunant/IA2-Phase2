@@ -5,6 +5,20 @@ project(IA2Phase2)
 option(IA2_DEBUG "Enable debug telemetry and runtime checks" OFF)
 option(IA2_LIBC_COMPARTMENT "Enable libc/ld.so compartmentalization and exit callgate support" OFF)
 
+# The libc compartment feature is currently x86_64-only. Force it off on
+# AArch64 to avoid building incomplete loader-gate support and the resulting
+# runtime crashes under QEMU.
+if(DEFINED LIBIA2_AARCH64 AND LIBIA2_AARCH64 AND IA2_LIBC_COMPARTMENT)
+    message(WARNING "IA2_LIBC_COMPARTMENT is not supported on AArch64 yet; disabling for this build.")
+    set(IA2_LIBC_COMPARTMENT OFF CACHE BOOL "Enable libc/ld.so compartmentalization and exit callgate support" FORCE)
+endif()
+# Also guard based on the configured target processor in case the toolchain
+# variable is missing. Any aarch64 target should disable the feature.
+if(IA2_LIBC_COMPARTMENT AND CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
+    message(WARNING "IA2_LIBC_COMPARTMENT is not supported on AArch64 targets; forcing OFF.")
+    set(IA2_LIBC_COMPARTMENT OFF CACHE BOOL "Enable libc/ld.so compartmentalization and exit callgate support" FORCE)
+endif()
+
 if(IA2_DEBUG)
     message(STATUS "IA2: debug mode enabled")
 endif()
@@ -51,4 +65,5 @@ ExternalProject_Add(tools
         -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
         -DClang_DIR=${Clang_DIR}
         -DLLVM_DIR=${LLVM_DIR}
+        -DIA2_LIBC_COMPARTMENT=${IA2_LIBC_COMPARTMENT}
     INSTALL_COMMAND "")

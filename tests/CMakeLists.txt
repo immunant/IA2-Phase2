@@ -32,10 +32,6 @@ if (NOT LIBIA2_AARCH64 AND NOT IA2_LIBC_COMPARTMENT)
 endif()
 
 if (IA2_LIBC_COMPARTMENT)
-    if (LIBIA2_AARCH64)
-        message(FATAL_ERROR "IA2_LIBC_COMPARTMENT is not supported on AArch64")
-    endif()
-
     add_subdirectory(libc_default_compartment)
     add_subdirectory(dl_debug_test)
     add_subdirectory(dl_debug_getpwnam)
@@ -90,18 +86,6 @@ if (NOT LIBIA2_AARCH64)
     add_subdirectory(two_keys_minimal)
     add_subdirectory(two_shared_ranges)
     add_subdirectory(trusted_indirect)
-
-    if(IA2_LIBC_COMPARTMENT)
-        add_subdirectory(libc_default_compartment)
-        add_subdirectory(dl_debug_test)
-        add_subdirectory(dl_debug_getpwnam)
-        # TODO: Re-enable when rewriter handles glibc inline function aliases (__btowc_alias -> btowc)
-        # add_subdirectory(dl_debug_mbstowcs_test)
-        add_subdirectory(dl_debug_exit_callgate)
-        add_subdirectory(dl_debug_exit_callgate_standalone)
-        # Each libc/ld.so test carries the "libc_compartment" label; CI filters
-        # with `ctest -L libc_compartment` when IA2_LIBC_COMPARTMENT is enabled.
-    endif()
 
     # test calls PKRU-specific functions
     add_subdirectory(mmap_loop)

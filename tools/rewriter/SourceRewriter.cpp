@@ -24,8 +24,8 @@ static constexpr int kLibcCompartmentPkey = 1;
 #include "clang/Tooling/Refactoring.h"
 #include "clang/Tooling/RefactoringCallbacks.h"
 #include "clang/Tooling/Tooling.h"
+#include "llvm/ADT/Twine.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/FormatVariadic.h"
 #include "llvm/Support/JSON.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
@@ -977,8 +977,12 @@ public:
       return;
     }
 
-    // Skip if we should ignore (but still track system library declarations)
-    if (!is_system_header && ignore_function(*fn_node, fn_node->getLocation(), sm)) {
+    // Skip if we should ignore (but still track system library declarations).
+    // Also allow ld.so functions coming from the stub TU: we never rewrite that
+    // file, but we must harvest its prototypes so DetermineAbi/emit_asm_wrapper
+    // have ABI-correct signatures when synthesizing loader call gates.
+    bool is_ldso = gLibcCompartmentEnabled && LdsoFunctionRegistry::is_ldso_function(fn_name);
+    if (!is_system_header && !is_ldso && ignore_function(*fn_node, fn_node->getLocation(), sm)) {
       return;
     }
 
@@ -1632,6 +1636,50 @@ int main(int argc, const char **argv) {
   // This maps multicaller function names (ending in _pkey_N) to the original target function
   std::map<Function, Function> targets_for_multicaller_fns = {};
 
+  // Ensure loader / ld.so entrypoints get call gates even when never seen in the
+  // AST (e.g., implicit loader callbacks). Feed them through the same
+  // direct/multicaller pipeline so we still get per-caller wrappers and symbol
+  // renames. This must happen *before* we expand multicaller_fns into
+  // _from_<pkey> variants below; moving the block past that loop would skip
+  // suffix generation for ld.so symbols and drop their wrappers.
+  if (gLibcCompartmentEnabled && Target == Arch::X86) {
+    for (const std::string &ldso_fn : LdsoFunctionRegistry::get_ldso_functions()) {
+      // Assign compartment 1 (libc/ld.so) to all loader functions.
+      fn_decl_pass.fn_pkeys[ldso_fn] = kLibcCompartmentPkey;
+
+      // Prefer real signatures collected via FnDecl (stub/header). Treat
+      // missing signatures as a warning so non-glibc/libc-lite toolchains
+      // (e.g., musl lacking dladdr1/dlvsym) keep building even if we cannot
+      // emit wrappers for every entrypoint.
+      if (auto sig_it = fn_decl_pass.fn_signatures.find(ldso_fn);
+          sig_it == fn_decl_pass.fn_signatures.end()) {
+        llvm::errs() << "warning: missing FnDecl signature for ld.so function "
+                     << ldso_fn
+                     << " (skipping autowrap; ensure ldso_autowrap_stubs.c is included when run with --libc-compartment)\n";
+        continue;
+      }
+
+      for (const auto caller_pkey : pkeys_used) {
+
+        if (direct_call_wrappers.contains(ldso_fn)) {
+          Pkey other_caller = direct_call_wrappers.at(ldso_fn);
+          if (other_caller == caller_pkey) {
+            continue; // already recorded for this caller
+          }
+          direct_call_wrappers.erase(ldso_fn);
+          multicaller_fns.insert({ldso_fn, std::set{caller_pkey, other_caller}});
+        } else if (multicaller_fns.contains(ldso_fn)) {
+          multicaller_fns.at(ldso_fn).insert(caller_pkey);
+        } else {
+          direct_call_wrappers.insert({ldso_fn, caller_pkey});
+        }
+      }
+    }
+  }
+  else if (gLibcCompartmentEnabled && Target == Arch::Aarch64) {
+    llvm::errs() << "Skipping loader autowraps on AArch64 (not supported yet)\n";
+  }
+
   // At this point direct_call_wrappers has all the single-caller functions, so
   // now we'll add the multicaller ones (with their renamed symbols) to allow
   // generating call gates with a single loop through direct_call_wrappers
@@ -1680,34 +1728,6 @@ int main(int argc, const char **argv) {
       // matching symbol names (since their symbols are renamed) so let's keep
       // track of the original function names for these symbols.
       targets_for_multicaller_fns.insert({new_fn_name, fn_name});
-    }
-  }
-
-  if (gLibcCompartmentEnabled) {
-    // The TypeInfo interner assigns TypeIds in discovery order, so we need to
-    // explicitly intern the canonical "void" type before synthesizing any
-    // ld.so signatures. Otherwise we might assign the wrong ID (or crash) when
-    // trying to reference a type that never appeared in user code.
-    const TypeId void_type_id = ctx.types.intern_from_strings("void", "void");
-    // Add function signatures for ld.so functions that may not have been parsed from source
-    for (const std::string &ldso_fn : LdsoFunctionRegistry::get_ldso_functions()) {
-      if (direct_call_wrappers.contains(ldso_fn)) {
-        // Always set pkey for ld.so functions to compartment 1
-        fn_decl_pass.fn_pkeys[ldso_fn] = kLibcCompartmentPkey; // ld.so functions run in compartment 1
-
-        if (!fn_decl_pass.fn_signatures.contains(ldso_fn)) {
-          FnSignature ldso_sig;
-          if (ldso_fn == "_dl_debug_state") {
-            // void _dl_debug_state(void) - simple function with no parameters
-            ldso_sig.api.ret.name = ""; // Return value has no name
-            ldso_sig.api.ret.type = void_type_id;
-            ldso_sig.abi.ret = {};       // No return slots for void
-            ldso_sig.variadic = false;   // Not variadic
-            // No parameters so args remain empty
-          }
-          fn_decl_pass.fn_signatures[ldso_fn] = ldso_sig;
-        }
-      }
     }
   }
 

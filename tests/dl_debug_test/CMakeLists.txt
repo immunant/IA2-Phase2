@@ -26,3 +26,16 @@ foreach(test_case IN ITEMS libc_compartment_inheritance basic_compartment_check)
     )
     set_tests_properties(dl_debug_test_${test_case} PROPERTIES LABELS "libc_compartment")
 endforeach()
+
+# Static verification: ensure autowrap generates All loader wrappers.
+# Only meaningful on x86 with libc compartment enabled; the rewriter skips
+# loader autowraps on AArch64.
+if(IA2_LIBC_COMPARTMENT AND NOT LIBIA2_AARCH64)
+    add_test(
+        NAME dl_debug_test_autowrap_symbols
+        COMMAND ${CMAKE_COMMAND}
+            -DCALLGATES_SO=$<TARGET_FILE:dl_debug_test_call_gates>
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/verify_autowrap_symbols.cmake
+    )
+    set_tests_properties(dl_debug_test_autowrap_symbols PROPERTIES LABELS "libc_compartment")
+endif()

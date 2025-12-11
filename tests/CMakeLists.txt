@@ -32,10 +32,6 @@ if (NOT LIBIA2_AARCH64 AND NOT IA2_LIBC_COMPARTMENT)
 endif()
 
 if (IA2_LIBC_COMPARTMENT)
-    if (LIBIA2_AARCH64)
-        message(FATAL_ERROR "IA2_LIBC_COMPARTMENT is not supported on AArch64")
-    endif()
-
     add_subdirectory(libc_default_compartment)
     add_subdirectory(dl_debug_test)
     add_subdirectory(dl_debug_getpwnam)

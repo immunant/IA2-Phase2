@@ -27,7 +27,7 @@ set_tests_properties(three_keys_libc_autowrap PROPERTIES LABELS "libc_compartmen
 
 # Static verification: ensure multicaller autowrap generates suffixed symbols.
 # This test specifically validates the _from_<N> suffix pattern.
-if(IA2_LIBC_COMPARTMENT AND NOT LIBIA2_AARCH64)
+if(IA2_LIBC_COMPARTMENT)
     add_test(
         NAME three_keys_libc_autowrap_multicaller_symbols
         COMMAND ${CMAKE_COMMAND}

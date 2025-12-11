@@ -28,9 +28,7 @@ foreach(test_case IN ITEMS libc_compartment_inheritance basic_compartment_check)
 endforeach()
 
 # Static verification: ensure autowrap generates All loader wrappers.
-# Only meaningful on x86 with libc compartment enabled; the rewriter skips
-# loader autowraps on AArch64.
-if(IA2_LIBC_COMPARTMENT AND NOT LIBIA2_AARCH64)
+if(IA2_LIBC_COMPARTMENT)
     add_test(
         NAME dl_debug_test_autowrap_symbols
         COMMAND ${CMAKE_COMMAND}

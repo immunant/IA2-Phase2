@@ -5,6 +5,10 @@ project(IA2Phase2)
 option(IA2_DEBUG "Enable debug telemetry and runtime checks" OFF)
 option(IA2_LIBC_COMPARTMENT "Enable libc/ld.so compartmentalization and exit callgate support" OFF)
 
+if(LIBIA2_AARCH64 AND IA2_LIBC_COMPARTMENT)
+    message(FATAL_ERROR "IA2_LIBC_COMPARTMENT is not supported on AArch64")
+endif()
+
 if(IA2_DEBUG)
     message(STATUS "IA2: debug mode enabled")
 endif()

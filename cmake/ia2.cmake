@@ -311,7 +311,7 @@ function(add_ia2_call_gates NAME)
   # stub to exactly one _compile_commands target so clang tooling sees a compile
   # command for it.
   set(LDSO_STUB_SOURCES "")
-  if(NOT LIBIA2_AARCH64)
+  if(IA2_LIBC_COMPARTMENT AND NOT LIBIA2_AARCH64)
     list(FIND ARG_EXTRA_REWRITER_ARGS "--libc-compartment" _libc_comp_idx)
     if(NOT _libc_comp_idx EQUAL -1)
       set(LDSO_STUB_SOURCES "${CMAKE_SOURCE_DIR}/tools/rewriter/ldso_autowrap_stubs.c")

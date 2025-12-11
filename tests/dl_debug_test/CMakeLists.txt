@@ -33,7 +33,7 @@ if(IA2_LIBC_COMPARTMENT)
         NAME dl_debug_test_autowrap_symbols
         COMMAND ${CMAKE_COMMAND}
             -DCALLGATES_SO=$<TARGET_FILE:dl_debug_test_call_gates>
-            -P ${CMAKE_CURRENT_SOURCE_DIR}/verify_autowrap_symbols.cmake
+            -P ${CMAKE_SOURCE_DIR}/cmake/verify_autowrap_symbols.cmake
     )
     set_tests_properties(dl_debug_test_autowrap_symbols PROPERTIES LABELS "libc_compartment")
 endif()

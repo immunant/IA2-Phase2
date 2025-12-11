@@ -32,7 +32,7 @@ if(IA2_LIBC_COMPARTMENT)
         NAME three_keys_libc_autowrap_multicaller_symbols
         COMMAND ${CMAKE_COMMAND}
             -DCALLGATES_SO=$<TARGET_FILE:three_keys_libc_autowrap_call_gates>
-            -P ${CMAKE_SOURCE_DIR}/tests/dl_debug_test/verify_autowrap_symbols.cmake
+            -P ${CMAKE_SOURCE_DIR}/cmake/verify_autowrap_symbols.cmake
     )
     set_tests_properties(three_keys_libc_autowrap_multicaller_symbols PROPERTIES LABELS "libc_compartment")
 endif()

@@ -441,8 +441,8 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
   // address misses their LOAD segments; other compartments still ignore them
   // unless they were explicitly listed as shared extras.
   const char *libname = basename(info->dlpi_name);
-  bool is_ldso = !strcmp(libname, "ld-linux-x86-64.so.2") ||
-                  !strcmp(libname, "ld-linux-aarch64.so.1");
+  // IA2_LIBC_COMPARTMENT is only available on x86-64 (enforced by CMake).
+  bool is_ldso = !strcmp(libname, "ld-linux-x86-64.so.2");
   bool is_libc = strstr(libname, "libc.so") != NULL;
   const int32_t syslib_pkey = 1;
   bool syslib = (is_ldso || is_libc) && (search_args->pkey == syslib_pkey);

@@ -304,8 +304,8 @@ function(add_ia2_call_gates NAME)
     endif()
   endforeach()
 
-  # When --libc-compartment is enabled (and not on AArch64), append the loader
-  # stub TU (tools/rewriter/ldso_autowrap_stubs.c). It includes the public dl*
+  # When --libc-compartment is enabled, append the loader stub TU
+  # (tools/rewriter/ldso_autowrap_stubs.c). It includes the public dl*
   # headers so FnDecl/DetermineAbi can learn real ABI signatures for loader
   # entrypoints from system headers instead of hard-coding them. We also add the
   # stub to exactly one _compile_commands target so clang tooling sees a compile

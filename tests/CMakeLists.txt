@@ -41,6 +41,7 @@ if (IA2_LIBC_COMPARTMENT)
     add_subdirectory(dl_debug_exit_callgate_standalone)
     add_subdirectory(three_keys_libc_autowrap)
     # Each libc/ld.so test carries the "libc_compartment" label for ad-hoc filtering.
+    return()
 endif()
 
 add_subdirectory(abi)

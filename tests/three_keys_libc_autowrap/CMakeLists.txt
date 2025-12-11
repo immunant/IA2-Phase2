@@ -23,14 +23,7 @@ define_test(
     CRITERION_TEST
     EXTRA_REWRITER_ARGS --libc-compartment
 )
-
-# Register runtime test
-add_test(
-    NAME three_keys_libc_autowrap_cross_compartment_calls
-    COMMAND ${CMAKE_COMMAND} -E env IA2_TEST_NAME=cross_compartment_calls $<TARGET_FILE:three_keys_libc_autowrap>
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-)
-set_tests_properties(three_keys_libc_autowrap_cross_compartment_calls PROPERTIES LABELS "libc_compartment")
+set_tests_properties(three_keys_libc_autowrap PROPERTIES LABELS "libc_compartment")
 
 # Static verification: ensure multicaller autowrap generates suffixed symbols.
 # This test specifically validates the _from_<N> suffix pattern.

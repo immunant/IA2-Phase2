@@ -1,4 +1,6 @@
 // Minimal 3-compartment test for multicaller loader autowrap verification
+#include <assert.h>
+#include <stdbool.h>
 #include <ia2.h>
 #include <ia2_test_runner.h>
 
@@ -9,6 +11,8 @@ INIT_RUNTIME(3);
 // Declarations for cross-compartment calls
 extern void lib_a_noop(void);
 extern void lib_b_noop(void);
+extern bool lib_a_verify_loader_wrappers(void);
+extern bool lib_b_verify_loader_wrappers(void);
 
 void ia2_main(void) {
     ia2_register_compartment("main", 1, NULL);
@@ -20,4 +24,10 @@ Test(three_keys_libc_autowrap, cross_compartment_calls) {
     // Exercise cross-compartment calls to verify wrappers work
     lib_a_noop();
     lib_b_noop();
+}
+
+Test(three_keys_libc_autowrap, loader_callgates_from_compartments) {
+    // Verify dlsym/dladdr work from non-libc compartments via autowrapped callgates
+    cr_assert(lib_a_verify_loader_wrappers());
+    cr_assert(lib_b_verify_loader_wrappers());
 }

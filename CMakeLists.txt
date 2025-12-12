@@ -3,7 +3,13 @@ project(IA2Phase2)
 
 # Feature flags
 option(IA2_DEBUG "Enable debug telemetry and runtime checks" OFF)
-option(IA2_LIBC_COMPARTMENT "Enable libc/ld.so compartmentalization and exit callgate support" OFF)
+
+# IA2_LIBC_COMPARTMENT is only available on x86-64 (not aarch64).
+# When enabled, code can assume x86-64 without checking LIBIA2_AARCH64.
+include(CMakeDependentOption)
+cmake_dependent_option(IA2_LIBC_COMPARTMENT
+    "Enable libc/ld.so compartmentalization and exit callgate support" OFF
+    "NOT LIBIA2_AARCH64" OFF)
 
 if(IA2_DEBUG)
     message(STATUS "IA2: debug mode enabled")

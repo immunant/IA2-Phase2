@@ -304,6 +304,32 @@ function(add_ia2_call_gates NAME)
     endif()
   endforeach()
 
+  # When --libc-compartment is enabled, append the loader stub TU
+  # (tools/rewriter/ldso_autowrap_stubs.c). It includes the public dl*
+  # headers so FnDecl/DetermineAbi can learn real ABI signatures for loader
+  # entrypoints from system headers instead of hard-coding them. We also add the
+  # stub to exactly one _compile_commands target so clang tooling sees a compile
+  # command for it.
+  set(LDSO_STUB_SOURCES "")
+  if(IA2_LIBC_COMPARTMENT)
+    list(FIND ARG_EXTRA_REWRITER_ARGS "--libc-compartment" _libc_comp_idx)
+    if(NOT _libc_comp_idx EQUAL -1)
+      set(LDSO_STUB_SOURCES "${CMAKE_SOURCE_DIR}/tools/rewriter/ldso_autowrap_stubs.c")
+      # Add the stub to exactly one _compile_commands target so clang tooling can parse it.
+      # Rationale:
+      #   - The stub is not compiled into any runtime binary; we only need a single, stable
+      #     compile_commands.json entry so the rewriter can parse its AST to harvest loader
+      #     prototypes.
+      #   - Using a global flag (IA2_LDSO_STUB_ADDED) prevents multiple entries with different
+      #     -DPKEY values, which would make pkey_from_commands noisy/ambiguous.
+      get_property(_stub_added GLOBAL PROPERTY IA2_LDSO_STUB_ADDED)
+      if(NOT _stub_added)
+        target_sources(${NAME}_compile_commands PRIVATE ${LDSO_STUB_SOURCES})
+        set_property(GLOBAL PROPERTY IA2_LDSO_STUB_ADDED TRUE)
+      endif()
+    endif()
+  endif()
+
   if (LIBIA2_AARCH64)
     set(ARCH_FLAG "--arch=aarch64")
   else()
@@ -323,13 +349,13 @@ function(add_ia2_call_gates NAME)
         -p ${CMAKE_BINARY_DIR}
         ${SYSROOT_FLAG}
         ${ARG_EXTRA_REWRITER_ARGS}
-        ${SOURCES}
+        ${SOURCES} ${LDSO_STUB_SOURCES}
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     # dependencies on custom targets (i.e. the rewriter) do not re-run this
     # command so we need to add a dependency on the rewriter's sources. We still
     # need the dependency on the custom rewriter target to make sure it gets
     # built the first time.
-    DEPENDS ${SOURCES} ${REWRITER_SRCS} rewriter
+    DEPENDS ${SOURCES} ${LDSO_STUB_SOURCES} ${REWRITER_SRCS} rewriter
     VERBATIM
   )
 

@@ -13,6 +13,7 @@ set(LIBIA2_SOURCES
 if(IA2_LIBC_COMPARTMENT)
     list(APPEND LIBIA2_SOURCES
         exit_callgates.c
+        loader_gate_stub.c
     )
 endif()
 

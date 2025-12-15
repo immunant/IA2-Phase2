@@ -1,7 +1,10 @@
 #include <ia2_test_runner.h>
 #include <ia2.h>
+#include <ia2_loader.h>
+#include <ia2_test_pkey_utils.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <stdlib.h>
 #include "library.h"
 
 INIT_RUNTIME(2);
@@ -28,4 +31,19 @@ Test(dl_debug, basic_compartment_check) {
     test_compartment_boundary();
 
     cr_log_info("Main: Compartment boundaries verified");
+}
+
+// PartitionAlloc: ensure allocations made while the loader gate flag is active
+// still land on the expected compartment protection key (pkey 1 here).
+Test(dl_debug, loader_allocator_partitionalloc) {
+    ia2_loader_gate_enter();
+    void *test_alloc = malloc(64);
+    ia2_loader_gate_exit();
+
+    cr_assert(test_alloc != NULL);
+
+    int alloc_pkey = ia2_test_get_addr_pkey(test_alloc);
+    cr_assert(alloc_pkey == 1);
+
+    free(test_alloc);
 }

@@ -5,7 +5,7 @@ define_shared_lib(
     SRCS library.c
     NEEDS_LD_WRAP
     PKEY 2
-    EXTRA_REWRITER_ARGS --libc-compartment
+    EXTRA_REWRITER_ARGS --libc-compartment --extra-arg -I${CMAKE_SOURCE_DIR}/tests/common
 )
 
 # Build the main test
@@ -14,11 +14,12 @@ define_test(
     NEEDS_LD_WRAP
     PKEY 1
     CRITERION_TEST
-    EXTRA_REWRITER_ARGS --libc-compartment
+    UNWRAPPED_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/tests/common
+    EXTRA_REWRITER_ARGS --libc-compartment --extra-arg -I${CMAKE_SOURCE_DIR}/tests/common
 )
 
 # Register only the test cases that actually exist in main.c
-foreach(test_case IN ITEMS libc_compartment_inheritance basic_compartment_check)
+foreach(test_case IN ITEMS libc_compartment_inheritance basic_compartment_check loader_allocator_partitionalloc)
     add_test(
         NAME dl_debug_test_${test_case}
         COMMAND ${CMAKE_COMMAND} -E env IA2_TEST_NAME=${test_case} $<TARGET_FILE:dl_debug_test>

@@ -6,9 +6,9 @@
 #include <stdio.h>
 #include <string.h>
 
-// Get protection key for a DSO by searching /proc/self/smaps
+// Get protection key for a DSO by searching /proc/self/smaps.
 // Returns the pkey of the first writable (rw) region matching dso_name_pattern
-// Returns -1 if not found or on error
+// or -1 on error/not found.
 static inline int ia2_test_get_dso_pkey(const char *dso_name_pattern) {
     FILE *f = fopen("/proc/self/smaps", "r");
     if (!f) return -1;
@@ -20,14 +20,11 @@ static inline int ia2_test_get_dso_pkey(const char *dso_name_pattern) {
     while (fgets(line, sizeof(line), f)) {
         if (line[0] >= '0' && line[0] <= '9') {
             // New memory mapping line
-            if (strstr(line, dso_name_pattern) && strstr(line, "rw")) {
-                in_target_rw = true;
-            } else {
-                in_target_rw = false;
-            }
+            in_target_rw = strstr(line, dso_name_pattern) && strstr(line, "rw");
         } else if (in_target_rw && strncmp(line, "ProtectionKey:", 14) == 0) {
-            sscanf(line, "ProtectionKey: %d", &pkey);
-            break;
+            if (sscanf(line, "ProtectionKey: %d", &pkey) == 1) {
+                break;
+            }
         }
     }
     fclose(f);

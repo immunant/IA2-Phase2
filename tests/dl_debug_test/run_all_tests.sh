@@ -203,7 +203,7 @@ BUILD_TEST_DIR="$PROJECT_ROOT/build/tests/dl_debug_test"
 TEST_BINARY="$BUILD_TEST_DIR/dl_debug_test"
 
 # Bootstrap shim library
-BOOTSTRAP_SHIM="$PROJECT_ROOT/build/runtime/libia2/liblibia2_bootstrap_shim.so"
+BOOTSTRAP_SHIM="$PROJECT_ROOT/build/runtime/libia2/libia2_bootstrap_shim.so"
 # Shared-compartment regression binary
 LIBC_DEFAULT_TEST_DIR="$PROJECT_ROOT/build/tests/libc_default_compartment"
 LIBC_DEFAULT_TEST_BINARY="$LIBC_DEFAULT_TEST_DIR/libc_default_compartment"

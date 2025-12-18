@@ -22,6 +22,16 @@ Test(dl_debug, libc_compartment_inheritance) {
     cr_log_info("Main: Test complete - iconv conversion succeeded, dl_debug_state inherited compartment 1");
 }
 
+// Test purpose: Ensure indirect dlopen from iconv keeps plugin modules in the caller compartment.
+// Proof strategy: Force iconv to pull gconv DSOs and verify the conversion succeeds.
+Test(dl_debug, indirect_dlopen_iconv) {
+    // Trigger iconv conversion which will dynamically load gconv modules; this
+    // exercises the bootstrap shim path that intercepts GLIBC_PRIVATE loader hooks.
+    int result = trigger_iconv_dlopen();
+    cr_assert_eq(result, 0);
+    cr_log_info("Main: iconv conversion succeeded, gconv modules loaded correctly");
+}
+
 Test(dl_debug, basic_compartment_check) {
     cr_log_info("Main: Basic compartment check");
 

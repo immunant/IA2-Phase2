@@ -195,3 +195,23 @@ if (LIBIA2_AARCH64)
         -isystem${COMPILER_HEADERS_INCLUDE}
         -isystem${COMPILER_HEADERS_INCLUDE_FIXED})
 endif()
+
+# Bootstrap Shim: LD_PRELOAD library that intercepts GLIBC_PRIVATE loader calls
+# This shim intercepts __libc_dlopen_mode, __libc_dlsym, __libc_dlclose
+# and forwards them through our normal loader gate wrappers.
+if(IA2_LIBC_COMPARTMENT)
+    add_library(libia2_bootstrap_shim SHARED libia2_bootstrap_shim.c)
+    target_compile_options(libia2_bootstrap_shim PRIVATE -fPIC)
+    target_compile_definitions(libia2_bootstrap_shim PRIVATE _GNU_SOURCE)
+    target_link_libraries(libia2_bootstrap_shim PRIVATE dl)
+    # Version script must export GLIBC_PRIVATE loader hooks so glibc resolves
+    # them from the LD_PRELOAD shim instead of the libc copy.
+    target_link_options(libia2_bootstrap_shim PRIVATE
+        "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/bootstrap_shim.version"
+    )
+    set_target_properties(libia2_bootstrap_shim PROPERTIES
+        POSITION_INDEPENDENT_CODE ON
+        OUTPUT_NAME "libia2_bootstrap_shim"
+        PREFIX ""
+    )
+endif()

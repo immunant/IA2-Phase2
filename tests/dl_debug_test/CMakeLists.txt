@@ -14,11 +14,16 @@ define_test(
     NEEDS_LD_WRAP
     PKEY 1
     CRITERION_TEST
+    LIBS dl_debug_test_lib # Ensure gconv/iconv helper lives in the same compartment as the test harness
     EXTRA_REWRITER_ARGS --libc-compartment
 )
 
-# Register only the test cases that actually exist in main.c
-foreach(test_case IN ITEMS libc_compartment_inheritance basic_compartment_check)
+# Register test cases from main.c
+foreach(test_case IN ITEMS
+    libc_compartment_inheritance
+    indirect_dlopen_iconv
+    basic_compartment_check
+)
     add_test(
         NAME dl_debug_test_${test_case}
         COMMAND ${CMAKE_COMMAND} -E env IA2_TEST_NAME=${test_case} $<TARGET_FILE:dl_debug_test>
@@ -27,7 +32,7 @@ foreach(test_case IN ITEMS libc_compartment_inheritance basic_compartment_check)
     set_tests_properties(dl_debug_test_${test_case} PROPERTIES LABELS "libc_compartment")
 endforeach()
 
-# Static verification: ensure autowrap generates All loader wrappers.
+# Static verification: ensure autowrap generates all loader wrappers.
 if(IA2_LIBC_COMPARTMENT)
     add_test(
         NAME dl_debug_test_autowrap_symbols

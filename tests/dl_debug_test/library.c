@@ -13,7 +13,7 @@ int trigger_iconv_dlopen(void) {
     iconv_t converter = iconv_open("UTF-8", "ISO-8859-1");
 
     if (converter == (iconv_t)-1) {
-        return -1;
+        return -errno;
     }
 
     const char* input = "test";
@@ -39,6 +39,7 @@ int trigger_iconv_dlopen(void) {
 
     size_t result = iconv(converter, shared_inptr, shared_inleft,
                          shared_outptr, shared_outleft);
+    int status = 0;
 
     inptr = *shared_inptr;
     outptr = *shared_outptr;
@@ -50,7 +51,9 @@ int trigger_iconv_dlopen(void) {
     shared_free(shared_inleft);
     shared_free(shared_outleft);
 
-    if (result != (size_t)-1) {
+    if (result == (size_t)-1) {
+        status = -errno;
+    } else {
         *outptr = '\0';
     }
 
@@ -59,7 +62,7 @@ int trigger_iconv_dlopen(void) {
 
     iconv_close(converter);
 
-    return 0;
+    return status;
 }
 
 void test_compartment_boundary(void) {

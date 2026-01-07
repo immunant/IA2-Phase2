@@ -1,4 +1,5 @@
 #define _GNU_SOURCE
+#include <assert.h>
 #include <errno.h>
 #include <stdio.h>
 #include <sys/mman.h>
@@ -781,6 +782,83 @@ static bool remove_pending_pid(struct pending_pids *pending_pids, pid_t pid) {
   return false;
 }
 
+void ia2_memory_map_foreach(FILE *maps_file,
+                            void (*each_cb)(const char *line, ssize_t line_len, int path_index, uintptr_t start_addr, uintptr_t end_addr, char perms[static 4], uintptr_t offset, void *context),
+                            void (*error_cb)(const char *line, void *context),
+                            void *context) {
+  assert(maps_file);
+
+  char *line = NULL;
+  size_t line_cap = 0;
+  while (true) {
+    const ssize_t line_len = getline(&line, &line_cap, maps_file);
+    if (line_len == -1) {
+      break;
+    }
+
+    // Remove trailing newline.
+    if (line_len > 0 && line[line_len - 1] == '\n') {
+      line[line_len - 1] = 0;
+    }
+
+    // Parse `/proc/self/maps` line.
+    uintptr_t start_addr = 0;
+    uintptr_t end_addr = 0;
+    char perms[4] = {0};
+    uintptr_t offset = 0;
+    unsigned int dev_major = 0;
+    unsigned int dev_minor = 0;
+    ino_t inode = 0;
+    int path_index = 0;
+    const int vars_matched = sscanf(line, "%lx-%lx %4c %lx %x:%x %lu %n", &start_addr, &end_addr, perms, &offset, &dev_major, &dev_minor, &inode, &path_index);
+    const int expected_vars_matched = 7; // Note that "%n" doesn't count as a matched var.
+    if (vars_matched != expected_vars_matched) {
+      error_cb(line, context);
+      fprintf(stderr, "error parsing /proc/<pid>/maps line (matched %d vars instead of %d): %s\n",
+              vars_matched, expected_vars_matched, line);
+      continue;
+    }
+    each_cb(line, line_len, path_index, start_addr, end_addr, perms, offset, context);
+  }
+
+  free(line);
+}
+
+static void fail_loading_memory_map(const char *line, void *context) {
+  struct memory_map **map = (struct memory_map **)context;
+  fprintf(stderr, "failed to load initial memory map at line:\n%s\n", line);
+  if (*map) {
+    memory_map_destroy(*map);
+  }
+  *map = NULL;
+}
+
+static void add_memory_map_entry(const char *line, ssize_t line_len, int path_index, uintptr_t start_addr, uintptr_t end_addr, char perms[static 4], uintptr_t offset, void *context) {
+  struct memory_map **map = (struct memory_map **)context;
+  // if we have already failed, bail
+  if (!*map)
+    return;
+
+  struct range new_range;
+  new_range.start = start_addr;
+  new_range.len = end_addr - start_addr;
+  uint32_t prot = (perms[0] == 'r' ? PROT_READ : 0) | (perms[1] == 'w' ? PROT_WRITE : 0) | (perms[2] == 'x' ? PROT_EXEC : 0);
+  uint8_t owner_pkey = 0; // initial mappings belong to the initial compartment
+  memory_map_add_region(*map, new_range, owner_pkey, prot);
+}
+
+struct memory_map *load_initial_memory_map(pid_t pid) {
+  char *filename = NULL;
+  asprintf(&filename, "/proc/%d/maps", pid);
+  FILE *maps_file = fopen(filename, "r");
+  assert(maps_file);
+
+  struct memory_map *map = memory_map_new();
+  ia2_memory_map_foreach(maps_file, add_memory_map_entry, fail_loading_memory_map, &map);
+  fclose(maps_file);
+  return map;
+}
+
 /* track the inferior process' memory map.
 
 returns true if the inferior exits, false on trace error.
@@ -792,7 +870,12 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       .n_pids = 0,
   };
 
-  struct memory_map *map = memory_map_new();
+  /* load initial memory map before starting tracing loop */
+  struct memory_map *map = load_initial_memory_map(pid);
+  if (!map) {
+    fprintf(stderr, "failed to load initial memory map for pid %d, exiting", pid);
+    return false;
+  }
   struct memory_map_for_process *for_process = malloc(sizeof(struct memory_map_for_process));
   *for_process = for_process_new(map, pid);
 

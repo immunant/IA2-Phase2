@@ -19,7 +19,7 @@ void **ia2_stackptr_for_compartment(int compartment) {
 
 #if defined(__x86_64__)
 
-__attribute__((__used__)) uint32_t ia2_get_pkru() {
+__attribute__((__used__)) uint32_t ia2_get_pkru(void) {
   uint32_t pkru = 0;
   __asm__ volatile("rdpkru" : "=a"(pkru) : "a"(0), "d"(0), "c"(0));
   return pkru;
@@ -34,7 +34,7 @@ size_t ia2_get_tag(void) {
   return ia2_get_pkru();
 }
 
-size_t ia2_get_compartment() {
+size_t ia2_get_compartment(void) {
   uint32_t pkru = ia2_get_pkru();
   switch (pkru) {
   case 0xFFFFFFFC: {
@@ -442,7 +442,7 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
   // unless they were explicitly listed as shared extras.
   const char *libname = basename(info->dlpi_name);
   bool is_ldso = !strcmp(libname, "ld-linux-x86-64.so.2") ||
-                  !strcmp(libname, "ld-linux-aarch64.so.1");
+                 !strcmp(libname, "ld-linux-aarch64.so.1");
   bool is_libc = strstr(libname, "libc.so") != NULL;
   const int32_t syslib_pkey = 1;
   bool syslib = (is_ldso || is_libc) && (search_args->pkey == syslib_pkey);

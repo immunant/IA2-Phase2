@@ -112,6 +112,10 @@ static bool is_op_permitted(struct memory_map *map, int event,
     return true;
     break;
   }
+  case EVENT_EXIT: {
+    return true;
+    break;
+  }
   case EVENT_NONE:
     return true;
     break;
@@ -183,6 +187,11 @@ static bool update_memory_map(struct memory_map *map, int event,
   }
   case EVENT_EXEC: {
     memory_map_clear(map);
+    return true;
+    break;
+  }
+  case EVENT_EXIT: {
+    printf("clearing memory map on exit\n");
     return true;
     break;
   }
@@ -618,20 +627,22 @@ static void return_syscall_eperm(pid_t pid) {
   debug_forbid("wrote -eperm to rax\n");
 }
 
-struct memory_map_for_processes {
+/* a memory map that tracks multiple threads under the same process */
+struct memory_map_for_process {
   struct memory_map *map;
   pid_t *pids;
   size_t n_pids;
 };
 
+/* the set of memory maps for a family of traced processes */
 struct memory_maps {
-  struct memory_map_for_processes *maps_for_processes;
+  struct memory_map_for_process *maps_for_processes;
   size_t n_maps;
 };
 
-static struct memory_map_for_processes *find_memory_map(struct memory_maps *maps, pid_t pid) {
+static struct memory_map_for_process *find_memory_map(struct memory_maps *maps, pid_t pid) {
   for (int i = 0; i < maps->n_maps; i++) {
-    struct memory_map_for_processes *map_for_procs = &maps->maps_for_processes[i];
+    struct memory_map_for_process *map_for_procs = &maps->maps_for_processes[i];
     for (int j = 0; j < map_for_procs->n_pids; j++) {
       if (map_for_procs->pids[j] == pid) {
         return map_for_procs;
@@ -641,7 +652,7 @@ static struct memory_map_for_processes *find_memory_map(struct memory_maps *maps
   return NULL;
 }
 
-static bool remove_pid(struct memory_map_for_processes *map_for_procs, pid_t pid) {
+static bool remove_pid(struct memory_map_for_process *map_for_procs, pid_t pid) {
   for (int j = 0; j < map_for_procs->n_pids; j++) {
     if (map_for_procs->pids[j] == pid) {
       // swap last into its place and decrement count
@@ -653,9 +664,9 @@ static bool remove_pid(struct memory_map_for_processes *map_for_procs, pid_t pid
   return false;
 }
 
-static bool remove_map(struct memory_maps *maps, struct memory_map_for_processes *map_to_remove) {
+static bool remove_map(struct memory_maps *maps, struct memory_map_for_process *map_to_remove) {
   for (int i = 0; i < maps->n_maps; i++) {
-    struct memory_map_for_processes *map_for_procs = &maps->maps_for_processes[i];
+    struct memory_map_for_process *map_for_procs = &maps->maps_for_processes[i];
     if (map_for_procs == map_to_remove) {
       // swap last into its place and decrement count
       maps->maps_for_processes[i] = maps->maps_for_processes[maps->n_maps - 1];
@@ -666,15 +677,15 @@ static bool remove_map(struct memory_maps *maps, struct memory_map_for_processes
   return false;
 }
 
-static struct memory_map_for_processes for_processes_new(struct memory_map *map, pid_t pid) {
+static struct memory_map_for_process for_process_new(struct memory_map *map, pid_t pid) {
   pid_t *pids = malloc(sizeof(pid_t));
   pids[0] = pid;
-  struct memory_map_for_processes for_processes = {.map = map, .pids = pids, .n_pids = 1};
+  struct memory_map_for_process for_processes = {.map = map, .pids = pids, .n_pids = 1};
   return for_processes;
 }
 
-static enum control_flow handle_process_exit(struct memory_maps *maps, pid_t waited_pid) {
-  struct memory_map_for_processes *map_for_procs = find_memory_map(maps, waited_pid);
+static enum control_flow handle_thread_exit(struct memory_maps *maps, pid_t waited_pid) {
+  struct memory_map_for_process *map_for_procs = find_memory_map(maps, waited_pid);
   if (!map_for_procs) {
     fprintf(stderr, "exited: could not find memory map for process %d\n", waited_pid);
     return RETURN_FALSE;
@@ -683,6 +694,7 @@ static enum control_flow handle_process_exit(struct memory_maps *maps, pid_t wai
     fprintf(stderr, "could not remove pid %d from memory map\n", waited_pid);
     return RETURN_FALSE;
   }
+  // exit of the last thread in the process
   if (map_for_procs->n_pids == 0) {
     if (!remove_map(maps, map_for_procs)) {
       fprintf(stderr, "could not remove memory map for pid %d\n", waited_pid);
@@ -704,11 +716,11 @@ if true is returned, the inferior's exit status will be stored to *exit_status_o
 bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
 
   struct memory_map *map = memory_map_new();
-  struct memory_map_for_processes *for_processes = malloc(sizeof(struct memory_map_for_processes));
-  *for_processes = for_processes_new(map, pid);
+  struct memory_map_for_process *for_process = malloc(sizeof(struct memory_map_for_process));
+  *for_process = for_process_new(map, pid);
 
   struct memory_maps maps = {
-      .maps_for_processes = for_processes,
+      .maps_for_processes = for_process,
       .n_maps = 1,
   };
 
@@ -780,7 +792,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       }
       debug_proc("should track child pid %d\n", cloned_pid);
 
-      struct memory_map_for_processes *map_for_procs = find_memory_map(&maps, waited_pid);
+      struct memory_map_for_process *map_for_procs = find_memory_map(&maps, waited_pid);
       map_for_procs->n_pids++;
       map_for_procs->pids = realloc(map_for_procs->pids, map_for_procs->n_pids * sizeof(pid_t));
       map_for_procs->pids[map_for_procs->n_pids - 1] = cloned_pid;
@@ -795,17 +807,17 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       }
       debug_proc("should track forked child pid %d\n", cloned_pid);
 
-      struct memory_map_for_processes *map_for_procs = find_memory_map(&maps, waited_pid);
+      struct memory_map_for_process *map_for_procs = find_memory_map(&maps, waited_pid);
       struct memory_map *cloned = memory_map_clone(map_for_procs->map);
 
       remove_pid(map_for_procs, cloned_pid);
       maps.n_maps++;
-      maps.maps_for_processes = realloc(maps.maps_for_processes, maps.n_maps * sizeof(struct memory_map_for_processes));
-      maps.maps_for_processes[maps.n_maps - 1] = for_processes_new(cloned, cloned_pid);
+      maps.maps_for_processes = realloc(maps.maps_for_processes, maps.n_maps * sizeof(struct memory_map_for_process));
+      maps.maps_for_processes[maps.n_maps - 1] = for_process_new(cloned, cloned_pid);
       break;
     }
     case WAIT_EXEC: {
-      struct memory_map_for_processes *map_for_procs = find_memory_map(&maps, waited_pid);
+      struct memory_map_for_process *map_for_procs = find_memory_map(&maps, waited_pid);
       if (!map_for_procs) {
         fprintf(stderr, "exec: could not find memory map for process %d\n", waited_pid);
         return false;
@@ -816,19 +828,19 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
     }
     case WAIT_SIGNALED: {
       fprintf(stderr, "process received fatal signal (syscall entry)\n");
-      enum control_flow cf = handle_process_exit(&maps, waited_pid);
+      enum control_flow cf = handle_thread_exit(&maps, waited_pid);
       return false;
     }
     case WAIT_EXITED: {
       debug_exit("pid %d exited (syscall entry)\n", waited_pid);
-      propagate(handle_process_exit(&maps, waited_pid));
+      propagate(handle_thread_exit(&maps, waited_pid));
 
       // in any case, this process is gone, so wait for a new one
       continue;
     }
     }
 
-    struct memory_map_for_processes *map_for_procs = find_memory_map(&maps, waited_pid);
+    struct memory_map_for_process *map_for_procs = find_memory_map(&maps, waited_pid);
     if (!map_for_procs) {
       fprintf(stderr, "could not find memory map for process %d\n", waited_pid);
       return false;
@@ -940,7 +952,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       }
       printf("should track child pid %d\n", cloned_pid);
 
-      struct memory_map_for_processes *map_for_procs = find_memory_map(&maps, waited_pid);
+      struct memory_map_for_process *map_for_procs = find_memory_map(&maps, waited_pid);
       map_for_procs->n_pids++;
       map_for_procs->pids = realloc(map_for_procs->pids, map_for_procs->n_pids * sizeof(pid_t));
       map_for_procs->pids[map_for_procs->n_pids - 1] = cloned_pid;
@@ -949,13 +961,13 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
     }
     case WAIT_EXITED:
       debug_exit("pid %d exited (syscall exit)\n", waited_pid);
-      propagate(handle_process_exit(&maps, waited_pid));
+      propagate(handle_thread_exit(&maps, waited_pid));
 
       // in any case, this process is gone, so wait for a new one
       continue;
     case WAIT_EXEC:
       fprintf(stderr, "unexpected PTRACE_O_TRACEEXEC stop at syscall exit\n");
-      struct memory_map_for_processes *map_for_procs = find_memory_map(&maps, waited_pid);
+      struct memory_map_for_process *map_for_procs = find_memory_map(&maps, waited_pid);
       if (!map_for_procs) {
         fprintf(stderr, "exec: could not find memory map for process %d\n", waited_pid);
         return false;

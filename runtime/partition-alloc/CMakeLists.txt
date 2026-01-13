@@ -1,6 +1,26 @@
 cmake_minimum_required(VERSION 4.0)
 project(partition-alloc)
 
+# Detect system library paths for custom loader rpath (needed on x86_64 with REBUILD_GLIBC)
+# Use CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES which contains actual runtime library paths,
+# not linker script directories that find_library(stdc++) would return.
+if(LIBIA2_REBUILD_GLIBC AND NOT LIBIA2_AARCH64)
+    set(PA_CUSTOM_LOADER_RPATH_FLAGS "")
+    if(CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES)
+        foreach(dir IN LISTS CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES)
+            list(APPEND PA_CUSTOM_LOADER_RPATH_FLAGS "-Wl,-rpath,${dir}")
+        endforeach()
+    else()
+        # Fallback to common paths if implicit directories not available
+        set(PA_CUSTOM_LOADER_RPATH_FLAGS
+            "-Wl,-rpath,/lib/x86_64-linux-gnu"
+            "-Wl,-rpath,/usr/lib/x86_64-linux-gnu"
+            "-Wl,-rpath,/lib64"
+            "-Wl,-rpath,/usr/lib64"
+        )
+    endif()
+endif()
+
 set(PA_SRCS
 	address_pool_manager.cc
 	address_pool_manager_bitmap.cc
@@ -118,6 +138,8 @@ target_compile_options(partition-alloc_unpadded
 target_link_options(partition-alloc_unpadded
     PRIVATE
         "-Wl,-z,now"
+        # Add system library paths so custom loader can find libstdc++
+        ${PA_CUSTOM_LOADER_RPATH_FLAGS}
 )
 
 # Wrapping options from upstream BUILD.gn

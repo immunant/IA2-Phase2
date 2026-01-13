@@ -1,4 +1,5 @@
-if (LIBIA2_AARCH64)
+if (LIBIA2_AARCH64 OR LIBIA2_REBUILD_GLIBC)
+  # Disable ubsan for aarch64 and when using custom glibc (loader can't find system libs)
   set(UBSAN_FLAG "")
 else()
   set(UBSAN_FLAG "-fsanitize=undefined")
@@ -288,10 +289,13 @@ function(add_ia2_call_gates NAME)
         endif()
       endif()
 
-      # FIXME: This shouldn't be necessary but it seems aarch64-gcc < v13 might
-      # default to --as-needed so this is needed to fix some runtime ld.so lookup
-      # error
-      if (LIBIA2_AARCH64)
+      # Prevent --as-needed from dropping the wrapped library from DT_NEEDED.
+      # After rewriting, main.c no longer directly references symbols from lib.so
+      # (all calls go through call_gates.so), so the linker would drop it.
+      # This causes symbol lookup failures because call_gates.so references
+      # symbols that are no longer in global scope.
+      # Required for: aarch64 (gcc < v13 defaults), x86_64 with custom glibc loader.
+      if (LIBIA2_AARCH64 OR LIBIA2_REBUILD_GLIBC)
         target_link_options(${target} PRIVATE "-Wl,--no-as-needed")
       endif()
       target_link_libraries(${target} PRIVATE ${CALL_GATE_TARGET})

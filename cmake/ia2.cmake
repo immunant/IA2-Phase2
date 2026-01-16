@@ -290,7 +290,7 @@ function(add_ia2_call_gates NAME)
       endif()
 
       # Prevent --as-needed from dropping the wrapped library from DT_NEEDED.
-      # After rewriting, main.c no longer directly references symbols from lib.so
+      # After rewriting, main.c no longer directly references symbols from ld.so
       # (all calls go through call_gates.so), so the linker would drop it.
       # This causes symbol lookup failures because call_gates.so references
       # symbols that are no longer in global scope.

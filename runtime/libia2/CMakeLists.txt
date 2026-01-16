@@ -6,19 +6,9 @@ project(libia2)
 # not linker script directories that find_library(stdc++) would return.
 if(LIBIA2_REBUILD_GLIBC AND NOT LIBIA2_AARCH64)
     set(CUSTOM_LOADER_RPATH_FLAGS "")
-    if(CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES)
-        foreach(dir IN LISTS CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES)
-            list(APPEND CUSTOM_LOADER_RPATH_FLAGS "-Wl,-rpath,${dir}")
-        endforeach()
-    else()
-        # Fallback to common paths if implicit directories not available
-        set(CUSTOM_LOADER_RPATH_FLAGS
-            "-Wl,-rpath,/lib/x86_64-linux-gnu"
-            "-Wl,-rpath,/usr/lib/x86_64-linux-gnu"
-            "-Wl,-rpath,/lib64"
-            "-Wl,-rpath,/usr/lib64"
-        )
-    endif()
+    foreach(dir IN LISTS CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES)
+        list(APPEND CUSTOM_LOADER_RPATH_FLAGS "-Wl,-rpath,${dir}")
+    endforeach()
 endif()
 
 set(LIBIA2_SOURCES
@@ -69,7 +59,8 @@ target_link_options(libia2
         # So that we can mark all relocatable data as read-only after relocation
         "-Wl,-z,relro"
 
-        # Use custom dynamic linker when building glibc from source (x86_64)
+        # When rebuilding glibc on x86_64, embed the custom loader path in PT_INTERP
+        # and add the build directory to rpath so the loader can find libc.so.6.
         $<$<AND:$<BOOL:${LIBIA2_REBUILD_GLIBC}>,$<NOT:$<BOOL:${LIBIA2_AARCH64}>>>:-Wl,--dynamic-linker=${CMAKE_CURRENT_BINARY_DIR}/ld-linux-x86-64.so.2>
         $<$<AND:$<BOOL:${LIBIA2_REBUILD_GLIBC}>,$<NOT:$<BOOL:${LIBIA2_AARCH64}>>>:-Wl,-rpath,${CMAKE_CURRENT_BINARY_DIR}>
         # Include system library paths so custom loader can find libraries like libstdc++
@@ -187,6 +178,9 @@ else()
         )
     else()
         # Use system libc (existing behavior)
+        # Find libc. We cannot simply do `find_library(LIBC c REQUIRED)` because
+        # `libc.so` itself is a linker script with glibc, while we need the path of
+        # the actual ELF shared object itself so we can patch its program headers.
         set(LIBC_PATHS /lib /lib64 /lib/x86_64-linux-gnu)
 
         foreach(CANDIDATE IN LISTS LIBC_PATHS)
@@ -205,9 +199,9 @@ endif()
 # Generate libc with padded TLS segment
 # When rebuilding glibc, we must wait for the glibc build to complete
 if(LIBIA2_REBUILD_GLIBC)
-    set(LIBC_PADDING_DEPENDS ${PAD_TLS_SRCS} tools pad-tls glibc)
+    set(LIBC_PADDING_DEPENDS ${PAD_TLS_SRCS} tools pad-tls glibc ${LIBC_PATH})
 else()
-    set(LIBC_PADDING_DEPENDS ${PAD_TLS_SRCS} tools pad-tls)
+    set(LIBC_PADDING_DEPENDS ${PAD_TLS_SRCS} tools pad-tls ${LIBC_PATH})
 endif()
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/libc.so.6
@@ -241,7 +235,7 @@ elseif(LIBIA2_REBUILD_GLIBC)
     add_custom_command(
         OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ld-linux-x86-64.so.2
         COMMAND ${CMAKE_COMMAND} -E copy ${LD_LINUX_X86_PATH} ${CMAKE_CURRENT_BINARY_DIR}/ld-linux-x86-64.so.2
-        DEPENDS glibc
+        DEPENDS glibc ${LD_LINUX_X86_PATH}
         COMMENT "Copying ld-linux-x86-64.so.2"
     )
     add_library(libc SHARED IMPORTED)

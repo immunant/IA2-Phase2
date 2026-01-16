@@ -6,19 +6,9 @@ project(partition-alloc)
 # not linker script directories that find_library(stdc++) would return.
 if(LIBIA2_REBUILD_GLIBC AND NOT LIBIA2_AARCH64)
     set(PA_CUSTOM_LOADER_RPATH_FLAGS "")
-    if(CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES)
-        foreach(dir IN LISTS CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES)
-            list(APPEND PA_CUSTOM_LOADER_RPATH_FLAGS "-Wl,-rpath,${dir}")
-        endforeach()
-    else()
-        # Fallback to common paths if implicit directories not available
-        set(PA_CUSTOM_LOADER_RPATH_FLAGS
-            "-Wl,-rpath,/lib/x86_64-linux-gnu"
-            "-Wl,-rpath,/usr/lib/x86_64-linux-gnu"
-            "-Wl,-rpath,/lib64"
-            "-Wl,-rpath,/usr/lib64"
-        )
-    endif()
+    foreach(dir IN LISTS CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES)
+        list(APPEND PA_CUSTOM_LOADER_RPATH_FLAGS "-Wl,-rpath,${dir}")
+    endforeach()
 endif()
 
 set(PA_SRCS

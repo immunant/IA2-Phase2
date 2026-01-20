@@ -53,16 +53,6 @@ jobs:
             ia2-debug-memory: IA2_DEBUG_MEMORY=ON
             ia2-libc: IA2_LIBC_COMPARTMENT=OFF
             rebuild-glibc: ON
-          # Debug build with custom loader
-          - build-type: Debug
-            c_compiler: clang
-            linker: lld
-            ia2-debug: IA2_DEBUG=ON
-            ia2-tracer: IA2_TRACER=OFF
-            ia2-verbose: IA2_VERBOSE=ON
-            ia2-debug-memory: IA2_DEBUG_MEMORY=ON
-            ia2-libc: IA2_LIBC_COMPARTMENT=OFF
-            rebuild-glibc: ON
           # Libc compartment with custom loader
           - build-type: Release
             c_compiler: clang

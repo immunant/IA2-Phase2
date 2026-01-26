@@ -1,2 +1,0 @@
-bin_rel: tests/loader_minimal_malloc/loader_minimal_malloc
-default_test_name: minimal_malloc_pkey_tag

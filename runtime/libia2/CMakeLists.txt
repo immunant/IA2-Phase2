@@ -46,6 +46,10 @@ if(IA2_DEBUG_MEMORY)
     target_compile_definitions(libia2 PRIVATE IA2_DEBUG_MEMORY=1)
 endif()
 
+if(LIBIA2_REBUILD_GLIBC AND NOT LIBIA2_AARCH64)
+    target_compile_definitions(libia2 PRIVATE IA2_CUSTOM_LOADER=1)
+endif()
+
 target_link_options(libia2
     INTERFACE
         "-pthread"
@@ -162,7 +166,7 @@ else()
             CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env
                 "CC=${CMAKE_C_COMPILER}"
                 "CXX=${CMAKE_CXX_COMPILER}"
-                "CFLAGS=-O2 -g"
+                "CFLAGS=-O2 -g -DIA2_LDSO_MPK=1 -DIA2_LDSO_PKEY=1"
                 ${CMAKE_SOURCE_DIR}/external/glibc/configure
                 "--prefix=${GLIBC_SYSROOT}"
                 "--disable-werror"

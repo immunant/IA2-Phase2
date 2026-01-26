@@ -11,5 +11,6 @@ define_test(
     NO_LIBS
     PKEY 1
     CRITERION_TEST
+    UNWRAPPED_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/external/glibc/elf
     EXTRA_REWRITER_ARGS --libc-compartment
 )

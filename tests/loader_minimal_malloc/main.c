@@ -20,6 +20,7 @@
 
 #include <ia2.h>
 #include <ia2_test_runner.h>
+#include <ia2_ldso_heap.h>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -36,7 +37,6 @@ void ia2_main(void) {
 }
 
 /* Marker name set by the loader - must match IA2_LDSO_HEAP_NAME in dl-minimal-malloc.c */
-#define IA2_LDSO_HEAP_MARKER "[anon: ia2-loader-heap]"
 
 /* Find the loader heap by its unique marker name and verify its pkey.
    The loader sets this name via prctl(PR_SET_VMA_ANON_NAME), bypassing

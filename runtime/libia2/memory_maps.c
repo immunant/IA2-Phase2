@@ -166,17 +166,16 @@ static void label_memory_map(FILE *log, uintptr_t start_addr) {}
 // so we need to free what `getline` allocated with `__real_free`.
 typeof(IA2_IGNORE(free)) __real_free;
 
-void ia2_log_memory_maps(FILE *log) {
-  FILE *maps = fopen("/proc/self/maps", "r");
-  assert(maps);
-
-  // Skip dev and inode.
-  fprintf(log, "  start addr-end addr     perms offset  path\n");
+void ia2_memory_map_foreach(FILE *maps_file,
+                            void (*each_cb)(const char *line, ssize_t line_len, int path_index, uintptr_t start_addr, uintptr_t end_addr, char perms[static 4], uintptr_t offset, void *context),
+                            void (*error_cb)(const char *line, void *context),
+                            void *context) {
+  assert(maps_file);
 
   char *line = NULL;
   size_t line_cap = 0;
   while (true) {
-    const ssize_t line_len = getline(&line, &line_cap, maps);
+    const ssize_t line_len = getline(&line, &line_cap, maps_file);
     if (line_len == -1) {
       break;
     }
@@ -198,27 +197,46 @@ void ia2_log_memory_maps(FILE *log) {
     const int vars_matched = sscanf(line, "%lx-%lx %4c %lx %x:%x %lu %n", &start_addr, &end_addr, perms, &offset, &dev_major, &dev_minor, &inode, &path_index);
     const int expected_vars_matched = 7; // Note that "%n" doesn't count as a matched var.
     if (vars_matched != expected_vars_matched) {
-      fprintf(log, "%s\n", line);
-      fprintf(stderr, "error parsing /proc/self/maps line (matched %d vars instead of %d): %s\n",
+      error_cb(line, context);
+      fprintf(stderr, "error parsing /proc/<pid>/maps line (matched %d vars instead of %d): %s\n",
               vars_matched, expected_vars_matched, line);
       continue;
     }
-    const char *path = line + path_index;
-
-    // Skip dev and inode.
-    fprintf(log, "%08lx-%08lx %.4s %08lx ", start_addr, end_addr, perms, offset);
-
-    const size_t path_len = (size_t)line_len - path_index - 1;
-    if (path_len != 0) {
-      fprintf(log, "%s", path);
-    } else {
-      // No path, try to identify it.
-      label_memory_map(log, start_addr);
-    }
-
-    fprintf(log, "\n");
+    each_cb(line, line_len, path_index, start_addr, end_addr, perms, offset, context);
   }
 
   __real_free(line);
-  fclose(maps);
+}
+
+static void log_memory_map_error(const char *line, void *context) {
+  FILE *log = (FILE *)context;
+  fprintf(log, "%s\n", line);
+}
+
+static void log_memory_map_entry(const char *line, ssize_t line_len, int path_index, uintptr_t start_addr, uintptr_t end_addr, char perms[static 4], uintptr_t offset, void *context) {
+  FILE *log = (FILE *)context;
+  // Skip dev and inode.
+  fprintf(log, "%08lx-%08lx %.4s %08lx ", start_addr, end_addr, perms, offset);
+
+  const char *path = line + path_index;
+
+  const size_t path_len = (size_t)line_len - path_index - 1;
+  if (path_len != 0) {
+    fprintf(log, "%s", path);
+  } else {
+    // No path, try to identify it.
+    label_memory_map(log, start_addr);
+  }
+
+  fprintf(log, "\n");
+}
+
+void ia2_log_memory_maps(FILE *log) {
+  FILE *maps_file = fopen("/proc/self/maps", "r");
+  assert(maps_file);
+
+  // Skip dev and inode.
+  fprintf(log, "  start addr-end addr     perms offset  path\n");
+  ia2_memory_map_foreach(maps_file, log_memory_map_entry, log_memory_map_error, (void *)log);
+  fclose(maps_file);
 }

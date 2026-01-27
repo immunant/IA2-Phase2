@@ -9,7 +9,7 @@
  *   - MPK-capable CPU and kernel
  *
  * Configure:
- *   cmake -B build -G Ninja -DLIBIA2_REBUILD_GLIBC=ON -DIA2_LIBC_COMPARTMENT=ON
+ *   cmake -B build -G Ninja -DIA2_LIBC_COMPARTMENT=ON
  *
  * Build:
  *   ninja -C build loader_minimal_malloc

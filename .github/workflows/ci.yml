@@ -14,9 +14,8 @@ jobs:
     name: >-
       tests (pkru) [${{ matrix.build-type }}, ${{ matrix.c_compiler }},
       ${{ matrix.linker }},
-      ${{ matrix.ia2-libc == 'IA2_LIBC_COMPARTMENT=ON' && 'libc-on' || 'libc-off' }},
-      ${{ matrix.ia2-tracer }}, ${{ matrix.ia2-debug }},
-      ${{ matrix.rebuild-glibc == 'ON' && 'custom-loader' || 'system-loader' }}]
+      ${{ matrix.ia2-libc == 'IA2_LIBC_COMPARTMENT=ON' && 'libc-compartment' || 'standard' }},
+      ${{ matrix.ia2-tracer }}, ${{ matrix.ia2-debug }}]
     runs-on: self-hosted
     timeout-minutes: 15
     continue-on-error: ${{ matrix.ia2-tracer == 'ON' }}
@@ -31,8 +30,9 @@ jobs:
         ia2-verbose: [IA2_VERBOSE=ON]
         ia2-debug-memory: [IA2_DEBUG_MEMORY=ON]
         ia2-libc: [IA2_LIBC_COMPARTMENT=OFF]
-        rebuild-glibc: [OFF]
         include:
+          # Libc compartment mode (implies custom glibc build with MPK-protected loader heap)
+          # Adds ~5-10 min build time for glibc
           - build-type: Release
             c_compiler: clang
             linker: lld
@@ -41,28 +41,6 @@ jobs:
             ia2-verbose: IA2_VERBOSE=ON
             ia2-debug-memory: IA2_DEBUG_MEMORY=ON
             ia2-libc: IA2_LIBC_COMPARTMENT=ON
-            rebuild-glibc: OFF
-          # Test with custom-built glibc loader (adds ~5-10 min build time per job)
-          # Release build, basic configuration
-          - build-type: Release
-            c_compiler: clang
-            linker: lld
-            ia2-debug: IA2_DEBUG=OFF
-            ia2-tracer: IA2_TRACER=OFF
-            ia2-verbose: IA2_VERBOSE=ON
-            ia2-debug-memory: IA2_DEBUG_MEMORY=ON
-            ia2-libc: IA2_LIBC_COMPARTMENT=OFF
-            rebuild-glibc: ON
-          # Libc compartment with custom loader
-          - build-type: Release
-            c_compiler: clang
-            linker: lld
-            ia2-debug: IA2_DEBUG=ON
-            ia2-tracer: IA2_TRACER=OFF
-            ia2-verbose: IA2_VERBOSE=ON
-            ia2-debug-memory: IA2_DEBUG_MEMORY=ON
-            ia2-libc: IA2_LIBC_COMPARTMENT=ON
-            rebuild-glibc: ON
     steps:
       - name: Setup Rust
         # We don't use actions-rust-lang/setup-rust-toolchain because it's slower
@@ -72,8 +50,8 @@ jobs:
         uses: actions/checkout@v4
       - name: Init b63 submodule # Can't use checkout@v4 because it unconditionally inits all
         run: git submodule update --init external/b63
-      - name: Init glibc submodule if rebuilding glibc
-        if: matrix.rebuild-glibc == 'ON'
+      - name: Init glibc submodule if libc compartment enabled
+        if: matrix.ia2-libc == 'IA2_LIBC_COMPARTMENT=ON'
         run: git submodule sync external/glibc && git submodule update --init external/glibc
       - name: Build
         run: |
@@ -95,7 +73,6 @@ jobs:
             -D${{ matrix.ia2-verbose }}                                  \
             -D${{ matrix.ia2-debug-memory }}                             \
             -D${{ matrix.ia2-libc }}                                     \
-            -DLIBIA2_REBUILD_GLIBC=${{ matrix.rebuild-glibc }}           \
             -G Ninja
           ninja
           popd

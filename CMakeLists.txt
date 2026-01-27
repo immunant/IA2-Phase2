@@ -6,6 +6,8 @@ option(IA2_DEBUG "Enable debug telemetry and runtime checks" OFF)
 
 # IA2_LIBC_COMPARTMENT is only available on x86-64 (not aarch64).
 # When enabled, code can assume x86-64 without checking LIBIA2_AARCH64.
+# Enabling this option automatically rebuilds glibc with MPK support and
+# adds --libc-compartment to all rewriter invocations.
 include(CMakeDependentOption)
 cmake_dependent_option(IA2_LIBC_COMPARTMENT
     "Enable libc/ld.so compartmentalization and exit callgate support" OFF
@@ -16,8 +18,10 @@ if(IA2_DEBUG)
 endif()
 
 if(IA2_LIBC_COMPARTMENT)
-    message(STATUS "IA2: libc compartmentalization enabled")
+    message(STATUS "IA2: libc compartmentalization enabled (implies custom glibc build)")
     add_compile_definitions(IA2_LIBC_COMPARTMENT=1)
+    # Libc compartmentalization requires the custom glibc with MPK-protected loader heap
+    set(LIBIA2_REBUILD_GLIBC ON)
 endif()
 
 include(ExternalProject)

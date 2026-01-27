@@ -1,5 +1,5 @@
 # Verify minimal loader malloc mappings are tagged with the loader pkey
-# Note: This test is only added on x86_64 with LIBIA2_REBUILD_GLIBC (see tests/CMakeLists.txt)
+# Note: This test requires IA2_LIBC_COMPARTMENT (which implies custom glibc build)
 
 define_test(
     SRCS main.c

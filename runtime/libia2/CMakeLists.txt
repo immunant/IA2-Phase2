@@ -168,11 +168,14 @@ else()
             SOURCE_DIR ${CMAKE_SOURCE_DIR}/external/glibc
             BINARY_DIR ${CMAKE_BINARY_DIR}/external/glibc
             CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env
-                "CC=${CMAKE_C_COMPILER}"
+                # IA2_LDSO_PKEY must be in CC (not CFLAGS) to reach all glibc sources
+                # including dl-minimal-malloc.c. This enables MPK protection for the
+                # loader heap. Libc compartmentalization (--libc-compartment) ensures
+                # all libc calls go through call gates to compartment 1, which has
+                # access to pkey 1 (the loader pkey).
+                "CC=${CMAKE_C_COMPILER} -DIA2_LDSO_PKEY=1"
                 "CXX=${CMAKE_CXX_COMPILER}"
-                # Note: CFLAGS may not reach all glibc sources (e.g., dl-minimal-malloc.c).
-                # Loader heap MPK protection requires further work to allow cross-compartment access.
-                "CFLAGS=-O2 -g -DIA2_LDSO_PKEY=1"
+                "CFLAGS=-O2 -g"
                 ${CMAKE_SOURCE_DIR}/external/glibc/configure
                 "--prefix=${GLIBC_SYSROOT}"
                 "--disable-werror"

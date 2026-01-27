@@ -308,6 +308,16 @@ function(add_ia2_call_gates NAME)
     endif()
   endforeach()
 
+  # When IA2_LIBC_COMPARTMENT is enabled, automatically add --libc-compartment
+  # to rewriter args if not already present. This ensures all libc calls go
+  # through call gates, which is required when the loader heap is MPK-protected.
+  if(IA2_LIBC_COMPARTMENT)
+    list(FIND ARG_EXTRA_REWRITER_ARGS "--libc-compartment" _libc_comp_idx)
+    if(_libc_comp_idx EQUAL -1)
+      list(APPEND ARG_EXTRA_REWRITER_ARGS "--libc-compartment")
+    endif()
+  endif()
+
   # When --libc-compartment is enabled, append the loader stub TU
   # (tools/rewriter/ldso_autowrap_stubs.c). It includes the public dl*
   # headers so FnDecl/DetermineAbi can learn real ABI signatures for loader

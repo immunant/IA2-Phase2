@@ -136,9 +136,9 @@ static void verify_tls_padding(void) {
 /* Allocates the required pkeys on x86 or enables MTE on aarch64 */
 static void ia2_set_up_tags(void) {
 #if defined(__x86_64__)
-#ifdef IA2_CUSTOM_LOADER
-  /* Custom loader takes pkey 1, so first compartment gets pkey 2 */
-  int expected_first_pkey = 2;
+#ifdef IA2_LDSO_PKEY
+  /* Dynamic linker already allocated this pkey, so only allocate remaining */
+  int expected_first_pkey = IA2_LDSO_PKEY + 1;
 #else
   int expected_first_pkey = 1;
 #endif

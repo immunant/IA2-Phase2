@@ -47,7 +47,11 @@ if(IA2_DEBUG_MEMORY)
 endif()
 
 if(LIBIA2_REBUILD_GLIBC AND NOT LIBIA2_AARCH64)
-    target_compile_definitions(libia2 PRIVATE IA2_CUSTOM_LOADER=1)
+    # IA2_LDSO_PKEY: When defined, indicates the custom glibc loader is in use
+    # and specifies which pkey the loader's heap is protected with. The runtime
+    # skips allocating this pkey since the dynamic linker already owns it.
+    # This same macro is passed to glibc to enable MPK protection in ld.so.
+    target_compile_definitions(libia2 PRIVATE IA2_LDSO_PKEY=1)
 endif()
 
 target_link_options(libia2
@@ -166,7 +170,7 @@ else()
             CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env
                 "CC=${CMAKE_C_COMPILER}"
                 "CXX=${CMAKE_CXX_COMPILER}"
-                "CFLAGS=-O2 -g -DIA2_LDSO_MPK=1 -DIA2_LDSO_PKEY=1"
+                "CFLAGS=-O2 -g -DIA2_LDSO_PKEY=1"
                 ${CMAKE_SOURCE_DIR}/external/glibc/configure
                 "--prefix=${GLIBC_SYSROOT}"
                 "--disable-werror"

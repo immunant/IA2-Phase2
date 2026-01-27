@@ -1,9 +1,5 @@
 # Verify minimal loader malloc mappings are tagged with the loader pkey
-
-if (LIBIA2_AARCH64)
-    message(STATUS "Skipping loader_minimal_malloc on aarch64")
-    return()
-endif()
+# Note: This test is only added on x86_64 with LIBIA2_REBUILD_GLIBC (see tests/CMakeLists.txt)
 
 define_test(
     SRCS main.c

@@ -168,9 +168,10 @@ else()
             SOURCE_DIR ${CMAKE_SOURCE_DIR}/external/glibc
             BINARY_DIR ${CMAKE_BINARY_DIR}/external/glibc
             CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env
-                "CC=${CMAKE_C_COMPILER}"
+                # IA2_LDSO_PKEY must be in CC, not CFLAGS, to apply to all files (see aarch64 comment)
+                "CC=${CMAKE_C_COMPILER} -DIA2_LDSO_PKEY=1"
                 "CXX=${CMAKE_CXX_COMPILER}"
-                "CFLAGS=-O2 -g -DIA2_LDSO_PKEY=1"
+                "CFLAGS=-O2 -g"
                 ${CMAKE_SOURCE_DIR}/external/glibc/configure
                 "--prefix=${GLIBC_SYSROOT}"
                 "--disable-werror"

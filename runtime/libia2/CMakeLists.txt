@@ -168,10 +168,11 @@ else()
             SOURCE_DIR ${CMAKE_SOURCE_DIR}/external/glibc
             BINARY_DIR ${CMAKE_BINARY_DIR}/external/glibc
             CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env
-                # IA2_LDSO_PKEY must be in CC, not CFLAGS, to apply to all files (see aarch64 comment)
-                "CC=${CMAKE_C_COMPILER} -DIA2_LDSO_PKEY=1"
+                "CC=${CMAKE_C_COMPILER}"
                 "CXX=${CMAKE_CXX_COMPILER}"
-                "CFLAGS=-O2 -g"
+                # Note: CFLAGS may not reach all glibc sources (e.g., dl-minimal-malloc.c).
+                # Loader heap MPK protection requires further work to allow cross-compartment access.
+                "CFLAGS=-O2 -g -DIA2_LDSO_PKEY=1"
                 ${CMAKE_SOURCE_DIR}/external/glibc/configure
                 "--prefix=${GLIBC_SYSROOT}"
                 "--disable-werror"

@@ -136,7 +136,19 @@ static void verify_tls_padding(void) {
 /* Allocates the required pkeys on x86 or enables MTE on aarch64 */
 static void ia2_set_up_tags(void) {
 #if defined(__x86_64__)
-  for (int pkey = 1; pkey < IA2_MAX_COMPARTMENTS; pkey++) {
+#ifdef IA2_LDSO_PKEY
+  /* Dynamic linker already allocated this pkey, so only allocate remaining */
+  int expected_first_pkey = IA2_LDSO_PKEY + 1;
+#else
+  int expected_first_pkey = 1;
+#endif
+  int first_allocated = pkey_alloc(0, 0);
+  if (first_allocated != expected_first_pkey) {
+    printf("Unexpected first pkey %d (expected %d)\n", first_allocated, expected_first_pkey);
+    exit(-1);
+  }
+
+  for (int pkey = expected_first_pkey + 1; pkey < IA2_MAX_COMPARTMENTS; pkey++) {
     int allocated = pkey_alloc(0, 0);
     if (allocated < 0) {
       printf("Failed to allocate protection key %d (%s)\n", pkey,

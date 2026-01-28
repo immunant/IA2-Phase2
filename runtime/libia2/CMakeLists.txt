@@ -46,6 +46,14 @@ if(IA2_DEBUG_MEMORY)
     target_compile_definitions(libia2 PRIVATE IA2_DEBUG_MEMORY=1)
 endif()
 
+if(LIBIA2_REBUILD_GLIBC AND NOT LIBIA2_AARCH64)
+    # IA2_LDSO_PKEY: When defined, indicates the custom glibc loader is in use
+    # and specifies which pkey the loader's heap is protected with. The runtime
+    # skips allocating this pkey since the dynamic linker already owns it.
+    # This same macro is passed to glibc to enable MPK protection in ld.so.
+    target_compile_definitions(libia2 PRIVATE IA2_LDSO_PKEY=1)
+endif()
+
 target_link_options(libia2
     INTERFACE
         "-pthread"
@@ -160,7 +168,12 @@ else()
             SOURCE_DIR ${CMAKE_SOURCE_DIR}/external/glibc
             BINARY_DIR ${CMAKE_BINARY_DIR}/external/glibc
             CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env
-                "CC=${CMAKE_C_COMPILER}"
+                # IA2_LDSO_PKEY must be in CC (not CFLAGS) to reach all glibc sources
+                # including dl-minimal-malloc.c. This enables MPK protection for the
+                # loader heap. Libc compartmentalization (--libc-compartment) ensures
+                # all libc calls go through call gates to compartment 1, which has
+                # access to pkey 1 (the loader pkey).
+                "CC=${CMAKE_C_COMPILER} -DIA2_LDSO_PKEY=1"
                 "CXX=${CMAKE_CXX_COMPILER}"
                 "CFLAGS=-O2 -g"
                 ${CMAKE_SOURCE_DIR}/external/glibc/configure

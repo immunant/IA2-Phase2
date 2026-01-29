@@ -1825,10 +1825,13 @@ int main(int argc, const char **argv) {
         trivial << ");\n";
         wrapper_out << trivial.str();
       } else {
-        // Non-exit compartments need full call gates to switch from the libc compartment
+        // Non-exit compartments need full call gates to switch from the libc compartment.
+        // Use union PKRU to allow access to both libc (pkey 1) and compartment data
+        // so that __cxa_finalize can access libc internals during cleanup.
         std::string asm_wrapper =
             emit_asm_wrapper(ctx, fn_sig, std::nullopt, wrapper_name, fn_name, WrapperKind::Direct,
-                             kLibcCompartmentPkey, compartment_pkey, Target, false);
+                             kLibcCompartmentPkey, compartment_pkey, Target, false,
+                             kLibcCompartmentPkey);
         wrapper_out << asm_wrapper;
       }
     } else {

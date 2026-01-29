@@ -1053,7 +1053,8 @@ std::string emit_asm_wrapper(
     int caller_pkey,
     int target_pkey,
     Arch arch,
-    bool as_macro) {
+    bool as_macro,
+    std::optional<int> union_pkey) {
 
   // Small sanity check
   assert(caller_pkey != target_pkey);
@@ -1272,7 +1273,8 @@ std::string emit_asm_wrapper(
 
   emit_scrub_regs(aw, caller_pkey, args, kind == WrapperKind::IndirectCallsite, arch);
 
-  emit_set_pkru(aw, target_pkey, arch, std::nullopt);
+  // Use union PKRU if requested (for destructor wrappers in libc-compartment mode)
+  emit_set_pkru(aw, target_pkey, arch, union_pkey);
 
   emit_fn_call(target_name, kind, aw, arch);
 

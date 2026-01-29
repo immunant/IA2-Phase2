@@ -35,6 +35,10 @@ enum class Arch {
 // which must be valid to pass to the `PKRU` macro in ia2.h.
 // \p as_macro determines if the wrappers for direct calls is emitted as a
 // macro. Indirect calls are unconditionally emitted as macros.
+// \p union_pkey when set, causes the wrapper to use a union PKRU value that
+// allows access to both the target compartment and the union_pkey compartment.
+// This is used for destructor wrappers in libc-compartment mode so that
+// cleanup code can access both libc data (pkey 1) and compartment data.
 std::string emit_asm_wrapper(
     Context &ctx,
     FnSignature sig,
@@ -45,4 +49,5 @@ std::string emit_asm_wrapper(
     int caller_pkey,
     int target_pkey,
     Arch arch,
-    bool as_macro = false);
+    bool as_macro = false,
+    std::optional<int> union_pkey = std::nullopt);

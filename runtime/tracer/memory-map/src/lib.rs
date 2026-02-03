@@ -8,14 +8,17 @@ use libc_alloc::LibcAlloc;
 static ALLOCATOR: LibcAlloc = LibcAlloc;
 
 /* we only support panic = abort; define dummy handler and EH personality */
+#[cfg(not(test))]
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo) -> ! {
     loop {}
 }
 
+#[cfg(not(test))]
 #[no_mangle]
 extern "C" fn rust_eh_personality() {}
 
+#[cfg(not(test))]
 #[link(name = "gcc_s")]
 extern "C" {}
 
@@ -88,6 +91,22 @@ impl Range {
             )),
         }
     }
+}
+
+#[test]
+fn test_subtract() {
+    let full = Range::from_bounds(0, 100).unwrap();
+    let inner = Range::from_bounds(40, 60).unwrap();
+    let before = Range::from_bounds(0, 40).unwrap();
+    let after = Range::from_bounds(60, 100).unwrap();
+
+    assert_eq!(full.subtract(&inner), Some((Some(before), Some(after))));
+    assert_eq!(inner.subtract(&full), Some((None, None)));
+
+    assert_eq!(full.subtract(&full), Some((None, None)));
+
+    assert_eq!(before.subtract(&after), None);
+    assert_eq!(after.subtract(&before), None);
 }
 
 /// The state of a contiguous region of memory

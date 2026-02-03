@@ -743,26 +743,26 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
     include clone()/fork()/exec() and sigchld */
     case WAIT_CONT: {
       if (ptrace(continue_request, waited_pid, 0, SIGCONT) < 0) {
-        perror("could not PTRACE_SYSCALL...");
+        perror("could not ptrace(continue_request)...");
       }
       continue;
     }
     case WAIT_STOP: {
       if (ptrace(continue_request, waited_pid, 0, SIGSTOP) < 0) {
-        perror("could not PTRACE_SYSCALL...");
+        perror("could not ptrace(continue_request)...");
       }
       continue;
       break;
     }
     case WAIT_SIGCHLD:
       if (ptrace(continue_request, waited_pid, 0, SIGCHLD) < 0) {
-        perror("could not PTRACE_SYSCALL...");
+        perror("could not ptrace(continue_request)...");
       }
       continue;
       break;
     case WAIT_SIGSEGV:
       if (ptrace(continue_request, waited_pid, 0, SIGSEGV) < 0) {
-        perror("could not PTRACE_SYSCALL...");
+        perror("could not ptrace(continue_request)...");
       }
       continue;
       break;
@@ -918,7 +918,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       }
       return_syscall_eperm(waited_pid);
       if (ptrace(continue_request, waited_pid, 0, 0) < 0) {
-        perror("could not PTRACE_SYSCALL");
+        perror("could not ptrace(continue_request)");
         return false;
       }
       continue;
@@ -995,11 +995,10 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
         return false;
       }
     }
-
     debug("ptrace continuing %d\n", waited_pid);
     /* run until the next syscall entry or traced syscall (depending on mode) */
     if (ptrace(continue_request, waited_pid, 0, 0) < 0) {
-      perror("could not PTRACE_SYSCALL...");
+      perror("could not ptrace(continue_request)...");
     }
   }
 }

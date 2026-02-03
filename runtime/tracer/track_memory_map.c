@@ -515,6 +515,7 @@ static enum wait_trap_result wait_for_next_trap(pid_t pid, pid_t *pid_out, int *
         return WAIT_PTRACE_FORK;
       }
       if (ptrace_event == PTRACE_EVENT_SECCOMP) {
+        debug_event("child stopped by ptrace_event_seccomp\n");
         return WAIT_SYSCALL;
       }
       if (ptrace_event == PTRACE_EVENT_EXEC) {
@@ -730,6 +731,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
   while (true) {
     /* wait for the process to get signalled */
     pid_t waited_pid = pid;
+    debug("waiting for process to get signalled\n");
     enum wait_trap_result wait_result = wait_for_next_trap(-1, &waited_pid, exit_status_out);
     struct memory_map_for_process *map_for_proc = find_memory_map(&maps, waited_pid);
     if (!map_for_proc) {
@@ -772,6 +774,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       continue;
       break;
     case WAIT_SYSCALL:
+      debug("wait_syscall returned (case 1)\n");
       break;
     case WAIT_ERROR: {
       struct user_regs_struct regs_storage = {0};
@@ -897,6 +900,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       }
       switch (wait_for_next_trap(waited_pid, NULL, exit_status_out)) {
       case WAIT_SYSCALL:
+        debug("wait_syscall returned (case 2)\n");
         break;
       case WAIT_ERROR:
         return false;
@@ -933,6 +937,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
     case WAIT_STOP:
       break;
     case WAIT_SYSCALL:
+      debug("wait_syscall returned (case 3)\n");
       break;
     case WAIT_ERROR:
       return false;
@@ -991,6 +996,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       }
     }
 
+    debug("ptrace continuing %d\n", waited_pid);
     /* run until the next syscall entry or traced syscall (depending on mode) */
     if (ptrace(continue_request, waited_pid, 0, 0) < 0) {
       perror("could not PTRACE_SYSCALL...");

@@ -898,15 +898,18 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       if (ptrace(PTRACE_SYSCALL, waited_pid, 0, 0) < 0) {
         perror("could not PTRACE_SYSCALL");
       }
-      switch (wait_for_next_trap(waited_pid, NULL, exit_status_out)) {
+      enum wait_trap_result wait_result_after_syscall = wait_for_next_trap(waited_pid, NULL, exit_status_out);
+      switch (wait_result_after_syscall) {
       case WAIT_SYSCALL:
         debug("wait_syscall returned (case 2)\n");
         break;
       case WAIT_ERROR:
+        fprintf(stderr, "wait_for_next_trap after PTRACE_SYSCALL returned WAIT_ERROR\n");
         return false;
       case WAIT_SIGCHLD:
         break;
       default:
+        fprintf(stderr, "unexpected status returned from wait_for_next_trap after PTRACE_SYSCALL: %d\n", wait_result_after_syscall);
         return false;
       }
     } else if (!is_op_permitted(map, event, &event_info)) {

@@ -1843,6 +1843,17 @@ int main(int argc, const char **argv) {
                   "--wrap="s + fn_name + '\n', ".ld");
   }
 
+  // When libc compartmentalization is enabled, add --wrap=__cxa_finalize to all
+  // compartments' .ld files. The __wrap___cxa_finalize in libia2.a switches PKRU
+  // to allow pkey 1 access before calling the real __cxa_finalize, which is
+  // necessary because __cxa_finalize accesses libc's internal data structures
+  // (e.g., __exit_funcs_lock) that are tagged with pkey 1.
+  if (gLibcCompartmentEnabled) {
+    for (int pkey = 1; pkey < num_pkeys; pkey++) {
+      write_to_file(ld_args_out, pkey, "--wrap=__cxa_finalize\n", ".ld");
+    }
+  }
+
   std::cout << "Generating function pointer wrappers\n";
   std::string macros_defining_wrappers;
   /*

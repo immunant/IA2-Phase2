@@ -661,6 +661,12 @@ static bool remove_pid(struct memory_map_for_process *map_for_proc, pid_t pid) {
   return false;
 }
 
+static void add_map(struct memory_maps *maps, struct memory_map_for_process map) {
+  maps->n_maps++;
+  maps->maps_for_processes = realloc(maps->maps_for_processes, maps->n_maps * sizeof(struct memory_map_for_process));
+  maps->maps_for_processes[maps->n_maps - 1] = map;
+}
+
 static bool remove_map(struct memory_maps *maps, struct memory_map_for_process *map_to_remove) {
   for (int i = 0; i < maps->n_maps; i++) {
     struct memory_map_for_process *map_for_proc = &maps->maps_for_processes[i];
@@ -805,9 +811,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       struct memory_map *cloned = memory_map_clone(map_for_proc->map);
 
       remove_pid(map_for_proc, cloned_pid);
-      maps.n_maps++;
-      maps.maps_for_processes = realloc(maps.maps_for_processes, maps.n_maps * sizeof(struct memory_map_for_process));
-      maps.maps_for_processes[maps.n_maps - 1] = for_process_new(cloned, cloned_pid);
+      add_map(&maps, for_process_new(cloned, cloned_pid));
       break;
     }
     case WAIT_EXEC: {

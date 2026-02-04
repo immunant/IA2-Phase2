@@ -731,6 +731,11 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
     /* wait for the process to get signalled */
     pid_t waited_pid = pid;
     enum wait_trap_result wait_result = wait_for_next_trap(-1, &waited_pid, exit_status_out);
+    struct memory_map_for_process *map_for_proc = find_memory_map(&maps, waited_pid);
+    if (!map_for_proc) {
+      fprintf(stderr, "could not find memory map for process %d\n", waited_pid);
+      return false;
+    }
     switch (wait_result) {
     /* we need to handle events relating to process lifetime upfront: these
     include clone()/fork()/exec() and sigchld */
@@ -794,7 +799,6 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       }
       debug_proc("should track child pid %d\n", cloned_pid);
 
-      struct memory_map_for_process *map_for_proc = find_memory_map(&maps, waited_pid);
       add_pid(map_for_proc, cloned_pid);
       break;
     }
@@ -807,7 +811,6 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       }
       debug_proc("should track forked child pid %d\n", cloned_pid);
 
-      struct memory_map_for_process *map_for_proc = find_memory_map(&maps, waited_pid);
       struct memory_map *cloned = memory_map_clone(map_for_proc->map);
 
       remove_pid(map_for_proc, cloned_pid);
@@ -836,12 +839,6 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       // in any case, this process is gone, so wait for a new one
       continue;
     }
-    }
-
-    struct memory_map_for_process *map_for_proc = find_memory_map(&maps, waited_pid);
-    if (!map_for_proc) {
-      fprintf(stderr, "could not find memory map for process %d\n", waited_pid);
-      return false;
     }
 
     struct memory_map *map = map_for_proc->map;
@@ -950,7 +947,6 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       }
       debug_proc("syscall exit; should track child pid %d\n", cloned_pid);
 
-      struct memory_map_for_process *map_for_proc = find_memory_map(&maps, waited_pid);
       map_for_proc->n_pids++;
       map_for_proc->pids = realloc(map_for_proc->pids, map_for_proc->n_pids * sizeof(pid_t));
       map_for_proc->pids[map_for_proc->n_pids - 1] = cloned_pid;

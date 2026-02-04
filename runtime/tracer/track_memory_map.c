@@ -727,6 +727,21 @@ static enum control_flow handle_thread_exit(struct memory_maps *maps, pid_t wait
   return CONTINUE;
 }
 
+// for debugging; allows attaching gdb to see what children were doing
+static void freeze_and_detach(const struct memory_maps *maps) {
+  for (int i = 0; i < maps->n_maps; i++) {
+    for (int j = 0; j < maps->maps_for_processes[i].n_pids; j++) {
+      pid_t pid = maps->maps_for_processes[i].pids[j];
+      fprintf(stderr, "detaching from pid %d\n", pid);
+      kill(pid, SIGSTOP);
+      int ret = ptrace(PTRACE_DETACH, pid, 0, 0);
+      if (ret < 0)
+        perror("PTRACE_DETACH");
+    }
+  }
+  pause();
+}
+
 struct pending_pids {
   pid_t *pids;
   size_t n_pids;
@@ -838,13 +853,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
         return false;
       }
       fprintf(stderr, "error at rip=%p\n", (void *)reg_pc);
-      for (int i = 0; i < maps.n_maps; i++) {
-        for (int j = 0; j < maps.maps_for_processes[i].n_pids; j++) {
-          pid_t pid = maps.maps_for_processes[i].pids[j];
-          kill(pid, SIGSTOP);
-          ptrace(PTRACE_DETACH, pid, 0, 0);
-        }
-      }
+      // freeze_and_detach(&maps);
       return false;
     }
     case WAIT_PTRACE_CLONE: {
@@ -1064,6 +1073,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       /* track effect of syscall on memory map */
       if (!update_memory_map(map, event, &event_info)) {
         fprintf(stderr, "could not update memory map! (operation=%s, rip=%p)\n", event_name(event), (void *)reg_pc);
+        // freeze_and_detach(&maps);
         return false;
       }
     }

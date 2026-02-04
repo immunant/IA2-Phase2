@@ -1,6 +1,9 @@
 #include "memory_maps.h"
 #include "ia2.h"
 #include "thread_name.h"
+#include <assert.h>
+#include <dirent.h>
+#include <stdbool.h>
 
 // Only enable this code that stores these addresses when debug logging is enabled.
 // This reduces the trusted codebase and avoids runtime overhead.
@@ -164,6 +167,7 @@ static void label_memory_map(FILE *log, uintptr_t start_addr) {}
 // `getline` calls `malloc` inside of `libc`,
 // but we wrap `malloc` with `__wrap_malloc`,
 // so we need to free what `getline` allocated with `__real_free`.
+void free(void *);
 typeof(IA2_IGNORE(free)) __real_free;
 
 void ia2_memory_map_foreach(FILE *maps_file,

@@ -643,6 +643,12 @@ static struct memory_map_for_process *find_memory_map(struct memory_maps *maps, 
   return NULL;
 }
 
+static void add_pid(struct memory_map_for_process *map_for_proc, pid_t pid) {
+  map_for_proc->n_pids++;
+  map_for_proc->pids = realloc(map_for_proc->pids, map_for_proc->n_pids * sizeof(pid_t));
+  map_for_proc->pids[map_for_proc->n_pids - 1] = pid;
+}
+
 static bool remove_pid(struct memory_map_for_process *map_for_proc, pid_t pid) {
   for (int j = 0; j < map_for_proc->n_pids; j++) {
     if (map_for_proc->pids[j] == pid) {
@@ -783,9 +789,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       debug_proc("should track child pid %d\n", cloned_pid);
 
       struct memory_map_for_process *map_for_proc = find_memory_map(&maps, waited_pid);
-      map_for_proc->n_pids++;
-      map_for_proc->pids = realloc(map_for_proc->pids, map_for_proc->n_pids * sizeof(pid_t));
-      map_for_proc->pids[map_for_proc->n_pids - 1] = cloned_pid;
+      add_pid(map_for_proc, cloned_pid);
       break;
     }
     case WAIT_PTRACE_FORK: {

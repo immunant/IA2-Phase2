@@ -595,7 +595,7 @@ static void return_syscall_eperm(pid_t pid) {
   struct user_regs_struct regs_storage = {0};
   struct user_regs_struct *regs = &regs_storage;
   if (get_regs(pid, regs) < 0) {
-    perror("could not PTRACE_GETREGS");
+    perror("could not PTRACE_GETREGS to override syscall");
     return;
   }
 
@@ -610,7 +610,7 @@ static void return_syscall_eperm(pid_t pid) {
   debug_forbid("continued\n");
 
   if (get_regs(pid, regs) < 0) {
-    perror("could not PTRACE_GETREGS");
+    perror("could not PTRACE_GETREGS for overridden syscall return");
     return;
   }
   /* return -EPERM */
@@ -780,7 +780,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       struct user_regs_struct regs_storage = {0};
       struct user_regs_struct *regs = &regs_storage;
       if (get_regs(waited_pid, regs) < 0) {
-        perror("could not PTRACE_GETREGS");
+        perror("could not PTRACE_GETREGS for error reporting");
         return false;
       }
       fprintf(stderr, "error at rip=%p\n", (void *)reg_pc);
@@ -850,7 +850,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
     struct user_regs_struct regs_storage = {0};
     struct user_regs_struct *regs = &regs_storage;
     if (get_regs(waited_pid, regs) < 0) {
-      perror("could not PTRACE_GETREGS");
+      perror("could not PTRACE_GETREGS(%d) for syscall args");
       return false;
     }
 
@@ -983,7 +983,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
 
     /* read syscall result from registers */
     if (get_regs(waited_pid, regs) < 0) {
-      perror("could not PTRACE_GETREGS");
+      perror("could not PTRACE_GETREGS for syscall result");
       return false;
     }
 

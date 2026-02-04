@@ -844,8 +844,6 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
     }
     }
 
-    struct memory_map *map = map_for_proc->map;
-
     /* read which syscall is being called and its args */
     struct user_regs_struct regs_storage = {0};
     struct user_regs_struct *regs = &regs_storage;
@@ -886,6 +884,8 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       fprintf(stderr, "could not interpret syscall!\n");
       return false;
     }
+
+    struct memory_map *map = map_for_proc->map;
 
     /* pick up signal marking IA2 init finished to start forbidding init-only operations */
     if (event_marks_init_finished(event, &event_info)) {

@@ -816,7 +816,6 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
 
       struct memory_map *cloned = memory_map_clone(map_for_proc->map);
 
-      remove_pid(map_for_proc, cloned_pid);
       add_map(&maps, for_process_new(cloned, cloned_pid));
       break;
     }

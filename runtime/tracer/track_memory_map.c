@@ -129,6 +129,15 @@ static bool update_memory_map(struct memory_map *map, int event,
                               union event_info *info) {
   switch (event) {
   case EVENT_MMAP:
+    // XXX: glibc maps stacks for new threads inside pthread_create, and by default they would
+    // inherit the compartment that starts them, but we need to partition out their TLS segments for
+    // each compartment, which the tracer would reject as a compartment trying to steal another's
+    // memory. for now, override the compartment to 0 for stacks so the later TLS protection
+    // succeeds, but note that this is undermining compartment safety of the thread's initial
+    // stack itself
+    if (info->mmap.flags & MAP_STACK) {
+      info->mmap.pkey = 0;
+    }
     if (info->mmap.flags & MAP_FIXED) {
       // mapping a fixed address is allowed to overlap/split existing regions
       if (!memory_map_split_region(map, info->mmap.range, info->mmap.pkey,

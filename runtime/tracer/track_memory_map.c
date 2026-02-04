@@ -730,12 +730,41 @@ static enum control_flow handle_thread_exit(struct memory_maps *maps, pid_t wait
   return CONTINUE;
 }
 
+struct pending_pids {
+  pid_t *pids;
+  size_t n_pids;
+};
+
+/* add pid to the set */
+static void add_pending_pid(struct pending_pids *pending_pids, pid_t pid) {
+  pending_pids->n_pids++;
+  pending_pids->pids = realloc(pending_pids->pids, pending_pids->n_pids * sizeof(pid_t));
+  pending_pids->pids[pending_pids->n_pids - 1] = pid;
+}
+
+/* remove pid from set. returns whether it was present */
+static bool remove_pending_pid(struct pending_pids *pending_pids, pid_t pid) {
+  for (int j = 0; j < pending_pids->n_pids; j++) {
+    if (pending_pids->pids[j] == pid) {
+      // swap last into its place and decrement count
+      pending_pids->pids[j] = pending_pids->pids[pending_pids->n_pids - 1];
+      pending_pids->n_pids--;
+      return true;
+    }
+  }
+  return false;
+}
+
 /* track the inferior process' memory map.
 
 returns true if the inferior exits, false on trace error.
 
 if true is returned, the inferior's exit status will be stored to *exit_status_out if not NULL. */
 bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
+  struct pending_pids pending_pids = {
+      .pids = NULL,
+      .n_pids = 0,
+  };
 
   struct memory_map *map = memory_map_new();
   struct memory_map_for_process *for_process = malloc(sizeof(struct memory_map_for_process));
@@ -754,8 +783,17 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
     enum wait_trap_result wait_result = wait_for_next_trap(-1, &waited_pid, exit_status_out);
     struct memory_map_for_process *map_for_proc = find_memory_map(&maps, waited_pid);
     if (!map_for_proc) {
-      fprintf(stderr, "could not find memory map for process %d\n", waited_pid);
-      return false;
+      // we saw an event for a process we don't yet know we're tracing. this can happen because
+      // PTRACE_EVENT_FORK/PTRACE_EVENT_CLONE trigger upon syscall *exit* in the parent, but the
+      // child may already be off to the races by then. so if we see events in a child, we should
+      // just let it rest until we find out how it was spawned.
+      debug("waitpid returned new pid %d\n", waited_pid);
+      if (wait_result != WAIT_SYSCALL && wait_result != WAIT_STOP) {
+        fprintf(stderr, "unfamiliar PID returned from waitpid with unexpected wait_trap_result value %d\n", wait_result);
+        return false;
+      }
+      add_pending_pid(&pending_pids, waited_pid);
+      continue;
     }
     switch (wait_result) {
     /* we need to handle events relating to process lifetime upfront: these
@@ -821,6 +859,14 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       }
       debug_proc("should track child pid %d\n", cloned_pid);
 
+      // if this PID was pending, we received EVENT_STOP for it and should continue it.
+      if (remove_pending_pid(&pending_pids, cloned_pid)) {
+        debug_proc("continuing child pid %d\n", cloned_pid);
+        if (ptrace(continue_request, cloned_pid, 0, SIGSTOP) < 0) {
+          perror("could not ptrace(continue_request)...");
+        }
+      }
+
       add_pid(map_for_proc, cloned_pid);
       break;
     }
@@ -832,6 +878,14 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
         return WAIT_ERROR;
       }
       debug_proc("should track forked child pid %d\n", cloned_pid);
+
+      // if this PID was pending, we received EVENT_STOP for it and should continue it.
+      if (remove_pending_pid(&pending_pids, cloned_pid)) {
+        debug_proc("continuing child pid %d\n", cloned_pid);
+        if (ptrace(continue_request, cloned_pid, 0, SIGSTOP) < 0) {
+          perror("could not ptrace(continue_request)...");
+        }
+      }
 
       struct memory_map *cloned = memory_map_clone(map_for_proc->map);
 

@@ -1,6 +1,9 @@
 #include "memory_maps.h"
 #include "ia2.h"
 #include "thread_name.h"
+#include <assert.h>
+#include <dirent.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <sys/mman.h>
 

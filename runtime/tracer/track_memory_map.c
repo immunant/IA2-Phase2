@@ -938,7 +938,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
         perror("ptrace(PTRACE_GETEVENTMSG) upon clone");
         return WAIT_ERROR;
       }
-      printf("should track child pid %d\n", cloned_pid);
+      debug_proc("syscall exit; should track child pid %d\n", cloned_pid);
 
       struct memory_map_for_processes *map_for_procs = find_memory_map(&maps, waited_pid);
       map_for_procs->n_pids++;

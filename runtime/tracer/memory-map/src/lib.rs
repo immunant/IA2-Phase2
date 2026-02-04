@@ -399,12 +399,11 @@ pub extern "C" fn memory_map_pkey_mprotect_region(
     pkey: u8,
 ) -> bool {
     if let Some(mut state) = map.split_out_region(range) {
-        /* forbid pkey_mprotect of owned by another compartment other than 0 */
+        /* forbid pkey_mprotect of memory owned by another compartment other than 0 */
         if state.owner_pkey != pkey && state.owner_pkey != 0 {
             printerrln!(
-                "memory pkey not {} or 0 (running with {})",
-                state.owner_pkey,
-                pkey
+                "refusing to pkey_mprotect memory owned by compartment {} to pkey {pkey}",
+                state.owner_pkey
             );
             false
         /* forbid repeated pkey_mprotect */

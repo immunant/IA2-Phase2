@@ -453,16 +453,6 @@ pub extern "C" fn memory_map_add_region(
 }
 
 #[no_mangle]
-pub extern "C" fn memory_map_split_region(
-    map: &mut MemoryMap,
-    range: Range,
-    owner_pkey: u8,
-    prot: u32,
-) -> bool {
-    map.split_region(range, owner_pkey, prot).is_some()
-}
-
-#[no_mangle]
 pub extern "C" fn memory_map_pkey_mprotect_region(
     map: &mut MemoryMap,
     range: Range,

@@ -158,6 +158,9 @@ impl MemoryMap {
             true
         }
     }
+    /// Add a region that does not overlap any existing regions.
+    ///
+    /// Returns whether successful.
     pub fn add_region(&mut self, mut range: Range, state: State) -> bool {
         // forbid zero-length regions
         if range.len == 0 {
@@ -181,6 +184,7 @@ impl MemoryMap {
         printerrln!("added region {:?}", range);
         true
     }
+    /// Find a region overlapping the given range.
     pub fn find_overlapping_region(&self, needle: Range) -> Option<MemRegion> {
         let range = needle.as_std();
         let (&start, interval_value) = self.regions.range(range).next()?;
@@ -192,6 +196,7 @@ impl MemoryMap {
             state: *interval_value.value(),
         })
     }
+    /// Find a region exactly located at the given range, if present.
     pub fn find_region_exact(&self, needle: Range) -> Option<MemRegion> {
         self.find_overlapping_region(needle).and_then(|r| {
             if r.range == needle {
@@ -201,12 +206,14 @@ impl MemoryMap {
             }
         })
     }
+    /// Find a region containing the given single address.
     pub fn find_region_containing_addr(&self, needle: usize) -> Option<MemRegion> {
         self.find_overlapping_region(Range {
             start: needle,
             len: 1,
         })
     }
+    /// Remove a region exactly located at the given range.
     pub fn remove_region(&mut self, needle: Range) -> Option<MemRegion> {
         self.find_region_exact(needle).map(|r| {
             let is_some = self.regions.remove(&needle.start).is_some();

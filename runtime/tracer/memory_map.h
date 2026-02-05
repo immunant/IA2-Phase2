@@ -45,7 +45,7 @@ uint32_t memory_map_region_get_prot(const struct memory_map *map, struct range n
 
 uint8_t memory_map_region_get_owner_pkey(const struct memory_map *map, struct range needle);
 
-bool memory_map_unmap_region(struct memory_map *map, struct range needle);
+void memory_map_unmap_region(struct memory_map *map, struct range needle);
 
 bool memory_map_add_region(struct memory_map *map,
                            struct range range,

@@ -430,8 +430,8 @@ pub extern "C" fn memory_map_region_get_owner_pkey(map: &MemoryMap, needle: Rang
 }
 
 #[no_mangle]
-pub extern "C" fn memory_map_unmap_region(map: &mut MemoryMap, needle: Range) -> bool {
-    map.split_out_region(needle).is_ok()
+pub extern "C" fn memory_map_unmap_region(map: &mut MemoryMap, needle: Range) {
+    map.split_out_region(needle);
 }
 
 #[no_mangle]

@@ -153,7 +153,8 @@ static bool update_memory_map(struct memory_map *map, int event,
     }
     break;
   case EVENT_MUNMAP:
-    return memory_map_unmap_region(map, info->munmap.range);
+    memory_map_unmap_region(map, info->munmap.range);
+    return true;
     break;
   case EVENT_MREMAP: {
     uint32_t prot = memory_map_region_get_prot(map, info->mremap.old_range);

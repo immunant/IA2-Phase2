@@ -198,7 +198,7 @@ impl MemoryMap {
     pub fn find_region_containing_addr(&self, needle: usize) -> Option<MemRegion> {
         self.find_overlapping_region(Range {
             start: needle,
-            len: 0,
+            len: 1,
         })
     }
     pub fn remove_region(&mut self, needle: Range) -> Option<MemRegion> {
@@ -290,6 +290,25 @@ impl MemoryMap {
             state: new_state,
         })
     }
+}
+
+#[test]
+fn test_find_addr() {
+    let mut map = MemoryMap::new();
+    let addr = 0x7ffff7a2000;
+    map.add_region(
+        Range {
+            start: addr,
+            len: 0x2000,
+        },
+        State {
+            owner_pkey: 0,
+            pkey_mprotected: false,
+            mprotected: false,
+            prot: 0,
+        },
+    );
+    assert!(map.find_region_containing_addr(addr).is_some())
 }
 
 #[no_mangle]

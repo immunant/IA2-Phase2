@@ -140,13 +140,9 @@ static bool update_memory_map(struct memory_map *map, int event,
     }
     if (info->mmap.flags & MAP_FIXED) {
       // mapping a fixed address is allowed to overlap/split existing regions
-      if (!memory_map_split_region(map, info->mmap.range, info->mmap.pkey,
-                                   info->mmap.prot)) {
-        return memory_map_add_region(map, info->mmap.range, info->mmap.pkey,
-                                     info->mmap.prot);
-      } else {
-        return true;
-      }
+      memory_map_unmap_region(map, info->mmap.range);
+      return memory_map_add_region(map, info->mmap.range, info->mmap.pkey,
+                                   info->mmap.prot);
     } else {
       return memory_map_add_region(map, info->mmap.range, info->mmap.pkey,
                                    info->mmap.prot);

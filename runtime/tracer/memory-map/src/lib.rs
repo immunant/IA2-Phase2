@@ -46,6 +46,12 @@ impl fmt::Debug for Range {
     }
 }
 
+impl From<core::ops::Range<usize>> for Range {
+    fn from(other: core::ops::Range<usize>) -> Self {
+        Self::from_bounds(other.start, other.end).unwrap()
+    }
+}
+
 impl Range {
     pub fn from_bounds(start: usize, end: usize) -> Option<Range> {
         if start < end {
@@ -226,69 +232,77 @@ impl MemoryMap {
         })
     }
 
-    /* removes exactly the specified range from all existing regions, leaving any other parts of that region mapped */
-    fn split_out_region(&mut self, mut subrange: Range) -> Result<State, usize> {
-        subrange.round_to_4k();
-
-        let mut removed_state = None;
-        let mut count = 0;
-        while let Some(r) = self.find_overlapping_region(subrange) {
-            // remove the range containing the subrange; this should not fail
-            let found = self.remove_region(r.range).is_some();
-            assert!(found);
-
-            // re-add any prefix range
-            let before = Range {
-                start: r.range.start,
-                len: subrange.start - r.range.start,
-            };
-            self.add_region(before, r.state);
-
-            // re-add any suffix range
-            let after = Range {
-                start: subrange.end(),
-                len: r.range.end() - subrange.end(),
-            };
-            self.add_region(after, r.state);
-
-            if count == 0 {
-                removed_state = Some(r.state);
-            }
-            count += 1;
+    pub fn contains_holes(&self, needle: Range) -> bool {
+        // if start point is not in a region, a hole exists at its start
+        if self.find_region_containing_addr(needle.start).is_none() {
+            return true;
         }
-        /*if !r.range.subsumes(subrange) {
-            #[cfg(debug)]
-            printerrln!("{:?} does not subsume {:?}", r.range, subrange);
-            return None;
-        }*/
-
-        // return the split-out range's state, or the count ranges if not exactly 1
-        if count == 1 {
-            Ok(removed_state.unwrap())
-        } else {
-            Err(count)
+        let mut last_end = None;
+        let all_contained_regions_contiguous = self.all_overlapping_regions(needle, |region| {
+            if let Some(last_end) = last_end {
+                if region.range.start != last_end {
+                    return false;
+                }
+            }
+            last_end = Some(region.range.end());
+            true
+        });
+        if !all_contained_regions_contiguous {
+            return true;
+        }
+        match last_end {
+            // if end of final overlap is before end of range, hole at end
+            Some(last_end) => last_end < needle.end(),
+            // if end of final overlap is missing, hole at end
+            None => true,
         }
     }
 
-    pub fn split_region(
-        &mut self,
-        subrange: Range,
-        owner_pkey: u8,
-        prot: u32,
-    ) -> Option<MemRegion> {
-        let state = self.split_out_region(subrange).ok()?;
+    /* removes exactly the specified range from all existing regions, leaving any other parts of that region mapped */
+    fn split_out_region(&mut self, mut subrange: Range) -> alloc::vec::Vec<MemRegion> {
+        subrange.round_to_4k();
 
-        // add the new split-off range
-        let new_state = State {
-            owner_pkey,
-            prot,
-            ..state
+        let dummy_state = State {
+            owner_pkey: 255,
+            pkey_mprotected: false,
+            mprotected: false,
+            prot: u32::MAX,
         };
-        self.add_region(subrange, new_state);
-        Some(MemRegion {
-            range: subrange,
-            state: new_state,
-        })
+        let overlapped_ranges = self.regions.insert_replace(subrange.as_std(), dummy_state);
+        let removed = self
+            .regions
+            .remove(&subrange.start)
+            .expect("just-inserted region must be removable");
+        assert!(removed.owner_pkey == dummy_state.owner_pkey);
+
+        for (overlapped, state) in overlapped_ranges.clone() {
+            match Range::from(overlapped).subtract(&subrange) {
+                None => panic!("region due to overlapping does not overlap"),
+                Some((before, after)) => {
+                    if let Some(before) = before {
+                        self.regions.insert(before.as_std(), state);
+                    }
+                    if let Some(after) = after {
+                        self.regions.insert(after.as_std(), state);
+                    }
+                }
+            }
+        }
+        overlapped_ranges
+            .into_iter()
+            .filter_map(|(overlapped, state)| {
+                let start = overlapped.start.max(subrange.start);
+                let end = overlapped.end.min(subrange.end());
+                if start != end {
+                    Some(MemRegion {
+                        range: Range::from_bounds(start, end).unwrap(),
+                        state,
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 }
 
@@ -458,60 +472,74 @@ pub extern "C" fn memory_map_pkey_mprotect_region(
     range: Range,
     pkey: u8,
 ) -> bool {
-    if let Some(mut state) = map.split_out_region(range).ok() {
+    // validity: all pages of the range must be covered by entries in the map
+    if map.contains_holes(range) {
+        printerrln!("attempting to pkey_mprotect unmapped memory");
+        return false;
+    }
+    // monotonicity: cannot pkey_mprotect memory twice or if owned by another compartment
+    if !map.all_overlapping_regions(range, |region| {
         /* forbid pkey_mprotect of memory owned by another compartment other than 0 */
-        if state.owner_pkey != pkey && state.owner_pkey != 0 {
+        if region.state.owner_pkey != pkey && region.state.owner_pkey != 0 {
             printerrln!(
                 "refusing to pkey_mprotect memory owned by compartment {} to pkey {pkey}",
-                state.owner_pkey
+                region.state.owner_pkey
             );
             false
         /* forbid repeated pkey_mprotect */
-        } else if state.pkey_mprotected == true {
-            printerrln!("{} already pkey_mprotected region", state.owner_pkey);
+        } else if region.state.pkey_mprotected == true {
+            printerrln!(
+                "refusing to re-pkey_mprotect memory already pkey_mprotected by compartment {}",
+                region.state.owner_pkey
+            );
             false
         /* otherwise, allow */
         } else {
-            state.pkey_mprotected = true;
-            /* set owner if a trusted compartment protected untrusted memory */
-            if state.owner_pkey == 0 {
-                state.owner_pkey = pkey;
-            }
-            map.add_region(range, state)
+            true
         }
-    } else {
-        // we're attempting to pkey_mprotect memory that was never mmapped.
-        // it may have come from brk() or the initial mappings from exec().
-        true
+    }) {
+        return false;
     }
+    // update every region in overlap
+    for mut region in map.split_out_region(range) {
+        region.state.pkey_mprotected = true;
+        /* set owner if a trusted compartment protected untrusted memory */
+        if region.state.owner_pkey == 0 {
+            region.state.owner_pkey = pkey;
+        }
+        assert!(map.add_region(region.range, region.state))
+    }
+    true
 }
 
 #[no_mangle]
 pub extern "C" fn memory_map_mprotect_region(map: &mut MemoryMap, range: Range, prot: u32) -> bool {
-    if let Some(mut state) = map.split_out_region(range).ok() {
-        if state.mprotected == false {
-            state.mprotected = true;
-            state.prot = prot;
-            map.add_region(range, state)
+    // validity: all pages of the range must be covered by entries in the map
+    if map.contains_holes(range) {
+        printerrln!("attempting to mprotect unmapped memory");
+        return false;
+    }
+    // update every region in overlap
+    for mut region in map.split_out_region(range) {
+        if region.state.mprotected == false {
+            region.state.mprotected = true;
+            region.state.prot = prot;
         } else {
             /* after init has finished, we should warn about reprotecting regions */
             if map.init_finished {
                 printerrln!(
                     "warning: reprotecting already-mprotected region {:?} (prot {} => {})",
-                    range,
-                    state.prot,
+                    region.range,
+                    region.state.prot,
                     prot
                 );
             }
-            state.mprotected = true;
-            state.prot = prot;
-            map.add_region(range, state)
-        }
-    } else {
-        // we're attempting to mprotect memory that was never mmapped.
-        // it may have come from brk() or the initial mappings from exec().
-        true
+            region.state.mprotected = true;
+            region.state.prot = prot;
+        };
+        assert!(map.add_region(region.range, region.state))
     }
+    true
 }
 
 #[no_mangle]

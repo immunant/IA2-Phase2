@@ -17,15 +17,15 @@
 #include "track_memory_map.h"
 
 #ifdef DEBUG
-#define debug(...) fprintf(stderr, __VA_ARGS__)
-#define debug_op(...) fprintf(stderr, __VA_ARGS__)
-#define debug_policy(...) fprintf(stderr, __VA_ARGS__)
-#define debug_event(...) fprintf(stderr, __VA_ARGS__)
-#define debug_event_update(...) fprintf(stderr, __VA_ARGS__)
-#define debug_exit(...) fprintf(stderr, __VA_ARGS__)
-#define debug_proc(...) fprintf(stderr, __VA_ARGS__)
-#define debug_wait(...) fprintf(stderr, __VA_ARGS__)
-#define debug_forbid(...) fprintf(stderr, __VA_ARGS__)
+#define debug(...) fprintf(stderr, "ia2-sandbox: " __VA_ARGS__)
+#define debug_op(...) debug("[op] " __VA_ARGS__)
+#define debug_policy(...) debug("[policy] " __VA_ARGS__)
+#define debug_event(...) debug("[event] " __VA_ARGS__)
+#define debug_event_update(...) debug("[event_update] " __VA_ARGS__)
+#define debug_exit(...) debug("[exit] " __VA_ARGS__)
+#define debug_proc(...) debug("[proc] " __VA_ARGS__)
+#define debug_wait(...) debug("[wait] " __VA_ARGS__)
+#define debug_forbid(...) debug("[forbid] " __VA_ARGS__)
 #else
 #define debug(...)
 #define debug_op(...)
@@ -419,6 +419,7 @@ static bool interpret_syscall(struct user_regs_struct *regs, unsigned char pkey,
   }
 
 #ifdef DEBUG
+  debug("syscall interpretation: ");
   print_event(*event, event_info);
 #endif
 
@@ -1008,7 +1009,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       print_event(event, &event_info);
       const struct range *range = event_target_range(event, &event_info);
       if (range != NULL) {
-        printf("region pkey: %d\n", memory_map_region_get_owner_pkey(map, *range));
+        fprintf(stderr, "region pkey: %d\n", memory_map_region_get_owner_pkey(map, *range));
       }
       return_syscall_eperm(waited_pid);
       if (ptrace(continue_request, waited_pid, 0, 0) < 0) {

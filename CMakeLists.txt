@@ -40,7 +40,7 @@ if (LIBIA2_AARCH64)
     # On aarch64, avoid swallowing QEMU MTE check failures
     set(CMAKE_CTEST_COMMAND ${CMAKE_CTEST_COMMAND} --verbose)
 endif()
-add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure)
+add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --timeout 60 --output-on-failure)
 set_target_properties(check PROPERTIES FOLDER ".")
 
 # runtime needs to be first so it defines libia2_BINARY_DIR

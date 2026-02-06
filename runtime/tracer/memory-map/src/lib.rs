@@ -583,8 +583,7 @@ pub extern "C" fn memory_map_pkey_mprotect_region(
     // validity: all pages of the range must be covered by entries in the map
     if map.contains_holes(range) {
         printerrln!("attempting to pkey_mprotect unmapped memory");
-        // for now, allow this because we do not know about mappings from the initial memory map
-        // TODO: return false;
+        return false;
     }
     // monotonicity: cannot pkey_mprotect memory twice or if owned by another compartment
     if !map.all_overlapping_regions(range, |region| {
@@ -640,8 +639,7 @@ pub extern "C" fn memory_map_mprotect_region(map: &mut MemoryMap, range: Range, 
     // validity: all pages of the range must be covered by entries in the map
     if map.contains_holes(range) {
         printerrln!("attempting to mprotect unmapped memory");
-        // for now, allow this because we do not know about mappings from the initial memory map
-        // TODO: return false;
+        return false;
     }
     // update every region in overlap
     for mut region in map.split_out_region(range) {

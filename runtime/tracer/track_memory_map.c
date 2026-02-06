@@ -727,6 +727,19 @@ static enum control_flow handle_thread_exit(struct memory_maps *maps, pid_t wait
   return CONTINUE;
 }
 
+// print maps and corresponding PIDs to stderr
+static void dump_maps(const struct memory_maps *maps) {
+  for (int i = 0; i < maps->n_maps; i++) {
+    struct memory_map_for_process *map_for_proc = &maps->maps_for_processes[i];
+    fprintf(stderr, "map for pids:");
+    for (int j = 0; j < map_for_proc->n_pids; j++) {
+      fprintf(stderr, " %d", map_for_proc->pids[j]);
+    }
+    fprintf(stderr, "\n");
+    memory_map_dump(map_for_proc->map);
+  }
+}
+
 // for debugging; allows attaching gdb to see what children were doing
 static void freeze_and_detach(const struct memory_maps *maps) {
   for (int i = 0; i < maps->n_maps; i++) {

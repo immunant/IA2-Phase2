@@ -117,12 +117,34 @@ fn test_subtract() {
 
 /// The state of a contiguous region of memory
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Copy, Clone)]
 pub struct State {
     pub owner_pkey: u8,
     pub pkey_mprotected: bool,
     pub mprotected: bool,
     pub prot: u32,
+}
+
+impl fmt::Debug for State {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            fmt,
+            "C{} [{}] ",
+            self.owner_pkey,
+            if self.pkey_mprotected { 'P' } else { ' ' }
+        )?;
+        if self.prot > 7 {
+            write!(fmt, "{:03x}", self.prot)?;
+        } else {
+            write!(fmt, "{}", if self.prot & 1 != 0 { 'r' } else { '-' })?;
+            write!(fmt, "{}", if self.prot & 2 != 0 { 'w' } else { '-' })?;
+            write!(fmt, "{}", if self.prot & 4 != 0 { 'x' } else { '-' })?;
+        }
+        if self.mprotected {
+            write!(fmt, "*")?;
+        }
+        Ok(())
+    }
 }
 
 /// A contiguous region of the memory map whose state we track
@@ -144,6 +166,15 @@ pub struct MemoryMap {
 }
 
 impl MemoryMap {
+    fn dump(&self) {
+        for (&start, state) in self.regions.range(0..usize::MAX) {
+            let range = Range {
+                start,
+                len: state.end() - start,
+            };
+            printerrln!("{range:?}: {:?}", state.value());
+        }
+    }
     pub fn new() -> Self {
         MemoryMap {
             regions: Default::default(),
@@ -339,6 +370,11 @@ pub extern "C" fn memory_map_new() -> Box<MemoryMap> {
 
 #[no_mangle]
 pub extern "C" fn memory_map_destroy(_map: Box<MemoryMap>) {}
+
+#[no_mangle]
+pub extern "C" fn memory_map_dump(map: &mut MemoryMap) {
+    map.dump()
+}
 
 #[no_mangle]
 pub extern "C" fn memory_map_mark_init_finished(map: &mut MemoryMap) -> bool {

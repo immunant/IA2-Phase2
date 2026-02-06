@@ -25,6 +25,8 @@ struct memory_map *memory_map_new(void);
 
 void memory_map_destroy(struct memory_map *_map);
 
+void memory_map_dump(struct memory_map *map);
+
 bool memory_map_mark_init_finished(struct memory_map *map);
 
 bool memory_map_is_init_finished(const struct memory_map *map);

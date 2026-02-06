@@ -17,15 +17,15 @@
 #include "track_memory_map.h"
 
 #ifdef DEBUG
-#define debug(...) fprintf(stderr, __VA_ARGS__)
-#define debug_op(...) fprintf(stderr, __VA_ARGS__)
-#define debug_policy(...) fprintf(stderr, __VA_ARGS__)
-#define debug_event(...) fprintf(stderr, __VA_ARGS__)
-#define debug_event_update(...) fprintf(stderr, __VA_ARGS__)
-#define debug_exit(...) fprintf(stderr, __VA_ARGS__)
-#define debug_proc(...) fprintf(stderr, __VA_ARGS__)
-#define debug_wait(...) fprintf(stderr, __VA_ARGS__)
-#define debug_forbid(...) fprintf(stderr, __VA_ARGS__)
+#define debug(...) fprintf(stderr, "ia2-sandbox: " __VA_ARGS__)
+#define debug_op(...) debug("[op] " __VA_ARGS__)
+#define debug_policy(...) debug("[policy] " __VA_ARGS__)
+#define debug_event(...) debug("[event] " __VA_ARGS__)
+#define debug_event_update(...) debug("[event_update] " __VA_ARGS__)
+#define debug_exit(...) debug("[exit] " __VA_ARGS__)
+#define debug_proc(...) debug("[proc] " __VA_ARGS__)
+#define debug_wait(...) debug("[wait] " __VA_ARGS__)
+#define debug_forbid(...) debug("[forbid] " __VA_ARGS__)
 #else
 #define debug(...)
 #define debug_op(...)
@@ -112,6 +112,10 @@ static bool is_op_permitted(struct memory_map *map, int event,
     return true;
     break;
   }
+  case EVENT_EXIT: {
+    return true;
+    break;
+  }
   case EVENT_NONE:
     return true;
     break;
@@ -125,22 +129,28 @@ static bool update_memory_map(struct memory_map *map, int event,
                               union event_info *info) {
   switch (event) {
   case EVENT_MMAP:
+    // XXX: glibc maps stacks for new threads inside pthread_create, and by default they would
+    // inherit the compartment that starts them, but we need to partition out their TLS segments for
+    // each compartment, which the tracer would reject as a compartment trying to steal another's
+    // memory. for now, override the compartment to 0 for stacks so the later TLS protection
+    // succeeds, but note that this is undermining compartment safety of the thread's initial
+    // stack itself
+    if (info->mmap.flags & MAP_STACK) {
+      info->mmap.pkey = 0;
+    }
     if (info->mmap.flags & MAP_FIXED) {
       // mapping a fixed address is allowed to overlap/split existing regions
-      if (!memory_map_split_region(map, info->mmap.range, info->mmap.pkey,
-                                   info->mmap.prot)) {
-        return memory_map_add_region(map, info->mmap.range, info->mmap.pkey,
-                                     info->mmap.prot);
-      } else {
-        return true;
-      }
+      memory_map_unmap_region(map, info->mmap.range);
+      return memory_map_add_region(map, info->mmap.range, info->mmap.pkey,
+                                   info->mmap.prot);
     } else {
       return memory_map_add_region(map, info->mmap.range, info->mmap.pkey,
                                    info->mmap.prot);
     }
     break;
   case EVENT_MUNMAP:
-    return memory_map_unmap_region(map, info->munmap.range);
+    memory_map_unmap_region(map, info->munmap.range);
+    return true;
     break;
   case EVENT_MREMAP: {
     uint32_t prot = memory_map_region_get_prot(map, info->mremap.old_range);
@@ -183,6 +193,11 @@ static bool update_memory_map(struct memory_map *map, int event,
   }
   case EVENT_EXEC: {
     memory_map_clear(map);
+    return true;
+    break;
+  }
+  case EVENT_EXIT: {
+    printf("clearing memory map on exit\n");
     return true;
     break;
   }
@@ -404,6 +419,7 @@ static bool interpret_syscall(struct user_regs_struct *regs, unsigned char pkey,
   }
 
 #ifdef DEBUG
+  debug("syscall interpretation: ");
   print_event(*event, event_info);
 #endif
 
@@ -688,7 +704,7 @@ static struct memory_map_for_process for_process_new(struct memory_map *map, pid
   return for_processes;
 }
 
-static enum control_flow handle_process_exit(struct memory_maps *maps, pid_t waited_pid) {
+static enum control_flow handle_thread_exit(struct memory_maps *maps, pid_t waited_pid) {
   struct memory_map_for_process *map_for_proc = find_memory_map(maps, waited_pid);
   if (!map_for_proc) {
     fprintf(stderr, "exited: could not find memory map for process %d\n", waited_pid);
@@ -698,6 +714,7 @@ static enum control_flow handle_process_exit(struct memory_maps *maps, pid_t wai
     fprintf(stderr, "could not remove pid %d from memory map\n", waited_pid);
     return RETURN_FALSE;
   }
+  // exit of the last thread in the process
   if (map_for_proc->n_pids == 0) {
     if (!remove_map(maps, map_for_proc)) {
       fprintf(stderr, "could not remove memory map for pid %d\n", waited_pid);
@@ -711,12 +728,69 @@ static enum control_flow handle_process_exit(struct memory_maps *maps, pid_t wai
   return CONTINUE;
 }
 
+// print maps and corresponding PIDs to stderr
+static void dump_maps(const struct memory_maps *maps) {
+  for (int i = 0; i < maps->n_maps; i++) {
+    struct memory_map_for_process *map_for_proc = &maps->maps_for_processes[i];
+    fprintf(stderr, "map for pids:");
+    for (int j = 0; j < map_for_proc->n_pids; j++) {
+      fprintf(stderr, " %d", map_for_proc->pids[j]);
+    }
+    fprintf(stderr, "\n");
+    memory_map_dump(map_for_proc->map);
+  }
+}
+
+// for debugging; allows attaching gdb to see what children were doing
+static void freeze_and_detach(const struct memory_maps *maps) {
+  for (int i = 0; i < maps->n_maps; i++) {
+    for (int j = 0; j < maps->maps_for_processes[i].n_pids; j++) {
+      pid_t pid = maps->maps_for_processes[i].pids[j];
+      fprintf(stderr, "detaching from pid %d\n", pid);
+      kill(pid, SIGSTOP);
+      int ret = ptrace(PTRACE_DETACH, pid, 0, 0);
+      if (ret < 0)
+        perror("PTRACE_DETACH");
+    }
+  }
+  pause();
+}
+
+struct pending_pids {
+  pid_t *pids;
+  size_t n_pids;
+};
+
+/* add pid to the set */
+static void add_pending_pid(struct pending_pids *pending_pids, pid_t pid) {
+  pending_pids->n_pids++;
+  pending_pids->pids = realloc(pending_pids->pids, pending_pids->n_pids * sizeof(pid_t));
+  pending_pids->pids[pending_pids->n_pids - 1] = pid;
+}
+
+/* remove pid from set. returns whether it was present */
+static bool remove_pending_pid(struct pending_pids *pending_pids, pid_t pid) {
+  for (int j = 0; j < pending_pids->n_pids; j++) {
+    if (pending_pids->pids[j] == pid) {
+      // swap last into its place and decrement count
+      pending_pids->pids[j] = pending_pids->pids[pending_pids->n_pids - 1];
+      pending_pids->n_pids--;
+      return true;
+    }
+  }
+  return false;
+}
+
 /* track the inferior process' memory map.
 
 returns true if the inferior exits, false on trace error.
 
 if true is returned, the inferior's exit status will be stored to *exit_status_out if not NULL. */
 bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
+  struct pending_pids pending_pids = {
+      .pids = NULL,
+      .n_pids = 0,
+  };
 
   struct memory_map *map = memory_map_new();
   struct memory_map_for_process *for_process = malloc(sizeof(struct memory_map_for_process));
@@ -735,8 +809,17 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
     enum wait_trap_result wait_result = wait_for_next_trap(-1, &waited_pid, exit_status_out);
     struct memory_map_for_process *map_for_proc = find_memory_map(&maps, waited_pid);
     if (!map_for_proc) {
-      fprintf(stderr, "could not find memory map for process %d\n", waited_pid);
-      return false;
+      // we saw an event for a process we don't yet know we're tracing. this can happen because
+      // PTRACE_EVENT_FORK/PTRACE_EVENT_CLONE trigger upon syscall *exit* in the parent, but the
+      // child may already be off to the races by then. so if we see events in a child, we should
+      // just let it rest until we find out how it was spawned.
+      debug("waitpid returned new pid %d\n", waited_pid);
+      if (wait_result != WAIT_SYSCALL && wait_result != WAIT_STOP) {
+        fprintf(stderr, "unfamiliar PID returned from waitpid with unexpected wait_trap_result value %d\n", wait_result);
+        return false;
+      }
+      add_pending_pid(&pending_pids, waited_pid);
+      continue;
     }
     switch (wait_result) {
     /* we need to handle events relating to process lifetime upfront: these
@@ -784,13 +867,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
         return false;
       }
       fprintf(stderr, "error at rip=%p\n", (void *)reg_pc);
-      for (int i = 0; i < maps.n_maps; i++) {
-        for (int j = 0; j < maps.maps_for_processes[i].n_pids; j++) {
-          pid_t pid = maps.maps_for_processes[i].pids[j];
-          kill(pid, SIGSTOP);
-          ptrace(PTRACE_DETACH, pid, 0, 0);
-        }
-      }
+      // freeze_and_detach(&maps);
       return false;
     }
     case WAIT_PTRACE_CLONE: {
@@ -801,6 +878,14 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
         return WAIT_ERROR;
       }
       debug_proc("should track child pid %d\n", cloned_pid);
+
+      // if this PID was pending, we received EVENT_STOP for it and should continue it.
+      if (remove_pending_pid(&pending_pids, cloned_pid)) {
+        debug_proc("continuing child pid %d\n", cloned_pid);
+        if (ptrace(continue_request, cloned_pid, 0, SIGSTOP) < 0) {
+          perror("could not ptrace(continue_request)...");
+        }
+      }
 
       add_pid(map_for_proc, cloned_pid);
       break;
@@ -813,6 +898,14 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
         return WAIT_ERROR;
       }
       debug_proc("should track forked child pid %d\n", cloned_pid);
+
+      // if this PID was pending, we received EVENT_STOP for it and should continue it.
+      if (remove_pending_pid(&pending_pids, cloned_pid)) {
+        debug_proc("continuing child pid %d\n", cloned_pid);
+        if (ptrace(continue_request, cloned_pid, 0, SIGSTOP) < 0) {
+          perror("could not ptrace(continue_request)...");
+        }
+      }
 
       struct memory_map *cloned = memory_map_clone(map_for_proc->map);
 
@@ -831,12 +924,12 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
     }
     case WAIT_SIGNALED: {
       fprintf(stderr, "process received fatal signal (syscall entry)\n");
-      enum control_flow cf = handle_process_exit(&maps, waited_pid);
+      enum control_flow cf = handle_thread_exit(&maps, waited_pid);
       return false;
     }
     case WAIT_EXITED: {
       debug_exit("pid %d exited (syscall entry)\n", waited_pid);
-      propagate(handle_process_exit(&maps, waited_pid));
+      propagate(handle_thread_exit(&maps, waited_pid));
 
       // in any case, this process is gone, so wait for a new one
       continue;
@@ -916,7 +1009,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       print_event(event, &event_info);
       const struct range *range = event_target_range(event, &event_info);
       if (range != NULL) {
-        printf("region pkey: %d\n", memory_map_region_get_owner_pkey(map, *range));
+        fprintf(stderr, "region pkey: %d\n", memory_map_region_get_owner_pkey(map, *range));
       }
       return_syscall_eperm(waited_pid);
       if (ptrace(continue_request, waited_pid, 0, 0) < 0) {
@@ -962,7 +1055,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
     }
     case WAIT_EXITED:
       debug_exit("pid %d exited (syscall exit)\n", waited_pid);
-      propagate(handle_process_exit(&maps, waited_pid));
+      propagate(handle_thread_exit(&maps, waited_pid));
 
       // in any case, this process is gone, so wait for a new one
       continue;
@@ -994,6 +1087,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       /* track effect of syscall on memory map */
       if (!update_memory_map(map, event, &event_info)) {
         fprintf(stderr, "could not update memory map! (operation=%s, rip=%p)\n", event_name(event), (void *)reg_pc);
+        // freeze_and_detach(&maps);
         return false;
       }
     }

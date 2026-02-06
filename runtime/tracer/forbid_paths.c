@@ -121,7 +121,7 @@ static int forbid_deep_or_shallow(const char *fpath, const struct stat *sb,
 
   /* do not allow or continue beneath symbolic links */
   if (typeflag == FTW_SL) {
-    return FTW_SKIP_SUBTREE;
+    // return FTW_SKIP_SUBTREE;
   }
 
   /* if contains forbidden path, allow shallowly and process children */

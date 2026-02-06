@@ -25,6 +25,8 @@ struct memory_map *memory_map_new(void);
 
 void memory_map_destroy(struct memory_map *_map);
 
+void memory_map_dump(struct memory_map *map);
+
 bool memory_map_mark_init_finished(struct memory_map *map);
 
 bool memory_map_is_init_finished(const struct memory_map *map);
@@ -45,17 +47,12 @@ uint32_t memory_map_region_get_prot(const struct memory_map *map, struct range n
 
 uint8_t memory_map_region_get_owner_pkey(const struct memory_map *map, struct range needle);
 
-bool memory_map_unmap_region(struct memory_map *map, struct range needle);
+void memory_map_unmap_region(struct memory_map *map, struct range needle);
 
 bool memory_map_add_region(struct memory_map *map,
                            struct range range,
                            uint8_t owner_pkey,
                            uint32_t prot);
-
-bool memory_map_split_region(struct memory_map *map,
-                             struct range range,
-                             uint8_t owner_pkey,
-                             uint32_t prot);
 
 bool memory_map_pkey_mprotect_region(struct memory_map *map, struct range range, uint8_t pkey);
 

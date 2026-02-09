@@ -345,6 +345,58 @@ impl MemoryMap {
 }
 
 #[test]
+fn test_split_out() {
+    let mut map = MemoryMap::new();
+    for (start, len) in [
+        (0x200000, 0x400000),
+        (0x7fe000, 0x7fd000),
+        (0xffb000, 0x001000),
+        (0xffc000, 0x003000),
+        (0xfff000, 0x7fd000),
+    ] {
+        map.add_region(
+            Range { start, len },
+            State {
+                owner_pkey: 0,
+                pkey_mprotected: false,
+                mprotected: false,
+                prot: 0,
+            },
+        );
+    }
+
+    let to_remove = Range {
+        start: 0x7fe000,
+        len: 0x801000,
+    };
+
+    let overlapping_ranges = map.regions.range(to_remove.as_std());
+    assert!(overlapping_ranges.count() == 3);
+
+    let mut map2 = MemoryMap::new();
+    for (start, len) in [(0x200000, 0x400000), (0xfff000, 0x7fd000)] {
+        map2.add_region(
+            Range { start, len },
+            State {
+                owner_pkey: 0,
+                pkey_mprotected: false,
+                mprotected: false,
+                prot: 0,
+            },
+        );
+    }
+
+    let ranges = map.split_out_region(to_remove);
+    assert!(ranges.len() == 3);
+
+    assert!(map
+        .regions
+        .iter()
+        .zip(map2.regions.iter())
+        .all(|(r1, r2)| r1.0 == r2.0 && r1.1.end() == r2.1.end()));
+}
+
+#[test]
 fn test_find_addr() {
     let mut map = MemoryMap::new();
     let addr = 0x7ffff7a2000;

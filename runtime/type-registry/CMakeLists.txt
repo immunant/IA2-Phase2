@@ -33,11 +33,11 @@ set_property(TARGET type-registry PROPERTY IMPORTED_LOCATION ${LIB_PATH})
 add_custom_target(type-registry-tgt DEPENDS ${LIB_PATH})
 add_dependencies(type-registry type-registry-tgt)
 
-if (NOT LIBIA2_AARCH64)
-  # It's more complex to test with qemu, so only test on x86_64,
-  # which should be sufficient for what's tested (nothing significant is platform dependent).
+if (NOT CMAKE_CROSSCOMPILING_EMULATOR)
+  # It's more complex to test with qemu, so only test on native builds.
+  # Should be sufficient as this lib is basically platform independent.
   add_test(
-    NAME type-registry-test
+    NAME type-registry-cargo-test
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     COMMAND ${CMAKE_COMMAND} -E env
       CARGO_TARGET_DIR=${CMAKE_CURRENT_BINARY_DIR}
@@ -45,4 +45,5 @@ if (NOT LIBIA2_AARCH64)
         --profile ${CARGO_PROFILE}
         --target ${CARGO_TARGET}
   )
+  set_tests_properties(type-registry-cargo-test PROPERTIES TIMEOUT 0)
 endif()

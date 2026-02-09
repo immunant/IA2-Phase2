@@ -373,6 +373,18 @@ fn test_split_out() {
     let overlapping_ranges = map.regions.range(to_remove.as_std());
     assert!(overlapping_ranges.count() == 3);
 
+    let dummy_state = State {
+        owner_pkey: 255,
+        pkey_mprotected: false,
+        mprotected: false,
+        prot: u32::MAX,
+    };
+    let overlapped_ranges = map
+        .regions
+        .clone()
+        .insert_replace(to_remove.as_std(), dummy_state);
+    assert!(overlapped_ranges.len() == 3);
+
     let mut map2 = MemoryMap::new();
     for (start, len) in [(0x200000, 0x400000), (0xfff000, 0x7fd000)] {
         map2.add_region(

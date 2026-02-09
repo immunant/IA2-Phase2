@@ -35,6 +35,22 @@ set_property(TARGET memory-map PROPERTY IMPORTED_LOCATION ${LIB_PATH})
 add_custom_target(memory-map-tgt DEPENDS ${LIB_PATH})
 add_dependencies(memory-map memory-map-tgt)
 
+if (NOT CMAKE_CROSSCOMPILING_EMULATOR)
+  # It's more complex to test with qemu, so only test on native builds.
+  # Should be sufficient as this lib is basically platform independent.
+  add_test(
+    NAME memory-map-cargo-test
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    COMMAND ${CMAKE_COMMAND} -E env
+      CARGO_TARGET_DIR=${CMAKE_CURRENT_BINARY_DIR}
+      cargo test
+        --manifest-path ${CMAKE_CURRENT_SOURCE_DIR}/memory-map/Cargo.toml
+        --profile ${CARGO_PROFILE}
+        ${CARGO_TARGET_FLAG}
+  )
+  set_tests_properties(memory-map-cargo-test PROPERTIES TIMEOUT 0)
+endif()
+
 if(LIBIA2_X86_64)
 add_executable(read-pkru
   read_pkru_demo.c

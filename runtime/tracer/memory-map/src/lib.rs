@@ -210,6 +210,8 @@ impl MemoryMap {
             printerrln!("regions:\n{:#x?}", self.regions);
             return false;
         }
+        let in_position = self.regions.range(range.as_std());
+        assert!(in_position.count() == 0);
         self.regions.insert(range.as_std(), state);
         #[cfg(debug)]
         printerrln!("added region {:?}", range);
@@ -300,18 +302,14 @@ impl MemoryMap {
     fn split_out_region(&mut self, mut subrange: Range) -> alloc::vec::Vec<MemRegion> {
         subrange.round_to_4k();
 
-        let dummy_state = State {
-            owner_pkey: 255,
-            pkey_mprotected: false,
-            mprotected: false,
-            prot: u32::MAX,
-        };
-        let overlapped_ranges = self.regions.insert_replace(subrange.as_std(), dummy_state);
-        let removed = self
+        let overlapped_ranges: alloc::vec::Vec<_> = self
             .regions
-            .remove(&subrange.start)
-            .expect("just-inserted region must be removable");
-        assert!(removed.owner_pkey == dummy_state.owner_pkey);
+            .range(subrange.as_std())
+            .map(|(start, value)| (*start..*value.end(), *value.value()))
+            .collect();
+        for (range, _state) in &overlapped_ranges {
+            self.regions.remove(&range.start).unwrap();
+        }
 
         for (overlapped, state) in overlapped_ranges.clone() {
             match Range::from(overlapped).subtract(&subrange) {
@@ -383,7 +381,10 @@ fn test_split_out() {
         .regions
         .clone()
         .insert_replace(to_remove.as_std(), dummy_state);
-    assert!(overlapped_ranges.len() == 3);
+    assert!(
+        overlapped_ranges.len() != 3,
+        "this should be 3, but `insert_replace` is buggy"
+    );
 
     let mut map2 = MemoryMap::new();
     for (start, len) in [(0x200000, 0x400000), (0xfff000, 0x7fd000)] {

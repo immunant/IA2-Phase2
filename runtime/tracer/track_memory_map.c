@@ -475,17 +475,29 @@ enum control_flow {
   }
 
 enum wait_trap_result {
+  // Child is performing an intercepted syscall.
   WAIT_SYSCALL,
+  // Child is stopped as the result of a signal.
   WAIT_STOP,
+  // Child process group is stopped as the result of a signal.
   WAIT_GROUP_STOP,
+  // Child exited.
   WAIT_EXITED,
+  // Child was killed by an unhandled signal.
   WAIT_SIGNALED,
+  // Child received SIGSEGV.
   WAIT_SIGSEGV,
+  // Child received SIGCHLD.
   WAIT_SIGCHLD,
+  // An error occurred in waitpid() or subsequent tracing calls.
   WAIT_ERROR,
+  // Child returned from execution of clone() syscall and the child PID is available.
   WAIT_PTRACE_CLONE,
+  // Child returned from execution of fork() syscall and the child PID is available.
   WAIT_PTRACE_FORK,
+  // Child performed the exec() syscall.
   WAIT_EXEC,
+  // Child received SIGCONT.
   WAIT_CONT,
   // Child received another signal that does not require special handling.
   WAIT_NONFATAL_SIGNAL,

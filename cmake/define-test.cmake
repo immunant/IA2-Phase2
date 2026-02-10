@@ -116,9 +116,9 @@ function(define_test)
 
     # Custom loader with MPK-protected heap is incompatible with sandbox
     # (sandbox doesn't expect pre-existing pkey-protected regions)
-    if (LIBIA2_REBUILD_GLIBC AND NOT LIBIA2_AARCH64)
-        set(DEFINE_TEST_WITHOUT_SANDBOX TRUE)
-    endif()
+    # if (LIBIA2_REBUILD_GLIBC AND NOT LIBIA2_AARCH64)
+    #     set(DEFINE_TEST_WITHOUT_SANDBOX TRUE)
+    # endif()
 
 #    if(DEFINED DEFINE_TEST_INCLUDE_DIR)
 #        set(RELATIVE_INCLUDE_DIR ${DEFINE_TEST_INCLUDE_DIR})

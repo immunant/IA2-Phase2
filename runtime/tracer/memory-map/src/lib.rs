@@ -590,18 +590,31 @@ pub extern "C" fn memory_map_pkey_mprotect_region(
     if !map.all_overlapping_regions(range, |region| {
         /* forbid pkey_mprotect of memory owned by another compartment other than 0 */
         if region.state.owner_pkey != pkey && region.state.owner_pkey != 0 {
-            printerrln!(
-                "refusing to pkey_mprotect memory owned by compartment {} to pkey {pkey}",
-                region.state.owner_pkey
-            );
-            false
+            if map.init_finished {
+                printerrln!(
+                    "refusing to pkey_mprotect memory owned by compartment {} to pkey {pkey}",
+                    region.state.owner_pkey
+                );
+                false
+            } else {
+                /* During init, allow re-protecting memory from one pkey to another.
+                 * This is needed because the custom glibc's __minimal_malloc protects
+                 * its entire heap (including TLS blocks) with IA2_LDSO_PKEY. IA2 init
+                 * must re-protect each compartment's TLS with the correct pkey. */
+                true
+            }
         /* forbid repeated pkey_mprotect */
         } else if region.state.pkey_mprotected == true {
-            printerrln!(
-                "refusing to re-pkey_mprotect memory already pkey_mprotected by compartment {}",
-                region.state.owner_pkey
-            );
-            false
+            if map.init_finished {
+                printerrln!(
+                    "refusing to re-pkey_mprotect memory already pkey_mprotected by compartment {}",
+                    region.state.owner_pkey
+                );
+                false
+            } else {
+                /* During init, allow re-pkey_mprotect (same reason as above). */
+                true
+            }
         /* otherwise, allow */
         } else {
             true
@@ -612,8 +625,9 @@ pub extern "C" fn memory_map_pkey_mprotect_region(
     // update every region in overlap
     for mut region in map.split_out_region(range) {
         region.state.pkey_mprotected = true;
-        /* set owner if a trusted compartment protected untrusted memory */
-        if region.state.owner_pkey == 0 {
+        /* set owner if a trusted compartment protected untrusted memory,
+         * or if we are still in init (re-protecting loader heap regions). */
+        if region.state.owner_pkey == 0 || !map.init_finished {
             region.state.owner_pkey = pkey;
         }
         assert!(map.add_region(region.range, region.state))

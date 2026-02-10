@@ -10,5 +10,6 @@ define_test(
     PKEY 1
     NEEDS_LD_WRAP
     CRITERION_TEST
+    TYPE_REGISTRY
     WITHOUT_SANDBOX # TODO remove once tracer bug (#488) is fixed
 )

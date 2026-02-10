@@ -903,7 +903,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       int ret = ptrace(PTRACE_GETEVENTMSG, waited_pid, 0, &cloned_pid);
       if (ret < 0) {
         perror("ptrace(PTRACE_GETEVENTMSG) upon clone");
-        return WAIT_ERROR;
+        return false;
       }
       debug_proc("should track child pid %d\n", cloned_pid);
 
@@ -923,7 +923,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       int ret = ptrace(PTRACE_GETEVENTMSG, waited_pid, 0, &cloned_pid);
       if (ret < 0) {
         perror("ptrace(PTRACE_GETEVENTMSG) upon fork");
-        return WAIT_ERROR;
+        return false;
       }
       debug_proc("should track forked child pid %d\n", cloned_pid);
 
@@ -1073,7 +1073,7 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
       int ret = ptrace(PTRACE_GETEVENTMSG, waited_pid, 0, &cloned_pid);
       if (ret < 0) {
         perror("ptrace(PTRACE_GETEVENTMSG) upon clone");
-        return WAIT_ERROR;
+        return false;
       }
       debug_proc("syscall exit; should track child pid %d\n", cloned_pid);
 

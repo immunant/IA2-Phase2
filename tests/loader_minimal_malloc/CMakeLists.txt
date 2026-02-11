@@ -7,6 +7,9 @@ define_test(
     NO_LIBS
     PKEY 1
     CRITERION_TEST
+    # Reads /proc/self/smaps which is not allowed by the sandbox's landlock
+    # rules because /proc/self is a symlink that landlock's filesystem walk skips
+    WITHOUT_SANDBOX
     UNWRAPPED_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/external/glibc/elf
     EXTRA_REWRITER_ARGS --libc-compartment
 )

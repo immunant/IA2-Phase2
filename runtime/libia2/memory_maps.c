@@ -1,6 +1,8 @@
 #include "memory_maps.h"
 #include "ia2.h"
 #include "thread_name.h"
+#include <stdlib.h>
+#include <sys/mman.h>
 
 // Only enable this code that stores these addresses when debug logging is enabled.
 // This reduces the trusted codebase and avoids runtime overhead.
@@ -166,8 +168,26 @@ static void label_memory_map(FILE *log, uintptr_t start_addr) {}
 // so we need to free what `getline` allocated with `__real_free`.
 typeof(IA2_IGNORE(free)) __real_free;
 
+FILE *open_tracer_self_maps(void **buf_out) {
+  const int tracer_maps_len = 64 * 1024;
+  void *buf = malloc(tracer_maps_len);
+  int len = madvise(buf, tracer_maps_len, 0x1a25e1f5);
+  if (len < 0 || len == tracer_maps_len) {
+    free(buf);
+    return NULL;
+  }
+  FILE *maps = fmemopen(buf, len, "r");
+  *buf_out = buf;
+  return maps;
+}
+
 void ia2_log_memory_maps(FILE *log) {
-  FILE *maps = fopen("/proc/self/maps", "r");
+  void *buf = NULL;
+  FILE *maps = open_tracer_self_maps(&buf);
+  if (!maps)
+    maps = fopen("/proc/self/maps", "r");
+  if (!maps)
+    fprintf(stderr, "failed to open /proc/self/maps: %m\n");
   assert(maps);
 
   // Skip dev and inode.
@@ -221,4 +241,5 @@ void ia2_log_memory_maps(FILE *log) {
 
   __real_free(line);
   fclose(maps);
+  free(buf);
 }

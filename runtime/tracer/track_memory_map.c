@@ -253,6 +253,10 @@ static bool event_marks_init_finished(enum mmap_event event, const union event_i
          event_info->mmap.flags & MAP_FIXED;
 }
 
+static bool event_is_request_proc_self_maps(enum mmap_event event, const union event_info *event_info) {
+  return event == EVENT_MADVISE && event_info->madvise.advice == 0x1a25e1f5;
+}
+
 static void print_event(enum mmap_event event, const union event_info *event_info) {
   switch (event) {
   case EVENT_MMAP: {
@@ -607,7 +611,7 @@ long set_regs(pid_t pid, struct user_regs_struct *regs) {
 #endif
 }
 
-static void return_syscall_eperm(pid_t pid) {
+static void return_syscall_value(pid_t pid, int retval) {
   struct user_regs_struct regs_storage = {0};
   struct user_regs_struct *regs = &regs_storage;
   if (get_regs(pid, regs) < 0) {
@@ -630,9 +634,55 @@ static void return_syscall_eperm(pid_t pid) {
     return;
   }
   /* return -EPERM */
-  reg_retval = -EPERM;
+  reg_retval = retval;
   set_regs(pid, regs);
-  debug_forbid("wrote -eperm to rax\n");
+}
+
+static void return_syscall_eperm(pid_t pid) {
+  return_syscall_value(pid, -EPERM);
+  debug_forbid("wrote -eperm to %s\n", #reg_retval);
+}
+
+int ptrace_memcpy(pid_t pid, size_t dest, const char *src, size_t len) {
+  size_t nwords = len / sizeof(void *);
+  for (size_t i = 0; i < nwords; i++) {
+    long ret = ptrace(PTRACE_POKEDATA, pid, dest + i * sizeof(void *), *((void **)src + i));
+    if (ret < 0)
+      return ret;
+  }
+  return 0;
+}
+
+int poke_proc_self_maps(pid_t pid, size_t start, size_t len) {
+  size_t total_read = 0;
+  char *filename = NULL;
+  asprintf(&filename, "/proc/%d/maps", pid);
+  char buf[1024];
+  FILE *maps = fopen(filename, "r");
+  if (!maps) {
+    fprintf(stderr, "failed to open %s: %m\n", filename);
+    free(filename);
+    return -errno;
+  }
+  free(filename);
+
+  while (!feof(maps) && total_read < len) {
+    size_t nread = fread(buf, 1, sizeof(buf), maps);
+    if (nread == 0)
+      break;
+    // copy at most the smaller of nread or remaining len
+    size_t remaining_len = len - total_read;
+    size_t n_to_copy = nread > remaining_len ? remaining_len : nread;
+    int ret = ptrace_memcpy(pid, start + total_read, buf, n_to_copy);
+    if (ret < 0) {
+      fclose(maps);
+      return ret;
+    }
+    total_read += n_to_copy;
+  }
+
+  fclose(maps);
+  return total_read;
 }
 
 /* a memory map that tracks multiple threads under the same process */
@@ -1004,6 +1054,17 @@ bool track_memory_map(pid_t pid, int *exit_status_out, enum trace_mode mode) {
         fprintf(stderr, "unexpected status returned from wait_for_next_trap after PTRACE_SYSCALL: %d\n", wait_result_after_syscall);
         return false;
       }
+      /* pick up signal requesting contents of /proc/self/mem */
+    } else if (event_is_request_proc_self_maps(event, &event_info)) {
+      debug_op("writing /proc/self/maps into memory of process %d\n", pid);
+      int self_maps_len = poke_proc_self_maps(waited_pid, event_info.madvise.range.start, event_info.madvise.range.len);
+      /* stub out the syscall and replace its return value */
+      return_syscall_value(waited_pid, self_maps_len);
+      if (ptrace(continue_request, waited_pid, 0, 0) < 0) {
+        perror("could not ptrace(continue_request)");
+        return false;
+      }
+      continue;
     } else if (!is_op_permitted(map, event, &event_info)) {
       fprintf(stderr, "forbidden operation requested: ");
       print_event(event, &event_info);

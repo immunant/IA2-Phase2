@@ -10,6 +10,7 @@
 
 #include <fcntl.h>
 #include <string.h>
+#include <sys/mman.h>
 #include <unistd.h>
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_APPLE)
@@ -276,12 +277,14 @@ void UpdateBaseAddress(unsigned permissions,
 
 void PrintStackTraceInternal(const void** trace, size_t count) {
   int fd = PA_HANDLE_EINTR(open("/proc/self/maps", O_RDONLY));
-  if (fd == -1) {
+
+  char buffer[kBufferSize];
+  int tracer_self_mem_bytes = 0;
+  if (fd == -1 && (tracer_self_mem_bytes = madvise(buffer, kBufferSize, 0x1a25e1f5)) < 0) {
     PA_RAW_LOG(ERROR, "Failed to open /proc/self/maps\n");
     return;
   }
 
-  char buffer[kBufferSize];
   char* dest = buffer;
   char* buffer_end = buffer + kBufferSize;
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_APPLE)
@@ -290,6 +293,10 @@ void PrintStackTraceInternal(const void** trace, size_t count) {
 
   while (dest < buffer_end) {
     ssize_t bytes_read = PA_HANDLE_EINTR(read(fd, dest, buffer_end - dest));
+    if (fd == -1) {
+      bytes_read = tracer_self_mem_bytes;
+      buffer_end = dest;
+    }
     if (bytes_read == 0) {
       break;
     }
@@ -319,7 +326,9 @@ void PrintStackTraceInternal(const void** trace, size_t count) {
                           &permissions, &offset, &module_name);
         if (ok) {
 #if !BUILDFLAG(IS_ANDROID)
+        if (fd != -1) {
           UpdateBaseAddress(permissions, start_address, &base_address);
+        }
 #endif
           if (module_name && *module_name != '\0') {
             for (size_t i = 0; i < count; i++) {

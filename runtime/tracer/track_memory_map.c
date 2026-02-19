@@ -50,6 +50,9 @@ static bool is_op_permitted(struct memory_map *map, int event,
                                                      info->mmap.pkey))
       return true;
 
+    if (info->mmap.prot == PROT_NONE && memory_map_region_get_prot(map, info->mmap.range) == PROT_NONE)
+      return true;
+
     break;
   case EVENT_MUNMAP:
     if (memory_map_all_overlapping_regions_have_pkey(map, info->munmap.range,

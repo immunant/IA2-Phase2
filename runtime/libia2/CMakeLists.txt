@@ -245,10 +245,15 @@ if(LIBIA2_AARCH64)
     add_custom_target(libc-ia2 DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/libc.so.6" "${CMAKE_CURRENT_BINARY_DIR}/ld-linux-aarch64.so.1")
 elseif(LIBIA2_REBUILD_GLIBC)
     # x86_64 with custom glibc
+    # The glibc-install stamp ensures this copy re-runs after glibc is
+    # reinstalled (e.g. after switching the glibc submodule). Without it,
+    # ninja may consider the output up-to-date even though the sysroot has
+    # a newer ld.so, leading to a stale loader with a different BuildID.
     add_custom_command(
         OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ld-linux-x86-64.so.2
         COMMAND ${CMAKE_COMMAND} -E copy ${LD_LINUX_X86_PATH} ${CMAKE_CURRENT_BINARY_DIR}/ld-linux-x86-64.so.2
         DEPENDS glibc ${LD_LINUX_X86_PATH}
+                ${CMAKE_CURRENT_BINARY_DIR}/glibc-prefix/src/glibc-stamp/glibc-install
         COMMENT "Copying ld-linux-x86-64.so.2"
     )
     add_library(libc SHARED IMPORTED)

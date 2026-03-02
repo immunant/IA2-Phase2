@@ -1,7 +1,9 @@
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
+#if IA2_DEBUG
 #include <libunwind.h>
+#endif
 #include <inttypes.h>
 #include <stdio.h>
 #include <string.h>

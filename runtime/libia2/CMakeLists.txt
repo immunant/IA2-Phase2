@@ -84,7 +84,7 @@ set(CARGO_PROFILE "release")
 set(CARGO_PROFILE_DIR "release")
 endif()
 
-if (LIBIA2_X86_64)
+if (NOT LIBIA2_AARCH64)
     target_link_options(libia2 INTERFACE "-lunwind-x86_64")
 endif()
 

@@ -65,6 +65,14 @@ static std::string RootDirectory;
 static std::string OutputDirectory;
 static std::string OutputPrefix;
 
+// These symbols are routed through partition-alloc via linker --wrap overrides
+// and should not be auto-callgated into the libc compartment.
+static const std::set<Function> kSkipLibcSystemAutowrap = {
+    "calloc", "free", "malloc", "memalign", "posix_memalign",
+    "pvalloc", "realloc", "valloc", "malloc_usable_size",
+    "realpath", "strdup", "strndup", "getcwd", "asprintf", "vasprintf",
+};
+
 // Map each translation unit's filename to its pkey.
 static std::map<Filename, Pkey> file_pkeys;
 
@@ -1569,6 +1577,10 @@ int main(int argc, const char **argv) {
     for (const auto &fn_name : undefined_fns) {
       bool declared_in_system_header = fn_decl_pass.system_header_fns.contains(fn_name);
       if (declared_in_system_header) {
+        if (gLibcCompartmentEnabled &&
+            kSkipLibcSystemAutowrap.contains(fn_name)) {
+          continue;
+        }
         if (!gLibcCompartmentEnabled) {
           continue;  // Legacy behavior: ignore system/libc functions entirely.
         }

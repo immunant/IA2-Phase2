@@ -403,6 +403,7 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
     //    while code is running under different compartment PKRU values.
     uint64_t shared_tls_pages[MAX_SHARED_TLS_PAGES] = {0};
     size_t shared_tls_page_count = 0;
+    bool has_untrusted_shared_page = false;
 
     // Look for the untrusted stack pointer, in case this lib defines it.
     extern __thread void *ia2_stackptr_0;
@@ -413,15 +414,20 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
       exit(-1);
     }
     uint64_t untrusted_stackptr_page = untrusted_stackptr_addr;
-    if (untrusted_stackptr_page >= start_round_down && untrusted_stackptr_page < end) {
+    // Only carve out the callgate stack pointer page when the symbol is inside
+    // this module's true TLS range (not merely within the rounded-down page).
+    if (untrusted_stackptr_addr >= start && untrusted_stackptr_addr < end) {
+      // The TLS region should only be split for compartment 1.
+      assert(pkey == 1);
       shared_tls_pages[shared_tls_page_count++] = untrusted_stackptr_page;
+      has_untrusted_shared_page = true;
     }
 
 #if defined(__x86_64__)
     uint64_t tcb_page =
         IA2_ROUND_DOWN((uint64_t)__builtin_thread_pointer(), PAGE_SIZE);
     if (tcb_page >= start_round_down && tcb_page < end &&
-        tcb_page != untrusted_stackptr_page) {
+        (!has_untrusted_shared_page || tcb_page != untrusted_stackptr_page)) {
       if (shared_tls_page_count >= MAX_SHARED_TLS_PAGES) {
         printf("internal error: too many shared TLS pages\n");
         exit(-1);

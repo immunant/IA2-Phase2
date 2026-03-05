@@ -390,6 +390,63 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
       exit(-1);
     }
 
+    // Look for the untrusted stack pointer, in case this lib defines it.
+    extern __thread void *ia2_stackptr_0;
+    uint64_t untrusted_stackptr_addr = (uint64_t)&ia2_stackptr_0;
+    if ((untrusted_stackptr_addr & 0xFFF) != 0) {
+      printf("address of ia2_stackptr_0 (%p) is not page-aligned\n",
+             (void *)untrusted_stackptr_addr);
+      exit(-1);
+    }
+#if defined(__aarch64__)
+    // Preserve the pre-existing AArch64 behavior exactly. The TCB carve-out
+    // changes are x86_64-specific and should not alter ARM TLS tagging.
+    if (untrusted_stackptr_addr >= start && untrusted_stackptr_addr < end) {
+      // The TLS region should only be split for compartment 1.
+      assert(pkey == 1);
+
+      // Protect TLS region start to the beginning of the untrusted region.
+      if (untrusted_stackptr_addr > start_round_down) {
+        int mprotect_err = ia2_mprotect_with_tag(
+            (void *)start_round_down, untrusted_stackptr_addr - start_round_down,
+            PROT_READ | PROT_WRITE, pkey);
+        if (mprotect_err != 0) {
+          printf("ia2_mprotect_with_tag failed: %s\n", strerror(errno));
+          exit(-1);
+        }
+#if IA2_DEBUG_MEMORY
+        thread_metadata->tls_addr_compartment1_first = (uintptr_t)start_round_down;
+#endif
+      }
+      uint64_t after_untrusted_region_start = untrusted_stackptr_addr + PAGE_SIZE;
+      uint64_t after_untrusted_region_len = end - after_untrusted_region_start;
+      if (after_untrusted_region_len > 0) {
+        int mprotect_err = ia2_mprotect_with_tag(
+            (void *)after_untrusted_region_start,
+            after_untrusted_region_len,
+            PROT_READ | PROT_WRITE, pkey);
+        if (mprotect_err != 0) {
+          printf("ia2_mprotect_with_tag failed: %s\n", strerror(errno));
+          exit(-1);
+        }
+#if IA2_DEBUG_MEMORY
+        thread_metadata->tls_addr_compartment1_second = (uintptr_t)after_untrusted_region_start;
+#endif
+      }
+    } else {
+      int mprotect_err =
+          ia2_mprotect_with_tag(
+              (void *)start_round_down, len_round_up,
+              PROT_READ | PROT_WRITE, pkey);
+      if (mprotect_err != 0) {
+        printf("ia2_mprotect_with_tag failed: %s\n", strerror(errno));
+        exit(-1);
+      }
+#if IA2_DEBUG_MEMORY
+      thread_metadata->tls_addrs[pkey] = (uintptr_t)start_round_down;
+#endif
+    }
+#else
     // Default policy is "tag PT_TLS with compartment pkey".
     // We carve out ABI-sensitive TLS pages that must stay shared (pkey 0),
     // then protect the remaining ranges with the compartment pkey.
@@ -404,16 +461,8 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
     uint64_t shared_tls_pages[MAX_SHARED_TLS_PAGES] = {0};
     size_t shared_tls_page_count = 0;
     bool has_untrusted_shared_page = false;
-
-    // Look for the untrusted stack pointer, in case this lib defines it.
-    extern __thread void *ia2_stackptr_0;
-    uint64_t untrusted_stackptr_addr = (uint64_t)&ia2_stackptr_0;
-    if ((untrusted_stackptr_addr & 0xFFF) != 0) {
-      printf("address of ia2_stackptr_0 (%p) is not page-aligned\n",
-             (void *)untrusted_stackptr_addr);
-      exit(-1);
-    }
     uint64_t untrusted_stackptr_page = untrusted_stackptr_addr;
+
     // Only carve out the callgate stack pointer page when the symbol is inside
     // this module's true TLS range (not merely within the rounded-down page).
     if (untrusted_stackptr_addr >= start && untrusted_stackptr_addr < end) {
@@ -423,7 +472,6 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
       has_untrusted_shared_page = true;
     }
 
-#if defined(__x86_64__)
     uint64_t tcb_page =
         IA2_ROUND_DOWN((uint64_t)__builtin_thread_pointer(), PAGE_SIZE);
     if (tcb_page >= start_round_down && tcb_page < end &&
@@ -434,7 +482,6 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
       }
       shared_tls_pages[shared_tls_page_count++] = tcb_page;
     }
-#endif
 
     // Iterate carve-outs in ascending order so "cursor..shared_page" ranges
     // remain valid and non-overlapping.
@@ -498,6 +545,7 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
       }
 #endif
     }
+#endif
   }
 
   return 0;

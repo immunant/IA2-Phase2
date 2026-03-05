@@ -145,6 +145,14 @@ struct dl_phdr_info;
 /// information in the search arguments.
 IA2_EXTERN_C int protect_pages(struct dl_phdr_info *info, size_t size, void *data);
 IA2_EXTERN_C int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data);
+/// Retag the architecture thread-pointer page as shared (pkey 0).
+///
+/// On x86_64 this is the TCB page addressed through `%fs`. The page contains
+/// ABI state (for example stack canary data used by compiler-generated
+/// stack-protector checks) that may be touched while control crosses
+/// compartments. Keeping it shared prevents compartment-private TLS tagging
+/// from breaking those reads/writes.
+IA2_EXTERN_C void ia2_unprotect_thread_pointer_page(void);
 
 struct IA2SharedSection {
   const void *start;

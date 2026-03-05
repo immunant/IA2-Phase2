@@ -97,6 +97,31 @@ size_t ia2_get_compartment(void) {
   }
 }
 
+/*
+ * Keep the thread-pointer/TCB page shared on x86_64.
+ *
+ * Why this exists:
+ * - IA2 retags PT_TLS pages per compartment.
+ * - The TCB page (at __builtin_thread_pointer()) is process ABI state, not
+ *   compartment-private state.
+ * - Compiler-generated stack-protector checks load the canary via %fs:0x28 and
+ *   those loads can occur while PKRU is set for another compartment during
+ *   callgate transitions.
+ *
+ * If we leave this page compartment-tagged, code can fault in normal function
+ * prologue/epilogue paths before the intended callgate logic runs.
+ */
+void ia2_unprotect_thread_pointer_page(void) {
+  uintptr_t tcb_page =
+      IA2_ROUND_DOWN((uintptr_t)__builtin_thread_pointer(), PAGE_SIZE);
+  int err = ia2_mprotect_with_tag(
+      (void *)tcb_page, PAGE_SIZE, PROT_READ | PROT_WRITE, 0);
+  if (err != 0) {
+    printf("ia2_mprotect_with_tag failed: %s\n", strerror(errno));
+    exit(-1);
+  }
+}
+
 #elif defined(__aarch64__)
 
 static size_t ia2_get_x18(void) {
@@ -110,6 +135,10 @@ size_t ia2_get_tag(void) __attribute__((alias("ia2_get_x18")));
 size_t ia2_get_compartment(void) {
   return ia2_get_tag();
 }
+
+// x18-tagged aarch64 builds do not currently use the x86_64 TCB/%fs ABI path.
+// Keep this symbol for cross-arch call-site symmetry.
+void ia2_unprotect_thread_pointer_page(void) {}
 
 // TODO: insert_tag could probably be cleaned up a bit, but I'm not sure if the
 // generated code could be simplified since addg encodes the tag as an imm field
@@ -333,6 +362,8 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
   struct ia2_thread_metadata *const thread_metadata = ia2_thread_metadata_get_for_current_thread();
 #endif
 
+  enum { MAX_SHARED_TLS_PAGES = 2 };
+
   // Protect TLS segment.
   for (size_t i = 0; i < info->dlpi_phnum; i++) {
     Elf64_Phdr phdr = info->dlpi_phdr[i];
@@ -341,8 +372,6 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
     }
 
     uint64_t start = (uint64_t)info->dlpi_tls_data;
-    size_t len = phdr.p_memsz;
-
     uint64_t start_round_down = start & ~0xFFFUL;
     uint64_t start_moved_by = start & 0xFFFUL;
     // p_memsz is 0x1000 more than the size of what we actually need to protect.
@@ -361,6 +390,20 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
       exit(-1);
     }
 
+    // Default policy is "tag PT_TLS with compartment pkey".
+    // We carve out ABI-sensitive TLS pages that must stay shared (pkey 0),
+    // then protect the remaining ranges with the compartment pkey.
+    //
+    // Shared carve-outs:
+    // 1) ia2_stackptr_0 page:
+    //    callgates switch stacks through this TLS slot and it has historically
+    //    been shared.
+    // 2) x86_64 thread-pointer/TCB page:
+    //    `%fs`-relative ABI state (including stack canary reads) may be touched
+    //    while code is running under different compartment PKRU values.
+    uint64_t shared_tls_pages[MAX_SHARED_TLS_PAGES] = {0};
+    size_t shared_tls_page_count = 0;
+
     // Look for the untrusted stack pointer, in case this lib defines it.
     extern __thread void *ia2_stackptr_0;
     uint64_t untrusted_stackptr_addr = (uint64_t)&ia2_stackptr_0;
@@ -369,54 +412,84 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
              (void *)untrusted_stackptr_addr);
       exit(-1);
     }
+    uint64_t untrusted_stackptr_page = untrusted_stackptr_addr;
+    if (untrusted_stackptr_page >= start_round_down && untrusted_stackptr_page < end) {
+      shared_tls_pages[shared_tls_page_count++] = untrusted_stackptr_page;
+    }
 
-    // Protect the TLS region except the page of the untrusted stack pointer.
-    // The untrusted stack pointer is page-aligned, so it starts its page, and
-    // it is followed by padding that ensures nothing else occupies the rest of
-    // its page.
-    if (untrusted_stackptr_addr >= start && untrusted_stackptr_addr < end) {
-      // The TLS region should only be split for compartment 1.
-      assert(pkey == 1);
+#if defined(__x86_64__)
+    uint64_t tcb_page =
+        IA2_ROUND_DOWN((uint64_t)__builtin_thread_pointer(), PAGE_SIZE);
+    if (tcb_page >= start_round_down && tcb_page < end &&
+        tcb_page != untrusted_stackptr_page) {
+      if (shared_tls_page_count >= MAX_SHARED_TLS_PAGES) {
+        printf("internal error: too many shared TLS pages\n");
+        exit(-1);
+      }
+      shared_tls_pages[shared_tls_page_count++] = tcb_page;
+    }
+#endif
 
-      // Protect TLS region start to the beginning of the untrusted region.
-      if (untrusted_stackptr_addr > start_round_down) {
+    // Iterate carve-outs in ascending order so "cursor..shared_page" ranges
+    // remain valid and non-overlapping.
+    if (shared_tls_page_count == 2 && shared_tls_pages[0] > shared_tls_pages[1]) {
+      uint64_t tmp = shared_tls_pages[0];
+      shared_tls_pages[0] = shared_tls_pages[1];
+      shared_tls_pages[1] = tmp;
+    }
+
+#if IA2_DEBUG_MEMORY
+    // Keep best-effort TLS start metadata for diagnostics.
+    thread_metadata->tls_addrs[pkey] = (uintptr_t)start_round_down;
+    if (pkey == 1) {
+      thread_metadata->tls_addr_compartment1_first = 0;
+      thread_metadata->tls_addr_compartment1_second = 0;
+    }
+#endif
+
+    uint64_t cursor = start_round_down;
+    for (size_t shared_i = 0; shared_i < shared_tls_page_count; shared_i++) {
+      const uint64_t shared_page = shared_tls_pages[shared_i];
+      if (shared_page > cursor) {
         int mprotect_err = ia2_mprotect_with_tag(
-            (void *)start_round_down, untrusted_stackptr_addr - start_round_down,
-            PROT_READ | PROT_WRITE, pkey);
+            (void *)cursor, shared_page - cursor, PROT_READ | PROT_WRITE, pkey);
         if (mprotect_err != 0) {
           printf("ia2_mprotect_with_tag failed: %s\n", strerror(errno));
           exit(-1);
         }
 #if IA2_DEBUG_MEMORY
-        thread_metadata->tls_addr_compartment1_first = (uintptr_t)start_round_down;
-#endif
-      }
-      uint64_t after_untrusted_region_start = untrusted_stackptr_addr + 0x1000;
-      uint64_t after_untrusted_region_len = end - after_untrusted_region_start;
-      if (after_untrusted_region_len > 0) {
-        int mprotect_err = ia2_mprotect_with_tag(
-            (void *)after_untrusted_region_start,
-            after_untrusted_region_len,
-            PROT_READ | PROT_WRITE, pkey);
-        if (mprotect_err != 0) {
-          printf("ia2_mprotect_with_tag failed: %s\n", strerror(errno));
-          exit(-1);
+        if (pkey == 1 && thread_metadata->tls_addr_compartment1_first == 0) {
+          thread_metadata->tls_addr_compartment1_first = (uintptr_t)cursor;
+        } else if (pkey == 1 && thread_metadata->tls_addr_compartment1_second == 0) {
+          thread_metadata->tls_addr_compartment1_second = (uintptr_t)cursor;
         }
-#if IA2_DEBUG_MEMORY
-        thread_metadata->tls_addr_compartment1_second = (uintptr_t)after_untrusted_region_start;
 #endif
       }
-    } else {
-      int mprotect_err =
-          ia2_mprotect_with_tag(
-              (void *)start_round_down, len_round_up,
-              PROT_READ | PROT_WRITE, pkey);
+
+      // Explicitly restore shared TLS ABI pages to pkey 0.
+      int shared_mprotect_err = ia2_mprotect_with_tag(
+          (void *)shared_page, PAGE_SIZE, PROT_READ | PROT_WRITE, 0);
+      if (shared_mprotect_err != 0) {
+        printf("ia2_mprotect_with_tag failed: %s\n", strerror(errno));
+        exit(-1);
+      }
+
+      cursor = shared_page + PAGE_SIZE;
+    }
+
+    if (cursor < end) {
+      int mprotect_err = ia2_mprotect_with_tag(
+          (void *)cursor, end - cursor, PROT_READ | PROT_WRITE, pkey);
       if (mprotect_err != 0) {
         printf("ia2_mprotect_with_tag failed: %s\n", strerror(errno));
         exit(-1);
       }
 #if IA2_DEBUG_MEMORY
-      thread_metadata->tls_addrs[pkey] = (uintptr_t)start_round_down;
+      if (pkey == 1 && thread_metadata->tls_addr_compartment1_first == 0) {
+        thread_metadata->tls_addr_compartment1_first = (uintptr_t)cursor;
+      } else if (pkey == 1 && thread_metadata->tls_addr_compartment1_second == 0) {
+        thread_metadata->tls_addr_compartment1_second = (uintptr_t)cursor;
+      }
 #endif
     }
   }

@@ -7,6 +7,7 @@
 
 __attribute__((visibility("default"))) void init_stacks_and_setup_tls(void);
 __attribute__((visibility("default"))) void **ia2_stackptr_for_tag(size_t tag);
+__attribute__((visibility("default"))) void ia2_unprotect_thread_pointer_page(void);
 
 struct ia2_thread_thunk {
   void *(*fn)(void *);
@@ -36,6 +37,9 @@ void *ia2_thread_begin(void *arg) {
 #endif
 
   init_stacks_and_setup_tls();
+  // New threads get their own TLS/TCB mapping; re-apply the shared TCB policy
+  // after per-thread TLS setup for the same reasons as ia2_start().
+  ia2_unprotect_thread_pointer_page();
   /* TODO: Set up alternate stack when we have per-thread shared compartment
    * data. */
   /*  sigaltstack(&alt_stack, NULL); */

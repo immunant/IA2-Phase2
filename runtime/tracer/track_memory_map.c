@@ -894,6 +894,8 @@ static void add_memory_map_entry(const char *line, ssize_t line_len, int path_in
   new_range.len = end_addr - start_addr;
   uint32_t prot = (perms[0] == 'r' ? PROT_READ : 0) | (perms[1] == 'w' ? PROT_WRITE : 0) | (perms[2] == 'x' ? PROT_EXEC : 0);
   uint8_t owner_pkey = 0; // initial mappings belong to the initial compartment
+  // TODO: when libc is compartmentalized and in compartment 1 or another, should some/all of these
+  // mappings be attributed to that compartment instead?
   memory_map_add_region(*map, new_range, owner_pkey, prot);
 }
 

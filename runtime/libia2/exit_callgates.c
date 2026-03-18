@@ -58,7 +58,8 @@ __asm__(
 
     // Switch to exit compartment PKRU (pkey 0 + pkey IA2_LIBC_COMPARTMENT).
     // After this the caller's stack (pkey 2+) may be inaccessible, but we
-    // only perform register ops and a TLS read until the stack switch.
+    // only perform register ops and one specific TLS read (ia2_stackptr_<libc>)
+    // until the stack switch.
     "xorl %ecx, %ecx\n"
     "xorl %edx, %edx\n"
     "mov_pkru_eax " IA2_STR(IA2_LIBC_COMPARTMENT) "\n"
@@ -67,15 +68,11 @@ __asm__(
     // Load exit stack pointer directly from TLS — same pattern as the
     // rewriter-generated call gates (emit_load_sp_offset / emit_switch_stacks
     // in GenCallAsm.cpp) and __wrap_main in main.c.
-    // Safety invariant: the @GOTTPOFF read must remain accessible right after
-    // wrpkru (IA2 currently keeps libia2 RELRO/GOT readable in all
-    // compartments).
+    // Safety invariant: this ia2_stackptr_<libc> @GOTTPOFF lookup and read
+    // must remain accessible right after wrpkru. This does not imply arbitrary
+    // TLS reads are safe in this window.
     "mov ia2_stackptr_" IA2_STR(IA2_LIBC_COMPARTMENT) "@GOTTPOFF(%rip), %r11\n"
     "movq %fs:(%r11), %r10\n"          // load exit stack pointer
-    "testq %r10, %r10\n"
-    "jne 1f\n"
-    "ud2\n"                            // trap if exit stack uninitialized
-"1:\n"
     // Switch to exit stack. No synthetic return address push is needed.
     "movq %r10, %rsp\n"
 

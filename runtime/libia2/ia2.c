@@ -501,6 +501,7 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
 #endif
 
     uint64_t cursor = start_round_down;
+    const bool can_retag_shared_tls_pages = (ia2_get_compartment() == 0);
     for (size_t shared_i = 0; shared_i < shared_tls_page_count; shared_i++) {
       const uint64_t shared_page = shared_tls_pages[shared_i];
       if (shared_page > cursor) {
@@ -519,12 +520,17 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
 #endif
       }
 
-      // Explicitly restore shared TLS ABI pages to pkey 0.
-      int shared_mprotect_err = ia2_mprotect_with_tag(
-          (void *)shared_page, PAGE_SIZE, PROT_READ | PROT_WRITE, 0);
-      if (shared_mprotect_err != 0) {
-        printf("ia2_mprotect_with_tag failed: %s\n", strerror(errno));
-        exit(-1);
+      // Explicitly restore shared TLS ABI pages to pkey 0 during process init.
+      // For per-thread TLS setup after init, these pages are already mapped with
+      // pkey 0 by default, and redundantly re-tagging them from compartment 1
+      // violates tracer monotonicity policy.
+      if (can_retag_shared_tls_pages) {
+        int shared_mprotect_err = ia2_mprotect_with_tag(
+            (void *)shared_page, PAGE_SIZE, PROT_READ | PROT_WRITE, 0);
+        if (shared_mprotect_err != 0) {
+          printf("ia2_mprotect_with_tag failed: %s\n", strerror(errno));
+          exit(-1);
+        }
       }
 
       cursor = shared_page + PAGE_SIZE;

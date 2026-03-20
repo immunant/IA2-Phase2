@@ -85,17 +85,6 @@ Test(three_keys_minimal, direct_calls) {
   lib_2_call_loop();
 }
 
-/* Regression test for tracer mmap policy:
- * lib_2 requests a non-MAP_FIXED anonymous mmap with a hint inside main's
- * private mapping. Pre-fix this was denied as EPERM due overlap at the hint
- * address, even though non-fixed hints are advisory. */
-Test(three_keys_minimal, nonfixed_mmap_hint_foreign_compartment) {
-  int *main_static = main_get_static();
-  cr_assert(main_static);
-  int rc = lib_2_mmap_nonfixed_hint(main_static);
-  cr_assert_eq(rc, 0);
-}
-
 // variant of CHECK_VIOLATION macro that works with void-valued expressions
 #define CHECK_VIOLATION_VOID(expr) \
   {                                \

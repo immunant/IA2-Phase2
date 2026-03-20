@@ -212,7 +212,7 @@ AbiSignature determineAbiSignatureForDecl(
   clang::PreprocessorOptions ppo;
   clang::CodeGenOptions cgo;
   llvm::LLVMContext llvmCtx;
-  clang::CodeGenerator *codeGenerator =
+  auto codeGenerator =
       CreateLLVMCodeGen(astContext.getDiagnostics(), llvm::StringRef(),
 #if LLVM_VERSION_MAJOR >= 15
                         vfs,
@@ -263,7 +263,7 @@ AbiSignature determineAbiSignatureForProtoType(
   clang::PreprocessorOptions ppo;
   clang::CodeGenOptions cgo;
   llvm::LLVMContext llvmCtx;
-  clang::CodeGenerator *codeGenerator =
+  auto codeGenerator =
       CreateLLVMCodeGen(astContext.getDiagnostics(), llvm::StringRef(),
 #if LLVM_VERSION_MAJOR >= 15
                         vfs,

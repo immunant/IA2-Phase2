@@ -10,11 +10,7 @@
 #include "memory_maps.h"
 
 void **ia2_stackptr_for_compartment(int compartment) {
-#if defined(__x86_64__)
-  return ia2_stackptr_for_tag(PKRU(compartment));
-#elif defined(__aarch64__)
-  return ia2_stackptr_for_tag(compartment);
-#endif
+  return ia2_stackptr_for_tag(TAG_FOR_COMPARTMENT(compartment));
 }
 
 #if defined(__x86_64__)

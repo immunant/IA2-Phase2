@@ -207,6 +207,12 @@ asm(".macro movz_shifted_tag_x18 tag\n"
 #define IA2_ROUND_DOWN(x, y) ((x) & ~((y) - 1))
 
 #if defined(__x86_64__)
+#define TAG_FOR_COMPARTMENT(compartment) PKRU(compartment)
+#elif defined(__aarch64__)
+#define TAG_FOR_COMPARTMENT(compartment) compartment
+#endif
+
+#if defined(__x86_64__)
 /* clang-format can't handle inline asm in macros */
 /* clang-format off */
 /* Allocate and protect the stack for this thread's i'th compartment. */
@@ -296,33 +302,34 @@ asm(".macro movz_shifted_tag_x18 tag\n"
 #endif
 
 #if defined(__x86_64__)
-#define return_stackptr_if_compartment(compartment)                            \
-  if (tag == PKRU(compartment)) {                                              \
+#define return_threadlocal(name)                                               \
     register void **out asm("rax");                                            \
     __asm__ volatile(                                                          \
         "mov %%fs:(0), %%rax\n"                                                \
-        "addq ia2_stackptr_" #compartment "@GOTTPOFF(%%rip), %%rax\n"          \
+        "addq " #name "@GOTTPOFF(%%rip), %%rax\n"                              \
         : "=a"(out)                                                            \
         :                                                                      \
         :);                                                                    \
-    return out;                                                                \
-  }
+    return out;
 #elif defined(__aarch64__)
-#define return_stackptr_if_compartment(compartment)                            \
-  if (tag == compartment) {                                                    \
-    void *out;                                                                 \
+#define return_threadlocal(name)                                               \
+    void **out;                                                                \
     __asm__ volatile(                                                          \
         "mrs x9, tpidr_el0\n"                                                  \
-        "adrp %0, :gottprel:ia2_stackptr_" #compartment "\n"                   \
-        "ldr %0, [%0, #:gottprel_lo12:ia2_stackptr_" #compartment "]\n"        \
+        "adrp %0, :gottprel:" #name "\n"                                       \
+        "ldr %0, [%0, #:gottprel_lo12:" #name "]\n"                            \
         "add %0, %0, x9\n"                                                     \
         : "=r"(out)                                                            \
         :                                                                      \
         : "x9");                                                               \
-    return out;                                                                \
-  }
+    return out;
 #endif
 /* clang-format on */
+
+#define return_stackptr_if_compartment(compartment) \
+  if (tag == TAG_FOR_COMPARTMENT(compartment)) {    \
+    return_threadlocal(ia2_stackptr_##compartment)  \
+  }
 
 #define declare_init_tls_fn(n) __attribute__((visibility("default"))) void init_tls_##n(void);
 #define setup_destructors_for_compartment(n)                                   \

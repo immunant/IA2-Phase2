@@ -43,8 +43,10 @@ static bool is_op_permitted(struct memory_map *map, int event,
                             union event_info *info) {
   switch (event) {
   case EVENT_MMAP:
-    // non-FIXED maps of NULL don't need to check for overlap
-    if (info->mmap.range.start == 0 && !(info->mmap.flags & MAP_FIXED)) {
+    /* Non-MAP_FIXED mmap addresses are just hints; the kernel can place the
+     * mapping elsewhere. So we must not reject them based on overlap at the
+     * hinted address (which can be spuriously in another compartment). */
+    if (!(info->mmap.flags & MAP_FIXED)) {
       return true;
     }
     if (memory_map_all_overlapping_regions_have_pkey(map, info->mmap.range,

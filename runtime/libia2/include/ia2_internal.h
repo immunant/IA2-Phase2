@@ -153,6 +153,8 @@ IA2_EXTERN_C int protect_tls_pages(struct dl_phdr_info *info, size_t size, void 
 /// compartments. Keeping it shared prevents compartment-private TLS tagging
 /// from breaking those reads/writes.
 IA2_EXTERN_C void ia2_unprotect_thread_pointer_page(void);
+/// Retag the full mapping containing the architecture thread-pointer as shared.
+IA2_EXTERN_C void ia2_unprotect_thread_pointer_mapping(void);
 
 struct IA2SharedSection {
   const void *start;

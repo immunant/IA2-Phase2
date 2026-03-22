@@ -325,5 +325,8 @@ void ia2_start(void) {
   // The x86_64 stack protector ABI reads the canary via %fs:0x28 and must stay
   // valid regardless of the currently active compartment PKRU.
   ia2_unprotect_thread_pointer_page();
+  // Keep adjacent static-TLS pages in the same mapping shared as well. Loader
+  // allocated IE-TLS slots for dependent DSOs may live below the TCB page.
+  ia2_unprotect_thread_pointer_mapping();
   mark_init_finished();
 }

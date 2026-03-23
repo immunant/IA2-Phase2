@@ -225,6 +225,7 @@ asm(".macro movz_shifted_tag_x18 tag\n"
 #define ALLOCATE_COMPARTMENT_STACK_AND_SETUP_TLS(i)                            \
   {                                                                            \
     __IA2_UNUSED __attribute__((visibility ("default"))) extern __thread void *ia2_stackptr_##i;                       \
+    __IA2_UNUSED __attribute__((visibility ("default"))) extern __thread void *ia2_initial_stackptr_##i;               \
     __asm__ volatile(                                                          \
         /* write new pkru */                                                   \
         "xorl %%ecx, %%ecx\n"                                                  \
@@ -235,7 +236,9 @@ asm(".macro movz_shifted_tag_x18 tag\n"
         :                                                                      \
         : "rax", "rcx", "rdx");                                                \
                                                                                \
-    register void *stack asm("rax") = allocate_stack(i);                       \
+    register void *stack asm("r13") = allocate_stack(i);                       \
+    void* stack_base = untweak_stack(stack);                                   \
+    *(void**)&ia2_initial_stackptr_##i = stack_base;                           \
                                                                                \
     /* We must change the pkru to write the stack pointer because each */      \
     /* stack pointer is part of the compartment whose stack it points to. */   \
@@ -266,7 +269,7 @@ asm(".macro movz_shifted_tag_x18 tag\n"
         /* store the stack addr in the stack pointer */                        \
         "mov %%r10,%%fs:(%%r11)\n"                                             \
         :                                                                      \
-        : "rax"(stack)                                                         \
+        : "r"(stack)                                                           \
         : "rdi", "rcx", "rdx", "r10", "r11", "r12");                           \
   }
 #elif defined(__aarch64__)
@@ -330,11 +333,76 @@ asm(".macro movz_shifted_tag_x18 tag\n"
         : "x9");                                                               \
     return out;
 #endif
+
+#if defined(__x86_64__)
+#define munmap_threadlocal(name)                                               \
+    ({int out;                                                                 \
+    __asm__ volatile(                                                          \
+        "movl $11,  %%eax\n"                                                   \
+        "mov %%fs:(0), %%rdi\n"                                                \
+        "addq " #name "@GOTTPOFF(%%rip), %%rdi\n"                              \
+        "movq (%%rdi), %%rdi\n"                                                \
+        "movq $4194304, %%rsi\n"                                               \
+        "syscall\n"                                                            \
+        "movl %%eax, %0"                                                       \
+        : "=r"(out)                                                            \
+        :                                                                      \
+        : "rax", "rdi", "rsi");                                                \
+    out;})
+#elif defined(__aarch64__)
+#define munmap_threadlocal(name)                                               \
+    ({int out;                                                                 \
+    __asm__ volatile(                                                          \
+        "mrs x9, tpidr_el0\n"                                                  \
+        "adrp x0, :gottprel:" #name "\n"                                       \
+        "ldr x0, [x0, #:gottprel_lo12:" #name "]\n"                            \
+        "add x0, x0, x9\n"                                                     \
+        "mov x1, 4194304 \n"                                                   \
+        "svc #0\n"                                                             \
+        : "=r"(out)                                                            \
+        :                                                                      \
+        : "x9");                                                               \
+    out;})
+#endif
+
+#if defined(__x86_64__)
+#define change_compartment_tag(compartment)                                    \
+    __asm__ volatile(                                                          \
+        "xorl %%ecx, %%ecx\n"                                                  \
+        "xorl %%edx, %%edx\n"                                                  \
+        "mov_pkru_eax " #compartment "\n"                                      \
+        "wrpkru\n"                                                             \
+        :                                                                      \
+        :                                                                      \
+        : "rax", "rcx", "rdx");
+#elif defined(__aarch64__)
+#define change_compartment_tag(compartment)                                    \
+    __asm__ volatile(                                                          \
+        "movz_shifted_tag_x18" #compartment "\n"                               \
+        :                                                                      \
+        :                                                                      \
+        : "x18");
+#endif
 /* clang-format on */
+
+#define free_compartment_stack(N)                                    \
+  {                                                                  \
+    change_compartment_tag(N);                                       \
+    int ret = munmap_threadlocal(ia2_initial_stackptr_##N);          \
+    if (ret != 0) {                                                  \
+      fprintf(stderr, "munmap failed: %s\n", strerrorname_np(-ret)); \
+      abort();                                                       \
+    }                                                                \
+  }
 
 #define return_stackptr_if_compartment(compartment) \
   if (tag == TAG_FOR_COMPARTMENT(compartment)) {    \
     return_threadlocal(ia2_stackptr_##compartment)  \
+  }
+
+#define return_initial_stackptr_if_compartment(compartment) \
+  if (tag == PKRU(compartment)) {                           \
+    return_threadlocal(ia2_initial_stackptr_##compartment)  \
   }
 
 #define declare_init_tls_fn(n) __attribute__((visibility("default"))) void init_tls_##n(void);
@@ -429,28 +497,41 @@ __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
 #endif
 /* clang-format on */
 
-#define _IA2_INIT_RUNTIME(n)                                                                          \
-  __attribute__((visibility("default"))) int ia2_n_pkeys_to_alloc = n;                                \
-  __attribute__((visibility("default"))) __thread void *ia2_stackptr_0[PAGE_SIZE / sizeof(void *)]    \
-      __attribute__((aligned(4096)));                                                                 \
-                                                                                                      \
-  REPEATB(n, declare_init_tls_fn, nop_macro);                                                         \
-                                                                                                      \
-  /* Returns `&ia2_stackptr_N` given a pkru value for the Nth compartment. */                         \
-  __attribute__((visibility("default"))) void **ia2_stackptr_for_tag(size_t tag) {                    \
-    REPEATB(n, return_stackptr_if_compartment,                                                        \
-            return_stackptr_if_compartment);                                                          \
-    abort();                                                                                          \
-  }                                                                                                   \
-                                                                                                      \
-  __attribute__((visibility("default"))) __attribute__((weak)) void init_stacks_and_setup_tls(void) { \
-    COMPARTMENT_SAVE_AND_RESTORE(REPEATB(n, ALLOCATE_COMPARTMENT_STACK_AND_SETUP_TLS, nop_macro), n); \
-    /* allocate an unprotected stack for the untrusted  compartment */                                \
-    allocate_stack_0();                                                                               \
-  }                                                                                                   \
-                                                                                                      \
-  void ia2_setup_destructors(void) {                                                                  \
-    REPEATB##n(setup_destructors_for_compartment, nop_macro);                                         \
+#define _IA2_INIT_RUNTIME(n)                                                                               \
+  __attribute__((visibility("default"))) int ia2_n_pkeys_to_alloc = n;                                     \
+  __attribute__((visibility("default"))) __thread void *ia2_stackptr_0[PAGE_SIZE / sizeof(void *)]         \
+      __attribute__((aligned(4096)));                                                                      \
+  __attribute__((visibility("default"))) __thread void *ia2_initial_stackptr_0[PAGE_SIZE / sizeof(void *)] \
+      __attribute__((aligned(4096)));                                                                      \
+                                                                                                           \
+  REPEATB(n, declare_init_tls_fn, nop_macro);                                                              \
+                                                                                                           \
+  /* Returns `&ia2_stackptr_N` given a pkru value for the Nth compartment. */                              \
+  __attribute__((visibility("default"))) void **ia2_stackptr_for_tag(size_t tag) {                         \
+    REPEATB(n, return_stackptr_if_compartment,                                                             \
+            return_stackptr_if_compartment);                                                               \
+    abort();                                                                                               \
+  }                                                                                                        \
+                                                                                                           \
+  /* Returns `&ia2_initial_stackptr_N` given a pkru value for the Nth compartment. */                      \
+  __attribute__((visibility("default"))) void **ia2_initial_stackptr_for_tag(size_t tag) {                 \
+    REPEATB(n, return_initial_stackptr_if_compartment,                                                     \
+            return_initial_stackptr_if_compartment);                                                       \
+    abort();                                                                                               \
+  }                                                                                                        \
+                                                                                                           \
+  __attribute__((visibility("default"))) __attribute__((weak)) void init_stacks_and_setup_tls(void) {      \
+    COMPARTMENT_SAVE_AND_RESTORE(REPEATB(n, ALLOCATE_COMPARTMENT_STACK_AND_SETUP_TLS, nop_macro), n);      \
+    /* allocate an unprotected stack for the untrusted  compartment */                                     \
+    allocate_stack_0();                                                                                    \
+  }                                                                                                        \
+  /* The destructor for `thread_stacks_key`. */                                                            \
+  /* It deallocates all of the compartment stacks for the current thread being destructed.*/               \
+  __attribute__((visibility("default"))) void thread_stacks_destructor(void *_unused) {                    \
+    REPEATB(n, free_compartment_stack, free_compartment_stack);                                            \
+  }                                                                                                        \
+  void ia2_setup_destructors(void) {                                                                       \
+    REPEATB##n(setup_destructors_for_compartment, nop_macro);                                              \
   }
 
 #if IA2_VERBOSE
@@ -460,7 +541,9 @@ __attribute__((__noreturn__)) void ia2_reinit_stack_err(int i);
 #endif
 
 void **ia2_stackptr_for_tag(size_t tag);
+void **ia2_initial_stackptr_for_tag(size_t tag);
 void **ia2_stackptr_for_compartment(int compartment);
+void **ia2_initial_stackptr_for_compartment(int compartment);
 void ia2_setup_destructors(void);
 
 #if defined(__x86_64__)

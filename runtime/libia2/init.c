@@ -22,37 +22,22 @@
 /* ia2_mprotect_with_taged by the next compartment depending on sizes/alignment. */
 extern __thread void *ia2_stackptr_0[PAGE_SIZE / sizeof(void *)]
     __attribute__((aligned(4096)));
+/* The base address of the compartment 0 stack for each thread.
+ * This is the address directly `mmap`ed, so there is no tagging. */
+extern __thread void *ia2_initial_stackptr_0[PAGE_SIZE / sizeof(void *)]
+    __attribute__((aligned(4096)));
 
 /// The TLS pthread key for storing thread stacks.
 /// The value of the data set with `pthread_setspecific` is not used;
 /// it just matters if it was set (to non-`NULL`) or not.
 static pthread_key_t thread_stacks_key IA2_SHARED_DATA;
 
-/// The base address of the compartment stacks for each thread.
-/// This is the address directly `mmap`ed, so there is no tagging.
-static __thread void *stacks[IA2_MAX_COMPARTMENTS] = {0};
-
 void ia2_get_compartment_stack(void **stack_base_ptr, size_t *stack_size) {
-  *stack_base_ptr = stacks[ia2_get_compartment()];
+  *stack_base_ptr = *ia2_initial_stackptr_for_compartment(ia2_get_compartment());
   *stack_size = STACK_SIZE;
 }
 
-/// The destructor for `thread_stacks_key`.
-/// It deallocates all of the compartment stacks for the current thread being destructed.
-static void thread_stacks_destructor(void *_unused) {
-  for (size_t compartment = 0; compartment < IA2_MAX_COMPARTMENTS; compartment++) {
-    void *const stack = stacks[compartment];
-    if (!stack) {
-      continue;
-    }
-    ia2_log("deallocating stack for compartment %zu on thread %ld (%s): %p..%p\n",
-            compartment, (long)gettid(), thread_name_get(pthread_self()).name, stack, stack + STACK_SIZE);
-    if (munmap(stack, STACK_SIZE) == -1) {
-      fprintf(stderr, "munmap failed: %s\n", strerrorname_np(errno));
-      abort();
-    }
-  }
-}
+void thread_stacks_destructor(void *_unused);
 
 /// Create `thread_stacks_key`.
 /// This should be called once per process at the very beginning, currently in `ia2_init`.
@@ -86,8 +71,6 @@ char *allocate_stack(int i) {
   struct ia2_thread_metadata *const thread_metadata = ia2_thread_metadata_get_for_current_thread();
   thread_metadata->stack_addrs[i] = (uintptr_t)stack;
 #endif
-  assert(stacks[i] == NULL); // We should only be setting this once per thread compartment right after thread creation.
-  stacks[i] = stack;
   // The value set doesn't matter here as long as it's non-`NULL`.
   // `allocate_stack` is called for each compartment
   // when a new thread is created, so we just need to set a non-`NULL` value
@@ -97,7 +80,7 @@ char *allocate_stack(int i) {
   // just uses the TLS global `stack` directly.
   // Moreover, this is idempotent as it doesn't matter how many times we set it,
   // since it just matters that it's non-`NULL`.
-  const int result = pthread_setspecific(thread_stacks_key, (void *)stacks);
+  const int result = pthread_setspecific(thread_stacks_key, (void *)0x1);
   if (result != 0) {
     fprintf(stderr, "pthread_setspecific failed: %s\n", strerrorname_np(result));
     abort();
@@ -118,6 +101,10 @@ char *allocate_stack(int i) {
 
 void allocate_stack_0() {
   ia2_stackptr_0[0] = allocate_stack(0);
+  /* We should only set this once per thread right after thread creation. */
+  assert(*ia2_initial_stackptr_for_compartment(0) == NULL);
+  *ia2_initial_stackptr_for_compartment(0) = untweak_stack(ia2_stackptr_0[0]);
+  printf("thread %d allocated stack 0\n", gettid());
 }
 
 /* Confirm that stack pointers for compartments 0 and 1 are on separate */
@@ -229,6 +216,9 @@ static int ia2_setup_compartment(const char *dso, int compartment, const char *e
   if (compartment != 0) {
     void *initial_sp = allocate_stack(compartment);
     void **stackptr = ia2_stackptr_for_compartment(compartment);
+    assert(*ia2_initial_stackptr_for_compartment(compartment) == NULL);
+    /* We should only set this once per compartment per thread right after thread creation. */
+    *ia2_initial_stackptr_for_compartment(compartment) = untweak_stack(stackptr);
     *stackptr = initial_sp;
   }
 

@@ -3,10 +3,12 @@
 #include <stdint.h>
 #include <sys/mman.h>
 
+#include "ia2.h"
 #include "memory_maps.h"
 
 __attribute__((visibility("default"))) void init_stacks_and_setup_tls(void);
 __attribute__((visibility("default"))) void **ia2_stackptr_for_tag(size_t tag);
+__attribute__((visibility("default"))) void ia2_unprotect_thread_pointer_mapping(void);
 
 struct ia2_thread_thunk {
   void *(*fn)(void *);
@@ -36,10 +38,9 @@ void *ia2_thread_begin(void *arg) {
 #endif
 
   init_stacks_and_setup_tls();
-  // init_stacks_and_setup_tls() already runs protect_tls_pages() for this
-  // thread, including the x86_64 TCB carve-out to shared pkey 0. Avoid a
-  // redundant pkey_mprotect() here; the tracer treats post-init repeated
-  // pkey_mprotect on the same page as a policy violation.
+  // Per-thread loader static-TLS mappings may still contain pkey-private pages
+  // below %fs:0. Keep the TCB neighborhood shared after TLS setup.
+  ia2_unprotect_thread_pointer_mapping();
   /* TODO: Set up alternate stack when we have per-thread shared compartment
    * data. */
   /*  sigaltstack(&alt_stack, NULL); */
@@ -123,5 +124,14 @@ int __wrap_pthread_create(pthread_t *restrict thread,
   struct ia2_thread_thunk *thread_thunk = (struct ia2_thread_thunk *)mmap_res;
   thread_thunk->fn = fn;
   thread_thunk->data = data;
-  return __real_pthread_create(thread, attr, ia2_thread_begin, thread_thunk);
+#if defined(__x86_64__)
+  const uint32_t saved_pkru = ia2_read_pkru();
+  ia2_write_pkru(PKRU(0));
+#endif
+  const int create_result =
+      __real_pthread_create(thread, attr, ia2_thread_begin, thread_thunk);
+#if defined(__x86_64__)
+  ia2_write_pkru(saved_pkru);
+#endif
+  return create_result;
 }

@@ -121,6 +121,7 @@ target_compile_options(partition-alloc_unpadded
 		"-Wno-invalid-offsetof"
 		"-Wno-return-type"
 )
+
 target_compile_options(partition-alloc_unpadded
 	PUBLIC
 		"-fno-exceptions"

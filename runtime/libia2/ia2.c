@@ -122,6 +122,71 @@ void ia2_unprotect_thread_pointer_page(void) {
   }
 }
 
+void ia2_unprotect_thread_pointer_mapping(void) {
+  const uintptr_t thread_pointer = (uintptr_t)__builtin_thread_pointer();
+  const uintptr_t tcb_page = IA2_ROUND_DOWN(thread_pointer, PAGE_SIZE);
+  const size_t shared_below_tcb_pages = 8;
+  const uintptr_t window_start =
+      tcb_page >= (shared_below_tcb_pages * PAGE_SIZE)
+          ? tcb_page - (shared_below_tcb_pages * PAGE_SIZE)
+          : 0;
+  const uintptr_t window_end = tcb_page + PAGE_SIZE;
+  FILE *maps = fopen("/proc/self/maps", "r");
+  if (!maps) {
+    printf("fopen(/proc/self/maps) failed: %s\n", strerror(errno));
+    exit(-1);
+  }
+
+  char line[512];
+  bool retagged_any = false;
+  while (fgets(line, sizeof(line), maps)) {
+    unsigned long start = 0;
+    unsigned long end = 0;
+    char perms[5] = {0};
+    if (sscanf(line, "%lx-%lx %4s", &start, &end, perms) != 3) {
+      continue;
+    }
+    if ((uintptr_t)end <= window_start || (uintptr_t)start >= window_end) {
+      continue;
+    }
+    if (perms[0] != 'r' || perms[1] != 'w') {
+      continue;
+    }
+
+    uintptr_t protect_start =
+        (uintptr_t)start < window_start ? window_start : (uintptr_t)start;
+    uintptr_t protect_end =
+        (uintptr_t)end > window_end ? window_end : (uintptr_t)end;
+    if (protect_end <= protect_start) {
+      continue;
+    }
+
+    int prot = PROT_READ | PROT_WRITE;
+    if (perms[2] == 'x') {
+      prot |= PROT_EXEC;
+    }
+#if defined(__aarch64__)
+    prot |= PROT_MTE;
+#endif
+
+    int err = ia2_mprotect_with_tag(
+        (void *)protect_start, (size_t)(protect_end - protect_start),
+        prot, 0);
+    if (err != 0) {
+      printf("ia2_mprotect_with_tag failed: %s\n", strerror(errno));
+      exit(-1);
+    }
+    retagged_any = true;
+  }
+
+  fclose(maps);
+  if (!retagged_any) {
+    printf("failed to retag thread-pointer neighborhood for %p\n",
+           (void *)thread_pointer);
+    exit(-1);
+  }
+}
+
 #elif defined(__aarch64__)
 
 static size_t ia2_get_x18(void) {
@@ -139,6 +204,7 @@ size_t ia2_get_compartment(void) {
 // x18-tagged aarch64 builds do not currently use the x86_64 TCB/%fs ABI path.
 // Keep this symbol for cross-arch call-site symmetry.
 void ia2_unprotect_thread_pointer_page(void) {}
+void ia2_unprotect_thread_pointer_mapping(void) {}
 
 // TODO: insert_tag could probably be cleaned up a bit, but I'm not sure if the
 // generated code could be simplified since addg encodes the tag as an imm field
@@ -343,6 +409,23 @@ static int segment_flags_to_access_flags(Elf64_Word flags) {
       ((flags & PF_R) != 0 ? PROT_READ : 0);
 }
 
+static void add_shared_tls_page(uint64_t *shared_tls_pages,
+                                size_t *shared_tls_page_count,
+                                size_t max_shared_tls_pages,
+                                uint64_t shared_page) {
+  for (size_t i = 0; i < *shared_tls_page_count; i++) {
+    if (shared_tls_pages[i] == shared_page) {
+      return;
+    }
+  }
+  if (*shared_tls_page_count >= max_shared_tls_pages) {
+    printf("internal error: too many shared TLS pages\n");
+    exit(-1);
+  }
+  shared_tls_pages[*shared_tls_page_count] = shared_page;
+  (*shared_tls_page_count)++;
+}
+
 int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
   if (!data || !info) {
     printf("Passed invalid args to dl_iterate_phdr callback\n");
@@ -362,7 +445,7 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
   struct ia2_thread_metadata *const thread_metadata = ia2_thread_metadata_get_for_current_thread();
 #endif
 
-  enum { MAX_SHARED_TLS_PAGES = 2 };
+  enum { MAX_SHARED_TLS_PAGES = 64 };
 
   // Protect TLS segment.
   for (size_t i = 0; i < info->dlpi_phnum; i++) {
@@ -452,43 +535,58 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
     // then protect the remaining ranges with the compartment pkey.
     //
     // Shared carve-outs:
-    // 1) ia2_stackptr_0 page:
-    //    callgates switch stacks through this TLS slot and it has historically
-    //    been shared.
+    // 1) ia2_stackptr_* pages:
+    //    callgates switch stacks through these TLS slots. Any page containing
+    //    an active stack-pointer TLS slot must remain shared.
     // 2) x86_64 thread-pointer/TCB page:
     //    `%fs`-relative ABI state (including stack canary reads) may be touched
     //    while code is running under different compartment PKRU values.
     uint64_t shared_tls_pages[MAX_SHARED_TLS_PAGES] = {0};
     size_t shared_tls_page_count = 0;
-    bool has_untrusted_shared_page = false;
-    uint64_t untrusted_stackptr_page = untrusted_stackptr_addr;
+    extern int ia2_n_pkeys_to_alloc;
 
-    // Only carve out the callgate stack pointer page when the symbol is inside
-    // this module's true TLS range (not merely within the rounded-down page).
-    if (untrusted_stackptr_addr >= start && untrusted_stackptr_addr < end) {
-      // The TLS region should only be split for compartment 1.
-      assert(pkey == 1);
-      shared_tls_pages[shared_tls_page_count++] = untrusted_stackptr_page;
-      has_untrusted_shared_page = true;
+    // Carve out pages containing active ia2_stackptr_N TLS slots when those
+    // pages overlap this module's TLS range.
+    for (int compartment = 0; compartment <= ia2_n_pkeys_to_alloc; compartment++) {
+      uint64_t stackptr_page =
+          IA2_ROUND_DOWN((uint64_t)ia2_stackptr_for_compartment(compartment),
+                         PAGE_SIZE);
+      if (stackptr_page < start_round_down || stackptr_page >= end) {
+        continue;
+      }
+      add_shared_tls_page(
+          shared_tls_pages, &shared_tls_page_count, MAX_SHARED_TLS_PAGES,
+          stackptr_page);
     }
 
     uint64_t tcb_page =
         IA2_ROUND_DOWN((uint64_t)__builtin_thread_pointer(), PAGE_SIZE);
-    if (tcb_page >= start_round_down && tcb_page < end &&
-        (!has_untrusted_shared_page || tcb_page != untrusted_stackptr_page)) {
-      if (shared_tls_page_count >= MAX_SHARED_TLS_PAGES) {
-        printf("internal error: too many shared TLS pages\n");
-        exit(-1);
+    if (tcb_page >= start_round_down && tcb_page < end) {
+      // Keep the whole static TLS prefix up to the TCB page shared.
+      // x86_64 IE TLS variables from loader-linked DSOs can live on pages
+      // below the TCB and may be touched while PKRU is set for other
+      // compartments.
+      for (uint64_t page = start_round_down; page < tcb_page;
+           page += PAGE_SIZE) {
+        add_shared_tls_page(
+            shared_tls_pages, &shared_tls_page_count, MAX_SHARED_TLS_PAGES,
+            page);
       }
-      shared_tls_pages[shared_tls_page_count++] = tcb_page;
+      add_shared_tls_page(
+          shared_tls_pages, &shared_tls_page_count, MAX_SHARED_TLS_PAGES,
+          tcb_page);
     }
 
     // Iterate carve-outs in ascending order so "cursor..shared_page" ranges
     // remain valid and non-overlapping.
-    if (shared_tls_page_count == 2 && shared_tls_pages[0] > shared_tls_pages[1]) {
-      uint64_t tmp = shared_tls_pages[0];
-      shared_tls_pages[0] = shared_tls_pages[1];
-      shared_tls_pages[1] = tmp;
+    for (size_t i = 0; i < shared_tls_page_count; i++) {
+      for (size_t j = i + 1; j < shared_tls_page_count; j++) {
+        if (shared_tls_pages[j] < shared_tls_pages[i]) {
+          uint64_t tmp = shared_tls_pages[i];
+          shared_tls_pages[i] = shared_tls_pages[j];
+          shared_tls_pages[j] = tmp;
+        }
+      }
     }
 
 #if IA2_DEBUG_MEMORY

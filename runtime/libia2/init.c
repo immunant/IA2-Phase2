@@ -32,6 +32,7 @@ extern __thread void *ia2_initial_stackptr_0[PAGE_SIZE / sizeof(void *)]
 /// it just matters if it was set (to non-`NULL`) or not.
 static pthread_key_t thread_stacks_key IA2_SHARED_DATA;
 
+/* Obtain stack bounds for the current thread's current compartment. */
 void ia2_get_compartment_stack(void **stack_base_ptr, size_t *stack_size) {
   *stack_base_ptr = *ia2_initial_stackptr_for_compartment(ia2_get_compartment());
   *stack_size = STACK_SIZE;
@@ -181,6 +182,8 @@ static void mark_init_finished(void) {
   (void)mmap((void *)IA2_FINISH_INIT_MAGIC, 0, 0, MAP_FIXED, -1, 0);
 }
 
+/* Set up compartments at process startup, along with compartment stacks for the initial thread.
+ * Not involved in setting up stacks at spawn of subsequent threads. */
 static int ia2_setup_compartment(const char *dso, int compartment, const char *extra_libraries) {
   ia2_log("protecting memory for compartment %d\n", compartment);
   void *handle = RTLD_DEFAULT;

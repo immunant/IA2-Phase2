@@ -199,6 +199,12 @@ asm(".macro movz_shifted_tag_x18 tag\n"
     ".byte 0xd2\n"
     ".endm");
 
+#ifdef __aarch64__
+#define untweak_stack(x) x - STACK_SIZE + 16
+#elif defined(__x86_64__)
+#define untweak_stack(x) x - STACK_SIZE + 8
+#endif
+
 // Obtain a string corresponding to errno in a threadsafe fashion.
 #define errno_s (strerror_l(errno, uselocale((locale_t)0)))
 

@@ -43,9 +43,9 @@ static bool is_op_permitted(struct memory_map *map, int event,
                             union event_info *info) {
   switch (event) {
   case EVENT_MMAP:
-    /* Non-MAP_FIXED mmap addresses are just hints; the kernel can place the
-     * mapping elsewhere. So we must not reject them based on overlap at the
-     * hinted address (which can be spuriously in another compartment). */
+    /* A non-MAP_FIXED mmap hint must not replace an existing mapping. Since
+     * the hinted address is not binding, we must not reject it based on
+     * overlap at that hinted location (which may be in another compartment). */
     if (!(info->mmap.flags & MAP_FIXED)) {
       return true;
     }

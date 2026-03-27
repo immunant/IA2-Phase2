@@ -10,11 +10,11 @@
 #include "memory_maps.h"
 
 void **ia2_stackptr_for_compartment(int compartment) {
-#if defined(__x86_64__)
-  return ia2_stackptr_for_tag(PKRU(compartment));
-#elif defined(__aarch64__)
-  return ia2_stackptr_for_tag(compartment);
-#endif
+  return ia2_stackptr_for_tag(TAG_FOR_COMPARTMENT(compartment));
+}
+
+void **ia2_initial_stackptr_for_compartment(int compartment) {
+  return ia2_initial_stackptr_for_tag(TAG_FOR_COMPARTMENT(compartment));
 }
 
 #if defined(__x86_64__)
@@ -391,7 +391,7 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
         thread_metadata->tls_addr_compartment1_first = (uintptr_t)start_round_down;
 #endif
       }
-      uint64_t after_untrusted_region_start = untrusted_stackptr_addr + 0x1000;
+      uint64_t after_untrusted_region_start = untrusted_stackptr_addr + 0x2000;
       uint64_t after_untrusted_region_len = end - after_untrusted_region_start;
       if (after_untrusted_region_len > 0) {
         int mprotect_err = ia2_mprotect_with_tag(

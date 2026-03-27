@@ -8,5 +8,4 @@ define_test(
   PKEY 1
   NEEDS_LD_WRAP
   CRITERION_TEST
-  WITHOUT_SANDBOX # tracer can't handle unexpected signals yet (see #488)
 )

@@ -190,8 +190,8 @@ function(define_test)
         ${SHARED_LIB_UNWRAPPED_LIBRARY_DIRS})
     target_link_libraries(${TEST_NAME} PUBLIC
         ${SHARED_LIB_UNWRAPPED_LIBS})
-    
-    if(DEFINE_TEST_WITHOUT_SANDBOX)
+
+    if(DEFINE_TEST_TYPE_REGISTRY)
         target_link_libraries(${TEST_NAME}_call_gates PRIVATE type-registry)
     endif()
 endfunction()

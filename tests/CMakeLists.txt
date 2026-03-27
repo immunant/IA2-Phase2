@@ -71,6 +71,7 @@ else()
     add_subdirectory(three_keys_minimal)
     add_subdirectory(simple1)
     add_subdirectory(tls_protected)
+    add_subdirectory(tls_one_page_repro)
 
     add_subdirectory(threads)
     add_subdirectory(protected_threads)

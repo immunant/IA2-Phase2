@@ -1,0 +1,527 @@
+# TLS One-Page Repro Attempt Log
+
+Append-only run log. Entries are concise and reproducible.
+- 2026-03-24T16:24:27Z | edited repro to parameterize TLS sizes via CMake cache vars (main/lib2/shared) and added pkey diagnostics in main test
+- 2026-03-24T16:24:27Z | added script tests/tls_one_page_repro/sweep_tls_layout.sh to run bounded size sweep and append outcomes
+- 2026-03-24T16:25:16Z | fixed CMake wiring: switched tls repro defines to directory-level add_compile_definitions (imported padded target rejected target_compile_definitions)
+- 2026-03-24T16:25:37Z | sweep-start build_dir=/home/davidanekstein/immunant/ia2/build/tls_one_page_repro_sweep
+- 2026-03-24T16:25:37Z | configure main=8192 shared=4096 lib2=1
+- 2026-03-24T16:26:06Z | run-pass main=8192 shared=4096 lib2=1
+- 2026-03-24T16:26:06Z | diag config_main_tls_bytes=8192
+- 2026-03-24T16:26:06Z | diag config_lib2_tls_bytes=1
+- 2026-03-24T16:26:06Z | diag config_shared_tls_bytes=4096
+- 2026-03-24T16:26:06Z | diag distance_from_tp(main_tls)=12272
+- 2026-03-24T16:26:06Z | diag distance_from_tp(shared_tls)=24592
+- 2026-03-24T16:26:06Z | diag distance_from_tp(lib2_tls)=20488
+- 2026-03-24T16:26:06Z | diag pkey(tp)=0
+- 2026-03-24T16:26:06Z | diag pkey(main_tls)=1
+- 2026-03-24T16:26:06Z | diag pkey(shared_tls)=0
+- 2026-03-24T16:26:06Z | diag pkey(lib2_tls)=2
+- 2026-03-24T16:26:06Z | configure main=8192 shared=4096 lib2=4096
+- 2026-03-24T16:26:07Z | run-pass main=8192 shared=4096 lib2=4096
+- 2026-03-24T16:26:07Z | diag config_main_tls_bytes=8192
+- 2026-03-24T16:26:07Z | diag config_lib2_tls_bytes=4096
+- 2026-03-24T16:26:07Z | diag config_shared_tls_bytes=4096
+- 2026-03-24T16:26:07Z | diag distance_from_tp(main_tls)=12272
+- 2026-03-24T16:26:07Z | diag distance_from_tp(shared_tls)=28688
+- 2026-03-24T16:26:07Z | diag distance_from_tp(lib2_tls)=24576
+- 2026-03-24T16:26:07Z | diag pkey(tp)=0
+- 2026-03-24T16:26:07Z | diag pkey(main_tls)=1
+- 2026-03-24T16:26:07Z | diag pkey(shared_tls)=0
+- 2026-03-24T16:26:07Z | diag pkey(lib2_tls)=2
+- 2026-03-24T16:26:07Z | configure main=8192 shared=8192 lib2=1
+- 2026-03-24T16:26:08Z | run-pass main=8192 shared=8192 lib2=1
+- 2026-03-24T16:26:08Z | diag config_main_tls_bytes=8192
+- 2026-03-24T16:26:08Z | diag config_lib2_tls_bytes=1
+- 2026-03-24T16:26:08Z | diag config_shared_tls_bytes=8192
+- 2026-03-24T16:26:08Z | diag distance_from_tp(main_tls)=12272
+- 2026-03-24T16:26:08Z | diag distance_from_tp(shared_tls)=28688
+- 2026-03-24T16:26:08Z | diag distance_from_tp(lib2_tls)=20488
+- 2026-03-24T16:26:08Z | diag pkey(tp)=0
+- 2026-03-24T16:26:08Z | diag pkey(main_tls)=1
+- 2026-03-24T16:26:08Z | diag pkey(shared_tls)=0
+- 2026-03-24T16:26:08Z | diag pkey(lib2_tls)=2
+- 2026-03-24T16:26:08Z | configure main=8192 shared=8192 lib2=4096
+- 2026-03-24T16:26:09Z | run-pass main=8192 shared=8192 lib2=4096
+- 2026-03-24T16:26:09Z | diag config_main_tls_bytes=8192
+- 2026-03-24T16:26:09Z | diag config_lib2_tls_bytes=4096
+- 2026-03-24T16:26:09Z | diag config_shared_tls_bytes=8192
+- 2026-03-24T16:26:09Z | diag distance_from_tp(main_tls)=12272
+- 2026-03-24T16:26:09Z | diag distance_from_tp(shared_tls)=32784
+- 2026-03-24T16:26:09Z | diag distance_from_tp(lib2_tls)=24576
+- 2026-03-24T16:26:09Z | diag pkey(tp)=0
+- 2026-03-24T16:26:09Z | diag pkey(main_tls)=1
+- 2026-03-24T16:26:09Z | diag pkey(shared_tls)=0
+- 2026-03-24T16:26:09Z | diag pkey(lib2_tls)=2
+- 2026-03-24T16:26:09Z | configure main=8192 shared=12288 lib2=1
+- 2026-03-24T16:26:10Z | run-pass main=8192 shared=12288 lib2=1
+- 2026-03-24T16:26:10Z | diag config_main_tls_bytes=8192
+- 2026-03-24T16:26:10Z | diag config_lib2_tls_bytes=1
+- 2026-03-24T16:26:10Z | diag config_shared_tls_bytes=12288
+- 2026-03-24T16:26:10Z | diag distance_from_tp(main_tls)=12272
+- 2026-03-24T16:26:10Z | diag distance_from_tp(shared_tls)=32784
+- 2026-03-24T16:26:10Z | diag distance_from_tp(lib2_tls)=20488
+- 2026-03-24T16:26:10Z | diag pkey(tp)=0
+- 2026-03-24T16:26:10Z | diag pkey(main_tls)=1
+- 2026-03-24T16:26:10Z | diag pkey(shared_tls)=0
+- 2026-03-24T16:26:10Z | diag pkey(lib2_tls)=2
+- 2026-03-24T16:26:10Z | configure main=8192 shared=12288 lib2=4096
+- 2026-03-24T16:26:11Z | run-pass main=8192 shared=12288 lib2=4096
+- 2026-03-24T16:26:11Z | diag config_main_tls_bytes=8192
+- 2026-03-24T16:26:11Z | diag config_lib2_tls_bytes=4096
+- 2026-03-24T16:26:11Z | diag config_shared_tls_bytes=12288
+- 2026-03-24T16:26:11Z | diag distance_from_tp(main_tls)=12272
+- 2026-03-24T16:26:11Z | diag distance_from_tp(shared_tls)=36880
+- 2026-03-24T16:26:11Z | diag distance_from_tp(lib2_tls)=24576
+- 2026-03-24T16:26:11Z | diag pkey(tp)=0
+- 2026-03-24T16:26:11Z | diag pkey(main_tls)=1
+- 2026-03-24T16:26:11Z | diag pkey(shared_tls)=0
+- 2026-03-24T16:26:11Z | diag pkey(lib2_tls)=2
+- 2026-03-24T16:26:11Z | configure main=8192 shared=16384 lib2=1
+- 2026-03-24T16:26:12Z | run-pass main=8192 shared=16384 lib2=1
+- 2026-03-24T16:26:12Z | diag config_main_tls_bytes=8192
+- 2026-03-24T16:26:12Z | diag config_lib2_tls_bytes=1
+- 2026-03-24T16:26:12Z | diag config_shared_tls_bytes=16384
+- 2026-03-24T16:26:12Z | diag distance_from_tp(main_tls)=12272
+- 2026-03-24T16:26:12Z | diag distance_from_tp(shared_tls)=36880
+- 2026-03-24T16:26:12Z | diag distance_from_tp(lib2_tls)=20488
+- 2026-03-24T16:26:12Z | diag pkey(tp)=0
+- 2026-03-24T16:26:12Z | diag pkey(main_tls)=1
+- 2026-03-24T16:26:12Z | diag pkey(shared_tls)=0
+- 2026-03-24T16:26:12Z | diag pkey(lib2_tls)=2
+- 2026-03-24T16:26:12Z | configure main=8192 shared=16384 lib2=4096
+- 2026-03-24T16:26:13Z | run-pass main=8192 shared=16384 lib2=4096
+- 2026-03-24T16:26:13Z | diag config_main_tls_bytes=8192
+- 2026-03-24T16:26:13Z | diag config_lib2_tls_bytes=4096
+- 2026-03-24T16:26:13Z | diag config_shared_tls_bytes=16384
+- 2026-03-24T16:26:13Z | diag distance_from_tp(main_tls)=12272
+- 2026-03-24T16:26:13Z | diag distance_from_tp(shared_tls)=40976
+- 2026-03-24T16:26:13Z | diag distance_from_tp(lib2_tls)=24576
+- 2026-03-24T16:26:13Z | diag pkey(tp)=0
+- 2026-03-24T16:26:13Z | diag pkey(main_tls)=1
+- 2026-03-24T16:26:13Z | diag pkey(shared_tls)=0
+- 2026-03-24T16:26:13Z | diag pkey(lib2_tls)=2
+- 2026-03-24T16:26:13Z | configure main=8192 shared=24576 lib2=1
+- 2026-03-24T16:26:14Z | run-pass main=8192 shared=24576 lib2=1
+- 2026-03-24T16:26:14Z | diag config_main_tls_bytes=8192
+- 2026-03-24T16:26:14Z | diag config_lib2_tls_bytes=1
+- 2026-03-24T16:26:14Z | diag config_shared_tls_bytes=24576
+- 2026-03-24T16:26:14Z | diag distance_from_tp(main_tls)=12272
+- 2026-03-24T16:26:14Z | diag distance_from_tp(shared_tls)=45072
+- 2026-03-24T16:26:14Z | diag distance_from_tp(lib2_tls)=20488
+- 2026-03-24T16:26:14Z | diag pkey(tp)=0
+- 2026-03-24T16:26:14Z | diag pkey(main_tls)=1
+- 2026-03-24T16:26:14Z | diag pkey(shared_tls)=0
+- 2026-03-24T16:26:14Z | diag pkey(lib2_tls)=2
+- 2026-03-24T16:26:14Z | configure main=8192 shared=24576 lib2=4096
+- 2026-03-24T16:26:14Z | run-pass main=8192 shared=24576 lib2=4096
+- 2026-03-24T16:26:14Z | diag config_main_tls_bytes=8192
+- 2026-03-24T16:26:14Z | diag config_lib2_tls_bytes=4096
+- 2026-03-24T16:26:14Z | diag config_shared_tls_bytes=24576
+- 2026-03-24T16:26:14Z | diag distance_from_tp(main_tls)=12272
+- 2026-03-24T16:26:14Z | diag distance_from_tp(shared_tls)=49168
+- 2026-03-24T16:26:14Z | diag distance_from_tp(lib2_tls)=24576
+- 2026-03-24T16:26:14Z | diag pkey(tp)=0
+- 2026-03-24T16:26:14Z | diag pkey(main_tls)=1
+- 2026-03-24T16:26:14Z | diag pkey(shared_tls)=0
+- 2026-03-24T16:26:14Z | diag pkey(lib2_tls)=2
+- 2026-03-24T16:26:14Z | configure main=16384 shared=4096 lib2=1
+- 2026-03-24T16:26:15Z | run-pass main=16384 shared=4096 lib2=1
+- 2026-03-24T16:26:15Z | diag config_main_tls_bytes=16384
+- 2026-03-24T16:26:15Z | diag config_lib2_tls_bytes=1
+- 2026-03-24T16:26:15Z | diag config_shared_tls_bytes=4096
+- 2026-03-24T16:26:15Z | diag distance_from_tp(main_tls)=20464
+- 2026-03-24T16:26:15Z | diag distance_from_tp(shared_tls)=32784
+- 2026-03-24T16:26:15Z | diag distance_from_tp(lib2_tls)=28680
+- 2026-03-24T16:26:15Z | diag pkey(tp)=0
+- 2026-03-24T16:26:15Z | diag pkey(main_tls)=1
+- 2026-03-24T16:26:15Z | diag pkey(shared_tls)=0
+- 2026-03-24T16:26:15Z | diag pkey(lib2_tls)=2
+- 2026-03-24T16:26:15Z | configure main=16384 shared=4096 lib2=4096
+- 2026-03-24T16:26:16Z | run-pass main=16384 shared=4096 lib2=4096
+- 2026-03-24T16:26:16Z | diag config_main_tls_bytes=16384
+- 2026-03-24T16:26:16Z | diag config_lib2_tls_bytes=4096
+- 2026-03-24T16:26:16Z | diag config_shared_tls_bytes=4096
+- 2026-03-24T16:26:16Z | diag distance_from_tp(main_tls)=20464
+- 2026-03-24T16:26:16Z | diag distance_from_tp(shared_tls)=36880
+- 2026-03-24T16:26:16Z | diag distance_from_tp(lib2_tls)=32768
+- 2026-03-24T16:26:16Z | diag pkey(tp)=0
+- 2026-03-24T16:26:16Z | diag pkey(main_tls)=1
+- 2026-03-24T16:26:16Z | diag pkey(shared_tls)=0
+- 2026-03-24T16:26:16Z | diag pkey(lib2_tls)=2
+- 2026-03-24T16:26:16Z | configure main=16384 shared=8192 lib2=1
+- 2026-03-24T16:26:17Z | run-pass main=16384 shared=8192 lib2=1
+- 2026-03-24T16:26:17Z | diag config_main_tls_bytes=16384
+- 2026-03-24T16:26:17Z | diag config_lib2_tls_bytes=1
+- 2026-03-24T16:26:17Z | diag config_shared_tls_bytes=8192
+- 2026-03-24T16:26:17Z | diag distance_from_tp(main_tls)=20464
+- 2026-03-24T16:26:17Z | diag distance_from_tp(shared_tls)=36880
+- 2026-03-24T16:26:17Z | diag distance_from_tp(lib2_tls)=28680
+- 2026-03-24T16:26:17Z | diag pkey(tp)=0
+- 2026-03-24T16:26:17Z | diag pkey(main_tls)=1
+- 2026-03-24T16:26:17Z | diag pkey(shared_tls)=0
+- 2026-03-24T16:26:17Z | diag pkey(lib2_tls)=2
+- 2026-03-24T16:26:17Z | configure main=16384 shared=8192 lib2=4096
+- 2026-03-24T16:26:18Z | run-pass main=16384 shared=8192 lib2=4096
+- 2026-03-24T16:26:18Z | diag config_main_tls_bytes=16384
+- 2026-03-24T16:26:18Z | diag config_lib2_tls_bytes=4096
+- 2026-03-24T16:26:18Z | diag config_shared_tls_bytes=8192
+- 2026-03-24T16:26:18Z | diag distance_from_tp(main_tls)=20464
+- 2026-03-24T16:26:18Z | diag distance_from_tp(shared_tls)=40976
+- 2026-03-24T16:26:18Z | diag distance_from_tp(lib2_tls)=32768
+- 2026-03-24T16:26:18Z | diag pkey(tp)=0
+- 2026-03-24T16:26:18Z | diag pkey(main_tls)=1
+- 2026-03-24T16:26:18Z | diag pkey(shared_tls)=0
+- 2026-03-24T16:26:18Z | diag pkey(lib2_tls)=2
+- 2026-03-24T16:26:18Z | configure main=16384 shared=12288 lib2=1
+- 2026-03-24T16:26:19Z | run-pass main=16384 shared=12288 lib2=1
+- 2026-03-24T16:26:19Z | diag config_main_tls_bytes=16384
+- 2026-03-24T16:26:19Z | diag config_lib2_tls_bytes=1
+- 2026-03-24T16:26:19Z | diag config_shared_tls_bytes=12288
+- 2026-03-24T16:26:19Z | diag distance_from_tp(main_tls)=20464
+- 2026-03-24T16:26:19Z | diag distance_from_tp(shared_tls)=40976
+- 2026-03-24T16:26:19Z | diag distance_from_tp(lib2_tls)=28680
+- 2026-03-24T16:26:19Z | diag pkey(tp)=0
+- 2026-03-24T16:26:19Z | diag pkey(main_tls)=1
+- 2026-03-24T16:26:19Z | diag pkey(shared_tls)=0
+- 2026-03-24T16:26:19Z | diag pkey(lib2_tls)=2
+- 2026-03-24T16:26:19Z | configure main=16384 shared=12288 lib2=4096
+- 2026-03-24T16:26:20Z | run-pass main=16384 shared=12288 lib2=4096
+- 2026-03-24T16:26:20Z | diag config_main_tls_bytes=16384
+- 2026-03-24T16:26:20Z | diag config_lib2_tls_bytes=4096
+- 2026-03-24T16:26:20Z | diag config_shared_tls_bytes=12288
+- 2026-03-24T16:26:20Z | diag distance_from_tp(main_tls)=20464
+- 2026-03-24T16:26:20Z | diag distance_from_tp(shared_tls)=45072
+- 2026-03-24T16:26:20Z | diag distance_from_tp(lib2_tls)=32768
+- 2026-03-24T16:26:20Z | diag pkey(tp)=0
+- 2026-03-24T16:26:20Z | diag pkey(main_tls)=1
+- 2026-03-24T16:26:20Z | diag pkey(shared_tls)=0
+- 2026-03-24T16:26:20Z | diag pkey(lib2_tls)=2
+- 2026-03-24T16:26:20Z | configure main=16384 shared=16384 lib2=1
+- 2026-03-24T16:26:21Z | run-pass main=16384 shared=16384 lib2=1
+- 2026-03-24T16:26:21Z | diag config_main_tls_bytes=16384
+- 2026-03-24T16:26:21Z | diag config_lib2_tls_bytes=1
+- 2026-03-24T16:26:21Z | diag config_shared_tls_bytes=16384
+- 2026-03-24T16:26:21Z | diag distance_from_tp(main_tls)=20464
+- 2026-03-24T16:26:21Z | diag distance_from_tp(shared_tls)=45072
+- 2026-03-24T16:26:21Z | diag distance_from_tp(lib2_tls)=28680
+- 2026-03-24T16:26:21Z | diag pkey(tp)=0
+- 2026-03-24T16:26:21Z | diag pkey(main_tls)=1
+- 2026-03-24T16:26:21Z | diag pkey(shared_tls)=0
+- 2026-03-24T16:26:21Z | diag pkey(lib2_tls)=2
+- 2026-03-24T16:26:21Z | configure main=16384 shared=16384 lib2=4096
+- 2026-03-24T16:26:22Z | run-pass main=16384 shared=16384 lib2=4096
+- 2026-03-24T16:26:22Z | diag config_main_tls_bytes=16384
+- 2026-03-24T16:26:22Z | diag config_lib2_tls_bytes=4096
+- 2026-03-24T16:26:22Z | diag config_shared_tls_bytes=16384
+- 2026-03-24T16:26:22Z | diag distance_from_tp(main_tls)=20464
+- 2026-03-24T16:26:22Z | diag distance_from_tp(shared_tls)=49168
+- 2026-03-24T16:26:22Z | diag distance_from_tp(lib2_tls)=32768
+- 2026-03-24T16:26:22Z | diag pkey(tp)=0
+- 2026-03-24T16:26:22Z | diag pkey(main_tls)=1
+- 2026-03-24T16:26:22Z | diag pkey(shared_tls)=0
+- 2026-03-24T16:26:22Z | diag pkey(lib2_tls)=2
+- 2026-03-24T16:26:22Z | configure main=16384 shared=24576 lib2=1
+- 2026-03-24T16:26:23Z | run-pass main=16384 shared=24576 lib2=1
+- 2026-03-24T16:26:23Z | diag config_main_tls_bytes=16384
+- 2026-03-24T16:26:23Z | diag config_lib2_tls_bytes=1
+- 2026-03-24T16:26:23Z | diag config_shared_tls_bytes=24576
+- 2026-03-24T16:26:23Z | diag distance_from_tp(main_tls)=20464
+- 2026-03-24T16:26:23Z | diag distance_from_tp(shared_tls)=53264
+- 2026-03-24T16:26:23Z | diag distance_from_tp(lib2_tls)=28680
+- 2026-03-24T16:26:23Z | diag pkey(tp)=0
+- 2026-03-24T16:26:23Z | diag pkey(main_tls)=1
+- 2026-03-24T16:26:23Z | diag pkey(shared_tls)=0
+- 2026-03-24T16:26:23Z | diag pkey(lib2_tls)=2
+- 2026-03-24T16:26:23Z | configure main=16384 shared=24576 lib2=4096
+- 2026-03-24T16:26:24Z | run-pass main=16384 shared=24576 lib2=4096
+- 2026-03-24T16:26:24Z | diag config_main_tls_bytes=16384
+- 2026-03-24T16:26:24Z | diag config_lib2_tls_bytes=4096
+- 2026-03-24T16:26:24Z | diag config_shared_tls_bytes=24576
+- 2026-03-24T16:26:24Z | diag distance_from_tp(main_tls)=20464
+- 2026-03-24T16:26:24Z | diag distance_from_tp(shared_tls)=57360
+- 2026-03-24T16:26:24Z | diag distance_from_tp(lib2_tls)=32768
+- 2026-03-24T16:26:24Z | diag pkey(tp)=0
+- 2026-03-24T16:26:24Z | diag pkey(main_tls)=1
+- 2026-03-24T16:26:24Z | diag pkey(shared_tls)=0
+- 2026-03-24T16:26:24Z | diag pkey(lib2_tls)=2
+- 2026-03-24T16:26:24Z | configure main=32768 shared=4096 lib2=1
+- 2026-03-24T16:26:25Z | run-pass main=32768 shared=4096 lib2=1
+- 2026-03-24T16:26:25Z | diag config_main_tls_bytes=32768
+- 2026-03-24T16:26:25Z | diag config_lib2_tls_bytes=1
+- 2026-03-24T16:26:25Z | diag config_shared_tls_bytes=4096
+- 2026-03-24T16:26:25Z | diag distance_from_tp(main_tls)=36848
+- 2026-03-24T16:26:25Z | diag distance_from_tp(shared_tls)=49168
+- 2026-03-24T16:26:25Z | diag distance_from_tp(lib2_tls)=45064
+- 2026-03-24T16:26:25Z | diag pkey(tp)=0
+- 2026-03-24T16:26:25Z | diag pkey(main_tls)=1
+- 2026-03-24T16:26:25Z | diag pkey(shared_tls)=0
+- 2026-03-24T16:26:25Z | diag pkey(lib2_tls)=2
+- 2026-03-24T16:26:25Z | configure main=32768 shared=4096 lib2=4096
+- 2026-03-24T16:26:25Z | run-pass main=32768 shared=4096 lib2=4096
+- 2026-03-24T16:26:25Z | diag config_main_tls_bytes=32768
+- 2026-03-24T16:26:25Z | diag config_lib2_tls_bytes=4096
+- 2026-03-24T16:26:25Z | diag config_shared_tls_bytes=4096
+- 2026-03-24T16:26:25Z | diag distance_from_tp(main_tls)=36848
+- 2026-03-24T16:26:25Z | diag distance_from_tp(shared_tls)=53264
+- 2026-03-24T16:26:25Z | diag distance_from_tp(lib2_tls)=49152
+- 2026-03-24T16:26:25Z | diag pkey(tp)=0
+- 2026-03-24T16:26:25Z | diag pkey(main_tls)=1
+- 2026-03-24T16:26:25Z | diag pkey(shared_tls)=0
+- 2026-03-24T16:26:25Z | diag pkey(lib2_tls)=2
+- 2026-03-24T16:26:25Z | configure main=32768 shared=8192 lib2=1
+- 2026-03-24T16:26:26Z | run-pass main=32768 shared=8192 lib2=1
+- 2026-03-24T16:26:26Z | diag config_main_tls_bytes=32768
+- 2026-03-24T16:26:26Z | diag config_lib2_tls_bytes=1
+- 2026-03-24T16:26:26Z | diag config_shared_tls_bytes=8192
+- 2026-03-24T16:26:26Z | diag distance_from_tp(main_tls)=36848
+- 2026-03-24T16:26:26Z | diag distance_from_tp(shared_tls)=53264
+- 2026-03-24T16:26:26Z | diag distance_from_tp(lib2_tls)=45064
+- 2026-03-24T16:26:26Z | diag pkey(tp)=0
+- 2026-03-24T16:26:26Z | diag pkey(main_tls)=1
+- 2026-03-24T16:26:26Z | diag pkey(shared_tls)=0
+- 2026-03-24T16:26:26Z | diag pkey(lib2_tls)=2
+- 2026-03-24T16:26:26Z | configure main=32768 shared=8192 lib2=4096
+- 2026-03-24T16:26:27Z | run-pass main=32768 shared=8192 lib2=4096
+- 2026-03-24T16:26:27Z | diag config_main_tls_bytes=32768
+- 2026-03-24T16:26:27Z | diag config_lib2_tls_bytes=4096
+- 2026-03-24T16:26:27Z | diag config_shared_tls_bytes=8192
+- 2026-03-24T16:26:27Z | diag distance_from_tp(main_tls)=36848
+- 2026-03-24T16:26:27Z | diag distance_from_tp(shared_tls)=57360
+- 2026-03-24T16:26:27Z | diag distance_from_tp(lib2_tls)=49152
+- 2026-03-24T16:26:27Z | diag pkey(tp)=0
+- 2026-03-24T16:26:27Z | diag pkey(main_tls)=1
+- 2026-03-24T16:26:27Z | diag pkey(shared_tls)=0
+- 2026-03-24T16:26:27Z | diag pkey(lib2_tls)=2
+- 2026-03-24T16:26:27Z | configure main=32768 shared=12288 lib2=1
+- 2026-03-24T16:26:28Z | run-pass main=32768 shared=12288 lib2=1
+- 2026-03-24T16:26:28Z | diag config_main_tls_bytes=32768
+- 2026-03-24T16:26:28Z | diag config_lib2_tls_bytes=1
+- 2026-03-24T16:26:28Z | diag config_shared_tls_bytes=12288
+- 2026-03-24T16:26:28Z | diag distance_from_tp(main_tls)=36848
+- 2026-03-24T16:26:28Z | diag distance_from_tp(shared_tls)=57360
+- 2026-03-24T16:26:28Z | diag distance_from_tp(lib2_tls)=45064
+- 2026-03-24T16:26:28Z | diag pkey(tp)=0
+- 2026-03-24T16:26:28Z | diag pkey(main_tls)=1
+- 2026-03-24T16:26:28Z | diag pkey(shared_tls)=0
+- 2026-03-24T16:26:28Z | diag pkey(lib2_tls)=2
+- 2026-03-24T16:26:28Z | configure main=32768 shared=12288 lib2=4096
+- 2026-03-24T16:26:29Z | run-pass main=32768 shared=12288 lib2=4096
+- 2026-03-24T16:26:29Z | diag config_main_tls_bytes=32768
+- 2026-03-24T16:26:29Z | diag config_lib2_tls_bytes=4096
+- 2026-03-24T16:26:29Z | diag config_shared_tls_bytes=12288
+- 2026-03-24T16:26:29Z | diag distance_from_tp(main_tls)=36848
+- 2026-03-24T16:26:29Z | diag distance_from_tp(shared_tls)=61456
+- 2026-03-24T16:26:29Z | diag distance_from_tp(lib2_tls)=49152
+- 2026-03-24T16:26:29Z | diag pkey(tp)=0
+- 2026-03-24T16:26:29Z | diag pkey(main_tls)=1
+- 2026-03-24T16:26:29Z | diag pkey(shared_tls)=0
+- 2026-03-24T16:26:29Z | diag pkey(lib2_tls)=2
+- 2026-03-24T16:26:29Z | configure main=32768 shared=16384 lib2=1
+- 2026-03-24T16:26:30Z | run-pass main=32768 shared=16384 lib2=1
+- 2026-03-24T16:26:30Z | diag config_main_tls_bytes=32768
+- 2026-03-24T16:26:30Z | diag config_lib2_tls_bytes=1
+- 2026-03-24T16:26:30Z | diag config_shared_tls_bytes=16384
+- 2026-03-24T16:26:30Z | diag distance_from_tp(main_tls)=36848
+- 2026-03-24T16:26:30Z | diag distance_from_tp(shared_tls)=61456
+- 2026-03-24T16:26:30Z | diag distance_from_tp(lib2_tls)=45064
+- 2026-03-24T16:26:30Z | diag pkey(tp)=0
+- 2026-03-24T16:26:30Z | diag pkey(main_tls)=1
+- 2026-03-24T16:26:30Z | diag pkey(shared_tls)=0
+- 2026-03-24T16:26:30Z | diag pkey(lib2_tls)=2
+- 2026-03-24T16:26:30Z | configure main=32768 shared=16384 lib2=4096
+- 2026-03-24T16:26:31Z | run-pass main=32768 shared=16384 lib2=4096
+- 2026-03-24T16:26:31Z | diag config_main_tls_bytes=32768
+- 2026-03-24T16:26:31Z | diag config_lib2_tls_bytes=4096
+- 2026-03-24T16:26:31Z | diag config_shared_tls_bytes=16384
+- 2026-03-24T16:26:31Z | diag distance_from_tp(main_tls)=36848
+- 2026-03-24T16:26:31Z | diag distance_from_tp(shared_tls)=65552
+- 2026-03-24T16:26:31Z | diag distance_from_tp(lib2_tls)=49152
+- 2026-03-24T16:26:31Z | diag pkey(tp)=0
+- 2026-03-24T16:26:31Z | diag pkey(main_tls)=1
+- 2026-03-24T16:26:31Z | diag pkey(shared_tls)=0
+- 2026-03-24T16:26:31Z | diag pkey(lib2_tls)=2
+- 2026-03-24T16:26:31Z | configure main=32768 shared=24576 lib2=1
+- 2026-03-24T16:26:32Z | run-pass main=32768 shared=24576 lib2=1
+- 2026-03-24T16:26:32Z | diag config_main_tls_bytes=32768
+- 2026-03-24T16:26:32Z | diag config_lib2_tls_bytes=1
+- 2026-03-24T16:26:32Z | diag config_shared_tls_bytes=24576
+- 2026-03-24T16:26:32Z | diag distance_from_tp(main_tls)=36848
+- 2026-03-24T16:26:32Z | diag distance_from_tp(shared_tls)=69648
+- 2026-03-24T16:26:32Z | diag distance_from_tp(lib2_tls)=45064
+- 2026-03-24T16:26:32Z | diag pkey(tp)=0
+- 2026-03-24T16:26:32Z | diag pkey(main_tls)=1
+- 2026-03-24T16:26:32Z | diag pkey(shared_tls)=0
+- 2026-03-24T16:26:32Z | diag pkey(lib2_tls)=2
+- 2026-03-24T16:26:32Z | configure main=32768 shared=24576 lib2=4096
+- 2026-03-24T16:26:33Z | run-pass main=32768 shared=24576 lib2=4096
+- 2026-03-24T16:26:33Z | diag config_main_tls_bytes=32768
+- 2026-03-24T16:26:33Z | diag config_lib2_tls_bytes=4096
+- 2026-03-24T16:26:33Z | diag config_shared_tls_bytes=24576
+- 2026-03-24T16:26:33Z | diag distance_from_tp(main_tls)=36848
+- 2026-03-24T16:26:33Z | diag distance_from_tp(shared_tls)=73744
+- 2026-03-24T16:26:33Z | diag distance_from_tp(lib2_tls)=49152
+- 2026-03-24T16:26:33Z | diag pkey(tp)=0
+- 2026-03-24T16:26:33Z | diag pkey(main_tls)=1
+- 2026-03-24T16:26:33Z | diag pkey(shared_tls)=0
+- 2026-03-24T16:26:33Z | diag pkey(lib2_tls)=2
+- 2026-03-24T16:26:33Z | configure main=65536 shared=4096 lib2=1
+- 2026-03-24T16:26:34Z | run-pass main=65536 shared=4096 lib2=1
+- 2026-03-24T16:26:34Z | diag config_main_tls_bytes=65536
+- 2026-03-24T16:26:34Z | diag config_lib2_tls_bytes=1
+- 2026-03-24T16:26:34Z | diag config_shared_tls_bytes=4096
+- 2026-03-24T16:26:34Z | diag distance_from_tp(main_tls)=69616
+- 2026-03-24T16:26:34Z | diag distance_from_tp(shared_tls)=81936
+- 2026-03-24T16:26:34Z | diag distance_from_tp(lib2_tls)=77832
+- 2026-03-24T16:26:34Z | diag pkey(tp)=0
+- 2026-03-24T16:26:34Z | diag pkey(main_tls)=1
+- 2026-03-24T16:26:34Z | diag pkey(shared_tls)=0
+- 2026-03-24T16:26:34Z | diag pkey(lib2_tls)=2
+- 2026-03-24T16:26:34Z | configure main=65536 shared=4096 lib2=4096
+- 2026-03-24T16:26:35Z | run-pass main=65536 shared=4096 lib2=4096
+- 2026-03-24T16:26:35Z | diag config_main_tls_bytes=65536
+- 2026-03-24T16:26:35Z | diag config_lib2_tls_bytes=4096
+- 2026-03-24T16:26:35Z | diag config_shared_tls_bytes=4096
+- 2026-03-24T16:26:35Z | diag distance_from_tp(main_tls)=69616
+- 2026-03-24T16:26:35Z | diag distance_from_tp(shared_tls)=86032
+- 2026-03-24T16:26:35Z | diag distance_from_tp(lib2_tls)=81920
+- 2026-03-24T16:26:35Z | diag pkey(tp)=0
+- 2026-03-24T16:26:35Z | diag pkey(main_tls)=1
+- 2026-03-24T16:26:35Z | diag pkey(shared_tls)=0
+- 2026-03-24T16:26:35Z | diag pkey(lib2_tls)=2
+- 2026-03-24T16:26:35Z | configure main=65536 shared=8192 lib2=1
+- 2026-03-24T16:26:35Z | run-pass main=65536 shared=8192 lib2=1
+- 2026-03-24T16:26:35Z | diag config_main_tls_bytes=65536
+- 2026-03-24T16:26:35Z | diag config_lib2_tls_bytes=1
+- 2026-03-24T16:26:35Z | diag config_shared_tls_bytes=8192
+- 2026-03-24T16:26:35Z | diag distance_from_tp(main_tls)=69616
+- 2026-03-24T16:26:35Z | diag distance_from_tp(shared_tls)=86032
+- 2026-03-24T16:26:35Z | diag distance_from_tp(lib2_tls)=77832
+- 2026-03-24T16:26:35Z | diag pkey(tp)=0
+- 2026-03-24T16:26:35Z | diag pkey(main_tls)=1
+- 2026-03-24T16:26:35Z | diag pkey(shared_tls)=0
+- 2026-03-24T16:26:35Z | diag pkey(lib2_tls)=2
+- 2026-03-24T16:26:35Z | configure main=65536 shared=8192 lib2=4096
+- 2026-03-24T16:26:36Z | run-pass main=65536 shared=8192 lib2=4096
+- 2026-03-24T16:26:36Z | diag config_main_tls_bytes=65536
+- 2026-03-24T16:26:36Z | diag config_lib2_tls_bytes=4096
+- 2026-03-24T16:26:36Z | diag config_shared_tls_bytes=8192
+- 2026-03-24T16:26:36Z | diag distance_from_tp(main_tls)=69616
+- 2026-03-24T16:26:36Z | diag distance_from_tp(shared_tls)=90128
+- 2026-03-24T16:26:36Z | diag distance_from_tp(lib2_tls)=81920
+- 2026-03-24T16:26:36Z | diag pkey(tp)=0
+- 2026-03-24T16:26:36Z | diag pkey(main_tls)=1
+- 2026-03-24T16:26:36Z | diag pkey(shared_tls)=0
+- 2026-03-24T16:26:36Z | diag pkey(lib2_tls)=2
+- 2026-03-24T16:26:36Z | configure main=65536 shared=12288 lib2=1
+- 2026-03-24T16:26:37Z | run-pass main=65536 shared=12288 lib2=1
+- 2026-03-24T16:26:37Z | diag config_main_tls_bytes=65536
+- 2026-03-24T16:26:37Z | diag config_lib2_tls_bytes=1
+- 2026-03-24T16:26:37Z | diag config_shared_tls_bytes=12288
+- 2026-03-24T16:26:37Z | diag distance_from_tp(main_tls)=69616
+- 2026-03-24T16:26:37Z | diag distance_from_tp(shared_tls)=90128
+- 2026-03-24T16:26:37Z | diag distance_from_tp(lib2_tls)=77832
+- 2026-03-24T16:26:37Z | diag pkey(tp)=0
+- 2026-03-24T16:26:37Z | diag pkey(main_tls)=1
+- 2026-03-24T16:26:37Z | diag pkey(shared_tls)=0
+- 2026-03-24T16:26:37Z | diag pkey(lib2_tls)=2
+- 2026-03-24T16:26:37Z | configure main=65536 shared=12288 lib2=4096
+- 2026-03-24T16:26:38Z | run-pass main=65536 shared=12288 lib2=4096
+- 2026-03-24T16:26:38Z | diag config_main_tls_bytes=65536
+- 2026-03-24T16:26:38Z | diag config_lib2_tls_bytes=4096
+- 2026-03-24T16:26:38Z | diag config_shared_tls_bytes=12288
+- 2026-03-24T16:26:38Z | diag distance_from_tp(main_tls)=69616
+- 2026-03-24T16:26:38Z | diag distance_from_tp(shared_tls)=94224
+- 2026-03-24T16:26:38Z | diag distance_from_tp(lib2_tls)=81920
+- 2026-03-24T16:26:38Z | diag pkey(tp)=0
+- 2026-03-24T16:26:38Z | diag pkey(main_tls)=1
+- 2026-03-24T16:26:38Z | diag pkey(shared_tls)=0
+- 2026-03-24T16:26:38Z | diag pkey(lib2_tls)=2
+- 2026-03-24T16:26:38Z | configure main=65536 shared=16384 lib2=1
+- 2026-03-24T16:26:39Z | run-pass main=65536 shared=16384 lib2=1
+- 2026-03-24T16:26:39Z | diag config_main_tls_bytes=65536
+- 2026-03-24T16:26:39Z | diag config_lib2_tls_bytes=1
+- 2026-03-24T16:26:39Z | diag config_shared_tls_bytes=16384
+- 2026-03-24T16:26:39Z | diag distance_from_tp(main_tls)=69616
+- 2026-03-24T16:26:39Z | diag distance_from_tp(shared_tls)=94224
+- 2026-03-24T16:26:39Z | diag distance_from_tp(lib2_tls)=77832
+- 2026-03-24T16:26:39Z | diag pkey(tp)=0
+- 2026-03-24T16:26:39Z | diag pkey(main_tls)=1
+- 2026-03-24T16:26:39Z | diag pkey(shared_tls)=0
+- 2026-03-24T16:26:39Z | diag pkey(lib2_tls)=2
+- 2026-03-24T16:26:39Z | configure main=65536 shared=16384 lib2=4096
+- 2026-03-24T16:26:40Z | run-pass main=65536 shared=16384 lib2=4096
+- 2026-03-24T16:26:40Z | diag config_main_tls_bytes=65536
+- 2026-03-24T16:26:40Z | diag config_lib2_tls_bytes=4096
+- 2026-03-24T16:26:40Z | diag config_shared_tls_bytes=16384
+- 2026-03-24T16:26:40Z | diag distance_from_tp(main_tls)=69616
+- 2026-03-24T16:26:40Z | diag distance_from_tp(shared_tls)=98320
+- 2026-03-24T16:26:40Z | diag distance_from_tp(lib2_tls)=81920
+- 2026-03-24T16:26:40Z | diag pkey(tp)=0
+- 2026-03-24T16:26:40Z | diag pkey(main_tls)=1
+- 2026-03-24T16:26:40Z | diag pkey(shared_tls)=0
+- 2026-03-24T16:26:40Z | diag pkey(lib2_tls)=2
+- 2026-03-24T16:26:40Z | configure main=65536 shared=24576 lib2=1
+- 2026-03-24T16:26:41Z | run-pass main=65536 shared=24576 lib2=1
+- 2026-03-24T16:26:41Z | diag config_main_tls_bytes=65536
+- 2026-03-24T16:26:41Z | diag config_lib2_tls_bytes=1
+- 2026-03-24T16:26:41Z | diag config_shared_tls_bytes=24576
+- 2026-03-24T16:26:41Z | diag distance_from_tp(main_tls)=69616
+- 2026-03-24T16:26:41Z | diag distance_from_tp(shared_tls)=102416
+- 2026-03-24T16:26:41Z | diag distance_from_tp(lib2_tls)=77832
+- 2026-03-24T16:26:41Z | diag pkey(tp)=0
+- 2026-03-24T16:26:41Z | diag pkey(main_tls)=1
+- 2026-03-24T16:26:41Z | diag pkey(shared_tls)=0
+- 2026-03-24T16:26:41Z | diag pkey(lib2_tls)=2
+- 2026-03-24T16:26:41Z | configure main=65536 shared=24576 lib2=4096
+- 2026-03-24T16:26:42Z | run-pass main=65536 shared=24576 lib2=4096
+- 2026-03-24T16:26:42Z | diag config_main_tls_bytes=65536
+- 2026-03-24T16:26:42Z | diag config_lib2_tls_bytes=4096
+- 2026-03-24T16:26:42Z | diag config_shared_tls_bytes=24576
+- 2026-03-24T16:26:42Z | diag distance_from_tp(main_tls)=69616
+- 2026-03-24T16:26:42Z | diag distance_from_tp(shared_tls)=106512
+- 2026-03-24T16:26:42Z | diag distance_from_tp(lib2_tls)=81920
+- 2026-03-24T16:26:42Z | diag pkey(tp)=0
+- 2026-03-24T16:26:42Z | diag pkey(main_tls)=1
+- 2026-03-24T16:26:42Z | diag pkey(shared_tls)=0
+- 2026-03-24T16:26:42Z | diag pkey(lib2_tls)=2
+- 2026-03-24T16:26:42Z | sweep-complete no-failure
+- 2026-03-24T16:27:44Z | baseline-run build/x86_64/tests/tls_one_page_repro/tls_one_page_repro => pass (pkey tp/main/shared/lib2 = 0/1/0/2)
+- 2026-03-26T19:26:42Z | dav1d-tp-window probe via gdb/python using /proc/<pid>/smaps ProtectionKey for two binaries
+- 2026-03-26T19:26:42Z | command (crashing-build version): gdb -q /home/davidanekstein/immunant/dav1d-ia2-ia2/build/x86_64/tools/dav1d -x /tmp/gdb_crashing_version_cmds.txt
+- 2026-03-26T19:26:42Z | result (crashing-build version @main): tp window had pkeys [1,2,1] across ranges 0x7ffff7e88000-0x7ffff7e96000
+- 2026-03-26T19:26:42Z | command (crashing-build decode): gdb -q /home/davidanekstein/immunant/dav1d-ia2-ia2/build/x86_64/tools/dav1d -x /tmp/gdb_crashing_decode_cmds.txt
+- 2026-03-26T19:26:42Z | result (crashing-build decode @main,@ivf_read): tp window remained pkeys [1,2,1]; crash later in dav1d_ref_create
+- 2026-03-26T19:26:42Z | command (working-build version): gdb -q /home/davidanekstein/immunant/approaches/dav1d-clean-check/build/x86_64_stepwise_main/tools/dav1d -x /tmp/gdb_working_version_cmds.txt
+- 2026-03-26T19:26:42Z | result (working-build version @main): tp window mapped as one pkey0 region 0x7ffff7e27000-0x7ffff7e2f000
+- 2026-03-26T19:26:42Z | command (working-build decode): gdb -q /home/davidanekstein/immunant/approaches/dav1d-clean-check/build/x86_64_stepwise_main/tools/dav1d -x /tmp/gdb_working_decode_cmds.txt
+- 2026-03-26T19:26:42Z | result (working-build decode @main,@ivf_read): tp window remained single pkey0 region during early decode path
+- 2026-03-26T20:16:50Z | precise-tcb-map: added gdb python probe (/tmp/gdb_tp_precise.py) to label fs_base, tcbhead fields, dtv, pthread_self, ia2_stackptr_{0,1,2}, and containing smaps mappings+pkeys
+- 2026-03-26T20:16:50Z | command: gdb -q /home/davidanekstein/immunant/dav1d-ia2-ia2/build/x86_64/tools/dav1d -x /tmp/gdb_dav1d_precise_version.txt.cmds
+- 2026-03-26T20:16:50Z | result: --version@main tp=0x7ffff7e91000, tcb/dtv/self in pkey1 map 0x7ffff7e91000-0x7ffff7e96000; ia2_stackptr_2 in adjacent pkey2 map 0x7ffff7e90000-0x7ffff7e91000
+- 2026-03-26T20:16:50Z | command: gdb -q /home/davidanekstein/immunant/dav1d-ia2-ia2/build/x86_64/tools/dav1d -x /tmp/gdb_dav1d_precise_decode.txt.cmds
+- 2026-03-26T20:16:50Z | result: decode@main and decode@ivf_read had identical layout/labels as --version@main in this build
+- 2026-03-26T21:10:54Z | fault-capture baseline: --version crash si_addr=0x7ffff7e90fe0 pkru=0xfffffff0 (comp1) on pkey2 page 0x7ffff7e90000-0x7ffff7e91000 at std::uncaught_exception mov 0x8(%rax),%eax
+- 2026-03-26T21:10:54Z | fault-capture baseline: decode crash si_addr=0x7ffff7e91028 pkru=0xffffffcc (comp2) on pkey1 page 0x7ffff7e91000-0x7ffff7e96000 at dav1d_ref_create prologue mov %fs:0x28,%rax
+- 2026-03-26T21:10:54Z | staged-retag: share tp only -> next decode fault in __tls_get_addr
+- 2026-03-26T21:10:54Z | staged-retag: share tp-1+tp -> --version exits; decode still faults in __tls_get_addr
+- 2026-03-26T21:10:54Z | staged-retag: share tp-8..tp + _rtld_local page -> decode fault si_addr=0x7ffff7e92960 (dtv) in pkey1 map 0x7ffff7e92000-0x7ffff7e96000
+- 2026-03-26T21:10:54Z | staged-retag: share full tp-adjacent maps + _rtld_local page -> decode fault si_addr=0x7ffff7a7e5b0 (__x86_rep_movsb_threshold in libc rw pkey1) while pkru=comp2
+- 2026-03-26T21:10:54Z | wrote summary report docs/dav1d_fault_addresses_first_principles.md
+- 2026-03-26T21:38:14Z | cmp-run: configured and built IA2 runtime in clean worktrees /home/davidanekstein/immunant/approaches/ia2-cmp-main (main=0eef8f8fa) and /home/davidanekstein/immunant/approaches/ia2-cmp-da (da780290f) with -DIA2_LIBC_COMPARTMENT=ON
+- 2026-03-26T21:38:14Z | cmp-run: meson setup for dav1d clean build dirs build/x86_64_cmp_main2 and build/x86_64_cmp_da2 pointing to corresponding ia2_path/ia2_build_path
+- 2026-03-26T21:38:14Z | cmp-run: build blocker found and fixed: -lcallgates missing; manually built build/*/src/libcallgates.so via cc -shared callgate_wrapper.c and copied libpartition-alloc.so into build/*/src
+- 2026-03-26T21:38:14Z | cmp-run: initial run before pad-tls crashed in __wrap_main (%fs:(%r11), pkey2 page) for both --version and decode
+- 2026-03-26T21:38:14Z | cmp-run: applied documented pad-tls flow: copied libc.so.6/libm.so.6/libstdc++.so.6/libgcc_s.so.1 into build/*/src and ran pad-tls --allow-no-tls on tools/dav1d and key DSOs
+- 2026-03-26T21:38:14Z | cmp-run result after pad-tls: --version succeeds on both main and da; decode (--threads 1) crashes on both
+- 2026-03-26T21:38:14Z | cmp-run gdb decode main: SIGSEGV_PKUERR si_addr=0x7ffff7e90028, rip=dav1d_ref_create+16 (mov %fs:0x28,%rax), fault map [anon: ia2-loader-heap] pkey=1, pkru=0xffffffcc
+- 2026-03-26T21:38:14Z | cmp-run gdb decode da: SIGSEGV_PKUERR si_addr=0x7ffff7ffdaf0, rip=__tls_get_addr+13 (ld-linux tls_get_addr.S:31), fault map ld-linux rw page pkey=1, pkru=0xffffffcc
+- 2026-03-26T21:40:02Z | docs: added docs/dav1d_reproducible_build_run.md with exact clean build/run/pad-tls/callgates flow
+- 2026-03-26T21:40:02Z | docs: updated docs/dav1d_fault_addresses_first_principles.md with clean side-by-side main vs da780 decode crash comparison
+- 2026-03-26T21:44:59Z | stale-check main-only clean build: created build/x86_64_cmp_main4 from ia2-cmp-main@0eef8f8fa with fresh meson setup + tools/dav1d build
+- 2026-03-26T21:44:59Z | stale-check main-only pre-pad: --version rc=139 (segfault), decode rc=139 (segfault)
+- 2026-03-26T21:44:59Z | stale-check main-only post-pad: after copying runtime DSOs + pad-tls --allow-no-tls on dav1d/DSOs, --version rc=0 (prints version), decode rc=139
+- 2026-03-26T21:44:59Z | stale-check conclusion: main --version success is reproducible only in post-pad flow; not a stale-artifact effect from reused build dirs
+- 2026-03-26T21:52:13Z | exact-map capture: main4 decode fault fs_base=0x7ffff7e90000 si_addr=0x7ffff7e90028 at dav1d_ref_create mov %fs:0x28,%rax on [anon ia2-loader-heap] pkey1
+- 2026-03-26T21:52:13Z | exact-map capture: da2 decode fault _rtld_local=0x7ffff7ffd000 GL_TLS_GENERATION_OFFSET=2800 si_addr=0x7ffff7ffdaf0 at __tls_get_addr on ld-linux rw pkey1
+- 2026-03-26T21:52:13Z | docs: expanded docs/dav1d_fault_addresses_first_principles.md section 9 with exact memory targets + first-principles treatment

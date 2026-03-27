@@ -325,5 +325,12 @@ void ia2_start(void) {
   // The x86_64 stack protector ABI reads the canary via %fs:0x28 and must stay
   // valid regardless of the currently active compartment PKRU.
   ia2_unprotect_thread_pointer_page();
+  // __tls_get_addr fast path also dereferences THREAD_DTV() (dtv[0].counter).
+  // Keep that per-thread DTV header page shared for the startup thread.
+  ia2_unprotect_thread_dtv_page();
+  // Partition-alloc and other TLS consumers can place ABI-visible state in
+  // ia2-loader-heap mappings adjacent to TP/DTV. Keep these writable loader
+  // heap mappings shared for the startup thread.
+  ia2_unprotect_loader_heap_maps();
   mark_init_finished();
 }

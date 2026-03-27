@@ -153,6 +153,15 @@ IA2_EXTERN_C int protect_tls_pages(struct dl_phdr_info *info, size_t size, void 
 /// compartments. Keeping it shared prevents compartment-private TLS tagging
 /// from breaking those reads/writes.
 IA2_EXTERN_C void ia2_unprotect_thread_pointer_page(void);
+/// Retag the current thread's DTV page as shared (pkey 0) on x86_64.
+///
+/// __tls_get_addr fast path reads `dtv[0].counter` through THREAD_DTV() and can
+/// run under a different compartment PKRU than the compartment that tagged this
+/// page. Keeping the DTV header page shared prevents implicit TLS resolver
+/// faults.
+IA2_EXTERN_C void ia2_unprotect_thread_dtv_page(void);
+/// Retag writable IA2 loader-heap mappings as shared (pkey 0) on x86_64.
+IA2_EXTERN_C void ia2_unprotect_loader_heap_maps(void);
 
 struct IA2SharedSection {
   const void *start;

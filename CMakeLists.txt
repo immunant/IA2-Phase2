@@ -1,6 +1,14 @@
 cmake_minimum_required(VERSION 4.0)
 project(IA2Phase2)
 
+# Ensure all project-built executables and shared libraries emit DWARF call
+# frame information for unwinding through generated call gates and DSOs.
+add_compile_options(
+    "-funwind-tables"
+    "-fasynchronous-unwind-tables"
+)
+add_link_options("-Wl,--eh-frame-hdr")
+
 # Feature flags
 option(IA2_DEBUG "Enable debug telemetry and runtime checks" OFF)
 

@@ -2,7 +2,7 @@
 
 Date: 2026-03-27
 Branch inspected: `fix/shared-tls-tcb-rationale-docs`
-HEAD: `da780290f6a2c2f122263a0650f30f2580babaa7`
+HEAD: `ad0606ff01de5c01349014dc6dee307e510403b4`
 
 ## Short Answer
 
@@ -15,7 +15,7 @@ Your assumption is only partly correct.
 
 There is already substantial writeup in these docs:
 
-- `docs/git-diff-main-da780-e664-tutorial.md`
+- `docs/git-diff-main-ad0606-e664-tutorial.md`
 - `docs/dav1d_fault_addresses_first_principles.md`
 - `docs/conversation_repro_log_2026-03-27.md`
 - `docs/dav1d_compartment_mismatch_writeup.md`
@@ -39,7 +39,7 @@ This file is specifically a **status/inventory** of which fixes are committed vs
 - Preserved original aarch64 behavior while x86_64 TLS policy evolved.
 - Goal: avoid x86_64-specific refactor side-effects on aarch64.
 
-4. `da780290f` - `libia2: avoid redundant thread TCB pkey_mprotect`
+4. `ad0606ff0` - `libia2: avoid redundant thread TCB pkey_mprotect`
 - Removed redundant per-thread TCB retag path that could conflict with tracer monotonicity / repeated re-tag expectations.
 - Goal: keep shared-page policy correct without repeated unnecessary pkey changes.
 
@@ -68,7 +68,7 @@ These uncommitted changes correspond to later-stage investigation after the comm
 
 ## Why This Distinction Matters
 
-- **Committed chain (`main..da780`)**: foundational TLS/TCB policy fixes.
+- **Committed chain (`main..ad0606`)**: foundational TLS/TCB policy fixes.
 - **Uncommitted changes**: follow-on attempts to handle additional runtime metadata and then decode-path heap ownership mismatch.
 
 So if you reset to clean HEAD on this branch, you keep the baseline TLS/TCB fixes, but you lose the newer DTV/loader-heap/libc-symbol carveout experiments unless you commit/stash them.

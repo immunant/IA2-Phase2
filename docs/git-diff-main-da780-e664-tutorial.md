@@ -1,4 +1,4 @@
-# What `main..da780` and `da780..e664` Actually Change (TLS/TCB Deep Dive)
+# What `main..ad0606` and `ad0606..e664` Actually Change (TLS/TCB Deep Dive)
 
 This is not a Git syntax tutorial. It is a code and runtime behavior tutorial for the two diffs you asked about.
 
@@ -20,9 +20,9 @@ Primary code paths touched:
 
 ## TL;DR
 
-`main..da780` introduces the first x86_64 TLS carve-out policy that keeps the TCB page shared (pkey 0), avoids over-broad carveouts, preserves aarch64 behavior, and removes redundant per-thread retagging.
+`main..ad0606` introduces the first x86_64 TLS carve-out policy that keeps the TCB page shared (pkey 0), avoids over-broad carveouts, preserves aarch64 behavior, and removes redundant per-thread retagging.
 
-`da780..e664` extends that policy to include the TCB *neighborhood* and static-TLS prefix behavior needed for dav1d single-thread decode, adds a mapping-level retag pass using `/proc/self/maps`, and hardens thread creation timing around PKRU state.
+`ad0606..e664` extends that policy to include the TCB *neighborhood* and static-TLS prefix behavior needed for dav1d single-thread decode, adds a mapping-level retag pass using `/proc/self/maps`, and hardens thread creation timing around PKRU state.
 
 ## Terms You Need (in plain language)
 
@@ -137,8 +137,8 @@ This is why `dav1d --version` can work while real decode still fails: decode exe
 
 The code evolution reflects this learning:
 
-- `main..da780`: carve out TCB page + key callgate TLS page(s), tighten carveout correctness.
-- `da780..e664`: stop assuming one page is enough; share TCB neighborhood/static-TLS prefix and re-apply neighborhood policy during init/thread setup.
+- `main..ad0606`: carve out TCB page + key callgate TLS page(s), tighten carveout correctness.
+- `ad0606..e664`: stop assuming one page is enough; share TCB neighborhood/static-TLS prefix and re-apply neighborhood policy during init/thread setup.
 
 In short: move from a single-page "ABI guess" to a broader runtime-layout-aware policy.
 
@@ -172,14 +172,14 @@ Background deep dives:
 - [Ulrich Drepper, *ELF Handling For Thread-Local Storage*](https://www.akkadia.org/drepper/tls.pdf)
 - [MaskRay TLS overview](https://maskray.me/blog/2021-02-14-all-about-thread-local-storage)
 
-## Diff 1: `main..da780` (4 commits)
+## Diff 1: `main..ad0606` (4 commits)
 
 Commit set on this side:
 
 - [a6e769880](https://github.com/immunant/IA2-Phase2/commit/a6e769880720855a1abb7d63524760745ccf6286)
 - [4cc8315dd](https://github.com/immunant/IA2-Phase2/commit/4cc8315dd7bf05f69cbfa69bd120a8df89fc1741)
 - [633acec3c](https://github.com/immunant/IA2-Phase2/commit/633acec3c128ebb017707e69a7d1353c4ffc9aac)
-- [da780290f](https://github.com/immunant/IA2-Phase2/commit/da780290f6a2c2f122263a0650f30f2580babaa7)
+- [ad0606ff0](https://github.com/immunant/IA2-Phase2/commit/ad0606ff01de5c01349014dc6dee307e510403b4)
 
 ### 1) `a6e769880`: keep TCB page shared
 
@@ -199,10 +199,10 @@ Key changes:
 
 Code references:
 
-- [ia2_unprotect_thread_pointer_page (da780 blob)](https://github.com/immunant/IA2-Phase2/blob/da780290f6a2c2f122263a0650f30f2580babaa7/runtime/libia2/ia2.c#L114)
-- [initial carveout policy in protect_tls_pages (da780 blob)](https://github.com/immunant/IA2-Phase2/blob/da780290f6a2c2f122263a0650f30f2580babaa7/runtime/libia2/ia2.c#L450)
-- [startup call site](https://github.com/immunant/IA2-Phase2/blob/da780290f6a2c2f122263a0650f30f2580babaa7/runtime/libia2/init.c#L327)
-- [thread setup path](https://github.com/immunant/IA2-Phase2/blob/da780290f6a2c2f122263a0650f30f2580babaa7/runtime/libia2/threads.c#L38)
+- [ia2_unprotect_thread_pointer_page (ad0606 blob)](https://github.com/immunant/IA2-Phase2/blob/ad0606ff01de5c01349014dc6dee307e510403b4/runtime/libia2/ia2.c#L114)
+- [initial carveout policy in protect_tls_pages (ad0606 blob)](https://github.com/immunant/IA2-Phase2/blob/ad0606ff01de5c01349014dc6dee307e510403b4/runtime/libia2/ia2.c#L450)
+- [startup call site](https://github.com/immunant/IA2-Phase2/blob/ad0606ff01de5c01349014dc6dee307e510403b4/runtime/libia2/init.c#L327)
+- [thread setup path](https://github.com/immunant/IA2-Phase2/blob/ad0606ff01de5c01349014dc6dee307e510403b4/runtime/libia2/threads.c#L38)
 
 Why this helps:
 
@@ -225,7 +225,7 @@ Key changes:
 
 Code reference:
 
-- [range guard logic (da780 blob)](https://github.com/immunant/IA2-Phase2/blob/da780290f6a2c2f122263a0650f30f2580babaa7/runtime/libia2/ia2.c#L466)
+- [range guard logic (ad0606 blob)](https://github.com/immunant/IA2-Phase2/blob/ad0606ff01de5c01349014dc6dee307e510403b4/runtime/libia2/ia2.c#L466)
 
 Why this helps:
 
@@ -247,7 +247,7 @@ Key changes:
 
 Code reference:
 
-- [aarch64 branch in `protect_tls_pages` (da780 blob)](https://github.com/immunant/IA2-Phase2/blob/da780290f6a2c2f122263a0650f30f2580babaa7/runtime/libia2/ia2.c#L401)
+- [aarch64 branch in `protect_tls_pages` (ad0606 blob)](https://github.com/immunant/IA2-Phase2/blob/ad0606ff01de5c01349014dc6dee307e510403b4/runtime/libia2/ia2.c#L401)
 
 Why this helps:
 
@@ -257,7 +257,7 @@ Tradeoff:
 
 - More conditional complexity in one function.
 
-### 4) `da780290f`: avoid redundant per-thread retagging
+### 4) `ad0606ff0`: avoid redundant per-thread retagging
 
 Problem being addressed:
 
@@ -270,8 +270,8 @@ Key changes:
 
 Code references:
 
-- [retag guard in `protect_tls_pages` (da780 blob)](https://github.com/immunant/IA2-Phase2/blob/da780290f6a2c2f122263a0650f30f2580babaa7/runtime/libia2/ia2.c#L504)
-- [thread-path comment and removal](https://github.com/immunant/IA2-Phase2/blob/da780290f6a2c2f122263a0650f30f2580babaa7/runtime/libia2/threads.c#L39)
+- [retag guard in `protect_tls_pages` (ad0606 blob)](https://github.com/immunant/IA2-Phase2/blob/ad0606ff01de5c01349014dc6dee307e510403b4/runtime/libia2/ia2.c#L504)
+- [thread-path comment and removal](https://github.com/immunant/IA2-Phase2/blob/ad0606ff01de5c01349014dc6dee307e510403b4/runtime/libia2/threads.c#L39)
 
 Why this helps:
 
@@ -281,7 +281,7 @@ Tradeoff:
 
 - Relies on invariant that post-init mappings are already in expected shared state unless explicitly corrected later.
 
-## Diff 2: `da780..e664` (single commit)
+## Diff 2: `ad0606..e664` (single commit)
 
 Commit:
 
@@ -393,8 +393,8 @@ Reference:
 
 The progression you observed is coherent with the code evolution:
 
-- Step 1 (`main..da780`): fix obvious `%fs`/TCB single-page ABI faults and tighten carveout correctness.
-- Step 2 (`da780..e664`): account for adjacent static TLS / loader neighborhood accesses that still faulted in decode path.
+- Step 1 (`main..ad0606`): fix obvious `%fs`/TCB single-page ABI faults and tighten carveout correctness.
+- Step 2 (`ad0606..e664`): account for adjacent static TLS / loader neighborhood accesses that still faulted in decode path.
 
 That is consistent with glibc details that matter here:
 
@@ -431,11 +431,11 @@ Practical interpretation:
 ## Useful local inspection commands
 
 ```bash
-git diff --stat main da780290f6a2c2f122263a0650f30f2580babaa7
-git diff --stat da780290f6a2c2f122263a0650f30f2580babaa7 e6641c15eaab4017c78e44bc305ce56be1bdf2d4
+git diff --stat main ad0606ff01de5c01349014dc6dee307e510403b4
+git diff --stat ad0606ff01de5c01349014dc6dee307e510403b4 e6641c15eaab4017c78e44bc305ce56be1bdf2d4
 
 git show a6e769880720855a1abb7d63524760745ccf6286 -- runtime/libia2/ia2.c runtime/libia2/init.c runtime/libia2/threads.c
-git show da780290f6a2c2f122263a0650f30f2580babaa7 -- runtime/libia2/ia2.c runtime/libia2/threads.c
+git show ad0606ff01de5c01349014dc6dee307e510403b4 -- runtime/libia2/ia2.c runtime/libia2/threads.c
 git show e6641c15eaab4017c78e44bc305ce56be1bdf2d4 -- runtime/libia2/ia2.c runtime/libia2/init.c runtime/libia2/threads.c
 ```
 

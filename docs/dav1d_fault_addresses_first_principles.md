@@ -130,12 +130,12 @@ All of these can be touched while PKRU is compartment 2.
 - The evidence points to a broader runtime-visibility problem, not a single bad pointer write.
 - The shortest path to robustness is memory-policy based (shared runtime-critical regions), with transition-only as a longer-term architecture project.
 
-## 7. Clean side-by-side (`main` vs `da780290f`) using reproducible build flow
+## 7. Clean side-by-side (`main` vs `ad0606ff0`) using reproducible build flow
 
 To avoid stale-artifact ambiguity, I rebuilt both IA2 and dav1d in clean directories:
 
 - IA2 `main`: `/home/davidanekstein/immunant/approaches/ia2-cmp-main`
-- IA2 `da780290f`: `/home/davidanekstein/immunant/approaches/ia2-cmp-da`
+- IA2 `ad0606ff0`: `/home/davidanekstein/immunant/approaches/ia2-cmp-da`
 - dav1d build dirs:
   - `/home/davidanekstein/immunant/dav1d-ia2-ia2/build/x86_64_cmp_main2`
   - `/home/davidanekstein/immunant/dav1d-ia2-ia2/build/x86_64_cmp_da2`
@@ -149,7 +149,7 @@ If step 2 is skipped, both `--version` and decode can fail immediately in `__wra
 
 ### Post-`pad-tls` behavior
 
-- `--version`: succeeds on both `main` and `da780290f`.
+- `--version`: succeeds on both `main` and `ad0606ff0`.
 - Single-thread decode: crashes on both, but with different fault reasons.
 
 #### `main` decode crash (post-`pad-tls`)
@@ -164,7 +164,7 @@ If step 2 is skipped, both `--version` and decode can fail immediately in `__wra
 Interpretation:
 - Compartment 2 decode path still faults on direct TCB stack-guard access (`%fs:0x28`) when the touched page is not accessible under current PKRU.
 
-#### `da780290f` decode crash (post-`pad-tls`)
+#### `ad0606ff0` decode crash (post-`pad-tls`)
 
 - Signal: `SEGV_PKUERR` (`si_code=4`)
 - `si_addr=0x7ffff7ffdaf0`
@@ -205,7 +205,7 @@ First-principles treatment:
 - The page containing thread pointer ABI header fields must be accessible independent of active compartment.
 - Practical policy: keep the TCB page shared (`pkey 0`) on x86_64.
 
-### B) `da780290f` decode crash after full reproducible setup
+### B) `ad0606ff0` decode crash after full reproducible setup
 
 Fault facts:
 - `pkru=0xffffffcc` (compartment 2)

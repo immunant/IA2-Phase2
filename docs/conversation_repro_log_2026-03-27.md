@@ -6,8 +6,8 @@ Purpose: concise, reproducible record of what we validated in this thread.
 
 - Focused commits:
 1. `0eef8f8fafc19b6d3a31bf5943943bd522254b67` (`main`)
-2. `da780290f6a2c2f122263a0650f30f2580babaa7`
-3. `6943634e87d99d27136b3b1e1ef7e6a3682ecee0` (targeted TP-page change)
+2. `ad0606ff01de5c01349014dc6dee307e510403b4`
+3. `8c3252e0487a05aefc7e293373a5421547beecc9` (targeted TP-page change)
 4. `e6641c15eaab4017c78e44bc305ce56be1bdf2d4`
 5. `6c41d8f909bb672f1c7de56bb4f4f78918cd68fb` (targeted+e664 branch commit)
 
@@ -32,8 +32,8 @@ For each build:
 ## Verified Build Dirs Used
 
 1. `main` -> `/home/davidanekstein/immunant/dav1d-ia2-ia2/build/x86_64_cmp_main2`
-2. `da780` -> `/home/davidanekstein/immunant/dav1d-ia2-ia2/build/x86_64_cmp_da2`
-3. `694` -> `/home/davidanekstein/immunant/dav1d-ia2-ia2/build/x86_64_verify_694_onbuild`
+2. `ad0606` -> `/home/davidanekstein/immunant/dav1d-ia2-ia2/build/x86_64_cmp_da2`
+3. `8c3252` -> `/home/davidanekstein/immunant/dav1d-ia2-ia2/build/x86_64_verify_694_onbuild`
 4. `e664` -> `/home/davidanekstein/immunant/dav1d-ia2-ia2/build/x86_64_verify_e664_onbuild`
 5. `6c41` -> `/home/davidanekstein/immunant/dav1d-ia2-ia2/build/x86_64_verify_6c41_strict_fresh`
 
@@ -53,12 +53,12 @@ All 5 commits returned `rc=139` (segfault), with two failure families:
 - `si_addr=0x7ffff7e90028`
 - `pkru=0xffffffcc`
 
-2. `da780`, `694`, `e664`, `6c41`:
+2. `ad0606`, `8c3252`, `e664`, `6c41`:
 - `RIP=__tls_get_addr+13` (`tls_get_addr.S:31`)
 - `si_addr=0x7ffff7ffdaf0`
 - `pkru=0xffffffcc`
 
-## Deep Dive: Commit `6943634e8` Decode Failure
+## Deep Dive: Commit `8c3252e04` Decode Failure
 
 Observed fault:
 
@@ -117,10 +117,10 @@ GDB
 
 ## Append-Only Log Entries
 
-- 2026-03-27: Verified strict `--version` and strict single-thread decode across `main`, `da780`, `694`, `e664`, `6c41`.
-- 2026-03-27: Deep-mapped `694` decode fault to ld-linux writable page (`_rtld_local+0xaf0`, `pkey=1`) with active PKRU denying pkey1.
+- 2026-03-27: Verified strict `--version` and strict single-thread decode across `main`, `ad0606`, `8c3252`, `e664`, `6c41`.
+- 2026-03-27: Deep-mapped `8c3252` decode fault to ld-linux writable page (`_rtld_local+0xaf0`, `pkey=1`) with active PKRU denying pkey1.
 - 2026-03-27: Documented how to locate exact fault pages (`/proc/<pid>/{maps,smaps}`, `fs_base` via `ARCH_GET_FS`) and when addresses are determined (startup/thread-create/runtime update phases).
-- 2026-03-27: Re-ran strict `694` decode under gdb and captured authoritative stack for the `_rtld_local+0xaf0` fault (`__tls_get_addr+13`), including the active IA2 indirect callgate frame.
+- 2026-03-27: Re-ran strict `8c3252` decode under gdb and captured authoritative stack for the `_rtld_local+0xaf0` fault (`__tls_get_addr+13`), including the active IA2 indirect callgate frame.
 - 2026-03-27: Implemented targeted ld.so metadata carveout in `protect_pages()` (exact page used by `__tls_get_addr` generation read) and validated in fresh strict build `x86_64_ia2_current_ldso_carveout`: `--version rc=0`, decode still `rc=139`.
 - 2026-03-27: Post-ld.so carveout decode fault moved from `__tls_get_addr+13` to `__tls_get_addr+16` (`cmp %rax,(%rdx)`), `si_addr=0x7ffff7e30960` (DTV pointer read path).
 - 2026-03-27: Tried PT_TLS-local DTV page carveout; no effect for this case because faulting DTV page was not carved by that path in this runtime layout.
@@ -129,7 +129,7 @@ GDB
 - 2026-03-27: Added startup carveout for writable `[anon: ia2-loader-heap]` mappings and validated in fresh strict build `x86_64_ia2_current_ldso_loaderheap`: `--version rc=0`, decode still `rc=139`.
 - 2026-03-27: After loader-heap carveout, decode fault moved to libc memmove path (`__memmove_evex_unaligned_erms`) reading `__x86_rep_movsb_threshold` (`si_addr=0x7ffff7b0e5b0`) under `PKRU=0xffffffcc` (pkey1 denied).
 
-## Authoritative Stack (694 strict decode, `_rtld_local` fault)
+## Authoritative Stack (8c3252 strict decode, `_rtld_local` fault)
 
 Captured from:
 
@@ -292,7 +292,7 @@ References used:
   - `ivf_read` local `ptr` equals `0x34ec00004000` and is passed to `fread`.
   - Interpretation: this is a compartment mismatch on dynamic heap memory (partition-alloc-owned pkey2 buffer written while executing with compartment-1 PKRU), not TLS/TCB/loader ABI metadata.
 - 2026-03-27: Added consolidated state report `docs/dav1d_compartment_mismatch_writeup.md` summarizing: compartment mapping rationale (tools pkey1, libdav1d pkey2), `IA2_CALL`/indirect-callgate execution mechanics, current `ivf_read` + `fread` cross-compartment write fault evidence (`pkey2` destination under `PKRU=0xfffffff0`), distinction from prior TLS/TCB faults, and targeted fix options (shared-buffer handoff preferred).
-- 2026-03-27: Added `docs/dav1d_fixes_so_far_status_2026-03-27.md` to separate committed fix chain (`main..da780`) from current uncommitted runtime experiments (DTV/loader-heap/libc-symbol carveouts and test wiring), and to answer commit-status ambiguity.
+- 2026-03-27: Added `docs/dav1d_fixes_so_far_status_2026-03-27.md` to separate committed fix chain (`main..ad0606`) from current uncommitted runtime experiments (DTV/loader-heap/libc-symbol carveouts and test wiring), and to answer commit-status ambiguity.
 - 2026-03-27: Snapshotted current runtime+docs investigation to branch `fix/dav1d-carveout-followups` at commit `4889607ff8ced61038ea24137823dfefd9c20198` (includes runtime carveout experiments, reproducibility docs, memory-map analysis docs, and `tests/tls_one_page_repro` scaffold).
 - 2026-03-27: Tried shared-buffer handoff in dav1d demuxers (`tools/input/ivf.c`, `annexb.c`, `section5.c`): replaced `dav1d_data_create + fread` with `shared_malloc + dav1d_data_wrap` and shared-free callback bridge.
 - 2026-03-27: Fresh strict build used `/home/davidanekstein/immunant/dav1d-ia2-ia2/build/x86_64_shared_buffer_strict_20260327` with `ia2_permissive_mode=false`, IA2 path `/home/davidanekstein/immunant/ia2`, IA2 build `/home/davidanekstein/immunant/ia2/build/x86_64`.

@@ -115,4 +115,4 @@ bt
 
 - `--version` and decode can have different behavior.
 - For side-by-side commit comparisons, use separate IA2 worktrees and separate dav1d build dirs.
-- Current crash analysis for `main` vs `da780` is documented in `docs/dav1d_fault_addresses_first_principles.md`.
+- Current crash analysis for `main` vs `ad0606` is documented in `docs/dav1d_fault_addresses_first_principles.md`.

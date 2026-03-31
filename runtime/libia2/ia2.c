@@ -97,6 +97,24 @@ size_t ia2_get_compartment(void) {
   }
 }
 
+/*
+ * Keep the page containing the x86_64 thread pointer shared.
+ *
+ * Stack-protector and other ABI-sensitive accesses read %fs-relative data
+ * (for example, %fs:0x28) and must remain valid across compartment PKRU
+ * transitions.
+ */
+void ia2_unprotect_thread_pointer_page(void) {
+  uintptr_t tcb_page =
+      IA2_ROUND_DOWN((uintptr_t)__builtin_thread_pointer(), PAGE_SIZE);
+  int err = ia2_mprotect_with_tag(
+      (void *)tcb_page, PAGE_SIZE, PROT_READ | PROT_WRITE, 0);
+  if (err != 0) {
+    printf("ia2_mprotect_with_tag failed: %s\n", strerror(errno));
+    exit(-1);
+  }
+}
+
 #elif defined(__aarch64__)
 
 static size_t ia2_get_x18(void) {
@@ -110,6 +128,8 @@ size_t ia2_get_tag(void) __attribute__((alias("ia2_get_x18")));
 size_t ia2_get_compartment(void) {
   return ia2_get_tag();
 }
+
+void ia2_unprotect_thread_pointer_page(void) {}
 
 // TODO: insert_tag could probably be cleaned up a bit, but I'm not sure if the
 // generated code could be simplified since addg encodes the tag as an imm field

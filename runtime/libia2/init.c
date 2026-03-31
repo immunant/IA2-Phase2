@@ -320,5 +320,10 @@ void ia2_start(void) {
       exit(rc);
     }
   }
+  // Run after compartment setup so any TLS retagging done during
+  // ia2_setup_compartment/protect_tls_pages cannot leave the TCB page private.
+  // The x86_64 stack protector ABI reads the canary via %fs:0x28 and must stay
+  // valid regardless of the currently active compartment PKRU.
+  ia2_unprotect_thread_pointer_page();
   mark_init_finished();
 }

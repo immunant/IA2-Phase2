@@ -36,6 +36,10 @@ void *ia2_thread_begin(void *arg) {
 #endif
 
   init_stacks_and_setup_tls();
+  // init_stacks_and_setup_tls() already runs protect_tls_pages() for this
+  // thread, including the x86_64 TCB carve-out to shared pkey 0. Avoid a
+  // redundant pkey_mprotect() here; the tracer treats post-init repeated
+  // pkey_mprotect on the same page as a policy violation.
   /* TODO: Set up alternate stack when we have per-thread shared compartment
    * data. */
   /*  sigaltstack(&alt_stack, NULL); */

@@ -129,8 +129,6 @@ size_t ia2_get_compartment(void) {
   return ia2_get_tag();
 }
 
-void ia2_unprotect_thread_pointer_page(void) {}
-
 // TODO: insert_tag could probably be cleaned up a bit, but I'm not sure if the
 // generated code could be simplified since addg encodes the tag as an imm field
 #define _addg(out_ptr, in_ptr, tag) \

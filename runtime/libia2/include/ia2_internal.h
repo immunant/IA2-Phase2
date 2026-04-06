@@ -145,7 +145,9 @@ struct dl_phdr_info;
 /// information in the search arguments.
 IA2_EXTERN_C int protect_pages(struct dl_phdr_info *info, size_t size, void *data);
 IA2_EXTERN_C int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data);
+#if defined(__x86_64__)
 IA2_EXTERN_C void ia2_unprotect_thread_pointer_page(void);
+#endif
 
 struct IA2SharedSection {
   const void *start;

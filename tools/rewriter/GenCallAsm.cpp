@@ -219,6 +219,32 @@ static void add_comment_line(AsmWriter &aw, const std::string &s) {
   aw.ss << std::endl;
 }
 
+static void add_cfi_line(AsmWriter &aw, const std::string &s) {
+  add_asm_line(aw, ".cfi_" + s);
+}
+
+static void emit_x86_target_stack_frame_setup(AsmWriter &aw) {
+  add_comment_line(
+      aw,
+      "Build a synthetic frame on the target stack so GDB can unwind across the stack switch");
+  add_asm_line(aw, "subq $16, %rsp");
+  add_asm_line(aw, "movq %r14, (%rsp)");
+  add_asm_line(aw, "movq %r15, 8(%rsp)");
+  add_asm_line(aw, "movq %rsp, %rbp");
+  add_cfi_line(aw, "def_cfa %rbp, 16");
+  add_cfi_line(aw, "offset %rbp, -16");
+}
+
+static void emit_x86_target_stack_frame_teardown(AsmWriter &aw) {
+  add_comment_line(
+      aw,
+      "Tear down the synthetic target-stack frame before restoring the caller stack");
+  add_asm_line(aw, "movq (%rbp), %rbp");
+  add_asm_line(aw, "addq $16, %rsp");
+  add_cfi_line(aw, "def_cfa %rbp, 16");
+  add_cfi_line(aw, "offset %rbp, -16");
+}
+
 static void emit_reg_push(AsmWriter &aw, const ArgLocation &loc) {
   assert(!loc.is_stack());
   if (loc.is_128bit_float()) {
@@ -464,12 +490,18 @@ static void emit_prologue(AsmWriter &aw, uint32_t caller_pkey, uint32_t target_p
   if (arch == Arch::X86) {
     // Save the old frame pointer and set the frame pointer for the call gate
     add_asm_line(aw, "pushq %rbp");
+    add_cfi_line(aw, "def_cfa_offset 16");
+    add_cfi_line(aw, "offset %rbp, -16");
     add_asm_line(aw, "movq %rsp, %rbp");
+    add_cfi_line(aw, "def_cfa_register %rbp");
     // Save registers that are preserved across function calls before switching to
     // the other compartment's stack. This is on the caller's stack so it's not in
     // the diagram above.
-    for (auto &r : x86_preserved_registers) {
+    for (size_t i = 0; i < x86_preserved_registers.size(); i++) {
+      auto &r = x86_preserved_registers[i];
       add_asm_line(aw, "pushq %"s + r);
+      int cfi_offset = -24 - 8 * static_cast<int>(i);
+      add_cfi_line(aw, "offset %"s + r + ", " + std::to_string(cfi_offset));
     }
   } else if (arch == Arch::Aarch64) {
     // Frame pointer and link register need to be saved first, to make backtraces work
@@ -962,9 +994,12 @@ static void emit_epilogue(AsmWriter &aw, uint32_t caller_pkey, Arch arch) {
     for (auto r = x86_preserved_registers.rbegin(); r != x86_preserved_registers.rend();
          r++) {
       add_asm_line(aw, "popq %"s + *r);
+      add_cfi_line(aw, "restore %"s + *r);
     }
     // Restore the caller's frame pointer
     add_asm_line(aw, "popq %rbp");
+    add_cfi_line(aw, "def_cfa %rsp, 8");
+    add_cfi_line(aw, "restore %rbp");
   } else if (arch == Arch::Aarch64) {
     // Restore callee-saved registers
     for (int i = 0; i < aarch64_preserved_registers.size(); ++i) {
@@ -1215,6 +1250,7 @@ std::string emit_asm_wrapper(
   // Set the symbol type
   add_asm_line(aw, ".type "s + wrapper_name + ", @function");
   add_asm_line(aw, wrapper_name + ":");
+  add_cfi_line(aw, "startproc");
 
   emit_prologue(aw, caller_pkey, target_pkey, arch);
 
@@ -1266,7 +1302,15 @@ std::string emit_asm_wrapper(
     x86_emit_intermediate_pkru(aw, caller_pkey, target_pkey, "rcx", "rdx");
   }
 
+  if (arch == Arch::X86) {
+    add_comment_line(aw, "Save the caller frame chain before switching to the target stack");
+    add_asm_line(aw, "movq %rbp, %r14");
+    add_asm_line(aw, "movq 8(%rbp), %r15");
+  }
   emit_switch_stacks(aw, caller_pkey, target_pkey, arch);
+  if (arch == Arch::X86) {
+    emit_x86_target_stack_frame_setup(aw);
+  }
 
   emit_copy_args(aw, args, wrapper_args, stack_return_size, stack_return_padding, indirect_arg_size, indirect_arg_padding, stack_alignment, stack_arg_size, stack_arg_padding, wrapper_stack_arg_size, caller_pkey, arch);
 
@@ -1283,8 +1327,14 @@ std::string emit_asm_wrapper(
   emit_free_stack_space(aw, stack_arg_size + stack_arg_padding + stack_alignment, arch);
 
   emit_copy_stack_returns(aw, stack_return_size, stack_return_padding, stack_arg_size, stack_arg_padding, caller_pkey, target_pkey, arch);
+  if (arch == Arch::X86) {
+    emit_x86_target_stack_frame_teardown(aw);
+  }
 
   emit_switch_stacks(aw, target_pkey, caller_pkey, arch);
+  if (arch == Arch::X86) {
+    add_cfi_line(aw, "def_cfa %rbp, 16");
+  }
 
   emit_scrub_regs(aw, target_pkey, rets, false, arch);
 
@@ -1308,6 +1358,7 @@ std::string emit_asm_wrapper(
   emit_epilogue(aw, caller_pkey, arch);
 
   emit_return(aw);
+  add_cfi_line(aw, "endproc");
 
   // Set the symbol size
   add_asm_line(aw, ".size "s + wrapper_name + ", .-" + wrapper_name);

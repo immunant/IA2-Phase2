@@ -56,7 +56,6 @@ endif()
 
 target_link_options(libia2
     INTERFACE
-        "-pthread"
         "-Wl,--wrap=pthread_create"
         "-Wl,--wrap=main"
         "-Wl,--wrap=free" # Because we use `__real_free` in `memory_maps.c`.
@@ -83,7 +82,17 @@ set(CARGO_PROFILE "release")
 set(CARGO_PROFILE_DIR "release")
 endif()
 
-target_link_libraries(libia2 PRIVATE dl)
+target_link_libraries(libia2
+    PRIVATE
+        dl
+    INTERFACE
+        unwind
+        pthread
+)
+
+if (NOT LIBIA2_AARCH64)
+    target_link_libraries(libia2 INTERFACE unwind-x86_64)
+endif()
 
 target_include_directories(libia2 PUBLIC include)
 target_compile_definitions(libia2 PUBLIC _GNU_SOURCE)

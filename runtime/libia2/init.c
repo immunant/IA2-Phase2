@@ -323,5 +323,9 @@ void ia2_start(void) {
 #if defined(__x86_64__)
   ia2_unprotect_thread_pointer_page();
 #endif
+  // Partition-alloc and other TLS consumers can place ABI-visible state in
+  // ia2-loader-heap mappings adjacent to TP/DTV. Keep these writable loader
+  // heap mappings shared for the startup thread.
+  ia2_unprotect_loader_heap_maps();
   mark_init_finished();
 }

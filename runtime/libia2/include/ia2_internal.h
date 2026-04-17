@@ -147,6 +147,8 @@ IA2_EXTERN_C int protect_pages(struct dl_phdr_info *info, size_t size, void *dat
 IA2_EXTERN_C int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data);
 #if defined(__x86_64__)
 IA2_EXTERN_C void ia2_unprotect_thread_pointer_page(void);
+IA2_EXTERN_C void ia2_unprotect_thread_pointer_mapping(void);
+IA2_EXTERN_C void ia2_unprotect_thread_dtv_page(void);
 #endif
 /// Retag writable IA2 loader-heap mappings as shared (pkey 0) on x86_64.
 IA2_EXTERN_C void ia2_unprotect_loader_heap_maps(void);

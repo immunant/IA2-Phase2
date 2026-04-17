@@ -321,11 +321,11 @@ void ia2_start(void) {
     }
   }
 #if defined(__x86_64__)
-  ia2_unprotect_thread_pointer_page();
+  // Keep adjacent static-TLS pages in the same mapping shared as well. Loader
+  // allocated IE-TLS slots for dependent DSOs may live below the TCB page.
+  ia2_unprotect_thread_pointer_mapping();
+  // __tls_get_addr also reads the startup thread's DTV header via %fs:8.
+  ia2_unprotect_thread_dtv_page();
 #endif
-  // Partition-alloc and other TLS consumers can place ABI-visible state in
-  // ia2-loader-heap mappings adjacent to TP/DTV. Keep these writable loader
-  // heap mappings shared for the startup thread.
-  ia2_unprotect_loader_heap_maps();
   mark_init_finished();
 }

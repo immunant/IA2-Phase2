@@ -320,12 +320,5 @@ void ia2_start(void) {
       exit(rc);
     }
   }
-#if defined(__x86_64__)
-  // Keep adjacent static-TLS pages in the same mapping shared as well. Loader
-  // allocated IE-TLS slots for dependent DSOs may live below the TCB page.
-  ia2_unprotect_thread_pointer_mapping();
-  // __tls_get_addr also reads the startup thread's DTV header via %fs:8.
-  ia2_unprotect_thread_dtv_page();
-#endif
   mark_init_finished();
 }

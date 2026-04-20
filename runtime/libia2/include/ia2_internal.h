@@ -145,9 +145,8 @@ struct dl_phdr_info;
 /// information in the search arguments.
 IA2_EXTERN_C int protect_pages(struct dl_phdr_info *info, size_t size, void *data);
 IA2_EXTERN_C int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data);
-#if defined(__x86_64__)
-IA2_EXTERN_C void ia2_unprotect_thread_pointer_page(void);
-#endif
+/// Retag writable IA2 loader-heap mappings as shared (pkey 0) on x86_64.
+IA2_EXTERN_C void ia2_unprotect_loader_heap_maps(void);
 
 struct IA2SharedSection {
   const void *start;

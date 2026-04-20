@@ -320,8 +320,5 @@ void ia2_start(void) {
       exit(rc);
     }
   }
-#if defined(__x86_64__)
-  ia2_unprotect_thread_pointer_page();
-#endif
   mark_init_finished();
 }

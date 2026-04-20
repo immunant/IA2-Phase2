@@ -2,8 +2,13 @@
 #define _GNU_SOURCE
 #endif
 #include <inttypes.h>
+#include <dlfcn.h>
 #include <stdio.h>
 #include <string.h>
+
+#if defined(__x86_64__)
+#include "../../external/glibc/elf/ia2_ldso_heap.h"
+#endif
 
 #include "ia2.h"
 #include "ia2_internal.h"
@@ -97,22 +102,48 @@ size_t ia2_get_compartment(void) {
   }
 }
 
-/*
- * Keep the page containing the x86_64 thread pointer shared.
- *
- * Stack-protector and other ABI-sensitive accesses read %fs-relative data
- * (for example, %fs:0x28) and must remain valid across compartment PKRU
- * transitions.
- */
-void ia2_unprotect_thread_pointer_page(void) {
-  uintptr_t tcb_page =
-      IA2_ROUND_DOWN((uintptr_t)__builtin_thread_pointer(), PAGE_SIZE);
-  int err = ia2_mprotect_with_tag(
-      (void *)tcb_page, PAGE_SIZE, PROT_READ | PROT_WRITE, 0);
-  if (err != 0) {
-    printf("ia2_mprotect_with_tag failed: %s\n", strerror(errno));
+void ia2_unprotect_loader_heap_maps(void) {
+  FILE *maps = fopen("/proc/self/maps", "r");
+  if (!maps) {
+    printf("fopen(/proc/self/maps) failed: %s\n", strerror(errno));
     exit(-1);
   }
+
+  char line[1024];
+  while (fgets(line, sizeof(line), maps)) {
+    unsigned long start = 0;
+    unsigned long end = 0;
+    unsigned long offset = 0;
+    unsigned long inode = 0;
+    char perms[5] = {0};
+    char dev[16] = {0};
+    char path[512] = {0};
+    int fields = sscanf(
+        line, "%lx-%lx %4s %lx %15s %lu %511[^\n]",
+        &start, &end, perms, &offset, dev, &inode, path);
+    if (fields < 6) {
+      continue;
+    }
+    char *path_start = path;
+    while (*path_start == ' ') {
+      path_start++;
+    }
+    if (perms[0] != 'r' || perms[1] != 'w') {
+      continue;
+    }
+    if (strstr(path_start, IA2_LDSO_HEAP_MARKER) == NULL) {
+      continue;
+    }
+
+    int err = ia2_mprotect_with_tag(
+        (void *)start, end - start, PROT_READ | PROT_WRITE, 0);
+    if (err != 0) {
+      printf("ia2_mprotect_with_tag failed: %s\n", strerror(errno));
+      exit(-1);
+    }
+  }
+
+  fclose(maps);
 }
 
 #elif defined(__aarch64__)
@@ -128,6 +159,8 @@ size_t ia2_get_tag(void) __attribute__((alias("ia2_get_x18")));
 size_t ia2_get_compartment(void) {
   return ia2_get_tag();
 }
+
+void ia2_unprotect_loader_heap_maps(void) {}
 
 // TODO: insert_tag could probably be cleaned up a bit, but I'm not sure if the
 // generated code could be simplified since addg encodes the tag as an imm field
@@ -234,9 +267,12 @@ int ia2_mprotect_with_tag(void *addr, size_t len, int prot, int tag) {
 }
 #endif
 
-// Reserve one extra shared range for the RELRO segment that we are
-// also sharing, in addition to the special shared sections in PhdrSearchArgs.
-#define NUM_SHARED_RANGES IA2_MAX_NUM_SHARED_SECTION_COUNT + 1
+// Reserve extra shared ranges in addition to shared sections in
+// PhdrSearchArgs:
+// 1) RELRO,
+// 2) one x86_64 ld.so TLS-generation metadata page carveout,
+// 3) up to three x86_64 libc memmove runtime-tuning page carveouts.
+#define NUM_SHARED_RANGES IA2_MAX_NUM_SHARED_SECTION_COUNT + 5
 
 // The number of program headers to allocate space for in protect_pages. This is
 // only an estimate of the maximum value of dlpi_phnum below.
@@ -252,6 +288,25 @@ struct SegmentInfo {
   size_t size;
   int prot;
 };
+
+static void add_shared_range(
+    struct AddressRange *shared_ranges,
+    size_t *shared_range_count,
+    uint64_t start,
+    uint64_t end) {
+  for (size_t i = 0; i < *shared_range_count; i++) {
+    if (shared_ranges[i].start == start && shared_ranges[i].end == end) {
+      return;
+    }
+  }
+  if (*shared_range_count >= NUM_SHARED_RANGES) {
+    printf("internal error: too many shared ranges\n");
+    exit(-1);
+  }
+  shared_ranges[*shared_range_count].start = start;
+  shared_ranges[*shared_range_count].end = end;
+  (*shared_range_count)++;
+}
 
 /// Check if \p address is in a LOAD segment in \p info
 static bool in_loaded_segment(struct dl_phdr_info *info, Elf64_Addr address) {
@@ -271,6 +326,165 @@ static bool in_loaded_segment(struct dl_phdr_info *info, Elf64_Addr address) {
   }
   return false;
 }
+
+static bool in_writable_loaded_segment(
+    struct dl_phdr_info *info,
+    uint64_t address) {
+  for (size_t i = 0; i < info->dlpi_phnum; i++) {
+    if (!info->dlpi_phdr) {
+      printf("No phdr found in loaded segment\n");
+      exit(-1);
+    }
+    Elf64_Phdr phdr = info->dlpi_phdr[i];
+    if (phdr.p_type != PT_LOAD || (phdr.p_flags & PF_W) == 0) {
+      continue;
+    }
+    Elf64_Addr start = info->dlpi_addr + phdr.p_vaddr;
+    Elf64_Addr end = start + phdr.p_memsz;
+    if (address >= start && address < end) {
+      return true;
+    }
+  }
+  return false;
+}
+
+#if defined(__x86_64__)
+// Locate the process-global TLS generation metadata read by glibc's
+// __tls_get_addr fast path by decoding the RIP-relative load in the function
+// prologue. This lets us carve out exactly that ABI page.
+static bool get_tls_generation_metadata_addr(uint64_t *out_addr) {
+  if (!out_addr) {
+    return false;
+  }
+  void *sym = dlsym(RTLD_DEFAULT, "__tls_get_addr");
+  if (!sym) {
+    return false;
+  }
+  const uint8_t *code = (const uint8_t *)sym;
+  const size_t scan_len = 64;
+  for (size_t i = 0; i + 7 <= scan_len; i++) {
+    // x86_64: mov disp32(%rip), %rax  => 48 8B 05 <disp32>
+    if (code[i] == 0x48 && code[i + 1] == 0x8B && code[i + 2] == 0x05) {
+      int32_t disp = 0;
+      memcpy(&disp, &code[i + 3], sizeof(disp));
+      uint64_t target = (uint64_t)(code + i + 7) + (int64_t)disp;
+      *out_addr = target;
+      return true;
+    }
+  }
+  return false;
+}
+
+static bool get_dynsym_symbol_vaddr(
+    const char *elf_path,
+    const char *symbol_name,
+    uint64_t *out_vaddr) {
+  if (!elf_path || !symbol_name || !out_vaddr || elf_path[0] == '\0') {
+    return false;
+  }
+  FILE *f = fopen(elf_path, "rb");
+  if (!f) {
+    return false;
+  }
+
+  bool found = false;
+  Elf64_Ehdr ehdr = {0};
+  if (fread(&ehdr, 1, sizeof(ehdr), f) != sizeof(ehdr)) {
+    goto out;
+  }
+  if (memcmp(ehdr.e_ident, ELFMAG, SELFMAG) != 0 ||
+      ehdr.e_ident[EI_CLASS] != ELFCLASS64 ||
+      ehdr.e_shoff == 0 || ehdr.e_shentsize != sizeof(Elf64_Shdr) ||
+      ehdr.e_shnum == 0) {
+    goto out;
+  }
+
+  if (fseek(f, (long)ehdr.e_shoff, SEEK_SET) != 0) {
+    goto out;
+  }
+  Elf64_Shdr *shdrs = calloc(ehdr.e_shnum, sizeof(Elf64_Shdr));
+  if (!shdrs) {
+    goto out;
+  }
+  if (fread(shdrs, sizeof(Elf64_Shdr), ehdr.e_shnum, f) != ehdr.e_shnum) {
+    free(shdrs);
+    goto out;
+  }
+
+  for (size_t i = 0; i < ehdr.e_shnum; i++) {
+    const Elf64_Shdr dynsym = shdrs[i];
+    if ((dynsym.sh_type != SHT_DYNSYM && dynsym.sh_type != SHT_SYMTAB) ||
+        dynsym.sh_entsize != sizeof(Elf64_Sym) ||
+        dynsym.sh_size == 0 ||
+        dynsym.sh_link >= ehdr.e_shnum) {
+      continue;
+    }
+
+    const Elf64_Shdr dynstr = shdrs[dynsym.sh_link];
+    if (dynstr.sh_type != SHT_STRTAB || dynstr.sh_size == 0) {
+      continue;
+    }
+
+    char *strtab = malloc(dynstr.sh_size);
+    if (!strtab) {
+      continue;
+    }
+    if (fseek(f, (long)dynstr.sh_offset, SEEK_SET) != 0 ||
+        fread(strtab, 1, dynstr.sh_size, f) != dynstr.sh_size) {
+      free(strtab);
+      continue;
+    }
+
+    const size_t sym_count = dynsym.sh_size / sizeof(Elf64_Sym);
+    if (fseek(f, (long)dynsym.sh_offset, SEEK_SET) != 0) {
+      free(strtab);
+      continue;
+    }
+    for (size_t sym_i = 0; sym_i < sym_count; sym_i++) {
+      Elf64_Sym sym = {0};
+      if (fread(&sym, 1, sizeof(sym), f) != sizeof(sym)) {
+        break;
+      }
+      if (sym.st_name >= dynstr.sh_size) {
+        continue;
+      }
+      const char *name = &strtab[sym.st_name];
+      if (strcmp(name, symbol_name) == 0) {
+        *out_vaddr = sym.st_value;
+        found = true;
+        break;
+      }
+    }
+    free(strtab);
+    if (found) {
+      break;
+    }
+  }
+
+  free(shdrs);
+out:
+  fclose(f);
+  return found;
+}
+
+static void add_libc_tuning_shared_page(
+    struct dl_phdr_info *info,
+    struct AddressRange *shared_ranges,
+    size_t *shared_range_count,
+    const char *symbol_name) {
+  uint64_t symbol_vaddr = 0;
+  if (!get_dynsym_symbol_vaddr(info->dlpi_name, symbol_name, &symbol_vaddr)) {
+    return;
+  }
+  uint64_t runtime_addr = info->dlpi_addr + symbol_vaddr;
+  if (!in_writable_loaded_segment(info, runtime_addr)) {
+    return;
+  }
+  uint64_t page = IA2_ROUND_DOWN(runtime_addr, PAGE_SIZE);
+  add_shared_range(&shared_ranges[0], shared_range_count, page, page + PAGE_SIZE);
+  ia2_log("Shared libc tuning page for %s: 0x%" PRIx64 "\n", symbol_name, page);
+}
+#endif
 
 static bool in_extra_libraries(struct dl_phdr_info *info, const char *extra_libraries) {
   if (!extra_libraries) {
@@ -359,8 +573,6 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
     }
 
     uint64_t start = (uint64_t)info->dlpi_tls_data;
-    size_t len = phdr.p_memsz;
-
     uint64_t start_round_down = start & ~0xFFFUL;
     uint64_t start_moved_by = start & 0xFFFUL;
     // p_memsz is 0x1000 more than the size of what we actually need to protect.
@@ -387,7 +599,9 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
              (void *)untrusted_stackptr_addr);
       exit(-1);
     }
-
+#if defined(__aarch64__)
+    // Preserve the pre-existing AArch64 behavior exactly. The TCB carve-out
+    // changes are x86_64-specific and should not alter ARM TLS tagging.
     // Protect the TLS region except the page of the untrusted stack pointer.
     // The untrusted stack pointer is page-aligned, so it starts its page, and
     // it is followed by padding that ensures nothing else occupies the rest of
@@ -437,6 +651,93 @@ int protect_tls_pages(struct dl_phdr_info *info, size_t size, void *data) {
       thread_metadata->tls_addrs[pkey] = (uintptr_t)start_round_down;
 #endif
     }
+#else
+    // x86_64 retains the original narrow shared-TLS rule: only the padded
+    // ia2_stackptr_0 page stays shared. Higher-compartment stack-pointer slots
+    // are not page-isolated, so treating every ia2_stackptr_N page as shared
+    // weakens TLS isolation and leaks ordinary thread-local data.
+    //
+    // The one extra exception is the initial thread's page immediately below
+    // the TCB. The loader now retags that page to shared in rtld.c because
+    // C++/EH TLS used during shutdown can live at fs:-0x20 there. Keep only
+    // that single page shared for non-default compartments instead of
+    // restoring the older broad "share everything up to the TCB" behavior.
+    const uintptr_t tcb_page =
+        IA2_ROUND_DOWN((uintptr_t)__builtin_thread_pointer(), PAGE_SIZE);
+    const uintptr_t shared_tcb_adjacent_page =
+        tcb_page >= PAGE_SIZE ? tcb_page - PAGE_SIZE : 0;
+    if (untrusted_stackptr_addr >= start && untrusted_stackptr_addr < end) {
+      assert(pkey == 1);
+
+      if (untrusted_stackptr_addr > start_round_down) {
+        int mprotect_err = ia2_mprotect_with_tag(
+            (void *)start_round_down, untrusted_stackptr_addr - start_round_down,
+            PROT_READ | PROT_WRITE, pkey);
+        if (mprotect_err != 0) {
+          printf("ia2_mprotect_with_tag failed: %s\n", strerror(errno));
+          exit(-1);
+        }
+#if IA2_DEBUG_MEMORY
+        thread_metadata->tls_addr_compartment1_first =
+            (uintptr_t)start_round_down;
+#endif
+      }
+
+      uint64_t after_untrusted_region_start = untrusted_stackptr_addr + 0x1000;
+      uint64_t after_untrusted_region_len = end - after_untrusted_region_start;
+      if (after_untrusted_region_len > 0) {
+        int mprotect_err = ia2_mprotect_with_tag(
+            (void *)after_untrusted_region_start, after_untrusted_region_len,
+            PROT_READ | PROT_WRITE, pkey);
+        if (mprotect_err != 0) {
+          printf("ia2_mprotect_with_tag failed: %s\n", strerror(errno));
+          exit(-1);
+        }
+#if IA2_DEBUG_MEMORY
+        thread_metadata->tls_addr_compartment1_second =
+            (uintptr_t)after_untrusted_region_start;
+#endif
+      }
+    } else if (pkey > 1 && shared_tcb_adjacent_page >= start_round_down &&
+               shared_tcb_adjacent_page < end) {
+      if (shared_tcb_adjacent_page > start_round_down) {
+        int mprotect_err = ia2_mprotect_with_tag(
+            (void *)start_round_down,
+            shared_tcb_adjacent_page - start_round_down,
+            PROT_READ | PROT_WRITE, pkey);
+        if (mprotect_err != 0) {
+          printf("ia2_mprotect_with_tag failed: %s\n", strerror(errno));
+          exit(-1);
+        }
+#if IA2_DEBUG_MEMORY
+        thread_metadata->tls_addrs[pkey] = (uintptr_t)start_round_down;
+#endif
+      }
+
+      uint64_t after_shared_page_start = shared_tcb_adjacent_page + PAGE_SIZE;
+      uint64_t after_shared_page_len = end - after_shared_page_start;
+      if (after_shared_page_len > 0) {
+        int mprotect_err = ia2_mprotect_with_tag(
+            (void *)after_shared_page_start, after_shared_page_len,
+            PROT_READ | PROT_WRITE, pkey);
+        if (mprotect_err != 0) {
+          printf("ia2_mprotect_with_tag failed: %s\n", strerror(errno));
+          exit(-1);
+        }
+      }
+    } else {
+      int mprotect_err = ia2_mprotect_with_tag(
+          (void *)start_round_down, len_round_up,
+          PROT_READ | PROT_WRITE, pkey);
+      if (mprotect_err != 0) {
+        printf("ia2_mprotect_with_tag failed: %s\n", strerror(errno));
+        exit(-1);
+      }
+#if IA2_DEBUG_MEMORY
+      thread_metadata->tls_addrs[pkey] = (uintptr_t)start_round_down;
+#endif
+    }
+#endif
   }
 
   return 0;
@@ -494,26 +795,24 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
       break;
     }
 
-    struct AddressRange *cur_range = &shared_ranges[shared_range_count];
-
-    cur_range->start = (uint64_t)search_args->shared_sections[i].start;
-    uint64_t aligned_start = cur_range->start & ~0xFFFUL;
-    if (aligned_start != cur_range->start) {
+    uint64_t start = (uint64_t)search_args->shared_sections[i].start;
+    uint64_t aligned_start = start & ~0xFFFUL;
+    if (aligned_start != start) {
       printf("Start of section %p is not page-aligned\n",
              search_args->shared_sections[i].start);
       exit(-1);
     }
 
-    cur_range->end = (uint64_t)search_args->shared_sections[i].end;
-    uint64_t aligned_end = (cur_range->end + 0xFFFUL) & ~0xFFFUL;
-    if (aligned_end != cur_range->end) {
+    uint64_t end = (uint64_t)search_args->shared_sections[i].end;
+    uint64_t aligned_end = (end + 0xFFFUL) & ~0xFFFUL;
+    if (aligned_end != end) {
       printf("End of section %p is not page-aligned\n",
              search_args->shared_sections[i].end);
       exit(-1);
     }
-    ia2_log("Shared range %zu: 0x%" PRIx64 "-0x%" PRIx64 "\n", shared_range_count, cur_range->start, cur_range->end);
-
-    shared_range_count++;
+    add_shared_range(&shared_ranges[0], &shared_range_count, start, end);
+    ia2_log("Shared range %zu: 0x%" PRIx64 "-0x%" PRIx64 "\n",
+            shared_range_count - 1, start, end);
   }
 
   // Find the RELRO section, if any
@@ -522,12 +821,45 @@ int protect_pages(struct dl_phdr_info *info, size_t size, void *data) {
     if (phdr.p_type != PT_GNU_RELRO)
       continue;
 
-    struct AddressRange *relro_range = &shared_ranges[shared_range_count++];
-    relro_range->start = (info->dlpi_addr + phdr.p_vaddr) & ~0xFFFUL;
-    relro_range->end = (info->dlpi_addr + phdr.p_vaddr + phdr.p_memsz + 0xFFFUL) & ~0xFFFUL;
+    uint64_t relro_start = (info->dlpi_addr + phdr.p_vaddr) & ~0xFFFUL;
+    uint64_t relro_end =
+        (info->dlpi_addr + phdr.p_vaddr + phdr.p_memsz + 0xFFFUL) & ~0xFFFUL;
+    add_shared_range(&shared_ranges[0], &shared_range_count, relro_start, relro_end);
 
     break;
   }
+
+#if defined(__x86_64__) && defined(IA2_LIBC_COMPARTMENT) && IA2_LIBC_COMPARTMENT
+  // x86_64 ABI carveout: __tls_get_addr reads process-global loader metadata
+  // (GL(dl_tls_generation) in ld.so writable data). Keep exactly that page
+  // shared so implicit TLS resolution remains valid across compartments.
+  if (syslib && is_ldso) {
+    uint64_t tls_gen_addr = 0;
+    if (get_tls_generation_metadata_addr(&tls_gen_addr) &&
+        in_writable_loaded_segment(info, tls_gen_addr)) {
+      uint64_t tls_gen_page = IA2_ROUND_DOWN(tls_gen_addr, PAGE_SIZE);
+      add_shared_range(
+          &shared_ranges[0], &shared_range_count,
+          tls_gen_page, tls_gen_page + PAGE_SIZE);
+      ia2_log("Shared ldso TLS generation page: 0x%" PRIx64 "\n", tls_gen_page);
+    }
+  }
+
+  // x86_64 ABI/runtime carveout: libc memmove/memset implementations consult
+  // writable tuning globals in libc .data. Keep only those symbol pages shared
+  // so accesses under non-libc compartment PKRU do not fault.
+  if (syslib && is_libc) {
+    add_libc_tuning_shared_page(
+        info, &shared_ranges[0], &shared_range_count,
+        "__x86_rep_movsb_threshold");
+    add_libc_tuning_shared_page(
+        info, &shared_ranges[0], &shared_range_count,
+        "__x86_rep_stosb_threshold");
+    add_libc_tuning_shared_page(
+        info, &shared_ranges[0], &shared_range_count,
+        "__x86_rep_movsb_stop_threshold");
+  }
+#endif
 
   // TODO: We avoid dynamically allocating space for each of the `dlpi_phnum`
   // the SegmentInfo structs for simplicity. MAX_NUM_PHDRS is only an estimate,

@@ -54,7 +54,6 @@ static constexpr llvm::StringLiteral PRE_CONDITION_ATTR_PREFIX("ia2_pre_conditio
 static constexpr llvm::StringLiteral POST_CONDITION_ATTR_PREFIX("ia2_post_condition:");
 static constexpr llvm::StringLiteral CONSTRUCTOR_ATTR("ia2_constructor");
 static constexpr llvm::StringLiteral DESTRUCTOR_ATTR("ia2_destructor");
-static constexpr llvm::StringLiteral EXTERN_PKEY_ATTR_PREFIX("ia2_extern_pkey:");
 
 typedef std::string Filename;
 typedef int Pkey;
@@ -192,24 +191,6 @@ static std::string append_name_if_nonempty(const std::string &new_type,
                                            const std::string &name) {
   return new_type + (name.empty() ? "" : " ") + name;
 };
-
-static std::optional<Pkey> get_annotated_extern_pkey(const clang::Decl &decl) {
-  for (const auto *attr : decl.attrs()) {
-    if (const auto *annotate_attr = llvm::dyn_cast<clang::AnnotateAttr>(attr)) {
-      llvm::StringRef annotation = annotate_attr->getAnnotation();
-      if (!annotation.consume_front(EXTERN_PKEY_ATTR_PREFIX)) {
-        continue;
-      }
-      Pkey pkey = 0;
-      if (annotation.getAsInteger(10, pkey)) {
-        llvm::errs() << "invalid ia2_extern_pkey annotation on declaration\n";
-        abort();
-      }
-      return pkey;
-    }
-  }
-  return std::nullopt;
-}
 
 /// Collects in a multimap (`funcs`) all of the function names
 /// with an annotation starting with `prefix`.
@@ -1004,15 +985,12 @@ public:
       return;
     }
 
-    auto annotated_extern_pkey = get_annotated_extern_pkey(*fn_node);
-
     // Skip if we should ignore (but still track system library declarations).
     // Also allow ld.so functions coming from the stub TU: we never rewrite that
     // file, but we must harvest its prototypes so DetermineAbi/emit_asm_wrapper
     // have ABI-correct signatures when synthesizing loader call gates.
     bool is_ldso = gLibcCompartmentEnabled && LdsoFunctionRegistry::is_ldso_function(fn_name);
-    if (!is_system_header && !is_ldso && !annotated_extern_pkey &&
-        ignore_function(*fn_node, fn_node->getLocation(), sm)) {
+    if (!is_system_header && !is_ldso && ignore_function(*fn_node, fn_node->getLocation(), sm)) {
       return;
     }
 
@@ -1055,9 +1033,6 @@ public:
       fn_definitions[fn_name] = filename;
     } else {
       declared_fns[pkey].insert(fn_name);
-      if (annotated_extern_pkey) {
-        fn_pkeys[fn_name] = *annotated_extern_pkey;
-      }
 
       // Track if this is from a system header for later use
       if (fn_node && sm.isInSystemHeader(fn_node->getLocation())) {

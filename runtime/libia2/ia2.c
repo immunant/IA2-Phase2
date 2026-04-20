@@ -6,7 +6,9 @@
 #include <stdio.h>
 #include <string.h>
 
+#if defined(__x86_64__)
 #include "../../external/glibc/elf/ia2_ldso_heap.h"
+#endif
 
 #include "ia2.h"
 #include "ia2_internal.h"

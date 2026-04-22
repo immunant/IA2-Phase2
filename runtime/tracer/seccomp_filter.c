@@ -58,7 +58,9 @@ struct sock_filter ia2_filter[] = {
 #ifdef __NR_dup2
     BPF_SYSCALL_POLICY(dup2, ALLOW),
 #endif
+#ifdef __NR_pause
     BPF_SYSCALL_POLICY(pause, ALLOW), // pause is always safe, used by memory_maps test
+#endif
     BPF_SYSCALL_POLICY(execve, ALLOW),
     BPF_SYSCALL_POLICY(exit_group, ALLOW),
     BPF_SYSCALL_POLICY(fcntl, ALLOW),

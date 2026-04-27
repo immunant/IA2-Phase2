@@ -643,7 +643,7 @@ static void return_syscall_value(pid_t pid, int retval) {
 
 static void return_syscall_eperm(pid_t pid) {
   return_syscall_value(pid, -EPERM);
-  debug_forbid("wrote -eperm to %s\n", #reg_retval);
+  debug_forbid("wrote -eperm to ret register\n");
 }
 
 int ptrace_memcpy(pid_t pid, size_t dest, const char *src, size_t len) {

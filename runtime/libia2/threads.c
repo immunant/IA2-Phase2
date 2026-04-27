@@ -40,7 +40,7 @@ void *ia2_thread_begin(void *arg) {
    * data. */
   /*  sigaltstack(&alt_stack, NULL); */
 
-  /* Determine the current compartment so know which stack to use. */
+  /* Determine the current compartment so we know which stack to use. */
   size_t tag = ia2_get_tag();
   void **new_sp_addr = ia2_stackptr_for_tag(tag);
 
